@@ -2,7 +2,6 @@ package api
 
 import (
 	"SamWaf/common/zlog"
-	"SamWaf/global"
 	"SamWaf/model/common/response"
 	"SamWaf/model/request"
 	"errors"
@@ -24,7 +23,6 @@ func (w *WafPrivateInfoApi) AddApi(c *gin.Context) {
 		if cnt == 0 {
 			err = wafPrivateInfoService.AddApi(req)
 			if err == nil {
-				w.Notify()
 				response.OkWithMessage("添加成功", c)
 			} else {
 				response.FailWithMessage("添加失败", c)
@@ -115,13 +113,9 @@ func (w *WafPrivateInfoApi) ModifyApi(c *gin.Context) {
 		if err != nil {
 			response.FailWithMessage("编辑发生错误"+err.Error(), c)
 		} else {
-			w.Notify()
 			response.OkWithMessage("编辑成功", c)
 		}
 	} else {
 		response.FailWithMessage("解析失败", c)
 	}
-}
-func (w *WafPrivateInfoApi) Notify() {
-	global.GWAF_CHAN_RELOAD_ENV <- 1
 }
