@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafenginecore/accessgate"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafenginecore/accessgate"
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"

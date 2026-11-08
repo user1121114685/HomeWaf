@@ -1,12 +1,14 @@
-﻿# 升级现场观测脚本 —— 用来确认 Windows 自升级 "Access is denied" 的根因。
+# HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
+# 升级现场观测脚本 —— 用来确认 Windows 自升级 "Access is denied" 的根因。
 #
 #   powershell -File check_upgrade_state.ps1
 #   powershell -File check_upgrade_state.ps1 -TryDelete
 #
 # 三项观测：
-#   1) SamWaf64 进程及其映像路径 —— 升级一次后，Supervisor 的 Path 会变成
-#      .SamWaf64.exe.old（rename 只改目录项，进程仍映射同一个文件对象）
-#   2) .SamWaf64.exe.old* 残留清单与 HIDDEN 属性
+#   1) HomeWaf64 进程及其映像路径 —— 升级一次后，Supervisor 的 Path 会变成
+#      .HomeWaf64.exe.old（rename 只改目录项，进程仍映射同一个文件对象）
+#   2) .HomeWaf64.exe.old* 残留清单与 HIDDEN 属性
 #   3) -TryDelete 时手工删一次 .old，预期"拒绝访问"
 #
 # 本脚本只读（除非显式加 -TryDelete），不会动任何进程。
@@ -29,11 +31,11 @@ Write-Host "=== 观测目录: $Dir ===" -ForegroundColor Cyan
 
 # --- 1) 进程与映像路径 -------------------------------------------------
 Write-Host ''
-Write-Host '[1] SamWaf64 进程（关注 Path 是不是 .old）' -ForegroundColor Yellow
-$procs = Get-Process -Name SamWaf64 -ErrorAction SilentlyContinue |
+Write-Host '[1] HomeWaf64 进程（关注 Path 是不是 .old）' -ForegroundColor Yellow
+$procs = Get-Process -Name HomeWaf64 -ErrorAction SilentlyContinue |
          Where-Object { $_.Path -and $_.Path.StartsWith($Dir, 'OrdinalIgnoreCase') }
 if (-not $procs) {
-    Write-Host '    (无) 该目录下没有运行中的 SamWaf64'
+    Write-Host '    (无) 该目录下没有运行中的 HomeWaf64'
 } else {
     foreach ($p in $procs) {
         $name = Split-Path $p.Path -Leaf
@@ -46,8 +48,8 @@ if (-not $procs) {
 
 # --- 2) 残留文件 -------------------------------------------------------
 Write-Host ''
-Write-Host '[2] .SamWaf64.exe.* 残留（-Force 才看得到 HIDDEN）' -ForegroundColor Yellow
-$leftovers = Get-ChildItem -Force -LiteralPath $Dir -Filter '.SamWaf64.exe.*' -ErrorAction SilentlyContinue
+Write-Host '[2] .HomeWaf64.exe.* 残留（-Force 才看得到 HIDDEN）' -ForegroundColor Yellow
+$leftovers = Get-ChildItem -Force -LiteralPath $Dir -Filter '.HomeWaf64.exe.*' -ErrorAction SilentlyContinue
 if (-not $leftovers) {
     Write-Host '    (无)'
 } else {

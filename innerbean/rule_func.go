@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package innerbean
 
 import (
-	// ⚠️ 依赖约束：本包只能依赖 ipset 这个叶子包，绝不能 import SamWaf/utils。
+	// ⚠️ 依赖约束：本包只能依赖 ipset 这个叶子包，绝不能 import HomeWaf/utils。
 	// utils/rulehelper.go 里有 innerbean.NewRuleFunc()，即 utils → innerbean 已经成立，
 	// 反向引用会形成 import cycle 直接编译不过。
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/wafenginecore/ipset"
 	"bytes"
 	"net"
 	"strings"

@@ -1,20 +1,22 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
-	"SamWaf/wafenginecore/accessgate"
-	"SamWaf/wafenginecore/ipset"
-	"SamWaf/wafenginecore/loadbalance"
-	"SamWaf/wafproxy"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
+	"HomeWaf/wafenginecore/accessgate"
+	"HomeWaf/wafenginecore/ipset"
+	"HomeWaf/wafenginecore/loadbalance"
+	"HomeWaf/wafproxy"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -27,7 +29,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	goahocorasick "github.com/samwafgo/ahocorasick"
+	goahocorasick "HomeWaf/internal/multimatch"
 	"go.uber.org/zap"
 )
 
@@ -192,32 +194,32 @@ func (waf *WafEngine) LoadHost(inHost model.Hosts) []innerbean.ServerRunTime {
 			WeightRoundRobinBalance: loadbalance.NewWeightRoundRobinBalance(inHost.Code),
 			IpHashBalance:           loadbalance.NewConsistentHashBalance(nil, inHost.Code),
 		},
-		LoadBalanceLists:    loadBalanceList,
-		Rule:                ruleHelper,
-		TargetHost:          inHost.Remote_host + ":" + strconv.Itoa(inHost.Remote_port),
-		RuleData:            ruleconfigs,
-		RuleVersionSum:      vcnt,
-		Host:                inHost,
-		PluginIpRateLimiter: pluginIpRateLimiter,
-		CCRules:             ccRules,
-		IPWhiteLists:        ipwhitelist,
-		IPWhiteIndex:        BuildIPAllowIndex(ipwhitelist),
-		IPWhiteGroupCodes:   ExtractAllowGroupCodes(ipwhitelist),
-		UrlWhiteLists:       urlwhitelist,
-		LdpUrlLists:         ldpurls,
-		IPBlockLists:        ipblocklist,
-		IPBlockIndex:        BuildIPBlockIndex(ipblocklist),
-		IPBlockGroupCodes:   ExtractBlockGroupCodes(ipblocklist),
+		LoadBalanceLists:       loadBalanceList,
+		Rule:                   ruleHelper,
+		TargetHost:             inHost.Remote_host + ":" + strconv.Itoa(inHost.Remote_port),
+		RuleData:               ruleconfigs,
+		RuleVersionSum:         vcnt,
+		Host:                   inHost,
+		PluginIpRateLimiter:    pluginIpRateLimiter,
+		CCRules:                ccRules,
+		IPWhiteLists:           ipwhitelist,
+		IPWhiteIndex:           BuildIPAllowIndex(ipwhitelist),
+		IPWhiteGroupCodes:      ExtractAllowGroupCodes(ipwhitelist),
+		UrlWhiteLists:          urlwhitelist,
+		LdpUrlLists:            ldpurls,
+		IPBlockLists:           ipblocklist,
+		IPBlockIndex:           BuildIPBlockIndex(ipblocklist),
+		IPBlockGroupCodes:      ExtractBlockGroupCodes(ipblocklist),
 		IPLogExcludeIndex:      BuildIPLogExcludeIndex(inHost.EXCLUDE_IP_LOG),
 		IPLogExcludeGroupCodes: ExtractIPLogExcludeGroupCodes(inHost.EXCLUDE_IP_LOG),
-		UrlBlockLists:       urlblocklist,
-		AntiCCBean:          anticcBean,
-		HttpAuthBases:       httpAuthList,
-		BlockingPage:        blockingPageMap,
-		CacheRule:           cacheRuleList,
-		TamperRules:         tamperRuleList,
-		PathRules:           pathRuleList,
-		StaticConfig:        staticCfg,
+		UrlBlockLists:          urlblocklist,
+		AntiCCBean:             anticcBean,
+		HttpAuthBases:          httpAuthList,
+		BlockingPage:           blockingPageMap,
+		CacheRule:              cacheRuleList,
+		TamperRules:            tamperRuleList,
+		PathRules:              pathRuleList,
+		StaticConfig:           staticCfg,
 	}
 	// 路由表(RCU)：在 writeMu 下克隆当前快照→在副本上登记本 host→原子发布。
 	waf.withWriteTable(func(nt *routingTable) {

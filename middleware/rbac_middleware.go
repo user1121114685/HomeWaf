@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package middleware
 
 import (
-	"SamWaf/enums"
-	"SamWaf/model/common/response"
+	"HomeWaf/enums"
+	"HomeWaf/model/common/response"
 
 	"github.com/gin-gonic/gin"
 )

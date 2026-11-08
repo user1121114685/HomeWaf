@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 // 引擎侧「IP 组 + 泛解析(通配符/区间)」用例。
@@ -9,12 +11,12 @@ package wafenginecore
 // 「一次改动多站点同时生效」的语义会退化成需要逐站点下发，那时应当重新审视本文件的注释。
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafenginecore/ipset"
 	"net/http"
 	"testing"
 )

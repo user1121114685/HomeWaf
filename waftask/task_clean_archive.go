@@ -1,14 +1,16 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafdb/partition"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafdb/partition"
 	"context"
 	"os"
 	"time"

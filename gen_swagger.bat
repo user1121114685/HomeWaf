@@ -1,3 +1,5 @@
+@REM HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 @echo off
 chcp 65001 >nul
 echo ============================================
@@ -35,7 +37,7 @@ echo.
 
 :: --outputTypes json 只生成 swagger.json，不生成 docs.go / swagger.yaml
 "%SWAG_EXE%" init ^
-    -g cmd/samwaf/main.go ^
+    -g cmd/homewaf/main.go ^
     -o docs/openapi ^
     --outputTypes json ^
     --parseDependency ^

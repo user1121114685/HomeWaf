@@ -1,44 +1,35 @@
-FROM alpine:latest
-LABEL authors="samwaf"
-# 设置工作目录
+# HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
+# HomeWaf source build with pinned base images; update digests deliberately.
+FROM node:26.13.0-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS web
+WORKDIR /src
+COPY web/package*.json ./web/
+COPY web/scripts ./web/scripts
+COPY web/vendor ./web/vendor
+RUN npm ci --prefix web
+COPY web ./web
+RUN npm run typecheck --prefix web && npm run build --prefix web
+
+FROM golang:1.27.3-alpine@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18 AS backend
+WORKDIR /src
+RUN apk add --no-cache build-base
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+COPY --from=web /src/web/dist ./public/dist
+RUN mkdir -p public/dist/legal && cp LICENSE NOTICE THIRD_PARTY_NOTICES.md public/dist/legal/ && cp -R LICENSES public/dist/legal/ && printf 'version=2.0.0\nsource=local-package-lock\n' > public/web_frontend.txt
+ARG HOMEWAF_VERSION=v2.0.0-dev
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=${HOMEWAF_VERSION}" -o /out/homewaf ./cmd/homewaf
+
+FROM alpine:latest@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+LABEL org.opencontainers.image.title="HomeWaf"
+LABEL org.opencontainers.image.licenses="LicenseRef-HomeWaf-NC-1.0"
 WORKDIR /app
-
-# 设置默认时区为上海
-ENV TZ=Asia/Shanghai
-
-# 更新并安装时区数据
-# iptables 供“防火墙IP封禁”功能使用（提供 iptables / iptables-save）
-# 注意：容器还需以 --cap-add=NET_ADMIN --network host 启动，规则才能对宿主机流量生效
-RUN apk update && \
-    apk add --no-cache tzdata iptables && \
-    ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime && \
-    echo "${TZ}" > /etc/timezone
-
-# 定义构建参数（由 Buildx 提供）
-ARG TARGETARCH
-
-# 根据架构动态复制对应的二进制文件
-# 只包含当前架构的文件
-ADD dist/samwaf_linux_linux_amd64_v1/SamWafLinux64 /app/SamWafLinux64.amd64
-ADD dist/samwaf_linux_arm64_linux_arm64/SamWafLinuxArm64 /app/SamWafLinux64.arm64
-
-# 动态选择文件
-RUN if [ "${TARGETARCH}" = "amd64" ]; then \
-        mv /app/SamWafLinux64.amd64 /app/SamWafLinux64 && rm -f /app/SamWafLinux64.arm64; \
-    elif [ "${TARGETARCH}" = "arm64" ]; then \
-        mv /app/SamWafLinux64.arm64 /app/SamWafLinux64 && rm -f /app/SamWafLinux64.amd64; \
-    else \
-        echo "Unsupported architecture: ${TARGETARCH}" && exit 1; \
-    fi
-
-# 设置执行权限
-RUN chmod +x /app/SamWafLinux64
-
-# 挂载 conf, data, logs 和 ssl 目录
+RUN apk add --no-cache ca-certificates tzdata iptables
+COPY --from=backend /out/homewaf /app/homewaf
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /app/
+COPY LICENSES /app/LICENSES
+COPY docs/modernization /app/docs/modernization
 VOLUME ["/app/conf", "/app/data", "/app/logs", "/app/ssl"]
-
-# 暴露端口
-EXPOSE 26666 80 443
-
-# 设置默认命令来启动 SamWafLinux64
-CMD ["./SamWafLinux64"]
+EXPOSE 26666 80 443 443/udp
+ENTRYPOINT ["/app/homewaf"]

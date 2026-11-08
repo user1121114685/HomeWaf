@@ -1,35 +1,41 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
 	"fmt"
-	"log"
-	"net"
+	"net/netip"
+	"os"
 	"strings"
 	"testing"
 
-	"github.com/oschwald/geoip2-golang"
+	"github.com/oschwald/geoip2-golang/v2"
 )
 
 func TestIPv6(t *testing.T) {
-	db, err := geoip2.Open("../data/ipv6/GeoLite2-Country.mmdb")
+	dbPath := os.Getenv("HOMEWAF_TEST_MAXMIND_DB")
+	if dbPath == "" {
+		t.Skip("optional licensed GeoIP fixture; set HOMEWAF_TEST_MAXMIND_DB")
+	}
+	db, err := geoip2.Open(dbPath)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	defer db.Close()
 	// If you are using strings that may be invalid, check that ip is not nil
-	ip := net.ParseIP("2409:8087:3c02:21:0:1:0:100a")
+	ip := netip.MustParseAddr("2409:8087:3c02:21:0:1:0:100a")
 	record, err := db.City(ip)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
-	fmt.Printf("国家: %v\n", record.Country.Names["zh-CN"])
+	fmt.Printf("国家: %v\n", record.Country.Names.SimplifiedChinese)
 	fmt.Sprintf("%v", record)
-	fmt.Printf("Portuguese (BR) city name: %v\n", record.City.Names["pt-BR"])
+	fmt.Printf("Portuguese (BR) city name: %v\n", record.City.Names.BrazilianPortuguese)
 	if len(record.Subdivisions) > 0 {
-		fmt.Printf("English subdivision name: %v\n", record.Subdivisions[0].Names["en"])
+		fmt.Printf("English subdivision name: %v\n", record.Subdivisions[0].Names.English)
 	}
-	fmt.Printf("Russian country name: %v\n", record.Country.Names["ru"])
-	fmt.Printf("ISO country code: %v\n", record.Country.IsoCode)
+	fmt.Printf("Russian country name: %v\n", record.Country.Names.Russian)
+	fmt.Printf("ISO country code: %v\n", record.Country.ISOCode)
 	fmt.Printf("Time zone: %v\n", record.Location.TimeZone)
 	fmt.Printf("Coordinates: %v, %v\n", record.Location.Latitude, record.Location.Longitude)
 }

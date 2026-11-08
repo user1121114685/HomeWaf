@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // core 库 CRUD 三库回归 —— 批 B：签名/流程较特殊的 service
@@ -7,9 +9,9 @@
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/model"
-	"SamWaf/model/request"
+	"HomeWaf/common/uuid"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	crand "crypto/rand"

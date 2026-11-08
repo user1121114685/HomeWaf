@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
 import (
-	"SamWaf/model/baseorm"
+	"HomeWaf/model/baseorm"
 )
 
 // AccountPwdHistory 账号历史口令指纹，用于「历史密码防重用」。

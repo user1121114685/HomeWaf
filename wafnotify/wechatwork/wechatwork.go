@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wechatwork
 
 import (
-	"SamWaf/utils"
+	"HomeWaf/utils"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -60,7 +62,7 @@ func (w *WechatWorkNotifier) send(message WechatWorkMessage) error {
 
 	// 发送HTTP请求
 	// N5
-	resp, err := utils.SafeOutboundHTTPClient(30 * time.Second).Post(w.WebhookURL, "application/json", bytes.NewBuffer(payload))
+	resp, err := utils.SafeOutboundHTTPClient(30*time.Second).Post(w.WebhookURL, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		return fmt.Errorf("发送HTTP请求失败: %v", err)
 	}

@@ -1,15 +1,17 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package middleware
 
 import (
-	"SamWaf/cache"
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/common/response"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
-	"SamWaf/wafhostguard"
+	"HomeWaf/cache"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/common/response"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
+	"HomeWaf/wafhostguard"
 	"errors"
 	"fmt"
 	"strings"

@@ -1,3 +1,5 @@
+<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
+
 # ip 库的处理
 
 ## 机制
@@ -156,7 +158,7 @@ Bench finished, {count: 3419215, failed: 0, took: 3m48.3903262s}
 - 1.替换后 通过日志查看
  
 
-![SamWaf ipchange](./common_images/ipchange.png)
+（历史界面截图已移除，请以 HomeWaf 当前界面为准。）
 
 - 2.测试数据库查询是否正常，也可以用工具先看看：
 

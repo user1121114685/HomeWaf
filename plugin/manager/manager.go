@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package manager
 
 import (
@@ -5,19 +7,15 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	pluginconfig "SamWaf/plugin/config"
-	plugininterface "SamWaf/plugin/interface"
-	"SamWaf/plugin/registry"
-	"SamWaf/plugin/shared"
-
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	pluginconfig "HomeWaf/plugin/config"
+	plugininterface "HomeWaf/plugin/interface"
+	plugin "HomeWaf/plugin/process"
+	"HomeWaf/plugin/registry"
 )
 
 // PluginInstance 插件实例
@@ -48,10 +46,10 @@ type PluginManager struct {
 }
 
 // PendingVerification 插件系统 总闸。
-const PendingVerification = true
+var PendingVerification = !plugin.TrustConfigured()
 
 // PendingVerificationReason 拒绝加载时对外统一的说明
-const PendingVerificationReason = "插件系统处于待验证阶段：签名与准入控制未完成，已停止加载任何插件"
+const PendingVerificationReason = "未配置 HomeWaf 可信插件签名公钥，已停止加载插件"
 
 // NewPluginManager 创建插件管理器
 func NewPluginManager(config *pluginconfig.PluginSystemConfig) *PluginManager {
@@ -119,21 +117,9 @@ func (pm *PluginManager) LoadPlugin(pluginConfig *pluginconfig.PluginConfig) err
 	fmt.Printf("[DEBUG] 插件路径: %s\n", pluginConfig.BinaryPath)
 
 	// 解析日志级别
-	logLevel, logOutput := parseLogLevel(pm.config.LogLevel)
+	_, logOutput := parseLogLevel(pm.config.LogLevel)
 
-	client := plugin.NewClient(&plugin.ClientConfig{
-		HandshakeConfig: shared.Handshake,
-		Plugins:         shared.PluginMap,
-		Cmd:             exec.Command(pluginConfig.BinaryPath),
-		AllowedProtocols: []plugin.Protocol{
-			plugin.ProtocolGRPC,
-		},
-		Logger: hclog.New(&hclog.LoggerOptions{
-			Name:   pluginConfig.ID,
-			Output: logOutput, // 根据级别决定输出位置
-			Level:  logLevel,  // 使用配置的日志级别
-		}),
-	})
+	client := plugin.NewClient(&plugin.ClientConfig{Binary: pluginConfig.BinaryPath, Timeout: time.Duration(pm.config.Timeout) * time.Second, Output: logOutput})
 
 	fmt.Printf("[DEBUG] 插件客户端已创建，正在连接...\n")
 
@@ -502,27 +488,11 @@ func contains(slice []string, item string) bool {
 }
 
 // parseLogLevel 解析日志级别字符串
-func parseLogLevel(levelStr string) (hclog.Level, io.Writer) {
-	levelStr = strings.ToLower(strings.TrimSpace(levelStr))
-
-	switch levelStr {
-	case "off", "none":
-		// 完全关闭日志输出
-		return hclog.Off, io.Discard
-	case "error":
-		return hclog.Error, os.Stderr
-	case "warn", "warning":
-		return hclog.Warn, os.Stderr
-	case "info":
-		return hclog.Info, os.Stderr
-	case "debug":
-		return hclog.Debug, os.Stderr
-	case "trace":
-		return hclog.Trace, os.Stderr
-	default:
-		// 默认使用 warn 级别
-		return hclog.Warn, os.Stderr
+func parseLogLevel(levelStr string) (int, io.Writer) {
+	if strings.EqualFold(levelStr, "off") {
+		return 0, io.Discard
 	}
+	return 1, os.Stderr
 }
 
 // startHealthCheck 启动健康检查协程

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 归档分片缺列时的日志查询回归。
@@ -9,7 +11,7 @@
 package waf_service
 
 import (
-	"SamWaf/innerbean"
+	"HomeWaf/innerbean"
 	"strings"
 	"testing"
 

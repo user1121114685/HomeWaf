@@ -1,16 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package plugin
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/globalobj"
-	pluginconfig "SamWaf/plugin/config"
-	"SamWaf/plugin/manager"
-	"SamWaf/utils"
+	"HomeWaf/common/zlog"
+	"HomeWaf/globalobj"
+	pluginconfig "HomeWaf/plugin/config"
+	"HomeWaf/plugin/manager"
+	"HomeWaf/utils"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // InitPluginSystem 初始化插件系统
@@ -22,7 +24,11 @@ func InitPluginSystem() error {
 	configPath := filepath.Join(utils.GetCurrentDir(), "conf", "plugins.yml")
 	systemConfig, err := loadPluginConfigFromFile(configPath)
 	if err != nil {
-		zlog.Error("加载插件配置文件失败", "path", configPath, "error", err)
+		if os.IsNotExist(err) {
+			zlog.Info("未配置 HomeWaf 插件文件，保持禁用")
+		} else {
+			zlog.Error("加载插件配置文件失败", "path", configPath, "error", err)
+		}
 		// 配置文件加载失败不应该阻止系统启动，使用默认配置
 		zlog.Info("使用默认插件配置")
 		systemConfig = pluginconfig.DefaultPluginSystemConfig()
@@ -43,7 +49,7 @@ func InitPluginSystem() error {
 		}
 		zlog.Warn(manager.PendingVerificationReason,
 			"配置文件中已启用但被跳过的插件数", configuredCount,
-			"恢复条件", "完成准备后，将 manager.PendingVerification 置为 false")
+			"恢复条件", "发行构建配置可信签名公钥，并显式启用已签名插件")
 		return nil
 	}
 

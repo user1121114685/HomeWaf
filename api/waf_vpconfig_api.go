@@ -1,16 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	response2 "SamWaf/model/response"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
-	"SamWaf/utils/localca"
-	"SamWaf/wafconfig"
-	"SamWaf/wafenginecore/clientip"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	response2 "HomeWaf/model/response"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
+	"HomeWaf/utils/localca"
+	"HomeWaf/wafconfig"
+	"HomeWaf/wafenginecore/clientip"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"

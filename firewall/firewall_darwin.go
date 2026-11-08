@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build darwin
 
 package firewall
 
 import (
-	"SamWaf/common/wafexec"
+	"HomeWaf/common/wafexec"
 	"bufio"
 	"fmt"
 	"os"

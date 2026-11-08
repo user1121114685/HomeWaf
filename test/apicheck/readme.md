@@ -1,3 +1,5 @@
+<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
+
 # api 可行性测试
 
 
@@ -170,5 +172,5 @@ C:\huawei\goproject\SamWaf>go test -v -count=1 -run TestAllRoutes ./test/apichec
     api_routes_test.go:371: 合计 151 条，通过 151 条，失败 0 条
 --- PASS: TestAllRoutes (1.73s)
 PASS
-ok      SamWaf/test/apicheck    1.756s
+ok      HomeWaf/test/apicheck    1.756s
 ```

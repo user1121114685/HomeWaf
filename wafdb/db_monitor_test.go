@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 import (
@@ -5,9 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/wafdb/dialect"
 )
 
 // TestMain 为本包用例准备真开库所需的两个前提：

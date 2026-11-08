@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/global"
-	"SamWaf/iplocation"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	"SamWaf/utils"
+	"HomeWaf/global"
+	"HomeWaf/iplocation"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	"HomeWaf/utils"
 	"fmt"
 	"io/ioutil"
 	"net"

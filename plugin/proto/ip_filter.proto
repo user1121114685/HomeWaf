@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 syntax = "proto3";
 
 package proto;
 
-option go_package = "SamWaf/plugin/proto";
+option go_package = "HomeWaf/plugin/proto";
 
 // IPFilterRequest IP过滤请求
 message IPFilterRequest {

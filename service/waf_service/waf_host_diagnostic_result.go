@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	resp "SamWaf/model/response"
-	"SamWaf/wafdiagnose"
+	resp "HomeWaf/model/response"
+	"HomeWaf/wafdiagnose"
 	"fmt"
 	"strconv"
 	"strings"

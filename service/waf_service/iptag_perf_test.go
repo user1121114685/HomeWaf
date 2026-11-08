@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build iptagperf
 
 // 风险日志标签查询的性能基准。回答两个问题：
@@ -14,14 +16,14 @@
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/common/request"
-	req "SamWaf/model/request"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/uuid"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/common/request"
+	req "HomeWaf/model/request"
+	"HomeWaf/wafdb/dialect"
 	"fmt"
 	"net/url"
 	"os"
@@ -30,7 +32,7 @@ import (
 	"testing"
 	"time"
 
-	sqlitedriver "github.com/samwafgo/sqlitedriver"
+	sqlitedriver "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

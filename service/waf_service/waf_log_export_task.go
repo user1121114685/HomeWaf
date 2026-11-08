@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
@@ -17,18 +19,18 @@ import (
 	"sync"
 	"time"
 
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/request"
-	"SamWaf/utils"
-	"SamWaf/utils/filelease"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/waflogexport"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
+	"HomeWaf/utils"
+	"HomeWaf/utils/filelease"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/waflogexport"
 	"gorm.io/gorm"
 )
 

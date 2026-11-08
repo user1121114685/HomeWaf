@@ -1,14 +1,16 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/request"
-	resp "SamWaf/model/response"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/utils"
-	"SamWaf/wafdiagnose"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/request"
+	resp "HomeWaf/model/response"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/utils"
+	"HomeWaf/wafdiagnose"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"

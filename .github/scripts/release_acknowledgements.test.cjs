@@ -30,7 +30,7 @@ function options(github, messages) {
 }
 
 test('recognizes local references and excludes foreign repository references', () => {
-  assert.deepEqual(credits.references('(#1014) #1002 #1002 #IKJN44 samwafgo/SamWaf#938 other/repo#22 https://github.com/other/repo/issues/55 https://github.com/samwafgo/SamWaf/issues/1010#issuecomment-999', 'samwafgo/SamWaf'), [938, 1002, 1010, 1014]);
+  assert.deepEqual(credits.references('(#1014) #1002 #1002 #IKJN44 samwafgo/SamWaf#938 other/repo#22 https://github.com/other/repo/issues/55 https://github.com/samwafgo/HomeWaf/issues/1010#issuecomment-999', 'samwafgo/SamWaf'), [938, 1002, 1010, 1014]);
 });
 
 test('credits issue authors behind maintainer PRs and groups repeated accounts', async () => {

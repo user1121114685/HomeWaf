@@ -1,15 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafcaptcha
 
 /*
 import (
+ "HomeWaf/internal/captchaassets"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/freetype/truetype"
-	"github.com/wenlng/go-captcha-assets/bindata/chars"
-	"github.com/wenlng/go-captcha-assets/resources/fonts/fzshengsksjw"
-	"github.com/wenlng/go-captcha-assets/resources/images"
-	"github.com/wenlng/go-captcha/v2/base/option"
-	"github.com/wenlng/go-captcha/v2/click"
+	"golang.org/x/image/font/sfnt"
+
+
+
+	"HomeWaf/internal/thirdparty/gocaptcha/base/option"
+	"HomeWaf/internal/thirdparty/gocaptcha/click"
 	"log"
 	"net/http"
 	"os"
@@ -49,13 +52,13 @@ func init() {
 	)
 
 	// fonts
-	fonts, err := fzshengsksjw.GetFont()
+	fonts, err := captchaassets.GetFont()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	// background images
-	imgs, err := images.GetImages()
+	imgs, err := captchaassets.GetImages()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -68,7 +71,7 @@ func init() {
 
 	// set resources
 	builder.SetResources(
-		click.WithChars(chars.GetChineseChars()),
+		click.WithChars(captchaassets.GetChineseChars()),
 		//click.WithChars([]string{
 		//	"1A",
 		//	"5E",
@@ -79,8 +82,8 @@ func init() {
 		//	"CB",
 		//	"9M",
 		//}),
-		//click.WithChars(chars.GetAlphaChars()),
-		click.WithFonts([]*truetype.Font{fonts}),
+		//click.WithChars(captchaassets.GetAlphaChars()),
+		click.WithFonts([]*sfnt.Font{fonts}),
 		click.WithBackgrounds(imgs),
 		//click.WithThumbBackgrounds(thumbImages),
 	)
@@ -103,8 +106,8 @@ func init() {
 		}),
 	)
 	builder.SetResources(
-		click.WithChars(chars.GetChineseChars()),
-		click.WithFonts([]*truetype.Font{fonts}),
+		click.WithChars(captchaassets.GetChineseChars()),
+		click.WithFonts([]*sfnt.Font{fonts}),
 		click.WithBackgrounds(imgs),
 	)
 	lightTextCapt = builder.Make()

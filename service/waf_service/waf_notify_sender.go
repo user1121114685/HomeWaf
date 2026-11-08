@@ -1,18 +1,20 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/utils"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafnotify/dingtalk"
-	"SamWaf/wafnotify/email"
-	"SamWaf/wafnotify/feishu"
-	"SamWaf/wafnotify/serverchan"
-	"SamWaf/wafnotify/webhook"
-	"SamWaf/wafnotify/wechatwork"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/utils"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafnotify/dingtalk"
+	"HomeWaf/wafnotify/email"
+	"HomeWaf/wafnotify/feishu"
+	"HomeWaf/wafnotify/serverchan"
+	"HomeWaf/wafnotify/webhook"
+	"HomeWaf/wafnotify/wechatwork"
 	"fmt"
 	"strings"
 	"sync"

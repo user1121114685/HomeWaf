@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 import (
@@ -5,8 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"SamWaf/utils"
-	"SamWaf/utils/filelease"
+	"HomeWaf/utils"
+	"HomeWaf/utils/filelease"
 )
 
 // logLifecycleLease coordinates source enumeration, snapshots and storage changes.

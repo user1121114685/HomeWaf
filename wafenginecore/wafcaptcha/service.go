@@ -1,14 +1,17 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafcaptcha
 
 import (
-	"SamWaf/cache"
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/utils"
+	"HomeWaf/cache"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/internal/captchaassets"
+	"HomeWaf/model"
+	"HomeWaf/utils"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -23,13 +26,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/freetype/truetype"
-	capserver "github.com/samwafgo/cap_go_server"
-	"github.com/wenlng/go-captcha-assets/bindata/chars"
-	"github.com/wenlng/go-captcha-assets/resources/fonts/fzshengsksjw"
-	"github.com/wenlng/go-captcha-assets/resources/images"
-	"github.com/wenlng/go-captcha/v2/base/option"
-	"github.com/wenlng/go-captcha/v2/click"
+	capserver "HomeWaf/internal/thirdparty/capserver"
+	"golang.org/x/image/font/sfnt"
+
+	"HomeWaf/internal/thirdparty/gocaptcha/base/option"
+	"HomeWaf/internal/thirdparty/gocaptcha/click"
 	"go.uber.org/zap"
 )
 
@@ -87,13 +88,13 @@ func (s *CaptchaService) InitTextCapt() {
 	)
 
 	// fonts
-	fonts, err := fzshengsksjw.GetFont()
+	fonts, err := captchaassets.GetFont()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	// background images
-	imgs, err := images.GetImages()
+	imgs, err := captchaassets.GetImages()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -106,7 +107,7 @@ func (s *CaptchaService) InitTextCapt() {
 
 	// set resources
 	builder.SetResources(
-		click.WithChars(chars.GetChineseChars()),
+		click.WithChars(captchaassets.GetChineseChars()),
 		//click.WithChars([]string{
 		//	"1A",
 		//	"5E",
@@ -117,8 +118,8 @@ func (s *CaptchaService) InitTextCapt() {
 		//	"CB",
 		//	"9M",
 		//}),
-		//click.WithChars(chars.GetAlphaChars()),
-		click.WithFonts([]*truetype.Font{fonts}),
+		//click.WithChars(captchaassets.GetAlphaChars()),
+		click.WithFonts([]*sfnt.Font{fonts}),
 		click.WithBackgrounds(imgs),
 		//click.WithThumbBackgrounds(thumbImages),
 	)
@@ -141,8 +142,8 @@ func (s *CaptchaService) InitTextCapt() {
 		}),
 	)
 	builder.SetResources(
-		click.WithChars(chars.GetChineseChars()),
-		click.WithFonts([]*truetype.Font{fonts}),
+		click.WithChars(captchaassets.GetChineseChars()),
+		click.WithFonts([]*sfnt.Font{fonts}),
 		click.WithBackgrounds(imgs),
 	)
 	s.lightTextCapt = builder.Make()
@@ -369,11 +370,11 @@ func (s *CaptchaService) GetClickBasicCaptData(w http.ResponseWriter, r *http.Re
 		)
 
 		// 获取字体和背景资源
-		fonts, err := fzshengsksjw.GetFont()
+		fonts, err := captchaassets.GetFont()
 		if err != nil {
 			log.Fatalln(err)
 		}
-		imgs, err := images.GetImages()
+		imgs, err := captchaassets.GetImages()
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -382,15 +383,15 @@ func (s *CaptchaService) GetClickBasicCaptData(w http.ResponseWriter, r *http.Re
 		if isChineseUser {
 			zlog.Debug("使用中文验证码")
 			builder.SetResources(
-				click.WithChars(chars.GetChineseChars()),
-				click.WithFonts([]*truetype.Font{fonts}),
+				click.WithChars(captchaassets.GetChineseChars()),
+				click.WithFonts([]*sfnt.Font{fonts}),
 				click.WithBackgrounds(imgs),
 			)
 		} else {
 			zlog.Debug("使用英文验证码")
 			builder.SetResources(
-				click.WithChars(chars.GetAlphaChars()),
-				click.WithFonts([]*truetype.Font{fonts}),
+				click.WithChars(captchaassets.GetAlphaChars()),
+				click.WithFonts([]*sfnt.Font{fonts}),
 				click.WithBackgrounds(imgs),
 			)
 		}
@@ -410,7 +411,7 @@ func (s *CaptchaService) GetClickBasicCaptData(w http.ResponseWriter, r *http.Re
 			"code":    1,
 			"message": "gen captcha data failed",
 		})
-		_, _ = fmt.Fprintf(w, string(bt))
+		_, _ = fmt.Fprint(w, string(bt))
 		return
 	}
 
@@ -421,7 +422,7 @@ func (s *CaptchaService) GetClickBasicCaptData(w http.ResponseWriter, r *http.Re
 			"code":    1,
 			"message": "base64 data failed",
 		})
-		_, _ = fmt.Fprintf(w, string(bt))
+		_, _ = fmt.Fprint(w, string(bt))
 		return
 	}
 
@@ -431,7 +432,7 @@ func (s *CaptchaService) GetClickBasicCaptData(w http.ResponseWriter, r *http.Re
 			"code":    1,
 			"message": "base64 data failed",
 		})
-		_, _ = fmt.Fprintf(w, string(bt))
+		_, _ = fmt.Fprint(w, string(bt))
 		return
 	}
 
@@ -447,7 +448,7 @@ func (s *CaptchaService) GetClickBasicCaptData(w http.ResponseWriter, r *http.Re
 		"thumb_base64": thumbImageBase64,
 	})
 
-	_, _ = fmt.Fprintf(w, string(bt))
+	_, _ = fmt.Fprint(w, string(bt))
 }
 
 // VerifyCaptcha 验证验证码
@@ -463,7 +464,7 @@ func (s *CaptchaService) VerifyCaptcha(w http.ResponseWriter, r *http.Request, c
 			"code":    code,
 			"message": "dots or key param is empty",
 		})
-		_, _ = fmt.Fprintf(w, string(bt))
+		_, _ = fmt.Fprint(w, string(bt))
 		return
 	}
 
@@ -473,7 +474,7 @@ func (s *CaptchaService) VerifyCaptcha(w http.ResponseWriter, r *http.Request, c
 			"code":    code,
 			"message": "illegal key",
 		})
-		_, _ = fmt.Fprintf(w, string(bt))
+		_, _ = fmt.Fprint(w, string(bt))
 		return
 	}
 	s.cache.Remove(enums.CACHE_CAPTCHA_TRY + key)
@@ -482,7 +483,7 @@ func (s *CaptchaService) VerifyCaptcha(w http.ResponseWriter, r *http.Request, c
 			"code":    code,
 			"message": "illegal key",
 		})
-		_, _ = fmt.Fprintf(w, string(bt))
+		_, _ = fmt.Fprint(w, string(bt))
 		return
 	}
 	src := strings.Split(dots, ",")
@@ -493,7 +494,7 @@ func (s *CaptchaService) VerifyCaptcha(w http.ResponseWriter, r *http.Request, c
 			"code":    code,
 			"message": "illegal key",
 		})
-		_, _ = fmt.Fprintf(w, string(bt))
+		_, _ = fmt.Fprint(w, string(bt))
 		return
 	}
 
@@ -508,7 +509,7 @@ func (s *CaptchaService) VerifyCaptcha(w http.ResponseWriter, r *http.Request, c
 			"code":    code,
 			"message": "behavior check failed",
 		})
-		_, _ = fmt.Fprintf(w, string(bt))
+		_, _ = fmt.Fprint(w, string(bt))
 		return
 	}
 
@@ -560,7 +561,7 @@ func (s *CaptchaService) VerifyCaptcha(w http.ResponseWriter, r *http.Request, c
 	bt, _ := json.Marshal(map[string]interface{}{
 		"code": code,
 	})
-	_, _ = fmt.Fprintf(w, string(bt))
+	_, _ = fmt.Fprint(w, string(bt))
 	return
 }
 
@@ -757,10 +758,8 @@ func (s *CaptchaService) VerifyCapJsCaptcha(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 
-	var req struct {
-		Token     string          `json:"token"`
-		Solutions [][]interface{} `json:"solutions"` // Array of [salt, target, solution] tuples
-	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	var req capserver.Solution
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -772,16 +771,13 @@ func (s *CaptchaService) VerifyCapJsCaptcha(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if len(req.Solutions) == 0 {
+	if len(req.Solutions) == 0 && len(req.Nonces) == 0 {
 		http.Error(w, "Solution is required", http.StatusBadRequest)
 		return
 	}
 
 	// Create solution structure with [salt, target, solution] format
-	solution := &capserver.Solution{
-		Token:     req.Token,
-		Solutions: req.Solutions,
-	}
+	solution := &req
 
 	result, err := s.capJsCapt.RedeemChallenge(solution)
 	if err != nil {

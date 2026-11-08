@@ -1,23 +1,14 @@
-# 排除目录
-/vue/
-.release/
-.vue/dist/
-.conf/*
-/data/*
-/logs/*
-/ssl/
+# HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
 
-# 排除特定文件
-/data/local_log.db
-/data/local_stats.db
-/data/local.db
-/data/local_log.db-shm
-/data/local_log.db-wal
-/data/local_stats.db-shm
-/data/local_stats.db-wal
-registration_data.bin
-.idea/
-
-# 排除 public/dist 目录下的内容，保留 .gitkeep 文件
-/public/dist/*
-!/public/dist/.gitkeep
+.git
+.cache
+artifacts
+web/node_modules
+web/dist
+public/dist
+conf
+data
+logs
+ssl
+.homewaf-keys
+**/*private*.pem

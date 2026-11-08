@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build linux
 
 package wafhostguard
 
 import (
-	"SamWaf/utils"
+	"HomeWaf/utils"
 
 	"os"
 	"os/exec"

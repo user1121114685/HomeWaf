@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 静态数据加密（每实例 DEK）的跨引擎回归：SQLite / MySQL / PostgreSQL 各跑一遍。
@@ -15,12 +17,12 @@ package waf_service
 import (
 	"testing"
 
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/request"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafsec"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafsec"
 
 	"gorm.io/gorm"
 )

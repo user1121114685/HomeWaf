@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
 	"strings"
 	"testing"
 
-	"SamWaf/model/request"
+	"HomeWaf/model/request"
 )
 
 // 安全加固回归(EXT-2026-0821-01)：SSL 证书导出任意文件写入。

@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
 	"net/http/httptest"
 	"testing"
 
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafenginecore/ccrule"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafenginecore/ccrule"
 )
 
 func ipModeRule(t *testing.T, id string) *ccrule.CompiledRule {

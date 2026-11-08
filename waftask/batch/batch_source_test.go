@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package batch
 
 import (
@@ -7,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
 )
 
 // 批量任务数据源的边界用例

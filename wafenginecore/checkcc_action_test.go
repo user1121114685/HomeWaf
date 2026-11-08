@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
@@ -7,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"SamWaf/cache"
-	"SamWaf/enums"
-	"SamWaf/global"
+	"HomeWaf/cache"
+	"HomeWaf/enums"
+	"HomeWaf/global"
 
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafenginecore/ccrule"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafenginecore/ccrule"
 )
 
 func newActionRule(action string) *ccrule.CompiledRule {

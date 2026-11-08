@@ -1,20 +1,22 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafqueue
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/wsmsg"
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/wsmsg"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
 )
 
 /*
@@ -300,7 +302,7 @@ func sendToWebSocket(messageType, messageData string, messageAttach interface{},
 		MessageUnReadStatus: true,
 	}
 	// 按连接各自的会话密钥组装：v2 连接一份，旧连接回落 legacy
-	global.GWebSocket.BroadcastBuild(websocket.TextMessage, func(keyID string) ([]byte, error) {
+	global.GWebSocket.BroadcastBuild(websocket.MessageText, func(keyID string) ([]byte, error) {
 		msgBytes, err := wsmsg.Build(keyID, dataPacket, cmdType)
 		if err != nil {
 			zlog.Debug("组装websocket报文错误", err)

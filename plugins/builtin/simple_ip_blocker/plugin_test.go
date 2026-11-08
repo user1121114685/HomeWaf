@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package main
 
 import (
 	"context"
 	"testing"
 
-	plugininterface "SamWaf/plugin/interface"
+	plugininterface "HomeWaf/plugin/interface"
 )
 
 // TestPluginBasics 测试插件基础功能

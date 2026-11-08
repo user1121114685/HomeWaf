@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
@@ -6,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"SamWaf/global"
+	"HomeWaf/global"
 )
 
 // 批量任务本地来源的路径收口用例。

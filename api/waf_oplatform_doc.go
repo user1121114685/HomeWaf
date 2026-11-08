@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/global"
-	"SamWaf/model/common/response"
+	"HomeWaf/global"
+	"HomeWaf/model/common/response"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"sort"

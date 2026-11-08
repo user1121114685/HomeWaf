@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/tasklog"
-	"SamWaf/common/zlog"
-	"SamWaf/utils"
+	"HomeWaf/common/tasklog"
+	"HomeWaf/common/zlog"
+	"HomeWaf/utils"
 	"fmt"
 	"runtime/debug"
 	"sync"

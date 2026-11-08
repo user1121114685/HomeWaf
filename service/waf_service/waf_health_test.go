@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/request"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafhealth"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafhealth"
 	"context"
 	"net"
 	"net/http"

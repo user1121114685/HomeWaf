@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
-import "SamWaf/model/baseorm"
+import "HomeWaf/model/baseorm"
 
 // WafAppChangeLog 应用配置变更记录（面向用户的字段级 diff，可从应用列表查看）
 type WafAppChangeLog struct {

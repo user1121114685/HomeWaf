@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package globalobj
 
 import (
-	"SamWaf/plugin/manager"
-	"SamWaf/wafappengine"
-	"SamWaf/wafenginecore"
-	"SamWaf/waftask"
-	"SamWaf/waftunnelengine"
+	"HomeWaf/plugin/manager"
+	"HomeWaf/wafappengine"
+	"HomeWaf/wafenginecore"
+	"HomeWaf/waftask"
+	"HomeWaf/waftunnelengine"
 )
 
 var (

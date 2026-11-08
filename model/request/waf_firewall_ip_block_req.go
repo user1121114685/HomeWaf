@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 // WafFirewallIPBlockAddReq 添加防火墙IP封禁请求
 type WafFirewallIPBlockAddReq struct {

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafcli
 
 import (
@@ -15,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	"SamWaf/model/request"
+	"HomeWaf/model/request"
 )
 
 const maxInputBytes = 10 << 20

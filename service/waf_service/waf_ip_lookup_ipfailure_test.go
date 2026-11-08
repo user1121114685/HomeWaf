@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/cache"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/wafipban"
+	"HomeWaf/cache"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/wafipban"
 	"strings"
 	"testing"
 )

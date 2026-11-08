@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package response
 
 import (
-	"SamWaf/global"
-	"SamWaf/wafsec"
+	"HomeWaf/global"
+	"HomeWaf/wafsec"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"

@@ -1,0 +1,68 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
+import request from '@/utils/request'
+//查看IP白名单列表
+export function wafIPWhiteListApi(params: any = {}) {
+  return request({
+    url: '/wafhost/ipwhite/list',
+    method: 'post',
+    data: params
+  })
+}
+//删除IP白名单
+export function wafIPWhiteDelApi(params: any = {}) {
+  return request({
+    url: '/wafhost/ipwhite/del',
+    method: 'get',
+    params: params
+  })
+}
+//编辑IP白名单
+export function wafIPWhiteEditApi(params: any = {}) {
+  return request({
+    url: '/wafhost/ipwhite/edit',
+    method: 'post',
+    data: params
+  })
+}
+//添加IP白名单
+export function wafIPWhiteAddApi(params: any = {}) {
+  return request({
+    url: '/wafhost/ipwhite/add',
+    method: 'post',
+    data: params
+  })
+}
+//详细IP白名单
+export function wafIPWhiteDetailApi(params: any = {}) {
+  return request({
+    url: '/wafhost/ipwhite/detail',
+    method: 'get',
+    params: params
+  })
+}
+//批量删除IP白名单
+export function wafIPWhiteBatchDelApi(params: any = {}) {
+  return request({
+    url: '/wafhost/ipwhite/batchdel',
+    method: 'post',
+    data: params
+  })
+}
+//清空所有IP白名单
+export function wafIPWhiteDelAllApi(params: any = {}) {
+  return request({
+    url: '/wafhost/ipwhite/delall',
+    method: 'post',
+    data: params
+  })
+}
+
+//切换IP白名单条目启用状态
+export function wafIPWhiteToggleApi(params: any = {}) {
+  return request({
+    url: '/wafhost/ipwhite/toggle',
+    method: 'post',
+    data: params
+  })
+}

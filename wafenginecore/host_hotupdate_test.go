@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
 	"testing"
 
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
 )
 
 // 轻量热更新通道必须把「请求期要读的字段」搬进引擎快照。

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 跨三种数据库（SQLite / MySQL / PostgreSQL）兼容回归测试 —— 骨架与公共设施。
@@ -24,22 +26,22 @@
 package waf_service
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafsec"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafsec"
 	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	sqlitedriver "github.com/samwafgo/sqlitedriver"
-	mysqldriver "gorm.io/driver/mysql"
+	mysqldriver "HomeWaf/internal/mysql"
+	sqlitedriver "HomeWaf/internal/sqlitedialect"
 	pgdriver "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

@@ -1,0 +1,9 @@
+{
+  "module": "github.com/bytedance/godlp",
+  "version": "v1.2.15",
+  "changes": [
+    "local imports",
+    "YAML v2 replaced by maintained YAML v4.0.0"
+  ],
+  "files": 14
+}

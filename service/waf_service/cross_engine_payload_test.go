@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 报文垂直拆表的三库回归：报文按 req_uuid 点查、老数据回落读 web_logs 原列、
@@ -5,9 +7,9 @@
 package waf_service
 
 import (
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	req "SamWaf/model/request"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	req "HomeWaf/model/request"
 	"testing"
 	"time"
 

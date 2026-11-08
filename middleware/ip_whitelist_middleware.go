@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package middleware
 
 import (
-	"SamWaf/global"
-	"SamWaf/utils"
+	"HomeWaf/global"
+	"HomeWaf/utils"
 	"github.com/gin-gonic/gin"
 	"net"
 	"net/http"

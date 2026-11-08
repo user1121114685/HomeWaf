@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafmangeweb
 
 import (
-	"SamWaf/cache"
-	"SamWaf/global"
-	"SamWaf/middleware"
+	"HomeWaf/cache"
+	"HomeWaf/global"
+	"HomeWaf/middleware"
 	"io"
 	"net/http"
 	"net/http/httptest"

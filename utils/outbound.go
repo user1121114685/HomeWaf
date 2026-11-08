@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
@@ -11,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"SamWaf/global"
+	"HomeWaf/global"
 )
 
 // 「用户在管理端填写的对外拉取地址」。

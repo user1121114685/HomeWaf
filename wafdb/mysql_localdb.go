@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 // MySQL-specific database initialisation.
@@ -5,16 +7,16 @@ package wafdb
 // activation is handled via the go.mod dependency on gorm.io/driver/mysql.
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/wafdb/dialect"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	mysqldriver "gorm.io/driver/mysql"
+	mysqldriver "HomeWaf/internal/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

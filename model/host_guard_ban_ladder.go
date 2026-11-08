@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
 import (
-	"SamWaf/model/baseorm"
+	"HomeWaf/model/baseorm"
 )
 
 // HostGuardBanLadder 阶梯封禁配置。第 N 次被封就用第 N 级的时长，

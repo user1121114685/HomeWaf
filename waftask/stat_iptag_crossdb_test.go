@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // ip_tags 增量写入的三库回归。
@@ -12,9 +14,9 @@
 package waftask
 
 import (
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
 	"testing"
 
 	"gorm.io/gorm"
@@ -89,7 +91,7 @@ func runIPTagUpsertAssertions(t *testing.T, db *gorm.DB) {
 
 	want := map[string]int64{
 		"1.1.1.1|SQL注入": 4, // 每批 2 次 × 2 批
-		"1.1.1.1|XSS":    2,
+		"1.1.1.1|XSS":   2,
 		"2.2.2.2|SQL注入": 2,
 	}
 	for _, r := range rows {

@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package response
 
 import (
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/utils"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/utils"
 )
 
 type HostTodayStat struct {

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package dialect
 
 import (
@@ -7,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"SamWaf/customtype"
+	"HomeWaf/customtype"
 
-	sqlite "github.com/samwafgo/sqlitedriver"
-	mysqldriver "gorm.io/driver/mysql"
+	mysqldriver "HomeWaf/internal/mysql"
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
 
 	"github.com/gin-gonic/gin"
 )
@@ -48,8 +50,8 @@ func (w *WafLogAPi) GetIPWatchlistApi(c *gin.Context) {
 		return
 	}
 	response.OkWithData(response.PageResult{
-		List:     list,
-		Total:    total,
+		List:      list,
+		Total:     total,
 		PageIndex: req.PageIndex,
 		PageSize:  req.PageSize,
 	}, c)

@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/innerbean"
-	"SamWaf/model"
+	"HomeWaf/common/zlog"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
 	"fmt"
 	"time"
 
@@ -513,9 +515,9 @@ func RunLogDBMigrations(db *gorm.DB) error {
 					// 保留期清理按 create_time 删
 					{"idx_al_create_time", "access_log", "CREATE INDEX IF NOT EXISTS idx_al_create_time ON access_log (create_time)"},
 					{"idx_se_create_time", "security_event", "CREATE INDEX IF NOT EXISTS idx_se_create_time ON security_event (create_time)"},
-				// 行为视角按访客键汇总（索引名全库唯一，两张表各建各的）
-				{"idx_al_actor", "access_log", "CREATE INDEX IF NOT EXISTS idx_al_actor ON access_log (tenant_id, user_code, actor_key, day)"},
-				{"idx_se_actor", "security_event", "CREATE INDEX IF NOT EXISTS idx_se_actor ON security_event (tenant_id, user_code, actor_key, day)"},
+					// 行为视角按访客键汇总（索引名全库唯一，两张表各建各的）
+					{"idx_al_actor", "access_log", "CREATE INDEX IF NOT EXISTS idx_al_actor ON access_log (tenant_id, user_code, actor_key, day)"},
+					{"idx_se_actor", "security_event", "CREATE INDEX IF NOT EXISTS idx_se_actor ON security_event (tenant_id, user_code, actor_key, day)"},
 				} {
 					start := time.Now()
 					if err := safeCreateIndex(tx, ix.table, ix.name, ix.ddl); err != nil {

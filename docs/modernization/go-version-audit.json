@@ -1,0 +1,688 @@
+{
+  "checked_at": "2026-11-09",
+  "platforms": [
+    "windows-amd64",
+    "linux-amd64",
+    "linux-arm64",
+    "darwin-arm64"
+  ],
+  "runtime_modules": [
+    {
+      "path": "HomeWaf",
+      "version": null,
+      "latest": null
+    },
+    {
+      "path": "filippo.io/edwards25519",
+      "version": "v1.2.0",
+      "latest": "v1.2.0"
+    },
+    {
+      "path": "github.com/alibabacloud-go/alibabacloud-gateway-spi",
+      "version": "v0.0.5",
+      "latest": "v0.0.5"
+    },
+    {
+      "path": "github.com/alibabacloud-go/darabonba-openapi/v2",
+      "version": "v2.2.5",
+      "latest": "v2.2.5"
+    },
+    {
+      "path": "github.com/alibabacloud-go/debug",
+      "version": "v1.0.1",
+      "latest": "v1.0.1"
+    },
+    {
+      "path": "github.com/alibabacloud-go/tea",
+      "version": "v1.5.4",
+      "latest": "v1.5.4"
+    },
+    {
+      "path": "github.com/alibabacloud-go/tea-utils/v2",
+      "version": "v2.0.9",
+      "latest": "v2.0.9"
+    },
+    {
+      "path": "github.com/aliyun/credentials-go",
+      "version": "v1.4.14",
+      "latest": "v1.4.14"
+    },
+    {
+      "path": "github.com/andybalholm/brotli",
+      "version": "v1.2.8",
+      "latest": "v1.2.8"
+    },
+    {
+      "path": "github.com/antlr4-go/antlr/v4",
+      "version": "v4.13.1",
+      "latest": "v4.13.1"
+    },
+    {
+      "path": "github.com/baidubce/bce-sdk-go",
+      "version": "v0.9.277",
+      "latest": "v0.9.277"
+    },
+    {
+      "path": "github.com/bmatcuk/doublestar/v4",
+      "version": "v4.10.4",
+      "latest": "v4.10.4"
+    },
+    {
+      "path": "github.com/boombuler/barcode",
+      "version": "v1.1.0",
+      "latest": "v1.1.0"
+    },
+    {
+      "path": "github.com/cenkalti/backoff/v5",
+      "version": "v5.0.3",
+      "latest": "v5.0.3"
+    },
+    {
+      "path": "github.com/cespare/xxhash/v2",
+      "version": "v2.3.0",
+      "latest": "v2.3.0"
+    },
+    {
+      "path": "github.com/clbanning/mxj/v2",
+      "version": "v2.7.0",
+      "latest": "v2.7.0"
+    },
+    {
+      "path": "github.com/cloudflare/ahocorasick",
+      "version": "v0.0.0-20240916140611-054963ec9396",
+      "latest": "v0.0.0-20240916140611-054963ec9396"
+    },
+    {
+      "path": "github.com/coder/websocket",
+      "version": "v1.8.15",
+      "latest": "v1.8.15"
+    },
+    {
+      "path": "github.com/corazawaf/coraza/v3",
+      "version": "v3.8.1",
+      "latest": "v3.8.1"
+    },
+    {
+      "path": "github.com/corazawaf/libinjection-go",
+      "version": "v0.3.5",
+      "latest": "v0.3.5"
+    },
+    {
+      "path": "github.com/coreos/go-semver",
+      "version": "v0.3.1",
+      "latest": "v0.3.1"
+    },
+    {
+      "path": "github.com/denisbrodbeck/machineid",
+      "version": "v1.0.1",
+      "latest": "v1.0.1"
+    },
+    {
+      "path": "github.com/dmitryikh/leaves",
+      "version": "v0.0.0-20230708180554-25d19a787328",
+      "latest": "v0.0.0-20230708180554-25d19a787328"
+    },
+    {
+      "path": "github.com/dsnet/compress",
+      "version": "v0.0.1",
+      "latest": "v0.0.1"
+    },
+    {
+      "path": "github.com/ebitengine/purego",
+      "version": "v0.11.3",
+      "latest": "v0.11.3"
+    },
+    {
+      "path": "github.com/fsnotify/fsnotify",
+      "version": "v1.10.1",
+      "latest": "v1.10.1"
+    },
+    {
+      "path": "github.com/gabriel-vasile/mimetype",
+      "version": "v1.4.16",
+      "latest": "v1.4.16"
+    },
+    {
+      "path": "github.com/gin-contrib/gzip",
+      "version": "v1.2.10",
+      "latest": "v1.2.10"
+    },
+    {
+      "path": "github.com/gin-contrib/pprof",
+      "version": "v1.5.8",
+      "latest": "v1.5.8"
+    },
+    {
+      "path": "github.com/gin-contrib/sse",
+      "version": "v1.2.1",
+      "latest": "v1.2.1"
+    },
+    {
+      "path": "github.com/gin-gonic/gin",
+      "version": "v1.12.0",
+      "latest": "v1.12.0"
+    },
+    {
+      "path": "github.com/go-acme/alidns-20150109/v4",
+      "version": "v4.7.0",
+      "latest": "v4.7.0"
+    },
+    {
+      "path": "github.com/go-acme/lego/v4",
+      "version": "v4.35.2",
+      "latest": "v4.35.2"
+    },
+    {
+      "path": "github.com/go-acme/tencentclouddnspod",
+      "version": "v1.3.131",
+      "latest": "v1.3.131"
+    },
+    {
+      "path": "github.com/go-co-op/gocron/v2",
+      "version": "v2.23.0",
+      "latest": "v2.23.0"
+    },
+    {
+      "path": "github.com/go-gormigrate/gormigrate/v2",
+      "version": "v2.1.7",
+      "latest": "v2.1.7"
+    },
+    {
+      "path": "github.com/go-jose/go-jose/v4",
+      "version": "v4.1.9",
+      "latest": "v4.1.9"
+    },
+    {
+      "path": "github.com/go-mysql-org/go-mysql",
+      "version": "v1.16.0",
+      "latest": "v1.16.0"
+    },
+    {
+      "path": "github.com/go-ole/go-ole",
+      "version": "v1.3.0",
+      "latest": "v1.3.0"
+    },
+    {
+      "path": "github.com/go-playground/locales",
+      "version": "v0.14.2",
+      "latest": "v0.14.2"
+    },
+    {
+      "path": "github.com/go-playground/universal-translator",
+      "version": "v0.18.2",
+      "latest": "v0.18.2"
+    },
+    {
+      "path": "github.com/go-playground/validator/v10",
+      "version": "v10.30.6",
+      "latest": "v10.30.6"
+    },
+    {
+      "path": "github.com/go-viper/mapstructure/v2",
+      "version": "v2.5.0",
+      "latest": "v2.5.0"
+    },
+    {
+      "path": "github.com/goccy/go-yaml",
+      "version": "v1.19.2",
+      "latest": "v1.19.2"
+    },
+    {
+      "path": "github.com/google/uuid",
+      "version": "v1.6.0",
+      "latest": "v1.6.0"
+    },
+    {
+      "path": "github.com/gorilla/websocket",
+      "version": "v1.5.3",
+      "latest": "v1.5.3"
+    },
+    {
+      "path": "github.com/huaweicloud/huaweicloud-sdk-go-v3",
+      "version": "v0.1.222",
+      "latest": "v0.1.222"
+    },
+    {
+      "path": "github.com/inconshreveable/mousetrap",
+      "version": "v1.1.0",
+      "latest": "v1.1.0"
+    },
+    {
+      "path": "github.com/ipipdotnet/ipdb-go",
+      "version": "v1.3.3",
+      "latest": "v1.3.3"
+    },
+    {
+      "path": "github.com/jackc/pgpassfile",
+      "version": "v1.0.0",
+      "latest": "v1.0.0"
+    },
+    {
+      "path": "github.com/jackc/pgservicefile",
+      "version": "v0.0.0-20240606120523-5a60cdf6a761",
+      "latest": "v0.0.0-20240606120523-5a60cdf6a761"
+    },
+    {
+      "path": "github.com/jackc/pgx/v5",
+      "version": "v5.12.0",
+      "latest": "v5.12.0"
+    },
+    {
+      "path": "github.com/jackc/puddle/v2",
+      "version": "v2.2.3",
+      "latest": "v2.2.3"
+    },
+    {
+      "path": "github.com/jinzhu/inflection",
+      "version": "v1.0.0",
+      "latest": "v1.0.0"
+    },
+    {
+      "path": "github.com/jinzhu/now",
+      "version": "v1.1.5",
+      "latest": "v1.1.5"
+    },
+    {
+      "path": "github.com/jonboulle/clockwork",
+      "version": "v0.5.0",
+      "latest": "v0.5.0"
+    },
+    {
+      "path": "github.com/json-iterator/go",
+      "version": "v1.1.13-0.20220915233716-71ac16282d12",
+      "latest": "v1.1.13-0.20220915233716-71ac16282d12"
+    },
+    {
+      "path": "github.com/kaptinlin/jsonpointer",
+      "version": "v0.4.28",
+      "latest": "v0.4.28"
+    },
+    {
+      "path": "github.com/kaptinlin/jsonschema",
+      "version": "v0.9.10",
+      "latest": "v0.9.10"
+    },
+    {
+      "path": "github.com/kardianos/service",
+      "version": "v1.3.0",
+      "latest": "v1.3.0"
+    },
+    {
+      "path": "github.com/klauspost/compress",
+      "version": "v1.20.3",
+      "latest": "v1.20.3"
+    },
+    {
+      "path": "github.com/leodido/go-urn",
+      "version": "v1.5.0",
+      "latest": "v1.5.0"
+    },
+    {
+      "path": "github.com/lionsoul2014/ip2region/binding/golang",
+      "version": "v0.0.0-20261028042204-6a276cc7c4f9",
+      "latest": "v0.0.0-20261028042204-6a276cc7c4f9"
+    },
+    {
+      "path": "github.com/mattn/go-colorable",
+      "version": "v0.1.16",
+      "latest": "v0.1.16"
+    },
+    {
+      "path": "github.com/mattn/go-isatty",
+      "version": "v0.0.24",
+      "latest": "v0.0.24"
+    },
+    {
+      "path": "github.com/miekg/dns",
+      "version": "v1.1.73",
+      "latest": "v1.1.73"
+    },
+    {
+      "path": "github.com/modern-go/concurrent",
+      "version": "v0.0.0-20180306012644-bacd9c7ef1dd",
+      "latest": "v0.0.0-20180306012644-bacd9c7ef1dd"
+    },
+    {
+      "path": "github.com/modern-go/reflect2",
+      "version": "v1.0.3-0.20250322232337-35a7c28c31ee",
+      "latest": "v1.0.3-0.20250322232337-35a7c28c31ee"
+    },
+    {
+      "path": "github.com/oschwald/geoip2-golang/v2",
+      "version": "v2.5.0",
+      "latest": "v2.5.0"
+    },
+    {
+      "path": "github.com/oschwald/maxminddb-golang/v2",
+      "version": "v2.9.0",
+      "latest": "v2.9.0"
+    },
+    {
+      "path": "github.com/pelletier/go-toml/v2",
+      "version": "v2.4.3",
+      "latest": "v2.4.3"
+    },
+    {
+      "path": "github.com/petar-dambovaliev/aho-corasick",
+      "version": "v0.0.0-20250424160509-463d218d4745",
+      "latest": "v0.0.0-20250424160509-463d218d4745"
+    },
+    {
+      "path": "github.com/pierrec/lz4/v4",
+      "version": "v4.1.33",
+      "latest": "v4.1.33"
+    },
+    {
+      "path": "github.com/pingcap/errors",
+      "version": "v0.11.5-0.20260310054046-9c8b3586e4b2",
+      "latest": "v0.11.5-0.20260310054046-9c8b3586e4b2"
+    },
+    {
+      "path": "github.com/pingcap/log",
+      "version": "v1.1.1-0.20260227082333-572e590d08f1",
+      "latest": "v1.1.1-0.20260227082333-572e590d08f1"
+    },
+    {
+      "path": "github.com/pingcap/tidb/pkg/parser",
+      "version": "v0.0.0-20261107225221-b98174386ec5",
+      "latest": "v0.0.0-20261107225221-b98174386ec5"
+    },
+    {
+      "path": "github.com/pires/go-proxyproto",
+      "version": "v0.16.0",
+      "latest": "v0.16.0"
+    },
+    {
+      "path": "github.com/pquerna/otp",
+      "version": "v1.5.0",
+      "latest": "v1.5.0"
+    },
+    {
+      "path": "github.com/quic-go/qpack",
+      "version": "v0.6.0",
+      "latest": "v0.6.0"
+    },
+    {
+      "path": "github.com/quic-go/quic-go",
+      "version": "v0.65.0",
+      "latest": "v0.65.0"
+    },
+    {
+      "path": "github.com/redis/go-redis/v9",
+      "version": "v9.23.0",
+      "latest": "v9.23.0"
+    },
+    {
+      "path": "github.com/richardlehane/mscfb",
+      "version": "v1.0.9",
+      "latest": "v1.0.9"
+    },
+    {
+      "path": "github.com/richardlehane/msoleps",
+      "version": "v1.0.6",
+      "latest": "v1.0.6"
+    },
+    {
+      "path": "github.com/robfig/cron/v3",
+      "version": "v3.0.1",
+      "latest": "v3.0.1"
+    },
+    {
+      "path": "github.com/rs/zerolog",
+      "version": "v1.35.1",
+      "latest": "v1.35.1"
+    },
+    {
+      "path": "github.com/sagikazarmark/locafero",
+      "version": "v0.12.0",
+      "latest": "v0.12.0"
+    },
+    {
+      "path": "github.com/shirou/gopsutil/v4",
+      "version": "v4.26.10",
+      "latest": "v4.26.10"
+    },
+    {
+      "path": "github.com/sirupsen/logrus",
+      "version": "v1.10.2",
+      "latest": "v1.10.2"
+    },
+    {
+      "path": "github.com/spf13/afero",
+      "version": "v1.15.0",
+      "latest": "v1.15.0"
+    },
+    {
+      "path": "github.com/spf13/cast",
+      "version": "v1.10.0",
+      "latest": "v1.10.0"
+    },
+    {
+      "path": "github.com/spf13/cobra",
+      "version": "v1.10.2",
+      "latest": "v1.10.2"
+    },
+    {
+      "path": "github.com/spf13/pflag",
+      "version": "v1.1.0",
+      "latest": "v1.1.0"
+    },
+    {
+      "path": "github.com/spf13/viper",
+      "version": "v1.21.0",
+      "latest": "v1.21.0"
+    },
+    {
+      "path": "github.com/subosito/gotenv",
+      "version": "v1.6.0",
+      "latest": "v1.6.0"
+    },
+    {
+      "path": "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common",
+      "version": "v1.3.210",
+      "latest": "v1.3.210"
+    },
+    {
+      "path": "github.com/tidwall/gjson",
+      "version": "v1.20.2",
+      "latest": "v1.20.2"
+    },
+    {
+      "path": "github.com/tidwall/match",
+      "version": "v1.2.0",
+      "latest": "v1.2.0"
+    },
+    {
+      "path": "github.com/tidwall/pretty",
+      "version": "v1.3.0",
+      "latest": "v1.3.0"
+    },
+    {
+      "path": "github.com/tiendc/go-deepcopy",
+      "version": "v1.7.2",
+      "latest": "v1.7.2"
+    },
+    {
+      "path": "github.com/tjfoc/gmsm",
+      "version": "v1.4.1",
+      "latest": "v1.4.1"
+    },
+    {
+      "path": "github.com/tklauser/go-sysconf",
+      "version": "v0.4.0",
+      "latest": "v0.4.0"
+    },
+    {
+      "path": "github.com/tklauser/numcpus",
+      "version": "v0.12.0",
+      "latest": "v0.12.0"
+    },
+    {
+      "path": "github.com/twmb/franz-go",
+      "version": "v1.22.2",
+      "latest": "v1.22.2"
+    },
+    {
+      "path": "github.com/twmb/franz-go/pkg/kmsg",
+      "version": "v1.15.0",
+      "latest": "v1.15.0"
+    },
+    {
+      "path": "github.com/ugorji/go/codec",
+      "version": "v1.3.2",
+      "latest": "v1.3.2"
+    },
+    {
+      "path": "github.com/valllabh/ocsf-schema-golang",
+      "version": "v1.0.3",
+      "latest": "v1.0.3"
+    },
+    {
+      "path": "github.com/xuri/efp",
+      "version": "v0.0.3-0.20260924042702-217b81952dec",
+      "latest": "v0.0.3-0.20260924042702-217b81952dec"
+    },
+    {
+      "path": "github.com/xuri/excelize/v2",
+      "version": "v2.11.1",
+      "latest": "v2.11.1"
+    },
+    {
+      "path": "github.com/xuri/nfp",
+      "version": "v0.0.2-0.20250530014748-2ddeb826f9a9",
+      "latest": "v0.0.2-0.20250530014748-2ddeb826f9a9"
+    },
+    {
+      "path": "github.com/yosida95/uritemplate/v3",
+      "version": "v3.0.2",
+      "latest": "v3.0.2"
+    },
+    {
+      "path": "github.com/yusufpapurcu/wmi",
+      "version": "v1.2.4",
+      "latest": "v1.2.4"
+    },
+    {
+      "path": "go.mongodb.org/mongo-driver",
+      "version": "v1.17.10",
+      "latest": "v1.17.10"
+    },
+    {
+      "path": "go.mongodb.org/mongo-driver/v2",
+      "version": "v2.10.0",
+      "latest": "v2.10.0"
+    },
+    {
+      "path": "go.uber.org/atomic",
+      "version": "v1.12.0",
+      "latest": "v1.12.0"
+    },
+    {
+      "path": "go.uber.org/multierr",
+      "version": "v1.11.0",
+      "latest": "v1.11.0"
+    },
+    {
+      "path": "go.uber.org/zap",
+      "version": "v1.28.0",
+      "latest": "v1.28.0"
+    },
+    {
+      "path": "go.yaml.in/yaml/v3",
+      "version": "v3.0.6",
+      "latest": "v3.0.6"
+    },
+    {
+      "path": "go.yaml.in/yaml/v4",
+      "version": "v4.0.0",
+      "latest": "v4.0.0"
+    },
+    {
+      "path": "golang.org/x/crypto",
+      "version": "v0.58.1-0.20261009181718-2f1f834330b2",
+      "latest": "v0.58.1-0.20261009181718-2f1f834330b2"
+    },
+    {
+      "path": "golang.org/x/exp",
+      "version": "v0.0.0-20261106192419-47ce03d25ef0",
+      "latest": "v0.0.0-20261106192419-47ce03d25ef0"
+    },
+    {
+      "path": "golang.org/x/image",
+      "version": "v0.47.0",
+      "latest": "v0.47.0"
+    },
+    {
+      "path": "golang.org/x/mod",
+      "version": "v0.42.0",
+      "latest": "v0.42.0"
+    },
+    {
+      "path": "golang.org/x/net",
+      "version": "v0.62.0",
+      "latest": "v0.62.0"
+    },
+    {
+      "path": "golang.org/x/sync",
+      "version": "v0.24.0",
+      "latest": "v0.24.0"
+    },
+    {
+      "path": "golang.org/x/sys",
+      "version": "v0.49.0",
+      "latest": "v0.49.0"
+    },
+    {
+      "path": "golang.org/x/text",
+      "version": "v0.43.0",
+      "latest": "v0.43.0"
+    },
+    {
+      "path": "golang.org/x/time",
+      "version": "v0.16.0",
+      "latest": "v0.16.0"
+    },
+    {
+      "path": "google.golang.org/genproto/googleapis/rpc",
+      "version": "v0.0.0-20261104224025-d1e00e9f33ab",
+      "latest": "v0.0.0-20261104224025-d1e00e9f33ab"
+    },
+    {
+      "path": "google.golang.org/grpc",
+      "version": "v1.85.0",
+      "latest": "v1.85.0"
+    },
+    {
+      "path": "google.golang.org/protobuf",
+      "version": "v1.36.12",
+      "latest": "v1.36.12"
+    },
+    {
+      "path": "gopkg.in/ini.v1",
+      "version": "v1.67.3",
+      "latest": "v1.67.3"
+    },
+    {
+      "path": "gopkg.in/natefinch/lumberjack.v2",
+      "version": "v2.2.1",
+      "latest": "v2.2.1"
+    },
+    {
+      "path": "gorm.io/driver/postgres",
+      "version": "v1.6.3",
+      "latest": "v1.6.3"
+    },
+    {
+      "path": "gorm.io/gorm",
+      "version": "v1.31.2",
+      "latest": "v1.31.2"
+    },
+    {
+      "path": "rsc.io/binaryregexp",
+      "version": "v0.2.0",
+      "latest": "v0.2.0"
+    }
+  ],
+  "available_updates": [],
+  "note": "Module graph entries used only by unused third-party packages or dependency tests are excluded; copied code and assets are inventoried separately."
+}

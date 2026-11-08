@@ -1,16 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafmangeweb
 
 import (
-	"SamWaf/api"
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/middleware"
-	"SamWaf/router"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
-	"SamWaf/wafmangeweb/static"
-	"SamWaf/wafnet"
+	"HomeWaf/api"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/middleware"
+	"HomeWaf/router"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
+	"HomeWaf/wafmangeweb/static"
+	"HomeWaf/wafnet"
 	"bytes"
 	"context"
 	"crypto/subtle"

@@ -1,0 +1,8 @@
+{
+  "name": "@homewaf/build-proxy-policy",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "license": "LicenseRef-HomeWaf-NC-1.0",
+  "exports": "./index.js"
+}

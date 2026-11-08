@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafipban
 
 import (
-	"SamWaf/cache"
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
+	"HomeWaf/cache"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
 	"sync"
 	"time"
 )

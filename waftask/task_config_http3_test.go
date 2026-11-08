@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 // 回归 issue #916：改了 http3 配置却没有任何代码去起 UDP 监听。
@@ -8,7 +10,7 @@ package waftask
 // 这里不启动引擎，只断言 setConfigIntValue 是否往 global.GWAF_CHAN_HTTP3 投了信号。
 
 import (
-	"SamWaf/global"
+	"HomeWaf/global"
 	"testing"
 )
 

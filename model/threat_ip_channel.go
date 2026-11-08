@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
 import (
-	"SamWaf/model/baseorm"
+	"HomeWaf/model/baseorm"
 )
 
 // ThreatIPChannel 威胁情报 IP 订阅渠道配置表。

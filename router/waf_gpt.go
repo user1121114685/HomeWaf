@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package router
 
 import (
-	"SamWaf/api"
-	"SamWaf/middleware"
+	"HomeWaf/api"
+	"HomeWaf/middleware"
 	"github.com/gin-gonic/gin"
 )
 

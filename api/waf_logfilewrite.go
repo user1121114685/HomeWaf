@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/global"
-	"SamWaf/model/common/response"
-	"SamWaf/wafnotify/logfilewriter"
+	"HomeWaf/global"
+	"HomeWaf/model/common/response"
+	"HomeWaf/wafnotify/logfilewriter"
 	"github.com/gin-gonic/gin"
 	"strconv"
 )

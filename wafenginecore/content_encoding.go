@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/utils"
+	"HomeWaf/common/zlog"
+	"HomeWaf/utils"
 	"bufio"
 	"bytes"
 	"compress/flate"

@@ -1,0 +1,10 @@
+{
+  "module": "github.com/samwafgo/cap_go_server",
+  "version": "v1.0.1",
+  "sum": "h1:8eDw2pnTeIbdLqYx1+tuqdKttvc/2gPGzIXjQkt1XbM=",
+  "changes": [
+    "local package path with upstream Apache-2.0 retained",
+    "current nonce-array protocol mapped to server-stored challenge tuples; legacy triplets remain supported",
+    "canonical nonce bounds and 1 MiB HTTP request body limit"
+  ]
+}

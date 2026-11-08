@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
@@ -6,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"SamWaf/cache"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
+	"HomeWaf/cache"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
 )
 
 // 模拟验证码闸门在检测链后半段做的那一步。

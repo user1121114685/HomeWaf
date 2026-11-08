@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model/common/response"
-	"SamWaf/utils"
-	"SamWaf/wafdb"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model/common/response"
+	"HomeWaf/utils"
+	"HomeWaf/wafdb"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"

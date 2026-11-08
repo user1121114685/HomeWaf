@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
 	"net"
 	"regexp"
 	"strings"

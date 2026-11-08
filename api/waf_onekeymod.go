@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	"SamWaf/wafonekey"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	"HomeWaf/wafonekey"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

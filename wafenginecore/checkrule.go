@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/detection"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/utils"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/detection"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/utils"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -15,7 +17,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hyperjumptech/grule-rule-engine/ast"
+	"HomeWaf/internal/thirdparty/grule/ast"
 )
 
 // parseIPFailureThreshold 从规则文本中解析IP失败阈值信息

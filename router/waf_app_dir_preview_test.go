@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package router
 
 import (
-	"SamWaf/global"
+	"HomeWaf/global"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -32,7 +34,6 @@ func setupAppDirPreviewEngine(t *testing.T) (*gin.Engine, string) {
 	new(WafAppRouter).InitWafAppRouter(group)
 	return r, root
 }
-
 
 func mustJSON(t *testing.T, v interface{}) []byte {
 	t.Helper()

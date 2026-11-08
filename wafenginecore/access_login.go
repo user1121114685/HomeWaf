@@ -1,16 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
-	"SamWaf/wafenginecore/accessgate"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
+	"HomeWaf/wafenginecore/accessgate"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -132,7 +134,7 @@ func (waf *WafEngine) accessTargetHostOtpMode(rq string, cfg *accessgate.Config,
 
 // accessServeLoginPage 渲染登录页。
 //
-// 模板从 data/access/login.html 读，随发布包内嵌释放（见 cmd/samwaf/main.go 的 go:embed）。
+// 模板从 data/access/login.html 读，随发布包内嵌释放（见 cmd/homewaf/main.go 的 go:embed）。
 // 替换方式沿用 serveLoginPage(wafworker.go:789) 的做法：三种引号形态的路径占位各替一次。
 // 用字符串替换而不是 text/template，是为了让模板本身就是一个能直接在浏览器里打开的静态页，
 // 便于用户自定义。

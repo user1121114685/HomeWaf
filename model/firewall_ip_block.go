@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
 import (
-	"SamWaf/model/baseorm"
+	"HomeWaf/model/baseorm"
 )
 
 // FirewallIPBlock 防火墙IP封禁记录表（操作系统级别的防火墙封禁）

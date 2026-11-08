@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package test
 
 import (
+	dlp "HomeWaf/internal/thirdparty/godlp"
 	"fmt"
-	dlp "github.com/bytedance/godlp"
 	"testing"
 )
 

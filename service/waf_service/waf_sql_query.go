@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/global"
-	"SamWaf/model/request"
-	"SamWaf/model/response"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/global"
+	"HomeWaf/model/request"
+	"HomeWaf/model/response"
+	"HomeWaf/wafdb/dialect"
 	"errors"
 	"fmt"
 	"strings"

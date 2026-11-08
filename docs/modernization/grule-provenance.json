@@ -1,0 +1,11 @@
+{
+  "module": "github.com/hyperjumptech/grule-rule-engine",
+  "version": "v1.20.4",
+  "sum": "h1:wGZjwGmCKFj1426Hd54yWQu3HEJGEEEC3WaVhF5ngZI=",
+  "changes": [
+    "local import paths",
+    "omit unused Git resource loader to remove go-git/billy/MPL runtime graph",
+    "update doublestar to v4"
+  ],
+  "files": 50
+}

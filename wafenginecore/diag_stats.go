@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/diagstat"
+	"HomeWaf/common/diagstat"
 )
 
 // RegisterDiagProvider 把引擎内部对象计量注册到运行诊断（main 创建引擎后调用一次）。

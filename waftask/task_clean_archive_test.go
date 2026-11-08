@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/customtype"
-	"SamWaf/model"
+	"HomeWaf/customtype"
+	"HomeWaf/model"
 	"testing"
 	"time"
 )

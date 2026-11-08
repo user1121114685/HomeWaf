@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package iplocation
 
-// 内置数据库字节，由 cmd/samwaf 启动时用 //go:embed 资源注入。
+// 内置数据库字节，由 cmd/homewaf 启动时用 //go:embed 资源注入。
 // 全新安装（data 目录下无任何 ip 库文件）时，manager 直接以这些字节加载，
 // 因此判断某个数据源是否可用不能只看磁盘文件，必须叠加内置兜底。
 var (

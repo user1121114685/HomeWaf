@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
-import "SamWaf/model/baseorm"
+import "HomeWaf/model/baseorm"
 
 const (
 	// BlockingPageContentPrioritySamwaf 优先使用 SamWaf 自定义模版（默认，保持历史行为）：

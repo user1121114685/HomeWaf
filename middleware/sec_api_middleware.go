@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package middleware
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model/common/response"
-	"SamWaf/wafsec"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model/common/response"
+	"HomeWaf/wafsec"
 	"bytes"
 	"github.com/gin-gonic/gin"
 	"io"

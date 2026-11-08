@@ -1,0 +1,24 @@
+HomeWaf
+
+HomeWaf is an independently modified distribution based on:
+SamWaf (samwafgo/SamWaf), commit 8d60305a6f5392609f39a397c26ee67e758081f7.
+SamWafWeb (samwafgo/SamWafWeb), commit c92ee05f84e58f27fa84beacad28071f0ba5931b.
+Copyright and attribution notices of the respective upstream authors are
+retained. Both upstream projects are licensed under Apache License 2.0;
+full copies are provided in LICENSES. HomeWaf is not affiliated with or
+endorsed by the upstream project, its authors, or its service operators.
+
+HomeWaf changes include branding, framework and dependency migration,
+publisher endpoint isolation, signed licensing and plugin admission,
+database adapters, asset replacement, build and distribution changes.
+The root HomeWaf license applies only within its expressly stated scope.
+See docs/modernization for provenance and migration details, and
+THIRD_PARTY_NOTICES.md and LICENSES for third-party attributions and licenses.
+
+Compatibility identifiers retained for existing installations are not a
+claim of ownership or trademark rights in the upstream name.
+
+Historical UI template portions originate from Tencent TDesign Vue Starter.
+Copyright (c) 2021-present TDesign.
+See LICENSES/TDesign-starter-MIT.txt for the original MIT grant.
+The TDesign runtime framework and original logos/fonts are not distributed.

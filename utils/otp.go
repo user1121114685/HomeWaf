@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
-	"SamWaf/global"
+	"HomeWaf/global"
 	"fmt"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"

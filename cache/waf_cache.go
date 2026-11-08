@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package cache
 
 import (
-	"SamWaf/common/zlog"
+	"HomeWaf/common/zlog"
 	"encoding/json"
 	"strings"
 	"sync"
@@ -117,6 +119,7 @@ func (wafCache *WafCache) IsKeyExist(key string) bool {
 	delete(wafCache.cache, key)
 	return false
 }
+
 // ExistsE 内存实现不会有后端故障，error 恒为 nil
 func (wafCache *WafCache) ExistsE(key string) (bool, error) {
 	return wafCache.IsKeyExist(key), nil

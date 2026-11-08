@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package static
 
 import (
-	"SamWaf/global"
-	"SamWaf/wafconfig"
+	"HomeWaf/global"
+	"HomeWaf/wafconfig"
 	"encoding/json"
 	"net/http/httptest"
 	"strings"

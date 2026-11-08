@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/utils"
-	"SamWaf/wafenginecore"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/utils"
+	"HomeWaf/wafenginecore"
 )
 
 // TaskLogQpsClean  清空LOG QPS

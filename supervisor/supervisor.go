@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 // Package supervisor 实现优雅升级的常驻监护进程。
 //
 // 它被服务管理器(kardianos/SCM/systemd)托管、永不为升级而退出，负责：
@@ -10,11 +12,11 @@
 package supervisor
 
 import (
-	"SamWaf/common/wafexec"
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/wafipc"
-	"SamWaf/wafupdate"
+	"HomeWaf/common/wafexec"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/wafipc"
+	"HomeWaf/wafupdate"
 	"encoding/json"
 	"fmt"
 	"net"

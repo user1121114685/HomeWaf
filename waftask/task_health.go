@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/service/waf_service"
-	"SamWaf/wafenginecore"
-	"SamWaf/wafhealth"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/wafenginecore"
+	"HomeWaf/wafhealth"
 	"context"
 	"encoding/json"
 	"fmt"

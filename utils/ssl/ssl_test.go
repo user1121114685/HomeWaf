@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package ssl
 
 import (
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
 	"testing"
 )
 

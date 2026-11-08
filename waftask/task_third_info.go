@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/utils/wechat"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/utils/wechat"
 )
 
 // TaskWechatAccessToken 初始化access token

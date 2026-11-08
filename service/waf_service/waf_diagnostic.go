@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/cache"
-	"SamWaf/global"
-	"SamWaf/model/response"
-	"SamWaf/wafdb"
-	"SamWaf/wafdiag"
+	"HomeWaf/cache"
+	"HomeWaf/global"
+	"HomeWaf/model/response"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdiag"
 	"archive/zip"
 	"bytes"
 	"encoding/json"
@@ -14,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"SamWaf/common/diagstat"
+	"HomeWaf/common/diagstat"
 )
 
 type WafDiagnosticService struct {

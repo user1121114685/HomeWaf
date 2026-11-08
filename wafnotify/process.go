@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafnotify
 
 import (
-	"SamWaf/wafnotify/kafka"
-	"SamWaf/wafnotify/logfilewriter"
+	"HomeWaf/wafnotify/kafka"
+	"HomeWaf/wafnotify/logfilewriter"
 	"fmt"
 	"strings"
 )

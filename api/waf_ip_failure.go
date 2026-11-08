@@ -1,15 +1,17 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	response2 "SamWaf/model/response"
-	"SamWaf/utils"
-	"SamWaf/wafipban"
-	"SamWaf/waftask"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	response2 "HomeWaf/model/response"
+	"HomeWaf/utils"
+	"HomeWaf/wafipban"
+	"HomeWaf/waftask"
 	"fmt"
 	"strings"
 

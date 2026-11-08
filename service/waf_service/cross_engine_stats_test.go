@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // stats 库三库回归：验证统计聚合（sum/group by 等方言 SQL）+ 结构化 SQL 查询
@@ -9,11 +11,11 @@
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/customtype"
-	"SamWaf/model"
-	req "SamWaf/model/request"
-	response2 "SamWaf/model/response"
+	"HomeWaf/common/uuid"
+	"HomeWaf/customtype"
+	"HomeWaf/model"
+	req "HomeWaf/model/request"
+	response2 "HomeWaf/model/response"
 	"strconv"
 	"testing"
 	"time"

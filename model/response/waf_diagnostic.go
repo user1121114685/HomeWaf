@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package response
 
 import (
-	"SamWaf/common/diagstat"
-	"SamWaf/wafdiag"
+	"HomeWaf/common/diagstat"
+	"HomeWaf/wafdiag"
 )
 
 // WafDiagnosticDbInfo 数据库占用概览（诊断视角只关心体量，不带连接池细节）。

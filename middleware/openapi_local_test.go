@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package middleware
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafsec"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafsec"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +18,8 @@ import (
 	"testing"
 	"time"
 
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"github.com/gin-gonic/gin"
-	sqlite "github.com/samwafgo/sqlitedriver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

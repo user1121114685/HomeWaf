@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/model/request"
+	"HomeWaf/model/request"
 	"net/http/httptest"
 	"strings"
 	"testing"

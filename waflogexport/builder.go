@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waflogexport
 
 import (
@@ -18,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"SamWaf/wafsec"
-	sqlite "github.com/samwafgo/sqlitedriver"
+	sqlite "HomeWaf/internal/sqlitedialect"
+	"HomeWaf/wafsec"
 	"github.com/shirou/gopsutil/v4/disk"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafbot
 
 import (
-	"SamWaf/global"
+	"HomeWaf/global"
 	"context"
 	"net"
 	"strings"

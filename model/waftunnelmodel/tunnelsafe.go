@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftunnelmodel
 
 import (
-	"SamWaf/model"
+	"HomeWaf/model"
 	"sync"
 )
 

@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafupdate
 
 import (
-	"SamWaf/global"
-	"SamWaf/utils"
+	"HomeWaf/global"
+	"HomeWaf/utils"
 	"net/url"
 	"runtime"
 	"strings"
@@ -20,7 +22,6 @@ func ClientQuery() string {
 func buildClientQuery() string {
 	parts := []string{
 		"v=" + url.QueryEscape(global.GWAF_RELEASE_VERSION),
-		"u=" + url.QueryEscape(global.GWAF_USER_CODE),
 	}
 	if global.GCONFIG_UPDATE_ENV_REPORT {
 		parts = append(parts,

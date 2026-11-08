@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafcli
 
 import (
-	"SamWaf/global"
-	"SamWaf/supervisor"
-	"SamWaf/utils"
-	"SamWaf/wafdb"
-	"SamWaf/wafsec"
-	"SamWaf/wafupdate"
+	"HomeWaf/global"
+	"HomeWaf/supervisor"
+	"HomeWaf/utils"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafsec"
+	"HomeWaf/wafupdate"
 	"errors"
 	"fmt"
 

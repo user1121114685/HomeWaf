@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/model"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
-	"SamWaf/waftask/batch"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/model"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
+	"HomeWaf/waftask/batch"
 	"fmt"
 	"strings"
 )

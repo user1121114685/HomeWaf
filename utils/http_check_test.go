@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
 	"net/http"
 	"net/http/httptest"
 	"testing"

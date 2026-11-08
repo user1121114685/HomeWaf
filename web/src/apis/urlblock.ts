@@ -1,0 +1,68 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
+import request from '@/utils/request'
+//查看URL黑名单列表
+export function wafURLBlockListApi(params: any = {}) {
+  return request({
+    url: '/wafhost/urlblock/list',
+    method: 'post',
+    data: params
+  })
+}
+//删除URL黑名单
+export function wafURLBlockDelApi(params: any = {}) {
+  return request({
+    url: '/wafhost/urlblock/del',
+    method: 'get',
+    params: params
+  })
+}
+//编辑URL黑名单
+export function wafURLBlockEditApi(params: any = {}) {
+  return request({
+    url: '/wafhost/urlblock/edit',
+    method: 'post',
+    data: params
+  })
+}
+//添加URL黑名单
+export function wafURLBlockAddApi(params: any = {}) {
+  return request({
+    url: '/wafhost/urlblock/add',
+    method: 'post',
+    data: params
+  })
+}
+//详细URL黑名单
+export function wafURLBlockDetailApi(params: any = {}) {
+  return request({
+    url: '/wafhost/urlblock/detail',
+    method: 'get',
+    params: params
+  })
+}
+//批量删除URL黑名单
+export function wafURLBlockBatchDelApi(params: any = {}) {
+  return request({
+    url: '/wafhost/urlblock/batchdel',
+    method: 'post',
+    data: params
+  })
+}
+//清空所有URL黑名单
+export function wafURLBlockDelAllApi(params: any = {}) {
+  return request({
+    url: '/wafhost/urlblock/delall',
+    method: 'post',
+    data: params
+  })
+}
+
+//切换URL黑名单条目启用状态
+export function wafURLBlockToggleApi(params: any = {}) {
+  return request({
+    url: '/wafhost/urlblock/toggle',
+    method: 'post',
+    data: params
+  })
+}

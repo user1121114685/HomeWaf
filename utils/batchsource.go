@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
@@ -6,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"SamWaf/global"
+	"HomeWaf/global"
 )
 
 // 批量任务「本地路径」来源的路径收口。

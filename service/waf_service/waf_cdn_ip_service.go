@@ -1,16 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/wafenginecore/clientip"
-	"SamWaf/wafenginecore/ipset"
-	"SamWaf/wafsec"
-	"SamWaf/waftask/threatip"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/wafenginecore/clientip"
+	"HomeWaf/wafenginecore/ipset"
+	"HomeWaf/wafsec"
+	"HomeWaf/waftask/threatip"
 	"encoding/json"
 	"fmt"
 	"strings"

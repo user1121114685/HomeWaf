@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafhostguard
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/firewall"
-	"SamWaf/global"
-	"SamWaf/model"
+	"HomeWaf/common/zlog"
+	"HomeWaf/firewall"
+	"HomeWaf/global"
+	"HomeWaf/model"
 	"sync"
 	"time"
 )

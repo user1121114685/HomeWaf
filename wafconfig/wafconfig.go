@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafconfig
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/global"
-	"SamWaf/utils"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafowasp"
+	"HomeWaf/common/uuid"
+	"HomeWaf/global"
+	"HomeWaf/utils"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafowasp"
 	"crypto/rand"
 	"fmt"
 	"math/big"

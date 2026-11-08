@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafqueue
 
 import (
-	"SamWaf/innerbean"
-	"SamWaf/model"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
 	"crypto/sha1"
 	"encoding/hex"
 	"strings"

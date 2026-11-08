@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafcli
 
 import (
@@ -16,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"SamWaf/global"
-	"SamWaf/utils"
+	"HomeWaf/global"
+	"HomeWaf/utils"
 )
 
 const hostAPI = "/api/v1/wafhost/host/"

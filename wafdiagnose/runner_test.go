@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdiagnose
 
 import (
@@ -15,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"SamWaf/global"
-	"SamWaf/utils"
+	"HomeWaf/global"
+	"HomeWaf/utils"
 )
 
 // 进程内单例代理服务器，见 TestPublicAllowProxyFollowsSystemProxy 注释。

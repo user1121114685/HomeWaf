@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 // Package threatip 提供威胁情报 IP 订阅的解析、拉取与差异计算逻辑。
 package threatip
 
 import (
-	"SamWaf/model"
-	"SamWaf/utils"
+	"HomeWaf/model"
+	"HomeWaf/utils"
 	"bufio"
 	"fmt"
 	"io"

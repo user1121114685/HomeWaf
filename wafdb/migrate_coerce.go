@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 import (
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/wafdb/dialect"
 	"strconv"
 	"strings"
 	"time"

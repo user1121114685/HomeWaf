@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 // Ip 字段去掉了 binding:"required"：条目类型为 group 时不填 Ip。
 // 必填校验改为按 IpType 在 api 层做（见 api/waf_ip_entry_validate.go），

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 过期回收（E3）的三库回归。
@@ -11,18 +13,18 @@
 package waftask
 
 import (
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafdb/partition"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafdb/partition"
 	"os"
 	"testing"
 	"time"
 
-	mysqldriver "gorm.io/driver/mysql"
+	mysqldriver "HomeWaf/internal/mysql"
 	pgdriver "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
 	"strings"
 	"testing"
 )

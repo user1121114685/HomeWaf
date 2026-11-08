@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/service/waf_service"
+	"HomeWaf/service/waf_service"
 )
 
 var (

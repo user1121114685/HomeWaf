@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 分析层汇总的三库回归。
@@ -11,18 +13,18 @@
 package waftask
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
 	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
 
-	mysqldriver "gorm.io/driver/mysql"
+	mysqldriver "HomeWaf/internal/mysql"
+	sqlitedriver "HomeWaf/internal/sqlitedialect"
 	pgdriver "gorm.io/driver/postgres"
-	sqlitedriver "github.com/samwafgo/sqlitedriver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

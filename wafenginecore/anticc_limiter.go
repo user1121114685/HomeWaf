@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/utils"
-	"SamWaf/wafenginecore/ccrule"
-	"SamWaf/webplugin"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/utils"
+	"HomeWaf/wafenginecore/ccrule"
+	"HomeWaf/webplugin"
 	"fmt"
 
 	"golang.org/x/time/rate"

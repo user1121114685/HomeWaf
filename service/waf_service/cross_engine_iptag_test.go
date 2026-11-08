@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // ip_tags 相关查询的三库回归：验证「不算风险的标签」排除逻辑在 SQLite/MySQL/PostgreSQL 上
@@ -8,11 +10,11 @@
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/common/request"
-	req "SamWaf/model/request"
+	"HomeWaf/common/uuid"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/common/request"
+	req "HomeWaf/model/request"
 	"strings"
 	"testing"
 

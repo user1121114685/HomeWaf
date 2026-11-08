@@ -1,14 +1,16 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/common/response"
-	"SamWaf/utils"
-	"SamWaf/wafupdate"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/common/response"
+	"HomeWaf/utils"
+	"HomeWaf/wafupdate"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +34,9 @@ func getAnnouncement() {
 
 // 获取公告数据，可指定超时时间
 func fetchAnnouncementWithTimeout(timeout time.Duration) (string, error) {
+	if global.GUPDATE_VERSION_URL == "" {
+		return "", nil
+	}
 	zlog.Debug(fmt.Sprintf("开始获取公告数据，超时时间: %v", timeout))
 	client := &http.Client{
 		Timeout: timeout,
@@ -57,6 +62,10 @@ func fetchAnnouncementWithTimeout(timeout time.Duration) (string, error) {
 
 // GetAnnouncementApi 获取公告API
 func (w *WafSysInfoApi) GetAnnouncementApi(c *gin.Context) {
+	if global.GUPDATE_VERSION_URL == "" {
+		response.OkWithDetailed(gin.H{"code": "disabled", "data": ""}, "未配置 HomeWaf 公告服务", c)
+		return
+	}
 	isAnnouncementExist := global.GCACHE_WAFCACHE.IsKeyExist(enums.CACHE_ANNOUNCEMENT)
 	if !isAnnouncementExist {
 		// 先尝试快速获取（2秒超时）
@@ -154,6 +163,10 @@ func (w *WafSysInfoApi) SysRuntimeInfoApi(c *gin.Context) {
 }
 
 func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
+	if global.GUPDATE_VERSION_URL == "" {
+		response.FailWithMessage("未配置 HomeWaf 更新源，请联系发行方或使用离线安装包", c)
+		return
+	}
 	if global.GWAF_RUNTIME_IS_UPDATETING == true {
 		response.FailWithMessage("正在升级中...请在消息等待结果", c)
 		return
@@ -170,7 +183,7 @@ func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
 		BinURL:         remoteURL,                   // The server hosting the zip file containing the binary application which is a fallback for the patch method
 		DiffURL:        remoteURL,                   // The server hosting the binary patch diff for incremental updates
 		Dir:            "tmp_update/",               // The directory created by the app when run which stores the cktime file
-		CmdName:        "samwaf_update",             // The app name which is appended to the ApiURL to look for an update
+		CmdName:        "homewaf_update",            // The app name which is appended to the ApiURL to look for an update
 		//ForceCheck:     true,                     // For this example, always check for an update unless the version is "dev"
 	}
 	available, newVer, desc, _ := updater.UpdateAvailable()
@@ -279,6 +292,10 @@ func (w *WafSysInfoApi) RollbackApi(c *gin.Context) {
 
 // 去升级
 func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
+	if global.GUPDATE_VERSION_URL == "" {
+		response.FailWithMessage("未配置 HomeWaf 更新源，请联系发行方或使用离线安装包", c)
+		return
+	}
 	// 获取请求中的 channel 参数
 	channel := c.Query("channel")
 	if global.GWAF_RUNTIME_IS_UPDATETING == true {
@@ -322,7 +339,7 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 		BinURL:         remoteURL,                   // The server hosting the zip file containing the binary application which is a fallback for the patch method
 		DiffURL:        remoteURL,                   // The server hosting the binary patch diff for incremental updates
 		Dir:            "tmp_update/",               // The directory created by the app when run which stores the cktime file
-		CmdName:        "samwaf_update",             // The app name which is appended to the ApiURL to look for an update
+		CmdName:        "homewaf_update",            // The app name which is appended to the ApiURL to look for an update
 		//ForceCheck:     true,                     // For this example, always check for an update unless the version is "dev"
 		Tracker: tracker,
 		OnSuccessfulUpdate: func() {

@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
+	"HomeWaf/global"
+	"HomeWaf/model"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"

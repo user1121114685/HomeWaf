@@ -1,18 +1,20 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	response2 "SamWaf/model/response"
-	"SamWaf/utils"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	response2 "HomeWaf/model/response"
+	"HomeWaf/utils"
 	"fmt"
 	"strings"
 	"time"
@@ -32,7 +34,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 			response.FailWithMessage("帐号为空", c)
 			return
 		}
-		// 默认管理员由程序启动初始化时按"账户表为空"判定并创建(见 cmd/samwaf/main.go)，此处不再惰性创建
+		// 默认管理员由程序启动初始化时按"账户表为空"判定并创建(见 cmd/homewaf/main.go)，此处不再惰性创建
 		bean := wafAccountService.GetInfoByLoginApi(req)
 		if bean.Id != "" {
 			clientIP := utils.GetManageClientIP(c)

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // core 库 CRUD 三库回归：对每个 service 走真实 Add/Modify/Del/读回，断言不崩溃 + 数据正确。
@@ -5,10 +7,10 @@
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/customtype"
-	"SamWaf/model"
-	"SamWaf/model/request"
+	"HomeWaf/common/uuid"
+	"HomeWaf/customtype"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
 	"testing"
 	"time"
 

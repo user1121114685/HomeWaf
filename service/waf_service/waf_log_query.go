@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 // 日志列表查询的分区扇出（M3 E5）。
@@ -14,13 +16,13 @@ package waf_service
 // 其它排序字段没有这个性质，所以跨分区时强制按时间排序（SortForcedTime 会告诉前端说明一句）。
 
 import (
-	"SamWaf/common/validfield"
-	"SamWaf/common/zlog"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/request"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/validfield"
+	"HomeWaf/common/zlog"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
 	"context"
 	"errors"
 	"fmt"

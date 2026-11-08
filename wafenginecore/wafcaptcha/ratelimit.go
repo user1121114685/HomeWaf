@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafcaptcha
 
 import (
@@ -7,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"SamWaf/enums"
+	"HomeWaf/enums"
 )
 
 // 验证码接口按 IP 限频。

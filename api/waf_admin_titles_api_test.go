@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/global"
-	"SamWaf/wafconfig"
-	"SamWaf/wafsec"
+	"HomeWaf/global"
+	"HomeWaf/wafconfig"
+	"HomeWaf/wafsec"
 	"encoding/json"
 	"net/http/httptest"
 	"strings"

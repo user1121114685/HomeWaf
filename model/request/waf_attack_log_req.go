@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 type WafAttackLogDetailReq struct {
 	// detail/httpcopymask 为 GET 请求，需 form tag 才能从 query 绑定；

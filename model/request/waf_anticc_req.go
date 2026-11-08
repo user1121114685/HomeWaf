@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 type WafAntiCCAddReq struct {
 	HostCode      string `json:"host_code"  form:"host_code" binding:"required"`            //网站唯一码（主要键）
