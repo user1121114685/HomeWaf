@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafbot
 
-import "SamWaf/utils"
+import "HomeWaf/utils"
 
 // CallBackIpResult 检测结果
 type CallBackIpResult struct {

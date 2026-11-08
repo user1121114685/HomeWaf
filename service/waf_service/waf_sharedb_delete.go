@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/utils"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/utils"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
 	"context"
 	"fmt"
 	"os"

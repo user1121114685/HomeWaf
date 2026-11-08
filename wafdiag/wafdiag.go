@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdiag
 
 import (
-	"SamWaf/common/diagstat"
-	"SamWaf/enums"
-	"SamWaf/global"
+	"HomeWaf/common/diagstat"
+	"HomeWaf/enums"
+	"HomeWaf/global"
 	"os"
 	"runtime"
 	"strings"

@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
+	"HomeWaf/common/zlog"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
 	"bytes"
 	"compress/flate"
 	"compress/gzip"

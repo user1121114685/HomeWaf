@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 import (
 	"testing"
 
-	"SamWaf/global"
-	"SamWaf/wafsec"
+	"HomeWaf/global"
+	"HomeWaf/wafsec"
 
 	"gorm.io/gorm"
 )

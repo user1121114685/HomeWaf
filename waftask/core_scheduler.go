@@ -1,21 +1,24 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/tasklog"
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
+	"HomeWaf/common/tasklog"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
 	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-co-op/gocron"
+	"github.com/go-co-op/gocron/v2"
+	_ "time/tzdata"
 )
 
 // TaskScheduler 用于封装任务调度器
 type TaskScheduler struct {
-	Scheduler *gocron.Scheduler
+	Scheduler gocron.Scheduler
 	Registry  *TaskRegistry
 	// 任务标签映射，用于管理任务的卸载和重载
 	taskTags map[string]string // key: taskMethod, value: jobTag
@@ -24,9 +27,16 @@ type TaskScheduler struct {
 
 // NewTaskScheduler 创建新的任务调度器
 func NewTaskScheduler(registry *TaskRegistry) *TaskScheduler {
-	timezone, _ := time.LoadLocation("Asia/Shanghai")
+	timezone, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		panic(err)
+	}
+	scheduler, err := gocron.NewScheduler(gocron.WithLocation(timezone))
+	if err != nil {
+		panic(err)
+	}
 	return &TaskScheduler{
-		Scheduler: gocron.NewScheduler(timezone),
+		Scheduler: scheduler,
 		Registry:  registry,
 		taskTags:  make(map[string]string),
 	}
@@ -39,40 +49,50 @@ func NewTaskScheduler(registry *TaskRegistry) *TaskScheduler {
 // taskMethod 是具体要执行的任务
 // taskDaysOfTheWeek 如果是周级别 此处传入周几
 func (ts *TaskScheduler) ScheduleTask(unit string, interval int, at string, taskMethod string, taskDaysOfTheWeek string) error {
-	var job *gocron.Job
-	var err error
-
-	// 生成任务标签，用于后续管理
+	if interval < 1 {
+		return fmt.Errorf("task interval must be positive")
+	}
 	jobTag := fmt.Sprintf("task_%s", taskMethod)
-
+	var definition gocron.JobDefinition
+	options := []gocron.JobOption{gocron.WithTags(jobTag)}
 	switch unit {
 	case enums.TASK_SECOND:
-		job, err = ts.Scheduler.Every(interval).Seconds().Tag(jobTag).Do(func() {
-			ts.Registry.ExecuteTask(taskMethod)
-		})
+		definition = gocron.DurationJob(time.Duration(interval) * time.Second)
 	case enums.TASK_MIN:
-		job, err = ts.Scheduler.Every(interval).Minutes().Tag(jobTag).Do(func() {
-			ts.Registry.ExecuteTask(taskMethod)
-		})
+		definition = gocron.DurationJob(time.Duration(interval) * time.Minute)
 	case enums.TASK_HOUR:
-		job, err = ts.Scheduler.Every(interval).Hours().Tag(jobTag).Do(func() {
-			ts.Registry.ExecuteTask(taskMethod)
-		})
-	case enums.TASK_DAY:
-		job, err = ts.Scheduler.Every(interval).Day().At(at).Tag(jobTag).Do(func() {
-			ts.Registry.ExecuteTask(taskMethod)
-		})
-	case enums.TASK_WEEKLY:
-		dayInt, err := strconv.Atoi(strings.TrimSpace(taskDaysOfTheWeek))
-		if err != nil {
-			return fmt.Errorf("无效的星期几格式: %s, 错误: %v", taskDaysOfTheWeek, err)
+		definition = gocron.DurationJob(time.Duration(interval) * time.Hour)
+	case enums.TASK_DAY, enums.TASK_WEEKLY:
+		var times []gocron.AtTime
+		for _, value := range strings.FieldsFunc(at, func(c rune) bool { return c == ',' || c == ';' }) {
+			parsed, err := time.Parse("15:04:05", strings.TrimSpace(value))
+			if err != nil {
+				parsed, err = time.Parse("15:04", strings.TrimSpace(value))
+			}
+			if err != nil {
+				return fmt.Errorf("invalid task time: %w", err)
+			}
+			times = append(times, gocron.NewAtTime(uint(parsed.Hour()), uint(parsed.Minute()), uint(parsed.Second())))
 		}
-		job, err = ts.Scheduler.Every(interval).Weekday(time.Weekday(dayInt)).At(at).Tag(jobTag).Do(func() {
-			ts.Registry.ExecuteTask(taskMethod)
-		})
+		if len(times) == 0 {
+			return fmt.Errorf("task time is required")
+		}
+		if unit == enums.TASK_DAY {
+			definition = gocron.DailyJob(uint(interval), gocron.NewAtTimes(times[0], times[1:]...))
+		} else {
+			day, err := strconv.Atoi(strings.TrimSpace(taskDaysOfTheWeek))
+			if err != nil || day < 0 || day > 6 {
+				return fmt.Errorf("invalid weekday: %s", taskDaysOfTheWeek)
+			}
+			definition = gocron.WeeklyJob(uint(interval), gocron.NewWeekdays(time.Weekday(day)), gocron.NewAtTimes(times[0], times[1:]...))
+		}
 	default:
 		return fmt.Errorf("unsupported unit: %s", unit)
 	}
+	if unit == enums.TASK_SECOND || unit == enums.TASK_MIN || unit == enums.TASK_HOUR {
+		options = append(options, gocron.WithStartAt(gocron.WithStartImmediately()))
+	}
+	job, err := ts.Scheduler.NewJob(definition, gocron.NewTask(func() { ts.Registry.ExecuteTask(taskMethod) }), options...)
 
 	if err != nil {
 		return fmt.Errorf("failed to schedule task: %v", err)
@@ -109,11 +129,11 @@ func applyTaskLogPolicy(taskMethod string, unit string, interval int) {
 	}
 }
 func (ts *TaskScheduler) Start() {
-	ts.Scheduler.StartAsync()
+	ts.Scheduler.Start()
 }
 func (ts *TaskScheduler) Stop() {
 	if ts != nil {
-		ts.Scheduler.Stop()
+		_ = ts.Scheduler.Shutdown()
 	}
 }
 
@@ -133,11 +153,7 @@ func (ts *TaskScheduler) UnscheduleTask(taskMethod string) error {
 	}
 
 	// 通过标签移除任务
-	err := ts.Scheduler.RemoveByTag(jobTag)
-	if err != nil {
-		zlog.Error("卸载任务失败", "taskMethod", taskMethod, "error", err.Error())
-		return fmt.Errorf("卸载任务 %s 失败: %w", taskMethod, err)
-	}
+	ts.Scheduler.RemoveByTags(jobTag)
 
 	// 从映射中移除
 	ts.mu.Lock()

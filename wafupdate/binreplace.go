@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafupdate
 
 import (
-	"SamWaf/common/zlog"
+	"HomeWaf/common/zlog"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -275,7 +277,7 @@ func diagnoseFileOp(op, src, dst string, err error) string {
 }
 
 // currentRole 返回当前进程角色，仅用于日志与错误诊断。
-// 与 cmd/samwaf/main.go 的 parseWorkerRole 保持同一判据(扫 os.Args 找 --worker)。
+// 与 cmd/homewaf/main.go 的 parseWorkerRole 保持同一判据(扫 os.Args 找 --worker)。
 func currentRole() string {
 	for _, a := range os.Args[1:] {
 		if a == "--worker" {

@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 // WafIPWatchlistAddReq 加入/续期观察名单
 type WafIPWatchlistAddReq struct {

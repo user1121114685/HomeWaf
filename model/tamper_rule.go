@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
-import "SamWaf/model/baseorm"
+import "HomeWaf/model/baseorm"
 
 // TamperRule 网页防篡改规则（按站点、按精确 URL 存基线，反代响应基线比对）
 type TamperRule struct {

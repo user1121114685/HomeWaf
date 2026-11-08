@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
@@ -6,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/global"
-	"SamWaf/wafenginecore/clientip"
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/global"
+	"HomeWaf/wafenginecore/clientip"
+	"HomeWaf/wafenginecore/ipset"
 
 	"github.com/gin-gonic/gin"
 )

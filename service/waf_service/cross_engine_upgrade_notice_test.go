@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 升级须知（upgrade_notice_record）三库回归：生成幂等、状态流转、列表过滤、降级不生成。
 package waf_service
 
 import (
-	"SamWaf/model"
-	commonreq "SamWaf/model/common/request"
-	"SamWaf/model/request"
-	"SamWaf/wafupgradenotice"
+	"HomeWaf/model"
+	commonreq "HomeWaf/model/common/request"
+	"HomeWaf/model/request"
+	"HomeWaf/wafupgradenotice"
 	"strings"
 	"testing"
 

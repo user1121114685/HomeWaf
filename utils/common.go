@@ -1,13 +1,16 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/wafenginecore/ipset"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -170,42 +173,39 @@ func SafeHTTPClient() *http.Client {
 	}
 }
 
+// GetExternalIp is opt-in and never contacts a third-party discovery service by default.
 func GetExternalIp() string {
-	// 创建带超时的HTTP客户端,避免DNS解析问题
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout:   5 * time.Second,
-				KeepAlive: 5 * time.Second,
-			}).DialContext,
-			TLSHandshakeTimeout:   5 * time.Second,
-			ResponseHeaderTimeout: 5 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+	endpoint := strings.TrimSpace(os.Getenv("HOMEWAF_PUBLIC_IP_URL"))
+	if !strings.HasPrefix(strings.ToLower(endpoint), "https://") {
+		return ""
 	}
-
-	resp, err := client.Get("http://myexternalip.com/raw")
+	if ok, _ := IsSafeOutboundURL(endpoint); !ok {
+		return ""
+	}
+	client := SafeOutboundHTTPClient(5 * time.Second)
+	resp, err := client.Get(endpoint)
 	if err != nil {
-		zlog.Debug("GetExternalIp failed: %v", err)
 		return ""
 	}
 	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		zlog.Debug("ReadAll failed: %v", err)
+	if resp.StatusCode != http.StatusOK {
 		return ""
 	}
-
-	clientIP := strings.TrimSpace(string(body))
-	return clientIP
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 128))
+	if err != nil {
+		return ""
+	}
+	ip := net.ParseIP(strings.TrimSpace(string(body)))
+	if ip == nil {
+		return ""
+	}
+	return ip.String()
 }
 
 func GetCurrentDir() string {
 	// 检测环境变量是否存在
 	envVar := "SamWafIDE"
-	if _, exists := os.LookupEnv(envVar); exists {
+	if _, exists := os.LookupEnv(envVar); exists || os.Getenv("HOMEWAF_DEV") != "" {
 		return "."
 	}
 
@@ -222,7 +222,7 @@ func GetCurrentDir() string {
 func CheckDebugEnvInfo() bool {
 	// 检测环境变量是否存在
 	envVar := "SamWafIDEDebugLog"
-	if _, exists := os.LookupEnv(envVar); exists {
+	if _, exists := os.LookupEnv(envVar); exists || os.Getenv("HOMEWAF_DEV") != "" {
 		return true
 	}
 
@@ -288,16 +288,26 @@ func TimeToDayInt(t time.Time) int {
 	day, _ := strconv.Atoi(t.Format("20060102"))
 	return day
 }
+
+// GetPublicIP retains the legacy API name but discovers local addresses without network traffic.
 func GetPublicIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+	interfaces, err := net.Interfaces()
 	if err != nil {
 		return "localhost"
-		// log.Fatal(err)
 	}
-	defer conn.Close()
-	localAddr := conn.LocalAddr().String()
-	idx := strings.LastIndex(localAddr, ":")
-	return localAddr[0:idx]
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addresses, _ := iface.Addrs()
+		for _, address := range addresses {
+			ip, _, err := net.ParseCIDR(address.String())
+			if err == nil && ip.To4() != nil && ip.IsGlobalUnicast() {
+				return ip.String()
+			}
+		}
+	}
+	return "localhost"
 }
 
 func GetCountry(ip string) []string {
@@ -654,4 +664,3 @@ func IsIP(input string) bool {
 	// 如果是有效的 IP，返回非 nil
 	return net.ParseIP(input) != nil
 }
-

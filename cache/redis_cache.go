@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package cache
 
 import (
-	"SamWaf/common/zlog"
+	"HomeWaf/common/zlog"
 	"context"
 	"encoding/json"
 	"errors"

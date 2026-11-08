@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafhostguard
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
 	"context"
 	"sync"
 	"sync/atomic"
@@ -17,7 +19,7 @@ import (
 // 而缓存默认是进程内内存，两边计数器互相看不见，于是各自都以为"才 4 次"，
 // 实际用户配的 8 次阈值被腰斩成 4 次，误封概率显著上升。
 // 所以 Start() 只能挂在 activateSingletons()(Supervisor 确认旧 Worker 已退出后才触发)
-// 和非 takeover 的首启路径上，见 cmd/samwaf/main.go。
+// 和非 takeover 的首启路径上，见 cmd/homewaf/main.go。
 
 // eventChanSize 事件通道缓冲。爆破高峰下每秒可能几十上百条，
 // 留一千多的缓冲让消费端(要查库、要写库)有喘息空间。
@@ -73,7 +75,7 @@ func noteSourceFailure(reason string) {
 //	原始>0 丢弃>0       投递与解析都正常，只是拿不到可用的源 IP
 func noteRawEvent() { engine.rawReceived.Add(1) }
 
-// Start 启动采集(幂等)。调用点见 cmd/samwaf/main.go 的两处。
+// Start 启动采集(幂等)。调用点见 cmd/homewaf/main.go 的两处。
 func Start() { engine.Start() }
 
 // Stop 停止采集(幂等)，等所有事件源退出后返回

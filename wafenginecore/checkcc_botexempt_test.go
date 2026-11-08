@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
 	"testing"
 
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/wafenginecore/ccrule"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/wafenginecore/ccrule"
 )
 
 func exemptRule(action string, botExempt int) *ccrule.CompiledRule {

@@ -1,6 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package gwebsocket
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	Wssocket "github.com/gorilla/websocket"
+	Wssocket "github.com/coder/websocket"
 )
 
 // 回归用例：管理端 WebSocket 曾经被多路 goroutine 同时裸写，触发
@@ -45,16 +48,10 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 		f()
 	}
 
-	upGrader := Wssocket.Upgrader{
-		CheckOrigin:     func(r *http.Request) bool { return true },
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
-
 	var echoSent int64
 	var serverWG sync.WaitGroup
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws, err := upGrader.Upgrade(w, r, nil)
+		ws, err := Wssocket.Accept(w, r, nil)
 		if err != nil {
 			t.Errorf("upgrade 失败: %v", err)
 			return
@@ -70,7 +67,7 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 		// 复刻 api/waf_websocket.go 的回显循环：读到 ping 就原路写回 pong
 		guard("echo("+sessionID[:8]+")", func() {
 			for {
-				mt, message, err := ws.ReadMessage()
+				mt, message, err := readMessage(ws)
 				if err != nil {
 					return
 				}
@@ -92,14 +89,14 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 	var received int64
 	var clients []*Wssocket.Conn
 	for i := 0; i < clientCount; i++ {
-		c, _, err := Wssocket.DefaultDialer.Dial(wsURL, nil)
+		c, _, err := Wssocket.Dial(context.Background(), wsURL, nil)
 		if err != nil {
 			t.Fatalf("第 %d 个客户端连接失败: %v", i, err)
 		}
 		clients = append(clients, c)
 		go func(c *Wssocket.Conn) {
 			for {
-				if _, _, err := c.ReadMessage(); err != nil {
+				if _, _, err := readMessage(c); err != nil {
 					return
 				}
 				atomic.AddInt64(&received, 1)
@@ -108,7 +105,7 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 	}
 	defer func() {
 		for _, c := range clients {
-			c.Close()
+			c.CloseNow()
 		}
 	}()
 
@@ -132,7 +129,7 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 			payload := []byte(strings.Repeat(fmt.Sprintf("broadcast-%d;", b), 64))
 			guard(fmt.Sprintf("broadcast(%d)", b), func() {
 				for i := 0; i < broadcastTimes; i++ {
-					atomic.AddInt64(&broadcastSent, int64(online.Broadcast(Wssocket.TextMessage, payload)))
+					atomic.AddInt64(&broadcastSent, int64(online.Broadcast(Wssocket.MessageText, payload)))
 					time.Sleep(time.Millisecond)
 				}
 			})
@@ -145,7 +142,7 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 		go func(c *Wssocket.Conn) {
 			defer wg.Done()
 			for i := 0; i < echoTimes; i++ {
-				if err := c.WriteMessage(Wssocket.TextMessage, []byte("ping")); err != nil {
+				if err := c.Write(context.Background(), Wssocket.MessageText, []byte("ping")); err != nil {
 					return
 				}
 				time.Sleep(time.Millisecond)
@@ -176,7 +173,7 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 	}
 
 	for _, c := range clients {
-		c.Close()
+		c.CloseNow()
 	}
 	serverWG.Wait()
 }
@@ -189,15 +186,9 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 func TestBroadcast_StalledClientTimesOutAndIsRemoved(t *testing.T) {
 	online := InitWafWebSocket()
 
-	upGrader := Wssocket.Upgrader{
-		CheckOrigin:     func(r *http.Request) bool { return true },
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
-
 	registered := make(chan string, 1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws, err := upGrader.Upgrade(w, r, nil)
+		ws, err := Wssocket.Accept(w, r, nil)
 		if err != nil {
 			t.Errorf("upgrade 失败: %v", err)
 			return
@@ -208,18 +199,18 @@ func TestBroadcast_StalledClientTimesOutAndIsRemoved(t *testing.T) {
 	defer srv.Close()
 
 	// 客户端连上之后完全不读，模拟卡死 / 掉线未察觉的浏览器
-	client, _, err := Wssocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	client, _, err := Wssocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http"), nil)
 	if err != nil {
 		t.Fatalf("客户端连接失败: %v", err)
 	}
-	defer client.Close()
+	defer client.CloseNow()
 	<-registered
 
 	payload := []byte(strings.Repeat("y", 64*1024))
 	start := time.Now()
 	// 先把内核发送缓冲灌满（本机实测 2~3MB），再往后写就会卡住并触发写超时
 	for i := 0; i < 4096; i++ {
-		if online.Broadcast(Wssocket.TextMessage, payload) == 0 {
+		if online.Broadcast(Wssocket.MessageText, payload) == 0 {
 			break
 		}
 		if time.Since(start) > WriteWait+10*time.Second {
@@ -241,17 +232,16 @@ func TestBroadcast_StalledClientTimesOutAndIsRemoved(t *testing.T) {
 func TestSessionLifecycle(t *testing.T) {
 	online := InitWafWebSocket()
 
-	upGrader := Wssocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	registered := make(chan string, 2)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws, err := upGrader.Upgrade(w, r, nil)
+		ws, err := Wssocket.Accept(w, r, nil)
 		if err != nil {
 			t.Errorf("upgrade 失败: %v", err)
 			return
 		}
 		registered <- online.AddWebSocket("same-user", ws)
 		for {
-			if _, _, err := ws.ReadMessage(); err != nil {
+			if _, _, err := readMessage(ws); err != nil {
 				return
 			}
 		}
@@ -262,7 +252,7 @@ func TestSessionLifecycle(t *testing.T) {
 	var clients []*Wssocket.Conn
 	var sessions []string
 	for i := 0; i < 2; i++ {
-		c, _, err := Wssocket.DefaultDialer.Dial(wsURL, nil)
+		c, _, err := Wssocket.Dial(context.Background(), wsURL, nil)
 		if err != nil {
 			t.Fatalf("客户端连接失败: %v", err)
 		}
@@ -271,7 +261,7 @@ func TestSessionLifecycle(t *testing.T) {
 	}
 	defer func() {
 		for _, c := range clients {
-			c.Close()
+			c.CloseNow()
 		}
 	}()
 
@@ -299,7 +289,13 @@ func TestSessionLifecycle(t *testing.T) {
 	}
 
 	// 向已摘除的会话发送应返回错误而不是 panic
-	if err := online.SendToSession(sessions[0], Wssocket.TextMessage, []byte("x")); err == nil {
+	if err := online.SendToSession(sessions[0], Wssocket.MessageText, []byte("x")); err == nil {
 		t.Fatal("向已关闭会话发送应当返回错误")
 	}
+}
+
+func readMessage(conn *Wssocket.Conn) (Wssocket.MessageType, []byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return conn.Read(ctx)
 }

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package webhook
 
 import (
@@ -5,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/global"
+	"HomeWaf/global"
 )
 
 // 说明：Send() 会强制走 IsAllowedOutboundURL，httptest 起在 127.0.0.1 上必然被拒，

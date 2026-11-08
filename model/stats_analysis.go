@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
-import "SamWaf/model/baseorm"
+import "HomeWaf/model/baseorm"
 
 // M5 分析层的天级汇总，喂三个视角：行为（谁）/ 目标（打哪）/ 手法（怎么打）。
 //

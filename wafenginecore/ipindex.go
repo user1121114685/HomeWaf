@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/model"
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/model"
+	"HomeWaf/wafenginecore/ipset"
 	"net"
 )
 

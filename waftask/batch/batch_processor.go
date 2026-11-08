@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package batch
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/utils"
+	"HomeWaf/common/zlog"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/utils"
 	"bufio"
 	"bytes"
 	"errors"

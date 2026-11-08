@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
 import (
-	"SamWaf/model/baseorm"
+	"HomeWaf/model/baseorm"
 )
 
 // HostGuardOffender 攻击者档案(累犯记忆)，阶梯递进封禁的依据。

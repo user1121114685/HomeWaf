@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package middleware
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/service/waf_service"
-	"SamWaf/utils"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/utils"
 	"crypto/subtle"
 	"net/http"
 

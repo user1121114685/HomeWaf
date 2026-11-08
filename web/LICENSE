@@ -1,0 +1,74 @@
+HomeWaf frontend additions and modifications: see the repository root LICENSE.
+Upstream frontend and template rights remain under their original licenses;
+see ../NOTICE and ../LICENSES.
+
+HomeWaf Noncommercial Source-Available License 1.0
+SPDX-License-Identifier: LicenseRef-HomeWaf-NC-1.0
+Effective for HomeWaf-specific work first distributed under these terms.
+
+1. Scope and third-party rights
+"HomeWaf Work" means original additions and modifications to which their
+copyright owners apply this license, and the HomeWaf derivative distribution
+as a whole, only to the extent those owners may license it. "Licensor" means
+the copyright owners of that work, not the upstream SamWaf contributors.
+
+This license DOES NOT replace, restrict or revoke any license to upstream or
+third-party material. SamWaf and SamWafWeb material remains available under
+Apache-2.0. Separately licensed libraries, fonts, rules, data and copied code
+retain their licenses, including their rights of commercial use. See NOTICE,
+LICENSES and THIRD_PARTY_NOTICES.md. If a third-party license conflicts with
+this license for that material, the third-party license governs that material.
+No claim is made to ownership of upstream work, public-domain material or
+rights that cannot legally be restricted. Previously granted licenses are
+not retroactively changed.
+
+2. Noncommercial grant
+Subject to these terms, Licensor grants a worldwide, nonexclusive, royalty-free
+copyright license to use, reproduce, study, modify and redistribute the
+HomeWaf Work solely for Noncommercial Use. Noncommercial Use means personal,
+educational, academic or charitable activity not conducted for, on behalf of,
+or in support of a commercial business and not intended for commercial
+advantage or monetary compensation.
+
+Commercial Use requires a separate written commercial license from the
+applicable Licensor before use. Commercial Use includes internal deployment
+by or for a for-profit entity (even without a fee), protection of business
+systems, revenue-generating websites, commercial production or evaluation,
+paid hosting or managed services, resale, embedding in a commercial product,
+paid distribution, and development or consulting performed for a commercial
+client. A signed activation file alone is not a substitute for an agreement
+granting the required legal rights. No price, support promise or service
+level is established by this license.
+
+3. Redistribution and modifications
+For permitted Noncommercial Use, preserve this license, all applicable
+third-party licenses and notices, and prominent notices identifying modified
+files. Supply the corresponding HomeWaf source, including modifications and
+build instructions, with a binary distribution or through a no-charge source
+offer accessible to its recipients for at least three years. License your
+modifications to the HomeWaf Work under these same terms. Do not claim that
+upstream authors endorse HomeWaf, or present commercial activation as granted
+when it has not been granted. These conditions do not extend to separable
+third-party works merely linked or distributed alongside the HomeWaf Work.
+
+4. Other rights and termination
+No trademark rights are granted. No patent license is granted by this
+license; independently applicable third-party patent grants remain in effect.
+This grant terminates automatically for a material violation. It is reinstated
+if the violation is fully cured within 30 days of first becoming aware of it,
+unless Licensor has previously notified you of a violation. Rights already
+granted to compliant recipients are not terminated by your violation.
+
+5. Disclaimer
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE HOMEWAF WORK IS PROVIDED "AS IS",
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NONINFRINGEMENT.
+LICENSOR IS NOT LIABLE FOR CLAIMS, DAMAGES OR OTHER LIABILITY ARISING FROM
+THE WORK OR ITS USE, WHETHER IN CONTRACT, TORT OR OTHERWISE. MANDATORY RIGHTS
+AND LIABILITIES THAT CANNOT LAWFULLY BE EXCLUDED ARE NOT EXCLUDED.
+
+This is a source-available license with a noncommercial restriction. It is
+not an OSI-approved open-source license. The English text is authoritative;
+any Chinese explanation is informational. Obtain written commercial terms
+from the identified publisher of your distribution; this repository does
+not invent a legal entity, sales contact or trademark registration.

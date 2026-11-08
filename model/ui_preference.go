@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
-import "SamWaf/model/baseorm"
+import "HomeWaf/model/baseorm"
 
 // UIPreference 管理端界面偏好（按登录账号归属），如访问日志的列配置
 // 注意：字段命名有意避开 waf_sql_query 的敏感规则——

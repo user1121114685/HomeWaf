@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 阶段4：有副作用 service 的「DB-only 安全路径」三库回归。
@@ -10,10 +12,10 @@
 package waf_service
 
 import (
-	"SamWaf/enums"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/request"
+	"HomeWaf/enums"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
 	"testing"
 	"time"
 )

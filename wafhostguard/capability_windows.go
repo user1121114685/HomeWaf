@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build windows
 
 package wafhostguard
 
 import (
-	"SamWaf/common/wafexec"
+	"HomeWaf/common/wafexec"
 	"context"
 	"os/exec"
 	"strings"

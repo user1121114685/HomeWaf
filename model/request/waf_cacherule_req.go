@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 type WafCacheRuleAddReq struct {
 	HostCode      string `json:"host_code" gorm:"column:host_code" form:"host_code" gorm:"column:host_code"`

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafcaptcha
 
 import (
@@ -11,7 +13,7 @@ import (
 // 只测 Go 的话，改模板时把标记删了/写错了不会有任何提示，
 // 上线后的表现是「填了联系方式但页面上没有」——正是这个功能要解决的那类"静默失效"。
 func TestRealTemplatesCarryContactBlock(t *testing.T) {
-	for _, rel := range []string{"../../data/captcha/index.html", "../../data/capjs/index.html"} {
+	for _, rel := range []string{"../../cmd/homewaf/exedata/captcha/index.html", "../../cmd/homewaf/exedata/capjs/index.html"} {
 		raw, err := os.ReadFile(filepath.FromSlash(rel))
 		if err != nil {
 			t.Fatalf("读不到挑战页模板 %s: %v", rel, err)

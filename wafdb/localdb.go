@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/utils"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/utils"
 	"bufio"
 	"context"
 	"database/sql"
@@ -20,9 +22,9 @@ import (
 
 	//"github.com/kangarooxin/gorm-webplugin-crypto"
 	//"github.com/kangarooxin/gorm-webplugin-crypto/strategy"
-	"SamWaf/wafdb/dialect"
-	gowxsqlite3 "github.com/samwafgo/go-wxsqlite3"
-	sqlite "github.com/samwafgo/sqlitedriver"
+	gowxsqlite3 "HomeWaf/internal/sqlite3"
+	sqlite "HomeWaf/internal/sqlitedialect"
+	"HomeWaf/wafdb/dialect"
 	"gorm.io/gorm"
 )
 

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package main
 
 import (
@@ -6,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	plugininterface "SamWaf/plugin/interface"
-	"SamWaf/plugins/common/logger"
+	plugininterface "HomeWaf/plugin/interface"
+	"HomeWaf/plugins/common/logger"
 )
 
 // SimpleIPBlockerPlugin 简单的IP屏蔽插件

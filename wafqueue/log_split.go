@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafqueue
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
 
 	"gorm.io/gorm/clause"
 )

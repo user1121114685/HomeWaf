@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package router
 
 import (
-	"SamWaf/global"
-	"SamWaf/middleware"
-	"SamWaf/wafsec"
+	"HomeWaf/global"
+	"HomeWaf/middleware"
+	"HomeWaf/wafsec"
 	"encoding/json"
 	"go/ast"
 	"go/parser"

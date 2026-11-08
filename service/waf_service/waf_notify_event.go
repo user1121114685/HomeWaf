@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
 	"strconv"
 	"strings"
 	"time"

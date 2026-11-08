@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafhostguard
 
 import (
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/wafenginecore/ipset"
 	"net"
 	"strings"
 	"sync"

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 // Package ccrule 负责把 CC 规则编译成可在请求热路径上直接求值的形态。
 //
 // 编译发生在规则保存/加载时，请求期只做取值与比较：
@@ -5,8 +7,8 @@
 package ccrule
 
 import (
-	"SamWaf/innerbean"
-	"SamWaf/model"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
 	"net/http"
 	"path"
 	"regexp"

@@ -1,15 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/wafdb"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/wafdb"
 	"fmt"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -267,6 +270,9 @@ func countTable(t *testing.T, tableName string) int64 {
 // ---------------------------------------------------------------------------
 
 func TestSeedStatsData(t *testing.T) {
+	if os.Getenv("HOMEWAF_TEST_SEED_DATABASE") != "1" {
+		t.Skip("manual fixture seeding; requires isolated database configuration")
+	}
 	initTestEnvForCleanup(t)
 	rand.Seed(time.Now().UnixNano())
 
@@ -286,6 +292,9 @@ func TestSeedStatsData(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSeedAndCleanupStats(t *testing.T) {
+	if os.Getenv("HOMEWAF_TEST_SEED_DATABASE") != "1" {
+		t.Skip("manual fixture seeding; requires isolated database configuration")
+	}
 	initTestEnvForCleanup(t)
 	rand.Seed(time.Now().UnixNano())
 
@@ -326,6 +335,9 @@ func TestSeedAndCleanupStats(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSeedLargeStatsIPDays(t *testing.T) {
+	if os.Getenv("HOMEWAF_TEST_SEED_DATABASE") != "1" {
+		t.Skip("manual fixture seeding; requires isolated database configuration")
+	}
 	if testing.Short() {
 		t.Skip("跳过大数据量测试（使用 -short 标志时）")
 	}

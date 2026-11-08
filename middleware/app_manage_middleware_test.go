@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package middleware
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
+	"HomeWaf/global"
+	"HomeWaf/model"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"github.com/gin-gonic/gin"
-	sqlite "github.com/samwafgo/sqlitedriver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

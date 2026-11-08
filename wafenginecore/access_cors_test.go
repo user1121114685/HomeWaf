@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
@@ -7,8 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"SamWaf/model"
-	"SamWaf/wafenginecore/accessgate"
+	"HomeWaf/model"
+	"HomeWaf/wafenginecore/accessgate"
 )
 
 // TestAccessTokenCookieNameFollowsScheme Cookie 名必须跟着 scheme 走。

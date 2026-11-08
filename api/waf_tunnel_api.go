@@ -1,15 +1,17 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/globalobj"
-	"SamWaf/innerbean"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	"SamWaf/model/spec"
-	"SamWaf/model/waftunnelmodel"
-	"SamWaf/utils"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/globalobj"
+	"HomeWaf/innerbean"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	"HomeWaf/model/spec"
+	"HomeWaf/model/waftunnelmodel"
+	"HomeWaf/utils"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"

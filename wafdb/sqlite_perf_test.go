@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 import (
-	"SamWaf/innerbean"
+	"HomeWaf/innerbean"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	sqlite "github.com/samwafgo/sqlitedriver"
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

@@ -1,16 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/request"
-	"SamWaf/utils"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/request"
+	"HomeWaf/utils"
+	"HomeWaf/wafdb/dialect"
 	"errors"
 	"fmt"
 	"os"
@@ -127,7 +129,7 @@ func (receiver *WafAccountService) writeInitialPasswordFile(account, plainPwd st
 		return
 	}
 	fp := filepath.Join(dir, "initial_password.txt")
-	content := fmt.Sprintf("SamWaf 初始管理员账号: %s\n初始随机口令: %s\n生成时间: %s\n请立即登录并修改密码，登录后本文件可删除。\n",
+	content := fmt.Sprintf("HomeWaf 初始管理员账号: %s\n初始随机口令: %s\n生成时间: %s\n请立即登录并修改密码，登录后本文件可删除。\n",
 		account, plainPwd, time.Now().Format(pwdTimeLayout))
 	if err := os.WriteFile(fp, []byte(content), 0600); err != nil {
 		zlog.Error("写入初始口令文件失败", err)

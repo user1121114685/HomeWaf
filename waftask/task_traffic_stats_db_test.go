@@ -1,15 +1,17 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
+	"HomeWaf/common/uuid"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
 	"net/url"
 	"path/filepath"
 	"testing"
 
-	sqlitedriver "github.com/samwafgo/sqlitedriver"
+	sqlitedriver "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

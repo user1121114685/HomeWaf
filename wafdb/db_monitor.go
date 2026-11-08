@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/utils"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/utils"
+	"HomeWaf/wafdb/dialect"
 	"encoding/json"
 	"fmt"
 	"gorm.io/gorm"

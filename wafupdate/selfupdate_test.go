@@ -1,10 +1,16 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafupdate
 
 import (
+	"HomeWaf/global"
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -33,8 +39,8 @@ func TestUpdaterWithEmptyPayloadNoErrorNoUpdate(t *testing.T) {
 	mr := &mockRequester{}
 	mr.handleRequest(
 		func(url string) (io.ReadCloser, error) {
-			equals(t, "http://updates.yourdomain.com/myapp/linux-amd64.json", url)
-			return newTestReaderCloser("{}"), nil
+			equals(t, "http://updates.yourdomain.com/myapp/"+plat+".json?"+ClientQuery(), url)
+			return newTestReaderCloser(`{"Version":"v1.0.0","Sha256":"` + base64.StdEncoding.EncodeToString(make([]byte, 32)) + `"}`), nil
 		})
 	updater := createUpdater(mr)
 	updater.CheckTime = 24
@@ -50,8 +56,8 @@ func TestUpdaterCheckTime(t *testing.T) {
 	mr := &mockRequester{}
 	mr.handleRequest(
 		func(url string) (io.ReadCloser, error) {
-			equals(t, "http://updates.yourdomain.com/myapp/linux-amd64.json", url)
-			return newTestReaderCloser("{}"), nil
+			equals(t, "http://updates.yourdomain.com/myapp/"+plat+".json?"+ClientQuery(), url)
+			return newTestReaderCloser(`{"Version":"v1.0.0","Sha256":"` + base64.StdEncoding.EncodeToString(make([]byte, 32)) + `"}`), nil
 		})
 
 	// Run test with various time
@@ -90,8 +96,8 @@ func TestUpdaterWithEmptyPayloadNoErrorNoUpdateEscapedPath(t *testing.T) {
 	mr := &mockRequester{}
 	mr.handleRequest(
 		func(url string) (io.ReadCloser, error) {
-			equals(t, "http://updates.yourdomain.com/myapp%2Bfoo/darwin-amd64.json", url)
-			return newTestReaderCloser("{}"), nil
+			equals(t, "http://updates.yourdomain.com/myapp%2Bfoo/"+plat+".json?"+ClientQuery(), url)
+			return newTestReaderCloser(`{"Version":"v1.0.0","Sha256":"` + base64.StdEncoding.EncodeToString(make([]byte, 32)) + `"}`), nil
 		})
 	updater := createUpdaterWithEscapedCharacters(mr)
 
@@ -105,10 +111,10 @@ func TestUpdateAvailable(t *testing.T) {
 	mr := &mockRequester{}
 	mr.handleRequest(
 		func(url string) (io.ReadCloser, error) {
-			equals(t, "https://update.samwaf.com/samwaf_update/windows-amd64.json", url)
+			equals(t, "http://updates.yourdomain.com/myapp/"+plat+".json?"+ClientQuery(), url)
 			return newTestReaderCloser(`{
     "Version": "v1.0.30",
-    "Sha256": "Q2vvTOW0p69A37StVANN+/ko1ZQDTElomq7fVcex/02=",
+    "Sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 	"Desc":"fixsamebug"
 }`), nil
 		})
@@ -170,46 +176,34 @@ func (trc *testReadCloser) Close() error {
 	return nil
 }
 func TestUpdater_GetHttps(t *testing.T) {
-	resp, err := http.Get("https://update.samwaf.com/samwaf_update/windows-amd64.json")
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "{}") }))
+	defer server.Close()
+	response, err := server.Client().Get(server.URL)
 	if err != nil {
-		println(err)
-	} else {
-		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
-
-		var strbody = "[" + string(body) + "]"
-		println(strbody)
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatal(response.StatusCode)
 	}
 }
 
-// 测试 fetchInfoGithub 在实际环境中的行为
 func TestFetchInfoGithubIntegration(t *testing.T) {
-
-	// 创建更新器
-	updater := &Updater{
-		CurrentVersion: "v1.0.0",
+	old := global.GUPDATE_GITHUB_VERSION_URL
+	t.Cleanup(func() { global.GUPDATE_GITHUB_VERSION_URL = old })
+	global.GUPDATE_GITHUB_VERSION_URL = "https://publisher.example/releases/latest"
+	platform := map[string]string{"windows-amd64": "Windows_x86_64", "linux-amd64": "Linux_x86_64", "linux-arm64": "Linux_arm64", "darwin-amd64": "Darwin_x86_64", "darwin-arm64": "Darwin_arm64"}[plat]
+	if platform == "" {
+		t.Skip("release platform not supported")
 	}
-
-	// 调用被测试的函数
-	err := updater.fetchInfoGithub()
-	if err != nil {
-		t.Fatalf("获取 GitHub 信息失败: %v", err)
+	payload, _ := json.Marshal(map[string]any{"tag_name": "v2.0.1", "body": "test release", "assets": []map[string]any{{"name": "HomeWaf_" + platform + "_2.0.1.zip", "browser_download_url": "https://publisher.example/HomeWaf.zip", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}}})
+	mr := &mockRequester{}
+	mr.handleRequest(func(url string) (io.ReadCloser, error) { return newTestReaderCloser(string(payload)), nil })
+	updater := createUpdater(mr)
+	if err := updater.fetchInfoGithub(); err != nil {
+		t.Fatal(err)
 	}
-
-	// 验证结果
-	if updater.BinGithubURL == "" {
-		t.Error("下载 URL 为空")
+	if updater.BinGithubURL == "" || updater.Info.Version != "v2.0.1" || len(updater.ArchiveSHA256) != 64 {
+		t.Fatal("invalid release metadata")
 	}
-
-	if updater.Info.Version == "" {
-		t.Error("版本为空")
-	}
-
-	if updater.Info.Desc == "" {
-		t.Error("描述为空")
-	}
-
-	t.Logf("获取到的版本: %s", updater.Info.Version)
-	t.Logf("下载 URL: %s", updater.BinGithubURL)
-	t.Logf("版本说明 Desc: %s", updater.Info.Desc)
 }

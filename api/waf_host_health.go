@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/globalobj"
-	"SamWaf/model"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/service/waf_service"
+	"HomeWaf/globalobj"
+	"HomeWaf/model"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/service/waf_service"
 	"encoding/json"
 	"errors"
 	"net"

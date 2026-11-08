@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
@@ -5,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
 
-	sqlite "github.com/samwafgo/sqlitedriver"
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

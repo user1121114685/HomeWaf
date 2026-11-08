@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package response
 
-import "SamWaf/customtype"
+import "HomeWaf/customtype"
 
 type AllHostRep struct {
 	Code     string `json:"value"`    //唯一码

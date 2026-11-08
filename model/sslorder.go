@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
 import (
-	"SamWaf/customtype"
-	"SamWaf/model/baseorm"
+	"HomeWaf/customtype"
+	"HomeWaf/model/baseorm"
 	"errors"
 	"fmt"
 	"time"

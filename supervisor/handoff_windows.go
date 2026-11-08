@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package supervisor
 
 import (
-	"SamWaf/common/wafexec"
-	"SamWaf/common/zlog"
+	"HomeWaf/common/wafexec"
+	"HomeWaf/common/zlog"
 	"errors"
 	"os"
 	"os/exec"

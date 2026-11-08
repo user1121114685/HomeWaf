@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package static
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/public"
-	"SamWaf/wafconfig"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/public"
+	"HomeWaf/wafconfig"
 	"encoding/json"
 	"errors"
 	"fmt"

@@ -1,14 +1,16 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
-	response2 "SamWaf/model/response"
-	"SamWaf/utils"
-	"SamWaf/wafenginecore/ipset"
-	"SamWaf/wafipban"
-	"SamWaf/waftask/threatip"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	response2 "HomeWaf/model/response"
+	"HomeWaf/utils"
+	"HomeWaf/wafenginecore/ipset"
+	"HomeWaf/wafipban"
+	"HomeWaf/waftask/threatip"
 	"fmt"
 	"net"
 	"strings"

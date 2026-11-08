@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafowasp
 
 import (
@@ -10,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/common/zlog"
+	"HomeWaf/common/zlog"
 )
 
 func TestMain(m *testing.M) {

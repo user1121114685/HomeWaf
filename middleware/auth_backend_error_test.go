@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package middleware
 
 import (
-	"SamWaf/cache"
-	"SamWaf/global"
-	"SamWaf/model/common/response"
+	"HomeWaf/cache"
+	"HomeWaf/global"
+	"HomeWaf/model/common/response"
 	"encoding/json"
 	"fmt"
 	"net/http"

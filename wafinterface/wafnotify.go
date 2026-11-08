@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafinterface
 
-import "SamWaf/innerbean"
+import "HomeWaf/innerbean"
 
 type WafNotify interface {
 	NotifyBatch(logs []*innerbean.WebLog) error // 处理多个日志

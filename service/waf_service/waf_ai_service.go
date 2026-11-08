@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/request"
-	response2 "SamWaf/model/response"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
+	response2 "HomeWaf/model/response"
 	"fmt"
 
 	"gorm.io/gorm"

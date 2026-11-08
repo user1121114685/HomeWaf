@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
-import "SamWaf/model/baseorm"
+import "HomeWaf/model/baseorm"
 
 // CDNProvider CDN 厂商回源段中心库(每厂商一行)：统一存放各家回源 IP 段 + 拉取配置 + 认证凭证。
 // 站点(真实IP来源=cdn_preset)与管理端(可信代理)都只引用厂商码、请求时读本库最新值，

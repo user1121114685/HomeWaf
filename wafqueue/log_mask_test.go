@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafqueue
 
 import (
-	"SamWaf/global"
-	"SamWaf/innerbean"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
 	"strings"
 	"testing"
 )
@@ -20,13 +22,13 @@ func webdavLog() *innerbean.WebLog {
 			"Authorization: Basic dXNlcjpwYXNzd29yZA0K\r\n" + // base64(用户:密码)，含 n
 			"X-Custom-Token: tok3nvalue\r\n" +
 			"User-Agent: curl\r\n",
-		COOKIES:  `[{"name":"sessionid","value":"sessi0nvalue"},{"name":"theme","value":"dark"}]`,
+		COOKIES:   `[{"name":"sessionid","value":"sessi0nvalue"},{"name":"theme","value":"dark"}]`,
 		POST_FORM: "username=alice&password=p4ssw0rd&page=1",
 		ResHeader: "HTTP/1.1 401 Unauthorized\r\n" +
 			"WWW-Authenticate: Basic realm=\"WebDAV\"\r\n" +
 			"Set-Cookie: sessionid=abc123; Path=/\r\n",
-		Day:       20261105,
-		SrcURL:    []byte("/dav/files?api_key=9n8kss&path=/x"),
+		Day:    20261105,
+		SrcURL: []byte("/dav/files?api_key=9n8kss&path=/x"),
 	}
 }
 

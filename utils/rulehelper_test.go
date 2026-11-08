@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
-	"SamWaf/innerbean"
-	"SamWaf/model"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -132,7 +134,7 @@ func TestAllRulesInDirectory(t *testing.T) {
 	ruleHelper.InitRuleEngine()
 
 	// 规则文件目录
-	rulesDir := "c:\\huawei\\goproject\\SamWaf\\utils\\rule_tests"
+	rulesDir := "rule_tests"
 
 	// 读取目录下所有文件
 	files, err := ioutil.ReadDir(rulesDir)

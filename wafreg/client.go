@@ -1,106 +1,130 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafreg
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/wafsec"
+	"HomeWaf/global"
+	"HomeWaf/internal/licensing"
+	"HomeWaf/model"
+	"HomeWaf/utils"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
+	"path/filepath"
+	"sync"
 	"time"
 )
 
-/*
-*
-生成客户端机器信息
-*/
+var current struct {
+	sync.RWMutex
+	claims *licensing.Claims
+}
+var saveMu sync.Mutex
+
+func licensePath() string { return filepath.Join(utils.GetCurrentDir(), "registration_data.bin") }
+
 func GenClientMachineInfo() model.MachineInfo {
-	machineInfo := model.MachineInfo{
-		Version:          "v1",
-		ClientServerName: global.GWAF_CUSTOM_SERVER_NAME,
-		ClientTenantId:   global.GWAF_TENANT_ID,
-		ClientUserCode:   global.GWAF_USER_CODE,
-		OtherFeature:     "",
+	info := model.MachineInfo{Version: "v2", ClientServerName: global.GWAF_CUSTOM_SERVER_NAME, ClientTenantId: global.GWAF_TENANT_ID, ClientUserCode: global.GWAF_USER_CODE}
+	if info.ClientUserCode != "" {
+		identity, _ := json.Marshal([]string{licensing.Product, info.ClientTenantId, info.ClientUserCode})
+		info.MachineID = fmt.Sprintf("%x", sha256.Sum256(identity))
 	}
-	//需要加签得字段
-	needSignStr := machineInfo.ClientServerName + machineInfo.ClientTenantId + machineInfo.ClientUserCode
-	machineInfo.MachineID = fmt.Sprintf("%x", sha256.Sum256([]byte(needSignStr)))
-	return machineInfo
+	return info
 }
 
-/*
-*
-生成客户端机器码加密信息
-*/
+// Legacy RSA requests are deliberately unsupported: HomeWaf uses signed v2 licenses.
 func GenClientMachineInfoWithEncrypt() (string, error) {
-	cryptoUtil := &wafsec.CryptoUtil{}
-	publicKey := []byte(global.GWAF_REG_PUBLIC_KEY)
-	machineInfo, err := json.Marshal(GenClientMachineInfo())
-	if err != nil {
-		return "转换json异常", err
-	}
-	rsaEncrypt, err := cryptoUtil.RsaEncrypt(machineInfo, publicKey)
-	if err != nil {
-		return "信息加密异常", err
-	}
-	encodeToString := base64.StdEncoding.EncodeToString(rsaEncrypt)
-
-	return encodeToString, nil
+	return "", errors.New("legacy registration requests are unsupported; use the v2 instance ID")
 }
-
-/*
-*
-
-	校验注册服务信息
-*/
-func VerifyServerReg(binData []byte) (success bool, info model.RegistrationInfo, err error) {
-
-	//社区信息处理
-	var regInfo = model.RegistrationInfo{
-		Version:    "v1",
-		Username:   "user",
-		MemberType: "社区版",
-		MachineID:  "",
-		ExpiryDate: time.Now().AddDate(1, 0, 0),
-		IsExpiry:   false,
+func verify(document []byte) (licensing.Claims, error) {
+	keys, err := licensing.ParseKeyring(licensing.TrustedKeysJSON)
+	if err != nil {
+		return licensing.Claims{}, fmt.Errorf("invalid release trust store: %w", err)
 	}
-	return true, regInfo, nil
+	return licensing.Verify(document, keys, GenClientMachineInfo().MachineID, time.Now())
 }
-
-/*
-*
-
-	校验注册服务信息
-*/
+func infoFor(c licensing.Claims) model.RegistrationInfo {
+	return model.RegistrationInfo{Version: "v2", Username: c.Subject, MemberType: c.Edition, MachineID: c.InstanceID, ExpiryDate: c.ExpiresAt, IsExpiry: !time.Now().Before(c.ExpiresAt), LicenseID: c.LicenseID, Features: append([]string{}, c.Features...)}
+}
+func VerifyServerReg(document []byte) (bool, model.RegistrationInfo, error) {
+	c, err := verify(document)
+	if err != nil {
+		return false, model.RegistrationInfo{}, err
+	}
+	return true, infoFor(c), nil
+}
 func VerifyServerRegByDefaultFile() (bool, model.RegistrationInfo, error) {
-	// 从文件中读取二进制数据
-	binData, err := ioutil.ReadFile("./registration_data.bin")
+	document, err := os.ReadFile(licensePath())
 	if err != nil {
-		return false, model.RegistrationInfo{}, errors.New("not find reginfo")
+		current.Lock()
+		current.claims = nil
+		current.Unlock()
+		return false, model.RegistrationInfo{}, err
 	}
-	return VerifyServerReg(binData)
+	c, err := verify(document)
+	if err != nil {
+		current.Lock()
+		current.claims = nil
+		current.Unlock()
+		return false, model.RegistrationInfo{}, err
+	}
+	current.Lock()
+	current.claims = &c
+	current.Unlock()
+	return true, infoFor(c), nil
 }
-
-// CheckExpiry 计算给定日期与当前日期的天数差，并返回是否到期
+func CurrentInfo() model.RegistrationInfo {
+	current.RLock()
+	defer current.RUnlock()
+	if current.claims == nil {
+		return model.RegistrationInfo{Version: "v2", MemberType: "noncommercial", MachineID: GenClientMachineInfo().MachineID}
+	}
+	return infoFor(*current.claims)
+}
+func HasFeature(feature string) bool {
+	current.RLock()
+	defer current.RUnlock()
+	return current.claims != nil && current.claims.InstanceID == GenClientMachineInfo().MachineID && current.claims.Allows(feature, time.Now())
+}
+func Save(document []byte) error {
+	saveMu.Lock()
+	defer saveMu.Unlock()
+	if _, err := verify(document); err != nil {
+		return err
+	}
+	file, err := os.CreateTemp(filepath.Dir(licensePath()), ".homewaf-license-*")
+	if err != nil {
+		return err
+	}
+	name := file.Name()
+	defer os.Remove(name)
+	if err = file.Chmod(0600); err != nil {
+		file.Close()
+		return err
+	}
+	if _, err = file.Write(document); err != nil {
+		file.Close()
+		return err
+	}
+	if err = file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	if err = file.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(name, licensePath()); err != nil {
+		return err
+	}
+	_, _, err = VerifyServerRegByDefaultFile()
+	return err
+}
 func CheckExpiry(date time.Time) (int, bool) {
-	// 获取当前日期
-	now := time.Now()
-
-	// 将当前时间和给定时间都转为零点，以比较日期
-	now = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-
-	// 计算日期差
-	duration := date.Sub(now)
-
-	// 计算天数差
-	days := int(duration.Hours() / 24)
-
-	// 判断是否到期
-	expired := days < 0
-
-	return days, expired
+	remaining := time.Until(date)
+	if remaining <= 0 {
+		return 0, true
+	}
+	return int((remaining + 24*time.Hour - 1) / (24 * time.Hour)), false
 }

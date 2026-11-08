@@ -1,5 +1,5 @@
-SET CGO_ENABLED=1
-SET GOOS=windows
-SET GOARCH=amd64
-SET GIN_MODE=release
-go build -ldflags="-X SamWaf/global.GWAF_RUNTIME_WIN7_VERSION=true -X SamWaf/global.GWAF_RELEASE=true -X SamWaf/global.GWAF_RELEASE_VERSION_NAME=20260827 -X SamWaf/global.GWAF_RELEASE_VERSION=v1.3.24 -s -w" -o %cd%/release/SamWaf64.exe ./cmd/samwaf/main.go && %cd%/upx/win64/upx -9  %cd%/release/SamWaf64.exe
+@REM HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
+@echo off
+echo HomeWaf requires a supported OS and the official current Go toolchain. Windows 7/8/2008 R2 builds were retired.
+exit /b 1

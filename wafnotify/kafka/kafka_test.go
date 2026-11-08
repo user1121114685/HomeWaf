@@ -1,17 +1,23 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package kafka
 
 import (
-	"SamWaf/innerbean"
+	"HomeWaf/innerbean"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 )
 
 func TestKafka(t *testing.T) {
+	if os.Getenv("HOMEWAF_TEST_KAFKA") != "1" {
+		t.Skip("requires an isolated local Kafka broker; set HOMEWAF_TEST_KAFKA=1")
+	}
 	// 初始化 Kafka
 	brokers := []string{"localhost:9092"}
 	topic := "samwaf_logs_topic"
-	kafkaNotifier, err := NewKafkaNotifier(brokers, topic)
+	kafkaNotifier, err := NewKafkaNotifier(brokers, topic, 1)
 	if err != nil {
 		fmt.Println("Failed to initialize Kafka:", err)
 		return
@@ -24,7 +30,7 @@ func TestKafka(t *testing.T) {
 	log.BODY = "测试"
 	log.SRC_IP = "127.0.0.3"
 	//logs := []innerbean.WebLog{log, /* 其他日志 */ }
-	kafkaNotifier.NotifySingle(log)
+	kafkaNotifier.NotifySingle(&log)
 	go func() {
 		err := <-done
 		if err != nil {
@@ -39,11 +45,14 @@ func TestKafka(t *testing.T) {
 }
 
 func BenchmarkKafka(b *testing.B) {
+	if os.Getenv("HOMEWAF_TEST_KAFKA") != "1" {
+		b.Skip("requires an isolated local Kafka broker")
+	}
 	b.ReportAllocs()
 	// 初始化 Kafka
 	brokers := []string{"localhost:9092"}
 	topic := "samwaf_logs_topic"
-	kafkaNotifier, err := NewKafkaNotifier(brokers, topic)
+	kafkaNotifier, err := NewKafkaNotifier(brokers, topic, 1)
 	if err != nil {
 		fmt.Println("Failed to initialize Kafka:", err)
 		return
@@ -61,7 +70,7 @@ func BenchmarkKafka(b *testing.B) {
 		log.CREATE_TIME = datetimeNow.Format("2006-01-02 15:04:05")
 		log.UNIX_ADD_TIME = datetimeNow.UnixNano() / 1e6
 		//logs := []innerbean.WebLog{log, /* 其他日志 */ }
-		kafkaNotifier.NotifySingle(log)
+		kafkaNotifier.NotifySingle(&log)
 	}
 
 	// 保持主进程继续运行，直到所有异步任务完成

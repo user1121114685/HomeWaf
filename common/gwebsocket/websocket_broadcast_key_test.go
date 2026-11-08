@@ -1,6 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package gwebsocket
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -8,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	Wssocket "github.com/gorilla/websocket"
+	Wssocket "github.com/coder/websocket"
 )
 
 // 广播的按连接组装回归用例。
@@ -21,7 +24,7 @@ import (
 // dialWithKey 建一条带 keyid 的连接，返回客户端侧连接
 func dialWithKey(t *testing.T, online *WebSocketOnline, srvURL string, keyID string) *Wssocket.Conn {
 	t.Helper()
-	conn, _, err := Wssocket.DefaultDialer.Dial(strings.Replace(srvURL, "http://", "ws://", 1)+"?keyid="+keyID, nil)
+	conn, _, err := Wssocket.Dial(context.Background(), strings.Replace(srvURL, "http://", "ws://", 1)+"?keyid="+keyID, nil)
 	if err != nil {
 		t.Fatalf("拨号失败(keyid=%q): %v", keyID, err)
 	}
@@ -31,15 +34,9 @@ func dialWithKey(t *testing.T, online *WebSocketOnline, srvURL string, keyID str
 func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 	online := InitWafWebSocket()
 
-	upGrader := Wssocket.Upgrader{
-		CheckOrigin:     func(r *http.Request) bool { return true },
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
-
 	var wg sync.WaitGroup
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws, err := upGrader.Upgrade(w, r, nil)
+		ws, err := Wssocket.Accept(w, r, nil)
 		if err != nil {
 			t.Errorf("upgrade 失败: %v", err)
 			return
@@ -51,7 +48,7 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 			defer wg.Done()
 			defer online.CloseSession(sessionID)
 			for {
-				if _, _, err := ws.ReadMessage(); err != nil {
+				if _, _, err := readMessage(ws); err != nil {
 					return
 				}
 			}
@@ -64,11 +61,11 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 
 	// 三条连接：两条带各自的 keyid，一条模拟旧客户端（无 keyid）
 	connA := dialWithKey(t, online, srv.URL, "key-A")
-	defer connA.Close()
+	defer connA.CloseNow()
 	connB := dialWithKey(t, online, srv.URL, "key-B")
-	defer connB.Close()
+	defer connB.CloseNow()
 	connOld := dialWithKey(t, online, srv.URL, "")
-	defer connOld.Close()
+	defer connOld.CloseNow()
 
 	// 等三条都登记完
 	deadline := time.Now().Add(3 * time.Second)
@@ -82,7 +79,7 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 	// build 回调按 KeyID 产出不同内容——真实实现里这就是"用该连接的会话密钥加密"
 	var mu sync.Mutex
 	seen := map[string]int{}
-	sent := online.BroadcastBuild(Wssocket.TextMessage, func(keyID string) ([]byte, error) {
+	sent := online.BroadcastBuild(Wssocket.MessageText, func(keyID string) ([]byte, error) {
 		mu.Lock()
 		seen[keyID]++
 		mu.Unlock()
@@ -111,8 +108,8 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 		connOld: "legacy-payload",
 	}
 	for conn, want := range expect {
-		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
-		_, data, err := conn.ReadMessage()
+
+		_, data, err := readMessage(conn)
 		if err != nil {
 			t.Fatalf("读取失败: %v", err)
 		}
@@ -127,10 +124,9 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 func TestBroadcastBuildSkipsFailedConnection(t *testing.T) {
 	online := InitWafWebSocket()
 
-	upGrader := Wssocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	var wg sync.WaitGroup
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws, err := upGrader.Upgrade(w, r, nil)
+		ws, err := Wssocket.Accept(w, r, nil)
 		if err != nil {
 			return
 		}
@@ -140,7 +136,7 @@ func TestBroadcastBuildSkipsFailedConnection(t *testing.T) {
 			defer wg.Done()
 			defer online.CloseSession(sessionID)
 			for {
-				if _, _, err := ws.ReadMessage(); err != nil {
+				if _, _, err := readMessage(ws); err != nil {
 					return
 				}
 			}
@@ -152,16 +148,16 @@ func TestBroadcastBuildSkipsFailedConnection(t *testing.T) {
 	}()
 
 	bad := dialWithKey(t, online, srv.URL, "bad")
-	defer bad.Close()
+	defer bad.CloseNow()
 	good := dialWithKey(t, online, srv.URL, "good")
-	defer good.Close()
+	defer good.CloseNow()
 
 	deadline := time.Now().Add(3 * time.Second)
 	for online.OnlineCount() < 2 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	sent := online.BroadcastBuild(Wssocket.TextMessage, func(keyID string) ([]byte, error) {
+	sent := online.BroadcastBuild(Wssocket.MessageText, func(keyID string) ([]byte, error) {
 		if keyID == "bad" {
 			return nil, errBuild
 		}
@@ -171,8 +167,7 @@ func TestBroadcastBuildSkipsFailedConnection(t *testing.T) {
 		t.Fatalf("期望只发出 1 条（坏的那条被跳过），实际 %d", sent)
 	}
 
-	good.SetReadDeadline(time.Now().Add(3 * time.Second))
-	_, data, err := good.ReadMessage()
+	_, data, err := readMessage(good)
 	if err != nil {
 		t.Fatalf("正常连接应照常收到消息: %v", err)
 	}

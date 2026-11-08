@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 // Package clientip 提供业务侧"真实客户端 IP 提取加固"所需的 CDN 厂商注册表与回源 IP 段缓存。
 // 放在叶子包，供 wafenginecore(判定读) 与 service(拉取写) 共同引用，避免 import cycle。
 package clientip
 
 import (
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/wafenginecore/ipset"
 	"sync"
 )
 

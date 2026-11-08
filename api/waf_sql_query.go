@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
+	"HomeWaf/common/zlog"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
 	"fmt"
 
 	"github.com/gin-gonic/gin"

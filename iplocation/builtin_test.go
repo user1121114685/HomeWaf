@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package iplocation
 
 import (
@@ -9,7 +11,7 @@ import (
 // 这批用例覆盖 GeoLite2 去内嵌后的加载与降级行为。
 // 关键前提：程序只内置 IPv4 的 ip2region.xdb；GeoLite2 与 IPv6 库都必须来自磁盘。
 
-const builtinV4Path = "../cmd/samwaf/exedata/ip2region.xdb"
+const builtinV4Path = "../cmd/homewaf/exedata/ip2region.xdb"
 
 // loadBuiltinV4 读取内置的 IPv4 库并注册。geolite2 传 nil，与主程序保持一致。
 func loadBuiltinV4(t *testing.T) []byte {

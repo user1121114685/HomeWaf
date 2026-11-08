@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package response
 
-import "SamWaf/model"
+import "HomeWaf/model"
 
 type WafStat struct {
 	AttackCountOfToday          int64          //今日攻击数量

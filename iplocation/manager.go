@@ -1,8 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package iplocation
 
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sync"
@@ -10,7 +13,7 @@ import (
 
 	"github.com/ipipdotnet/ipdb-go"
 	"github.com/lionsoul2014/ip2region/binding/golang/xdb"
-	"github.com/oschwald/geoip2-golang"
+	"github.com/oschwald/geoip2-golang/v2"
 )
 
 // Manager IP 地理位置查询管理器
@@ -78,7 +81,7 @@ func (m *Manager) Lookup(ipStr string) *IPLocationResult {
 // lookupV4 查询 IPv4 地址
 func (m *Manager) lookupV4(ipStr string) *IPLocationResult {
 	if m.v4Source == SourceIp2Region && m.v4Searcher != nil {
-		region, err := m.v4Searcher.SearchByStr(ipStr)
+		region, err := m.v4Searcher.Search(ipStr)
 		if err != nil {
 			return &IPLocationResult{Country: "查询失败", Unresolved: true}
 		}
@@ -88,13 +91,13 @@ func (m *Manager) lookupV4(ipStr string) *IPLocationResult {
 		return ParseRegion(region, m.v4Format)
 	} else if m.v4Source == SourceGeoLite2 && m.v4GeoReader != nil {
 		ip := net.ParseIP(ipStr)
-		record, err := m.v4GeoReader.Country(ip)
+		record, err := m.v4GeoReader.Country(netip.MustParseAddr(ip.String()))
 		if err != nil {
 			return &IPLocationResult{Country: "查询失败", Unresolved: true}
 		}
-		countryName := record.Country.Names["zh-CN"]
+		countryName := record.Country.Names.SimplifiedChinese
 		if countryName == "" {
-			countryName = record.Country.Names["en"]
+			countryName = record.Country.Names.English
 		}
 		return &IPLocationResult{Country: countryName}
 	} else if m.v4Source == SourceIpdb && m.ipdbReader != nil {
@@ -114,7 +117,7 @@ func (m *Manager) lookupV6(ipStr string) *IPLocationResult {
 	// ReloadFromConfig 会把 v6Source 运行时降级成 ip2region；若连 ip2region_v6.xdb 也没有，
 	// 就会落到最后的 Unresolved 分支，由调用方放行，而不是返回一个会被规则误判的国家名。
 	if m.v6Source == SourceIp2Region && m.v6Searcher != nil {
-		region, err := m.v6Searcher.SearchByStr(ipStr)
+		region, err := m.v6Searcher.Search(ipStr)
 		if err != nil {
 			return &IPLocationResult{Country: "查询失败", Unresolved: true}
 		}
@@ -124,13 +127,13 @@ func (m *Manager) lookupV6(ipStr string) *IPLocationResult {
 		return ParseRegion(region, m.v6Format)
 	} else if m.v6Source == SourceGeoLite2 && m.v6GeoReader != nil {
 		ip := net.ParseIP(ipStr)
-		record, err := m.v6GeoReader.Country(ip)
+		record, err := m.v6GeoReader.Country(netip.MustParseAddr(ip.String()))
 		if err != nil {
 			return &IPLocationResult{Country: "查询失败", Unresolved: true}
 		}
-		countryName := record.Country.Names["zh-CN"]
+		countryName := record.Country.Names.SimplifiedChinese
 		if countryName == "" {
-			countryName = record.Country.Names["en"]
+			countryName = record.Country.Names.English
 		}
 		if countryName == "" {
 			countryName = "内网"
@@ -187,7 +190,7 @@ func (m *Manager) LoadV4GeoLite2(data []byte) error {
 	}
 
 	// 创建新的 reader
-	reader, err := geoip2.FromBytes(data)
+	reader, err := geoip2.OpenBytes(data)
 	if err != nil {
 		return fmt.Errorf("创建 IPv4 GeoLite2 reader 失败: %w", err)
 	}
@@ -242,7 +245,7 @@ func (m *Manager) LoadV6GeoLite2(data []byte) error {
 	}
 
 	// 创建新的 reader
-	reader, err := geoip2.FromBytes(data)
+	reader, err := geoip2.OpenBytes(data)
 	if err != nil {
 		return fmt.Errorf("创建 IPv6 GeoLite2 reader 失败: %w", err)
 	}

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 日志导出任务表 user_code 列的三库升级回归。
@@ -5,10 +7,10 @@
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/wafdb"
+	"HomeWaf/common/uuid"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/wafdb"
 	"testing"
 	"time"
 

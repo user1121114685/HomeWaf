@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
 	"strings"
 	"testing"
 
-	"SamWaf/global"
+	"HomeWaf/global"
 )
 
 // 用户可配对外地址的。

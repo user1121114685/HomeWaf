@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 // 回归 issue #898：编辑名单时把「所属网站」从 A 切到 B，后端只通知了新网站 B，
@@ -7,13 +9,13 @@ package api
 // 引擎侧收到 msg 之后做什么，由 wafenginecore/checkdenyip_test.go 覆盖。
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/customtype"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/spec"
+	"HomeWaf/common/uuid"
+	"HomeWaf/customtype"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/spec"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -27,8 +29,8 @@ import (
 	"testing"
 	"time"
 
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"github.com/gin-gonic/gin"
-	sqlite "github.com/samwafgo/sqlitedriver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

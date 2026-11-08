@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/global"
-	"SamWaf/globalobj"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/spec"
-	"SamWaf/wafappengine"
+	"HomeWaf/global"
+	"HomeWaf/globalobj"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/spec"
+	"HomeWaf/wafappengine"
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
@@ -22,8 +24,8 @@ import (
 	"strings"
 	"testing"
 
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"github.com/gin-gonic/gin"
-	sqlite "github.com/samwafgo/sqlitedriver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

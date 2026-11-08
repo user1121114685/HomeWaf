@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafqueue
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/wafipban"
-	"SamWaf/waftask"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/wafipban"
+	"HomeWaf/waftask"
 	"strconv"
 	"time"
 )

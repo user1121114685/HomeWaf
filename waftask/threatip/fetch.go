@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package threatip
 
 import (
@@ -7,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"SamWaf/utils"
+	"HomeWaf/utils"
 )
 
 // fetchTimeout 威胁情报订阅拉取的整体超时(参照 wafowasp/upgrader.go 的模式)

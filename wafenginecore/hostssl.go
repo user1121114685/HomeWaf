@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/domaintool"
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/utils"
+	"HomeWaf/common/domaintool"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/utils"
 	"crypto/tls"
 	"errors"
 	"net"

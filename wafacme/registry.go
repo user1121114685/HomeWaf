@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 // Package wafacme 维护 HTTP-01 挑战的运行期状态：token 注册表、门闩、读盘限速。
 //
 // 为什么要单独一个包：
@@ -11,7 +13,7 @@
 package wafacme
 
 import (
-	"SamWaf/utils"
+	"HomeWaf/utils"
 	"os"
 	"path/filepath"
 	"strconv"

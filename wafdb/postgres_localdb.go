@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdb
 
 // PostgreSQL-specific database initialisation.
 // Mirrors mysql_localdb.go; see that file for the shape this follows.
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/wafdb/dialect"
 	"fmt"
 	"time"
 

@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafinit
 
 import (
-	"SamWaf/common/zlog"
+	"HomeWaf/common/zlog"
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"

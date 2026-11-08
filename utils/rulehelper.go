@@ -1,17 +1,19 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/innerbean"
-	"SamWaf/model"
+	"HomeWaf/common/zlog"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
 	"errors"
 	"fmt"
 	"regexp"
 
-	"github.com/hyperjumptech/grule-rule-engine/ast"
-	"github.com/hyperjumptech/grule-rule-engine/builder"
-	"github.com/hyperjumptech/grule-rule-engine/engine"
-	"github.com/hyperjumptech/grule-rule-engine/pkg"
+	"HomeWaf/internal/thirdparty/grule/ast"
+	"HomeWaf/internal/thirdparty/grule/builder"
+	"HomeWaf/internal/thirdparty/grule/engine"
+	"HomeWaf/internal/thirdparty/grule/pkg"
 )
 
 // 规则帮助类

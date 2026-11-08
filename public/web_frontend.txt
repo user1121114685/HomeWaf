@@ -1,1 +1,3 @@
-version=本地构建
+repo=HomeWaf/web
+version=2.0.0
+source=local-package-lock

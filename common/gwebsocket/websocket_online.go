@@ -1,13 +1,16 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package gwebsocket
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
-	Wssocket "github.com/gorilla/websocket"
+	Wssocket "github.com/coder/websocket"
 )
 
 // gorilla/websocket 只允许「一个并发 reader + 一个并发 writer」。
@@ -38,21 +41,22 @@ type WebSocketConnection struct {
 }
 
 // SafeWriteMessage 串行化写入 + 写超时，是本包对外唯一的数据帧写入方式
-func (wsConn *WebSocketConnection) SafeWriteMessage(messageType int, data []byte) error {
+func (wsConn *WebSocketConnection) SafeWriteMessage(messageType Wssocket.MessageType, data []byte) error {
 	wsConn.writeMux.Lock()
 	defer wsConn.writeMux.Unlock()
 
-	if err := wsConn.Conn.SetWriteDeadline(time.Now().Add(WriteWait)); err != nil {
-		return err
-	}
-	return wsConn.Conn.WriteMessage(messageType, data)
+	ctx, cancel := context.WithTimeout(context.Background(), WriteWait)
+	defer cancel()
+	return wsConn.Conn.Write(ctx, messageType, data)
 }
 
 // SafePing 发送控制帧 Ping。
 // gorilla 的 WriteControl 允许与其他方法并发调用，所以这里刻意不抢写锁，
 // 否则一次卡住的数据帧写入会把心跳也拖死，反而没法探活。
 func (wsConn *WebSocketConnection) SafePing() error {
-	return wsConn.Conn.WriteControl(Wssocket.PingMessage, nil, time.Now().Add(WriteWait))
+	ctx, cancel := context.WithTimeout(context.Background(), WriteWait)
+	defer cancel()
+	return wsConn.Conn.Ping(ctx)
 }
 
 type WebSocketOnline struct {
@@ -146,7 +150,7 @@ func (wafWebsocket *WebSocketOnline) OnlineCount() int {
 }
 
 // SendToSession 向指定会话发送消息
-func (wafWebsocket *WebSocketOnline) SendToSession(sessionID string, messageType int, data []byte) error {
+func (wafWebsocket *WebSocketOnline) SendToSession(sessionID string, messageType Wssocket.MessageType, data []byte) error {
 	wsConn := wafWebsocket.getSession(sessionID)
 	if wsConn == nil {
 		return errors.New("未找到会话")
@@ -156,7 +160,7 @@ func (wafWebsocket *WebSocketOnline) SendToSession(sessionID string, messageType
 
 // Broadcast 广播给所有在线连接，返回发送成功的连接数。
 // 写失败的连接直接关闭并摘除：死连接留在表里只会让后续每一轮广播都白等一次写超时。
-func (wafWebsocket *WebSocketOnline) Broadcast(messageType int, data []byte) int {
+func (wafWebsocket *WebSocketOnline) Broadcast(messageType Wssocket.MessageType, data []byte) int {
 	successCount := 0
 	for _, wsConn := range wafWebsocket.snapshot() {
 		if wsConn == nil {
@@ -175,7 +179,7 @@ func (wafWebsocket *WebSocketOnline) Broadcast(messageType int, data []byte) int
 // 会话密钥不同，没法像 Broadcast 那样一份密文发给所有人。
 // build 收到该连接的 KeyID（旧客户端为空串），返回该连接要收到的字节；返回错误则跳过这条连接。
 // 加解密逻辑放在调用方，本包不依赖 wafsec。
-func (wafWebsocket *WebSocketOnline) BroadcastBuild(messageType int, build func(keyID string) ([]byte, error)) int {
+func (wafWebsocket *WebSocketOnline) BroadcastBuild(messageType Wssocket.MessageType, build func(keyID string) ([]byte, error)) int {
 	successCount := 0
 	for _, wsConn := range wafWebsocket.snapshot() {
 		if wsConn == nil {
@@ -226,7 +230,7 @@ func (wafWebsocket *WebSocketOnline) CloseSession(sessionID string) {
 
 	if found {
 		// Close 与其他方法并发调用是安全的，放在锁外做，避免阻塞其他会话
-		wsConn.Conn.Close()
+		wsConn.Conn.CloseNow()
 	}
 }
 

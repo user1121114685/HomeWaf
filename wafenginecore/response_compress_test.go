@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/model"
+	"HomeWaf/model"
 	"bytes"
 	"compress/gzip"
 	"io"

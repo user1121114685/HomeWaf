@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafipban
 
-import "SamWaf/cache"
+import "HomeWaf/cache"
 
 // loadRecord 从缓存读取结构体记录，两种缓存后端语义一致：
 // 内存后端(WafCache) Get 原样返回存入的 Go 值，断言快路径一次命中；

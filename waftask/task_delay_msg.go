@@ -1,15 +1,17 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/wsmsg"
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/service/waf_service"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/wsmsg"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/service/waf_service"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
 )
 
 // TaskDelayInfo 定时发送延迟信息
@@ -35,7 +37,7 @@ func TaskDelayInfo() {
 				}
 				//发送websocket：走会话管理器统一出口，内部按连接加锁 + 写超时；
 				//报文按连接各自的会话密钥组装（v2 连接一份，旧连接回落 legacy）
-				sendSuccess := global.GWebSocket.BroadcastBuild(websocket.TextMessage, func(keyID string) ([]byte, error) {
+				sendSuccess := global.GWebSocket.BroadcastBuild(websocket.MessageText, func(keyID string) ([]byte, error) {
 					msgBytes, err := wsmsg.Build(keyID, dataPacket, cmdType)
 					if err != nil {
 						zlog.Debug("组装延迟消息报文错误", err)

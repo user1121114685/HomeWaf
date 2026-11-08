@@ -1,1 +1,5 @@
-*.bat text eol=crlf
+# Preserve upstream legal texts and imported SQLite headers verbatim.
+LICENSES/** whitespace=-blank-at-eol,-blank-at-eof
+internal/**/LICENSE* whitespace=-blank-at-eol,-blank-at-eof
+internal/captchaassets/OFL.txt whitespace=-blank-at-eol,-blank-at-eof
+internal/sqlite3/sqlite3ext.h whitespace=-blank-at-eol,-blank-at-eof

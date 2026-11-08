@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/cache"
-	"SamWaf/cache/cachetest"
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model/common/response"
+	"HomeWaf/cache"
+	"HomeWaf/cache/cachetest"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model/common/response"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"

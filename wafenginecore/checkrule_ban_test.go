@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/cache"
-	"SamWaf/cache/cachetest"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/utils"
+	"HomeWaf/cache"
+	"HomeWaf/cache/cachetest"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/utils"
 	"testing"
 	"time"
 )

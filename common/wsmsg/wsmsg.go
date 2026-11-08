@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wsmsg
 
 import (
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/wafsec"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/wafsec"
 	"encoding/json"
 )
 

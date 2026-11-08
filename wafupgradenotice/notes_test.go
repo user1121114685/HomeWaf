@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafupgradenotice
 
 import (
@@ -86,7 +88,7 @@ func TestValidateNoteRejectsBadInput(t *testing.T) {
 		Kind:    KindAction,
 		Level:   LevelNormal,
 		Page:    "/sys/SystemConfig",
-		Doc:     "https://doc.samwaf.com/x.html",
+		Doc:     "/#/help?topic=x.html",
 		Apply:   Apply{Type: ApplyNavigate},
 		ZH:      Text{Title: "标题", Detail: "详情", EffectOn: "开了会怎样", EffectOff: "不开的代价", Revert: "怎么撤"},
 		EN:      Text{Title: "Title", Detail: "Detail", EffectOn: "on", EffectOff: "off", Revert: "revert"},

@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/request"
-	"SamWaf/model/spec"
-	"SamWaf/utils"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/request"
+	"HomeWaf/model/spec"
+	"HomeWaf/utils"
 	"bytes"
 	"context"
 	"crypto/sha256"

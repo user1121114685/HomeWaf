@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafowasp
 
 import (
-	"SamWaf/common/zlog"
+	"HomeWaf/common/zlog"
 	"archive/zip"
 	"crypto/sha256"
 	"encoding/hex"
@@ -19,7 +21,7 @@ import (
 
 // UpgradeConfig 升级所需的外部配置（通过 ConfigureUpgrader 由上层注入，避免 wafowasp → global 循环依赖）。
 type UpgradeConfig struct {
-	UpdateVersionURL string // 升级源根 URL，例如 http://update.samwaf.com/update/
+	UpdateVersionURL string // 升级源根 URL，例如 http://publisher.example/update/
 	// ClientQuery 清单请求上统一携带的客户端标识(v/u/os/arch/rt)，由上层注入。
 	// 用函数而不是字符串：注入发生在启动早期，那时实例码还没从配置里读出来。
 	ClientQuery func() string

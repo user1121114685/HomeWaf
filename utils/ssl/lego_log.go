@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package ssl
 
 import (
-	"SamWaf/common/zlog"
+	"HomeWaf/common/zlog"
 	"fmt"
 	"strings"
 

@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package global
 
 import (
-	"SamWaf/model"
+	"HomeWaf/model"
 	"sync"
 	"time"
 )
@@ -13,9 +15,9 @@ var GWAF_IP_WATCH = &ipWatchCache{ips: map[string]int64{}}
 const ipWatchReloadInterval = 30 * time.Second
 
 type ipWatchCache struct {
-	mu        sync.RWMutex
-	ips       map[string]int64 // ip -> 到期 unix 秒
-	loadedAt  time.Time
+	mu       sync.RWMutex
+	ips      map[string]int64 // ip -> 到期 unix 秒
+	loadedAt time.Time
 }
 
 // Has 该 IP 当前是否在观察名单内（未到期）。DB 未初始化时一律视为不在。

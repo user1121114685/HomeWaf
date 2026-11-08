@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafproxy"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafproxy"
 	"crypto/tls"
 	"encoding/json"
 	"errors"

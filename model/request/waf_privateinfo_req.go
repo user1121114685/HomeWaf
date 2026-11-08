@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 type WafPrivateInfoAddReq struct {
 	PrivateKey              string `json:"private_key" form:"private_key"`

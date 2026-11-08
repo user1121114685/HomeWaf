@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafdiagnose
 
 import (
@@ -19,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"SamWaf/utils"
+	"HomeWaf/utils"
 )
 
 const maxDuration = 10 * time.Second

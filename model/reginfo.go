@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
 import "time"
@@ -7,6 +9,8 @@ import "time"
 注册信息
 */
 type RegistrationInfo struct {
+	LicenseID  string    `json:"license_id,omitempty"`
+	Features   []string  `json:"features,omitempty"`
 	Version    string    `json:"version"`
 	Username   string    `json:"username"`
 	MemberType string    `json:"member_type"`

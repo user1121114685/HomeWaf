@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 // 引擎侧的 IP 黑名单用例（配合 issue #898）：
@@ -6,11 +8,11 @@ package wafenginecore
 //   - TestCheckDenyIP_GlobalHostMissing_ShouldNotPanic 是 nil 解引用的回归，修复前会 panic。
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
 	"net/http"
 	"testing"
 )

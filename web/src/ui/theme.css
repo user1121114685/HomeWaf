@@ -1,0 +1,151 @@
+/* HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. */
+
+:root {
+  --td-brand-color: var(--el-color-primary);
+  --td-brand-color-1: var(--el-color-primary-light-9);
+  --td-brand-color-2: var(--el-color-primary-light-8);
+  --td-brand-color-3: var(--el-color-primary-light-7);
+  --td-brand-color-6: var(--el-color-primary);
+  --td-brand-color-7: var(--el-color-primary-dark-2);
+  --td-brand-color-light: var(--el-color-primary-light-9);
+  --td-text-color-primary: var(--el-text-color-primary);
+  --td-text-color-secondary: var(--el-text-color-regular);
+  --td-text-color-placeholder: var(--el-text-color-placeholder);
+  --td-text-color-disabled: var(--el-text-color-disabled);
+  --td-bg-color-page: var(--el-bg-color-page);
+  --td-bg-color-container: var(--el-bg-color);
+  --td-bg-color-secondarycontainer: var(--el-fill-color-light);
+  --td-bg-color-component: var(--el-fill-color);
+  --td-component-stroke: var(--el-border-color);
+  --td-border-level-1-color: var(--el-border-color-light);
+  --td-border-level-2-color: var(--el-border-color);
+  --td-error-color: var(--el-color-danger);
+  --td-error-color-1: var(--el-color-danger-light-9);
+  --td-warning-color: var(--el-color-warning);
+  --td-warning-color-1: var(--el-color-warning-light-9);
+  --td-success-color: var(--el-color-success);
+  --td-success-color-1: var(--el-color-success-light-9);
+  --td-radius-default: 4px;
+  --td-radius-medium: 6px;
+  --td-comp-size-s: 24px;
+  --td-comp-size-m: 32px;
+  --td-comp-size-l: 40px;
+  --td-font-size-body-medium: 14px;
+  --td-font-size-body-small: 12px;
+  --td-font-body-medium: 14px/1.6 system-ui, sans-serif;
+  --td-shadow-1: var(--el-box-shadow-light);
+  --td-shadow-2: var(--el-box-shadow);
+}
+.hw-table,
+.hw-loading {
+  position: relative;
+}
+.hw-table-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.hw-table-loading,
+.hw-loading-mask {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--el-mask-color);
+  z-index: 2;
+}
+.hw-list {
+  list-style: none;
+  padding: 0;
+}
+.hw-list-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--el-border-color-light);
+}
+.hw-sticky-tool {
+  position: fixed;
+  right: 16px;
+  bottom: 24px;
+  z-index: 50;
+}
+.t-button-link {
+  color: var(--el-color-primary);
+  cursor: pointer;
+}
+.el-dialog__body {
+  overflow: auto;
+  max-height: 75vh;
+}
+.el-form-item .el-select {
+  min-width: 140px;
+}
+.el-icon {
+  vertical-align: middle;
+}
+.el-table .el-button + .el-button {
+  margin-left: 6px;
+}
+
+:root {
+  --td-font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+}
+body {
+  font-family: var(--td-font-family);
+}
+
+.hw-side-menu {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--el-bg-color);
+  border-right: 1px solid var(--el-border-color-light);
+}
+.hw-side-menu .hw-menu-logo {
+  height: 64px;
+  flex: 0 0 64px;
+  display: flex;
+  align-items: center;
+}
+.hw-side-menu .hw-menu-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 0;
+}
+.hw-side-menu .hw-menu-operations {
+  flex: 0 0 auto;
+  padding: 12px;
+  border-top: 1px solid var(--el-border-color-light);
+}
+.hw-head-menu {
+  display: flex;
+  align-items: center;
+  height: 64px;
+  width: 100%;
+  background: var(--el-bg-color);
+}
+.hw-head-menu .hw-menu-logo {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.hw-head-menu .hw-menu-body {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+}
+.hw-head-menu .hw-menu-operations {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+.el-header {
+  --el-header-height: 64px;
+  padding: 0 16px;
+}
+.el-container {
+  min-width: 0;
+}
+.el-aside {
+  flex-shrink: 0;
+}

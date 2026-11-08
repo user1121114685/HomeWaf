@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 报文落库这一步的三库回归。splitForStore 的纯逻辑由 log_split_test.go 覆盖，
@@ -9,18 +11,18 @@
 package wafqueue
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/wafdb/dialect"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	sqlitedriver "github.com/samwafgo/sqlitedriver"
-	mysqldriver "gorm.io/driver/mysql"
+	mysqldriver "HomeWaf/internal/mysql"
+	sqlitedriver "HomeWaf/internal/sqlitedialect"
 	pgdriver "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 // WafThreatIPChannelAddReq 新增威胁情报订阅渠道请求
 type WafThreatIPChannelAddReq struct {

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafupdate
 
 import (
@@ -6,17 +8,20 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/global"
+	"HomeWaf/global"
 )
 
 // 参数名与顺序是升级源侧日志解析的契约，改了要同步改服务端，故用例锁住
 func TestClientQueryShape(t *testing.T) {
+	oldReport := global.GCONFIG_UPDATE_ENV_REPORT
+	global.GCONFIG_UPDATE_ENV_REPORT = true
+	t.Cleanup(func() { global.GCONFIG_UPDATE_ENV_REPORT = oldReport })
 	global.GWAF_RELEASE_VERSION = "v1.3.25"
 	global.GWAF_USER_CODE = "123456uuid"
 
 	q := buildClientQuery()
 
-	wantPrefix := "v=v1.3.25&u=123456uuid&os=" + runtime.GOOS + "&arch=" + runtime.GOARCH + "&rt="
+	wantPrefix := "v=v1.3.25&os=" + runtime.GOOS + "&arch=" + runtime.GOARCH + "&rt="
 	if !strings.HasPrefix(q, wantPrefix) {
 		t.Fatalf("参数名/顺序变了：\n got  %s\n want %s...", q, wantPrefix)
 	}
@@ -25,10 +30,13 @@ func TestClientQueryShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("拼出来的不是合法查询串: %v", err)
 	}
-	for _, k := range []string{"v", "u", "os", "arch", "rt"} {
+	for _, k := range []string{"v", "os", "arch", "rt"} {
 		if values.Get(k) == "" {
 			t.Fatalf("缺少参数 %s: %s", k, q)
 		}
+	}
+	if values.Get("u") != "" {
+		t.Fatal("persistent instance identifier must not be reported")
 	}
 	// 非容器环境要明确记成 host，不能留空值让日志里出现 rt=
 	if rt := values.Get("rt"); rt == "" {

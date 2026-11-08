@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
 import (
-	"SamWaf/model"
-	"SamWaf/model/common/request"
+	"HomeWaf/model"
+	"HomeWaf/model/common/request"
 )
 
 // WafAntiCCRuleAddReq 新增CC规则

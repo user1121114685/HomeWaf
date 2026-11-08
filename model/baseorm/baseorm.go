@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package baseorm
 
-import "SamWaf/customtype"
+import "HomeWaf/customtype"
 
 /*
 *

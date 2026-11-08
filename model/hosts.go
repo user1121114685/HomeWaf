@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package model
 
 import (
-	"SamWaf/model/baseorm"
+	"HomeWaf/model/baseorm"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -28,7 +30,7 @@ type Hosts struct {
 	DEFENSE_JSON              string `gorm:"type:text" json:"defense_json"`                 //自身防御 json
 	START_STATUS              int    `json:"start_status"`                                  //启动状态 如果是0 启动  ; 如果是1 不启动
 	EXCLUDE_URL_LOG           string `gorm:"type:text" json:"exclude_url_log"`              //排除的url开头的数据 换行隔开
-	EXCLUDE_IP_LOG            string `gorm:"type:text" json:"exclude_ip_log"`             //排除记录日志的IP清单 换行或逗号隔开：单IP/CIDR/通配符/区间/group:组短码
+	EXCLUDE_IP_LOG            string `gorm:"type:text" json:"exclude_ip_log"`               //排除记录日志的IP清单 换行或逗号隔开：单IP/CIDR/通配符/区间/group:组短码
 	IsEnableLoadBalance       int    `json:"is_enable_load_balance"`                        //是否激活负载  1 激活  非1 没有激活
 	LoadBalanceStage          int    `json:"load_balance_stage"`                            //负载策略
 	UnrestrictedPort          int    `json:"unrestricted_port"`                             //不限来源匹配端口 0 限制 1，不限制
@@ -752,11 +754,11 @@ func GetClientIPByMode(ipMode string, netSrcIp string, srcIP string) string {
 // 「24 小时绝对有效期 + 绑定登录 IP + 不启用空闲超时 + 整站保护」，即与加这套配置之前的行为逐条一致。
 // 数值字段用 FlexInt 是因为前端表单回传的是字符串，普通 int 会让该字段悄悄回落默认值。
 type HttpAuthConfig struct {
-	SessionTTL    FlexInt `json:"session_ttl"`    // 绝对有效期(分钟)，<=0 视为默认 1440
-	IdleTimeout   FlexInt `json:"idle_timeout"`   // 空闲超时(分钟)，0=不启用
-	BindIP        FlexInt `json:"bind_ip"`        // 1=登录令牌绑定登录时的 IP(默认) 0=不绑
-	PathScope     string  `json:"path_scope"`     // 保护范围：all=整站(默认) include=仅指定路径 exclude=除指定路径外
-	Paths         string  `json:"paths"`          // 路径模式清单（换行/逗号分隔，支持 * 通配），path_scope=all 时忽略
+	SessionTTL    FlexInt `json:"session_ttl"`     // 绝对有效期(分钟)，<=0 视为默认 1440
+	IdleTimeout   FlexInt `json:"idle_timeout"`    // 空闲超时(分钟)，0=不启用
+	BindIP        FlexInt `json:"bind_ip"`         // 1=登录令牌绑定登录时的 IP(默认) 0=不绑
+	PathScope     string  `json:"path_scope"`      // 保护范围：all=整站(默认) include=仅指定路径 exclude=除指定路径外
+	Paths         string  `json:"paths"`           // 路径模式清单（换行/逗号分隔，支持 * 通配），path_scope=all 时忽略
 	BypassIPGroup string  `json:"bypass_ip_group"` // 免密IP组 code，命中该组的来源跳过密码校验，空=不启用
 }
 

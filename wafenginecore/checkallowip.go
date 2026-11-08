@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/detection"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/utils"
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/detection"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/utils"
+	"HomeWaf/wafenginecore/ipset"
 	"net"
 	"net/http"
 	"net/url"

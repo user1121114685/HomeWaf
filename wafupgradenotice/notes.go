@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 // Package wafupgradenotice 提供「升级须知」的内置清单：解析、校验与按版本区间挑选。
 //
 // 清单随版本编译进二进制（见 upgrade_notes.yaml），不走网络：
@@ -12,8 +14,8 @@ import (
 	"strings"
 	"sync"
 
+	"go.yaml.in/yaml/v4"
 	"golang.org/x/mod/semver"
-	"gopkg.in/yaml.v3"
 )
 
 //go:embed upgrade_notes.yaml
@@ -41,7 +43,7 @@ const (
 )
 
 // docPrefix 文档链接只允许指向官方文档站，防止清单将来接云端补丁时被用作跳板
-const docPrefix = "https://doc.samwaf.com/"
+const docPrefix = "/#/help?topic="
 
 // idPattern 条目 id 只允许小写字母、数字与下划线
 var idPattern = regexp.MustCompile(`^[a-z0-9_]+$`)

@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/wafenginmodel"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/wafenginmodel"
 	"encoding/json"
 	"net/http"
 	"reflect"
@@ -156,7 +158,7 @@ func TestWebsiteDiagnosticZeroPortKeepsDomainFallback(t *testing.T) {
 	}
 
 	lbHost := &wafenginmodel.HostSafe{
-		Host: model.Hosts{Code: "site", IsEnableLoadBalance: 1},
+		Host:       model.Hosts{Code: "site", IsEnableLoadBalance: 1},
 		TargetHost: "http://origin.test",
 		LoadBalanceLists: []model.LoadBalance{
 			{BaseOrm: baseorm.BaseOrm{Id: "one"}, Remote_ip: "192.0.2.1"},

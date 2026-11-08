@@ -1,12 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafupdate
 
 import (
-	"SamWaf/binarydist"
-	"SamWaf/global"
-	"SamWaf/utils"
+	"HomeWaf/binarydist"
+	"HomeWaf/global"
+	"HomeWaf/utils"
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,6 +62,7 @@ type Updater struct {
 	CmdName        string    // Command name is appended to the ApiURL like http://apiurl/CmdName/. This represents one binary.
 	BinURL         string    // Base URL for full binary downloads.
 	DiffURL        string    // Base URL for diff downloads.
+	ArchiveSHA256  string    // Publisher asset digest, required before extraction.
 	BinGithubURL   string    // Base URL for full binary downloads.
 	Dir            string    // Directory to store selfupdate state.
 	ForceCheck     bool      // Check for update regardless of cktime timestamp
@@ -380,7 +384,7 @@ func (u *Updater) UpdateWithChannel(channel string) error {
 		body := newProgressReader(r, u.Tracker, dlSize)
 
 		// 创建临时目录用于解压文件
-		tempDir, err := ioutil.TempDir("", "samwaf_beta_update"+u.Info.Version)
+		tempDir, err := ioutil.TempDir("", "homewaf_beta_update"+u.Info.Version)
 		if err != nil {
 			return err
 		}
@@ -393,13 +397,17 @@ func (u *Updater) UpdateWithChannel(channel string) error {
 			return err
 		}
 
-		_, err = io.Copy(out, body)
+		archiveHash := sha256.New()
+		_, err = io.Copy(io.MultiWriter(out, archiveHash), body)
 		out.Close()
 		if err != nil {
 			return err
 		}
+		if hex.EncodeToString(archiveHash.Sum(nil)) != u.ArchiveSHA256 {
+			return ErrHashMismatch
+		}
 		u.Tracker.StageDone(StageDownload, "")
-		// GitHub 渠道的包没有官方渠道那份 SHA256 清单，校验阶段不适用
+		// HomeWaf verifies the publisher digest before extracting this archive.
 		u.Tracker.StageStart(StageExtract)
 
 		// 根据文件类型和平台解压并获取正确的可执行文件
@@ -409,12 +417,12 @@ func (u *Updater) UpdateWithChannel(channel string) error {
 			//使用win7内核
 			binPath = tempFile
 		} else if strings.HasSuffix(u.BinGithubURL, ".zip") {
-			// 情况 1: 从 ZIP 中提取 SamWaf64.exe
+			// 情况 1: 从 ZIP 中提取 HomeWaf64.exe
 			err = utils.Unzip(tempFile, tempDir)
 			if err != nil {
 				return err
 			}
-			binPath = filepath.Join(tempDir, "SamWaf64.exe")
+			binPath = filepath.Join(tempDir, "HomeWaf64.exe")
 		} else if strings.HasSuffix(u.BinGithubURL, ".tar.gz") {
 			// 处理 Linux 平台的 tar.gz 文件
 			err = utils.ExtractTarGz(tempFile, tempDir)
@@ -423,11 +431,11 @@ func (u *Updater) UpdateWithChannel(channel string) error {
 			}
 
 			if strings.Contains(u.BinGithubURL, "Linux_x86_64") {
-				// 情况 2: 从 tar.gz 中提取 SamWafLinux64
-				binPath = filepath.Join(tempDir, "SamWafLinux64")
+				// 情况 2: 从 tar.gz 中提取 HomeWafLinux64
+				binPath = filepath.Join(tempDir, "HomeWafLinux64")
 			} else if strings.Contains(u.BinGithubURL, "Linux_arm64") {
-				// 情况 3: 从 tar.gz 中提取 SamWafLinuxArm64
-				binPath = filepath.Join(tempDir, "SamWafLinuxArm64")
+				// 情况 3: 从 tar.gz 中提取 HomeWafLinuxArm64
+				binPath = filepath.Join(tempDir, "HomeWafLinuxArm64")
 			}
 		}
 
@@ -520,6 +528,9 @@ func fromStreamWithTracker(updateWith io.Reader, tracker *ProgressTracker) (err 
 // fetchInfo fetches the update JSON manifest at u.ApiURL/appname/platform.json?v=currentVersion
 // and updates u.Info.
 func (u *Updater) fetchInfo() error {
+	if u.ApiURL == "" {
+		return errors.New("HomeWaf update source is not configured")
+	}
 	r, err := u.fetch(u.ApiURL + url.QueryEscape(u.CmdName) + "/" + url.QueryEscape(plat) + ".json?" + ClientQuery())
 	if err != nil {
 		return err
@@ -537,6 +548,9 @@ func (u *Updater) fetchInfo() error {
 
 // fetchInfoGithub 从GitHub获取最新beta版本信息
 func (u *Updater) fetchInfoGithub() error {
+	if global.GUPDATE_GITHUB_VERSION_URL == "" {
+		return errors.New("HomeWaf beta source is not configured")
+	}
 	r, err := u.fetch(global.GUPDATE_GITHUB_VERSION_URL + "?" + ClientQuery())
 	if err != nil {
 		return err
@@ -553,6 +567,7 @@ func (u *Updater) fetchInfoGithub() error {
 			BrowserDownloadURL string `json:"browser_download_url"`
 			Size               int64  `json:"size"`
 			ContentType        string `json:"content_type"`
+			Digest             string `json:"digest"`
 		} `json:"assets"`
 	}
 
@@ -578,11 +593,7 @@ func (u *Updater) fetchInfoGithub() error {
 	utils.IsSupportedWindows7Version()
 	switch plat {
 	case "windows-amd64":
-		if utils.IsSupportedWindows7Version() {
-			platformSuffix = "SamWaf64ForWin7Win8Win2008"
-		} else {
-			platformSuffix = "Windows_x86_64"
-		}
+		platformSuffix = "Windows_x86_64"
 	case "linux-amd64":
 		platformSuffix = "Linux_x86_64"
 	case "linux-arm64":
@@ -601,6 +612,7 @@ func (u *Updater) fetchInfoGithub() error {
 		}
 		if strings.Contains(asset.Name, platformSuffix) {
 			downloadURL = asset.BrowserDownloadURL
+			u.ArchiveSHA256 = strings.TrimPrefix(asset.Digest, "sha256:")
 			break
 		}
 	}
@@ -608,6 +620,14 @@ func (u *Updater) fetchInfoGithub() error {
 	// 如果没有找到适合的资源，返回错误
 	if downloadURL == "" {
 		return errors.New("no suitable release asset found for this platform")
+	}
+	parsedURL, parseErr := url.Parse(downloadURL)
+	if parseErr != nil || parsedURL.Scheme != "https" || parsedURL.Hostname() == "" || parsedURL.User != nil {
+		return errors.New("invalid HTTPS release asset URL")
+	}
+	digest, digestErr := hex.DecodeString(u.ArchiveSHA256)
+	if digestErr != nil || len(digest) != sha256.Size {
+		return errors.New("release asset is missing a valid SHA256 digest")
 	}
 	u.BinGithubURL = downloadURL
 	u.Info.Version = githubRelease.TagName

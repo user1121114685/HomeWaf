@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/common/tasklog"
-	"SamWaf/global"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
+	"HomeWaf/common/tasklog"
+	"HomeWaf/global"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
 	"errors"
 	"strconv"
 

@@ -1,13 +1,15 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/queue"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafenginecore/accessgate"
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/common/queue"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafenginecore/accessgate"
+	"HomeWaf/wafenginecore/ipset"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -43,11 +45,11 @@ func TestBuildIPLogExcludeIndexMatch(t *testing.T) {
 		t.Fatal("非空清单应返回索引")
 	}
 	for ip, want := range map[string]bool{
-		"203.0.113.7":   true,
-		"198.51.100.9":  true,
-		"10.1.2.3":      true,
-		"203.0.113.8":   false,
-		"192.0.2.1":     false,
+		"203.0.113.7":  true,
+		"198.51.100.9": true,
+		"10.1.2.3":     true,
+		"203.0.113.8":  false,
+		"192.0.2.1":    false,
 	} {
 		if got := idx.ContainsStr(ip); got != want {
 			t.Errorf("ContainsStr(%s) = %v, want %v", ip, got, want)

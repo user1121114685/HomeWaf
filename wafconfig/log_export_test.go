@@ -1,7 +1,9 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafconfig
 
 import (
-	"SamWaf/global"
+	"HomeWaf/global"
 	"testing"
 
 	"github.com/spf13/viper"

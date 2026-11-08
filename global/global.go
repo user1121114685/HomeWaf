@@ -1,28 +1,30 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package global
 
 import (
-	"SamWaf/cache"
-	"SamWaf/common/gwebsocket"
-	"SamWaf/common/queue"
-	"SamWaf/iplocation"
-	"SamWaf/model"
-	"SamWaf/model/spec"
-	"SamWaf/wafai"
-	"SamWaf/wafnotify"
-	"SamWaf/wafowasp"
-	"SamWaf/wafsnowflake"
+	"HomeWaf/cache"
+	"HomeWaf/common/gwebsocket"
+	"HomeWaf/common/queue"
+	"HomeWaf/iplocation"
+	"HomeWaf/model"
+	"HomeWaf/model/spec"
+	"HomeWaf/wafai"
+	"HomeWaf/wafnotify"
+	"HomeWaf/wafowasp"
+	"HomeWaf/wafsnowflake"
 	"strconv"
 	"sync/atomic"
 	"time"
 
-	"github.com/bytedance/godlp/dlpheader"
+	"HomeWaf/internal/thirdparty/godlp/dlpheader"
 	"github.com/lionsoul2014/ip2region/binding/golang/xdb"
-	"github.com/oschwald/geoip2-golang"
+	"github.com/oschwald/geoip2-golang/v2"
 	"gorm.io/gorm"
 )
 
 const (
-	GWAF_NAME   = "SamWaf"
+	GWAF_NAME   = "HomeWaf"
 	Version_num = 1
 )
 
@@ -96,23 +98,23 @@ var (
 	GWAF_SECURITY_EMERGENCY_PATH string = ""               //应急恢复路径（随机生成，首次启动自动写入 conf/config.yml）
 
 	//zlog 日志相关信息
-	GWAF_LOG_OUTPUT_FORMAT       string              = "console"           //zlog输出格式 控制台格式console,json格式
-	GWAF_LOG_DEBUG_ENABLE        bool                = false               //是否开启debug日志，默认关闭
-	GWAF_LOG_DEBUG_DB_ENABLE     bool                = false               //是否开启数据库日志，默认关闭
-	GWAF_RELEASE                 string              = "false"             // 当前是否为发行版
-	GWAF_RELEASE_VERSION_NAME    string              = "20241028"          // 发行版的版本号名称
-	GWAF_RELEASE_VERSION         string              = "v1.0.0"            // 发行版的版本号
-	GWAF_WEB_VERSION             string              = "本地构建"              // 内嵌管理端前端版本（main 启动时从 public 包版本戳读取）
-	GWAF_LAST_UPDATE_TIME        time.Time                                 // 上次时间
-	GWAF_NOTICE_ENABLE           bool                = false               // 是否开启通知
-	GWAF_NOTICE_TITLE            string                                    // 通知消息标题前缀（用于区分多实例，默认使用 custom_server_name）
-	GWAF_CAN_EXPORT_DOWNLOAD_LOG bool                = false               //是否可以导出下载日志
-	GWAF_CAN_APP_MANAGE          bool                = false               //是否启用应用管理功能（默认关闭，需服务端配置才能开启）
-	GWAF_APP_ALLOW_DIRS          string              = "data/applications" //应用允许的工作目录（逗号分隔多路径）
-	GWAF_APP_OP_PASSWORD         string                                    //应用操作密码（高危操作二次确认，自动生成存 config.yml）
-	GWAF_DLP                     dlpheader.EngineAPI                       // 脱敏引擎
-	GWAF_DLP_CONFIG              string                                    // 脱敏引擎配置数据
-	GWAF_AI_DETECTOR             *wafai.Detector                           // AI智能检测器（持有当前模型，失败安全）
+	GWAF_LOG_OUTPUT_FORMAT       string              = "console"             //zlog输出格式 控制台格式console,json格式
+	GWAF_LOG_DEBUG_ENABLE        bool                = false                 //是否开启debug日志，默认关闭
+	GWAF_LOG_DEBUG_DB_ENABLE     bool                = false                 //是否开启数据库日志，默认关闭
+	GWAF_RELEASE                 string              = "false"               // 当前是否为发行版
+	GWAF_RELEASE_VERSION_NAME    string              = "HomeWaf development" // 发行版的版本号名称
+	GWAF_RELEASE_VERSION         string              = "v2.0.0-dev"          // 发行版的版本号
+	GWAF_WEB_VERSION             string              = "本地构建"                // 内嵌管理端前端版本（main 启动时从 public 包版本戳读取）
+	GWAF_LAST_UPDATE_TIME        time.Time                                   // 上次时间
+	GWAF_NOTICE_ENABLE           bool                = false                 // 是否开启通知
+	GWAF_NOTICE_TITLE            string                                      // 通知消息标题前缀（用于区分多实例，默认使用 custom_server_name）
+	GWAF_CAN_EXPORT_DOWNLOAD_LOG bool                = false                 //是否可以导出下载日志
+	GWAF_CAN_APP_MANAGE          bool                = false                 //是否启用应用管理功能（默认关闭，需服务端配置才能开启）
+	GWAF_APP_ALLOW_DIRS          string              = "data/applications"   //应用允许的工作目录（逗号分隔多路径）
+	GWAF_APP_OP_PASSWORD         string                                      //应用操作密码（高危操作二次确认，自动生成存 config.yml）
+	GWAF_DLP                     dlpheader.EngineAPI                         // 脱敏引擎
+	GWAF_DLP_CONFIG              string                                      // 脱敏引擎配置数据
+	GWAF_AI_DETECTOR             *wafai.Detector                             // AI智能检测器（持有当前模型，失败安全）
 
 	GWAF_OWASP         *wafowasp.WafOWASP     //owasp引擎（兼容保留：由 GWAF_OWASP_MANAGER.Current() 更新；请勿直接赋值新实例，否则热重载会失效）
 	GWAF_OWASP_MANAGER *wafowasp.OwaspManager //owasp 管理器（支持热重载）
@@ -224,9 +226,9 @@ var (
 	GWebSocket *gwebsocket.WebSocketOnline
 
 	//升级相关
-	GUPDATE_VERSION_URL        string = "https://update.samwaf.com/"                                       // 官方下载
-	GUPDATE_GITHUB_VERSION_URL string = "https://update.samwaf.com/samwaf_beta_update/latest_release.json" //从gitHub自动下载镜像
-	//GUPDATE_GITHUB_VERSION_URL string = "http://10.0.2.2:8111/beta_update_linux/latest_release.json"
+	GUPDATE_VERSION_URL        string = "" // 官方下载
+	GUPDATE_GITHUB_VERSION_URL string = "" //从gitHub自动下载镜像
+	//GUPDATE_GITHUB_VERSION_URL string = ""
 	// http://127.0.0.1:8111/beta_update/latest_release.json
 	// http://10.0.2.2:8111/beta_update_linux/latest_release.json
 	GWAF_SNOWFLAKE_GEN *wafsnowflake.Snowflake //雪花算法
@@ -285,16 +287,14 @@ var (
 	GWAF_COMMUNICATION_KEY = []byte("7E@u*has$d*@s5YX") //通讯加密密钥
 
 	//资源下载
-	GWAF_BOT_IP_URL_MAIN string = "https://raw.githubusercontent.com/samwafgo/SamWafBotIPDatabase/main/allowlist/index.json"
+	GWAF_BOT_IP_URL_MAIN string = ""
 
 	/**
 	授权注册信息部分
 	*/
-	GWAF_REG_INFO       model.RegistrationInfo                              //当前注册信息
-	GWAF_REG_VERSION                           = "v1"                       //注册信息版本
-	GWAF_REG_KEY                               = []byte("5F!vion$k@a7QZ&)") //注册信息加密密钥
-	GWAF_REG_PUBLIC_KEY string                 = ""                         //注册信息加密公钥
-	GWAF_REG_TMP_REG    []byte                                              //用户传来的信息
+	GWAF_REG_INFO    model.RegistrationInfo       //当前注册信息
+	GWAF_REG_VERSION = "v2"                       //注册信息版本
+	GWAF_REG_KEY     = []byte("5F!vion$k@a7QZ&)") //注册信息加密密钥
 )
 
 func GetCurrentVersionInt() int {

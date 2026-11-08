@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build !windows
 // +build !windows
 
 package supervisor
 
 import (
-	"SamWaf/common/zlog"
+	"HomeWaf/common/zlog"
 	"os"
 	"syscall"
 )

@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 // 回归 issue #916：「开启HTTP3功能不生效，UDP端口未被监听」。
@@ -11,9 +13,9 @@ package wafenginecore
 //     Shutdown/Close 只停读不关 fd —— 不自己 Close 就是 UDP 端口泄漏。
 
 import (
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model/wafenginmodel"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model/wafenginmodel"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"

@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package logfilewriter
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/innerbean"
+	"HomeWaf/common/zlog"
+	"HomeWaf/innerbean"
 	"bufio"
 	"compress/gzip"
 	"fmt"

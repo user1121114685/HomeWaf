@@ -1,16 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/request"
-	"SamWaf/model/response"
-	"SamWaf/utils"
-	"SamWaf/wafenginecore/accessgate"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/request"
+	"HomeWaf/model/response"
+	"HomeWaf/utils"
+	"HomeWaf/wafenginecore/accessgate"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -185,7 +187,7 @@ func (receiver *WafAccessConfigService) RegenerateSecretApi() error {
 
 // PublishConfig 把库里的配置编译成运行时快照并原子发布。
 //
-// 必须在 StartWaf() 之前同步调用一次（见 cmd/samwaf/main.go）。理由与 IP 组一致：
+// 必须在 StartWaf() 之前同步调用一次（见 cmd/homewaf/main.go）。理由与 IP 组一致：
 // 访问控制晚生效就是一段裸奔窗口，而这个功能的全部意义就是不让人裸奔。
 func (receiver *WafAccessConfigService) PublishConfig() {
 	bean := receiver.GetConfig()

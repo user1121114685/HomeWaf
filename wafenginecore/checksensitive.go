@@ -1,12 +1,14 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/detection"
-	"SamWaf/model/wafenginmodel"
-	goahocorasick "github.com/samwafgo/ahocorasick"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	goahocorasick "HomeWaf/internal/multimatch"
+	"HomeWaf/model"
+	"HomeWaf/model/detection"
+	"HomeWaf/model/wafenginmodel"
 	"net/http"
 	"net/url"
 	"strings"

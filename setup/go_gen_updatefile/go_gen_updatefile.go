@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package main
 
 import (
@@ -14,7 +16,7 @@ import (
 	"runtime"
 	"time"
 
-	"SamWaf/binarydist"
+	"HomeWaf/binarydist"
 )
 
 var version, genDir string
@@ -130,7 +132,7 @@ func createUpdate(path string, platform string, desc string) {
 			//fmt.Println(filepath.Join(genDir, file.Name(), version, platform))
 			err2 := ioutil.WriteFile(filepath.Join(genDir, file.Name(), version, platform), patch.Bytes(), 0755)
 			if err2 != nil {
-				fmt.Errorf(err2.Error())
+				panic(err2)
 			}
 		}
 

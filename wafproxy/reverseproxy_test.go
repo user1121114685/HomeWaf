@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -7,6 +9,7 @@
 package wafproxy
 
 import (
+	"HomeWaf/wafproxy/inner/ascii"
 	"bufio"
 	"bytes"
 	"context"
@@ -16,7 +19,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/http/internal/ascii"
 	"net/url"
 	"os"
 	"reflect"

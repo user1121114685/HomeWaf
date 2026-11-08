@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 // WafCDNProviderRangesReq 分页浏览某厂商回源段(只读)
 type WafCDNProviderRangesReq struct {

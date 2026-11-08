@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
@@ -7,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/global"
+	"HomeWaf/global"
 )
 
 // 证书导出（issue #929）的路径校验与原子写入用例。

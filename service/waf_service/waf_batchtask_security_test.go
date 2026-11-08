@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
@@ -6,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/enums"
-	"SamWaf/global"
+	"HomeWaf/enums"
+	"HomeWaf/global"
 )
 
 // 批量任务保存侧的边界用例。

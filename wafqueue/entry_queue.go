@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafqueue
 
 import (
-	"SamWaf/common/queue"
-	"SamWaf/global"
+	"HomeWaf/common/queue"
+	"HomeWaf/global"
 )
 
 /*

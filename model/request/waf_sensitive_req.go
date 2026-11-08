@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 type WafSensitiveAddReq struct {
 	CheckDirection string `json:"check_direction"`          //敏感词检测方向 in ,out ,all

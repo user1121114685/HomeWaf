@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafonekey
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
+	"HomeWaf/common/uuid"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
 	"errors"
 	"fmt"
 	"io/ioutil"

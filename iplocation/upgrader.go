@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package iplocation
 
 import (
@@ -98,7 +100,7 @@ func fileNameByKey(key string) string {
 
 // UpgradeConfig 下载所需的外部上下文，由主程序注入。
 type UpgradeConfig struct {
-	// UpdateVersionURL 升级源根 URL，例如 https://update.samwaf.com/
+	// UpdateVersionURL 升级源根 URL，例如 https://publisher.example/
 	UpdateVersionURL string
 	// ClientQuery 清单请求上统一携带的客户端标识(v/u/os/arch/rt)，由上层注入。
 	// 用函数而不是字符串：注入发生在启动早期，那时实例码还没从配置里读出来。

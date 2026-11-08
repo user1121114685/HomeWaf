@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
@@ -6,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
 )
 
 // TestRoutingRCURace 并发压测 RCU 路由快照：多读者(rt() + 读 HostSafe 字段) + 字段级 COW 写者(UpdateHost)

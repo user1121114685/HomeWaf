@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package request
 
-import "SamWaf/model/common/request"
+import "HomeWaf/model/common/request"
 
 type WafSysLogSearchReq struct {
 	OpType    string `json:"op_type" form:"op_type"`       //操作类型

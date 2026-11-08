@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafowasp
 
 import (
@@ -7,7 +9,7 @@ import (
 )
 
 // 集成测试：扫描仓库内真实的 CRS 规则目录，打印每个文件的规则数，用来检查解析是否漏规则。
-// 需要 cmd/samwaf/exedata/owasp 已释放。CI 上若不存在会跳过。
+// 需要 cmd/homewaf/exedata/owasp 已释放。CI 上若不存在会跳过。
 func TestScanRealCRS(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Dir(filepath.Dir(thisFile)) // .../SamWaf
@@ -18,7 +20,7 @@ func TestScanRealCRS(t *testing.T) {
 		t.Skipf("skip: scan owasp: %v", err)
 	}
 	if len(files) == 0 {
-		t.Skip("skip: no .conf under cmd/samwaf/exedata/owasp")
+		t.Skip("skip: no .conf under cmd/homewaf/exedata/owasp")
 	}
 
 	total := 0

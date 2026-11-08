@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/wafdb"
+	"HomeWaf/common/zlog"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/wafdb"
 )
 
 // payloadFetchChunk 一次 IN 查询带的 req_uuid 个数。

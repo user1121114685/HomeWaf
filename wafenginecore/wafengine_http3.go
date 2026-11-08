@@ -1,15 +1,17 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/utils"
-	"SamWaf/wafnet"
+	"HomeWaf/common/uuid"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/utils"
+	"HomeWaf/wafnet"
 	"context"
 	"crypto/tls"
 	"errors"

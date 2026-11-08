@@ -1,14 +1,16 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	"SamWaf/service/waf_service"
-	"SamWaf/wafsec"
-	"SamWaf/waftask"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	"HomeWaf/service/waf_service"
+	"HomeWaf/wafsec"
+	"HomeWaf/waftask"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -311,7 +313,7 @@ const (
 	GptSceneGeneral     = "general"      // 通用问答（默认）
 )
 
-const gptSystemPromptSecurityLog = `你是一位信息安全专家，正在分析 SamWaf（Web 应用防火墙）记录到的一条 HTTP 请求。请判断这条请求是否存在攻击特征，输出如下格式：
+const gptSystemPromptSecurityLog = `你是一位信息安全专家，正在分析 HomeWaf（Web 应用防火墙）记录到的一条 HTTP 请求。请判断这条请求是否存在攻击特征，输出如下格式：
 
 风险等级: 0-100
 风险类型:某种注入，跨站等
@@ -323,39 +325,17 @@ const gptSystemPromptSecurityLog = `你是一位信息安全专家，正在分�
 // 同时明确禁止它编造链接或假装读过页面——否则模型很容易凭空造出 /guide/XXX.html。
 const gptDocRefs = `
 
-# 官方资料（你没有联网能力，只能引用下面列出的地址；禁止编造其它链接，也不要声称自己读过页面内容）
-- 文档站首页：https://doc.samwaf.com/
-- 功能文档地址格式：https://doc.samwaf.com/guide/<页面名>.html（英文界面把 /guide/ 换成 /en/guide/）
-- 可用的页面名（只能从这里挑，拿不准就只给文档站首页）：
-  Host 网站配置 | Rule 防护规则 | CC CC防护 | Owasp OWASP规则集 | AIDetection AI智能检测 |
-  IPBlack IP黑名单 | IPWhite IP白名单 | IPGroup IP组 | ThreatIP 威胁情报IP订阅 | FirewallIPBlock 防火墙IP封禁 |
-  UrlBlack URL限制访问 | UrlWhite URL白名单 | Sensitive 敏感词 | Ldp URL隐私防护 | Spider 爬虫识别 |
-  SSL SSL证书管理 | CDNIP CDN回源IP | Tunnel 隧道防护 | CacheRule 缓存规则 | Application 应用管理 |
-  AttackLog 风险日志 | VisitLog 访问日志 | Analysis 数据分析 | BlockingPage 自定义拦截页 |
-  NotifyChannel 通知渠道 | NotifySubscription 通知订阅 | NotifyLog 通知日志 |
-  HttpAuthBase 网站访问认证 | AccessConfig 认证配置 | AccessAccount 访问账号 | AccessSession 在线会话 | AccessAudit 认证审计 |
-  Account 账号管理 | Otp 双因素认证 | SystemConfig 系统配置 | VpConfig 参数设置 | PrivateInfo 密钥管理 |
-  OpenPlatform 开放平台 | SqlQuery SQL查询 | Task 任务管理 | BatchTask 批量任务 | DataRetention 数据保留策略 |
-  IPLocation IP数据库 | FileManage 文件管理 | RuntimeInfo 运行信息 | SysLog 系统日志 | OneKeyMod 一键修改
-- 常见问题：https://doc.samwaf.com/faq/
-- 安装与升级：https://doc.samwaf.com/quickstart/ 、https://doc.samwaf.com/quickstart/Update.html
-- 已知问题与反馈：https://github.com/samwafgo/SamWaf/issues
-  引导用户自己检索时，给出可直接点击的搜索地址：https://github.com/samwafgo/SamWaf/issues?q=is%3Aissue+关键词（多个关键词用 + 连接）
+HomeWaf 是独立的源码可用发行版，仅非商业用途免费，商用需书面授权。可引用本地帮助 /#/help 和发行包 docs/modernization；不要把原项目服务说成 HomeWaf 客服、授权或更新服务。你没有联网能力，不得编造发行主体、域名、价格、授权、文档内容或功能。涉及未知功能时明确说明不确定，并建议联系实际发行方。`
 
-引用规则：
-1. 回答涉及某个具体功能时，在结尾附上对应文档页链接。
-2. 用户描述的现象像 bug、或你不确定当前版本是否支持，就直说"建议到 issues 搜一下，没有就提一个"，并给出上面的 issues 搜索地址。
-3. 只给地址，不要转述你没有的页面内容，也不要编造文档里的章节名或配置项名称。`
-
-const gptSystemPromptOwaspRule = `你是 OWASP ModSecurity 核心规则集(CRS)专家，正在帮用户读懂 SamWaf 里的一条 CRS 规则。请用简洁中文说明：
+const gptSystemPromptOwaspRule = `你是 OWASP ModSecurity 核心规则集(CRS)专家，正在帮用户读懂 HomeWaf 里的一条 CRS 规则。请用简洁中文说明：
 1. 这条规则想拦什么攻击；
 2. 匹配条件的含义（变量、操作符、转换函数分别起什么作用）；
 3. 常见误报场景；
 4. 如果确认是误报，建议怎么处理（加白名单、调整阈值/等级、或对该规则单独放行）。
 不要输出与规则无关的内容。` + gptDocRefs
 
-const gptSystemPromptGeneral = `你是 SamWaf（一款开源轻量级 Web 应用防火墙）的智能助手，熟悉 Web 安全、网站防护、反向代理、SSL 证书、WAF 规则与告警等话题。
-请直接回答用户的问题：用与用户提问相同的语言（默认中文），简洁作答，必要时分点说明；不知道就说不知道，不要编造 SamWaf 不存在的功能。
+const gptSystemPromptGeneral = `你是 HomeWaf（一款源码可用的 Web 应用防火墙）的智能助手，熟悉 Web 安全、网站防护、反向代理、SSL 证书、WAF 规则与告警等话题。
+请直接回答用户的问题：用与用户提问相同的语言（默认中文），简洁作答，必要时分点说明；不知道就说不知道，不要编造 HomeWaf 不存在的功能。
 不要给回答强行套用固定模板或风险评分格式，除非用户明确要求。` + gptDocRefs
 
 // gptSystemPromptByScene 按场景取系统提示词，未知场景一律按通用问答处理

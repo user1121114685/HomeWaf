@@ -1,21 +1,23 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/request"
-	"SamWaf/wafdb"
-	"SamWaf/wafdb/dialect"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/request"
+	"HomeWaf/wafdb"
+	"HomeWaf/wafdb/dialect"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	sqlite "github.com/samwafgo/sqlitedriver"
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -96,7 +98,7 @@ func TestLogLookupUUIDIgnoresSelectedShardAndDate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = core.Create(&model.ShareDb{
-		BaseOrm: baseorm.BaseOrm{Id: "lookup-archive", Tenant_ID: global.GWAF_TENANT_ID, USER_CODE: global.GWAF_USER_CODE},
+		BaseOrm:     baseorm.BaseOrm{Id: "lookup-archive", Tenant_ID: global.GWAF_TENANT_ID, USER_CODE: global.GWAF_USER_CODE},
 		DbLogicType: "log", FileName: archiveName, Cnt: 2,
 		StartTime: customtype.JsonTime(at.Add(-time.Hour)), EndTime: customtype.JsonTime(at.Add(time.Hour)),
 	}).Error; err != nil {

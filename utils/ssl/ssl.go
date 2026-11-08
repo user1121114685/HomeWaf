@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package ssl
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/customtype"
-	"SamWaf/model"
-	"SamWaf/utils"
+	"HomeWaf/common/zlog"
+	"HomeWaf/customtype"
+	"HomeWaf/model"
+	"HomeWaf/utils"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"

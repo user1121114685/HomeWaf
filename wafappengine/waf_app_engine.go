@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafappengine
 
 import (
-	"SamWaf/common/wafexec"
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/wafappmodel"
+	"HomeWaf/common/wafexec"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/wafappmodel"
 	"bufio"
 	"context"
 	"fmt"

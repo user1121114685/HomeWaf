@@ -1,15 +1,17 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waf_service
 
 import (
-	"SamWaf/common/uuid"
-	"SamWaf/customtype"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/model/baseorm"
-	"SamWaf/model/request"
-	response2 "SamWaf/model/response"
-	"SamWaf/wafai"
+	"HomeWaf/common/uuid"
+	"HomeWaf/customtype"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/request"
+	response2 "HomeWaf/model/response"
+	"HomeWaf/wafai"
 	"errors"
 	"strings"
 	"time"

@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build linux
 
 package firewall
 
 import (
-	"SamWaf/common/wafexec"
-	"SamWaf/utils"
+	"HomeWaf/common/wafexec"
+	"HomeWaf/utils"
 	"bufio"
 	"fmt"
 	"os/exec"

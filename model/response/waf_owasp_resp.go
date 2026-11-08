@@ -1,6 +1,8 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package response
 
-import "SamWaf/wafowasp"
+import "HomeWaf/wafowasp"
 
 // WafOwaspRuleListItem 前端展示用的规则条目。
 type WafOwaspRuleListItem struct {

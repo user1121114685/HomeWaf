@@ -1,8 +1,10 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/domaintool"
-	"SamWaf/utils"
+	"HomeWaf/common/domaintool"
+	"HomeWaf/utils"
 	"strings"
 )
 

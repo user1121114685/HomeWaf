@@ -1,9 +1,11 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafnotify
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/innerbean"
-	"SamWaf/wafinterface"
+	"HomeWaf/common/zlog"
+	"HomeWaf/innerbean"
+	"HomeWaf/wafinterface"
 	"fmt"
 )
 

@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package manager
 
 import (
 	"strings"
 	"testing"
 
-	pluginconfig "SamWaf/plugin/config"
+	pluginconfig "HomeWaf/plugin/config"
 )
 
 // 待验证总闸的护栏用例：只在闸门开启（PendingVerification=true）时生效。
@@ -24,7 +26,7 @@ func TestPendingVerification_LoadPluginRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("待验证期间 LoadPlugin 必须拒绝，实际放行了")
 	}
-	if !strings.Contains(err.Error(), "待验证") {
+	if !strings.Contains(err.Error(), "可信插件签名公钥") {
 		t.Fatalf("拒绝原因应指明待验证，实际: %v", err)
 	}
 	if len(pm.GetAllPlugins()) != 0 {

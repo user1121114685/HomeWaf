@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package utils
 
 import (
@@ -7,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"SamWaf/global"
+	"HomeWaf/global"
 
 	"github.com/gin-gonic/gin"
 )

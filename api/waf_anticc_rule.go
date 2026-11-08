@@ -1,16 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package api
 
 import (
-	"SamWaf/model"
+	"HomeWaf/model"
 	"strings"
 
-	"SamWaf/enums"
-	"SamWaf/global"
-	"SamWaf/model/common/response"
-	"SamWaf/model/request"
-	response2 "SamWaf/model/response"
-	"SamWaf/model/spec"
-	"SamWaf/wafenginecore/ccstats"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model/common/response"
+	"HomeWaf/model/request"
+	response2 "HomeWaf/model/response"
+	"HomeWaf/model/spec"
+	"HomeWaf/wafenginecore/ccstats"
 
 	"github.com/gin-gonic/gin"
 )

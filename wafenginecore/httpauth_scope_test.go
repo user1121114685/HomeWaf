@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
@@ -9,15 +11,15 @@ import (
 	"strings"
 	"testing"
 
-	"SamWaf/cache"
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafenginecore/ipset"
+	"HomeWaf/cache"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafenginecore/ipset"
 
-	sqlitedriver "github.com/samwafgo/sqlitedriver"
+	sqlitedriver "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -97,13 +99,13 @@ func TestHttpAuthPathScope(t *testing.T) {
 	}
 
 	cases := []struct {
-		name    string
-		json    string
-		authTyp string
-		target  string
+		name     string
+		json     string
+		authTyp  string
+		target   string
 		clientIP string
-		hdr     map[string]string
-		blocked bool
+		hdr      map[string]string
+		blocked  bool
 	}{
 		// —— 回归：空 JSON / 缺省 scope 一律整站 ——
 		{"空JSON整站拦", ``, "", "/anything", "8.8.8.8", nil, true},

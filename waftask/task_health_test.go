@@ -1,10 +1,12 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package waftask
 
 import (
-	"SamWaf/model"
-	"SamWaf/model/wafenginmodel"
-	"SamWaf/wafenginecore"
-	"SamWaf/wafhealth"
+	"HomeWaf/model"
+	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafenginecore"
+	"HomeWaf/wafhealth"
 	"context"
 	"net"
 	"net/http"

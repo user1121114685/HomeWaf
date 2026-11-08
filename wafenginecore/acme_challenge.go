@@ -1,11 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 package wafenginecore
 
 import (
-	"SamWaf/common/zlog"
-	"SamWaf/global"
-	"SamWaf/innerbean"
-	"SamWaf/utils"
-	"SamWaf/wafacme"
+	"HomeWaf/common/zlog"
+	"HomeWaf/global"
+	"HomeWaf/innerbean"
+	"HomeWaf/utils"
+	"HomeWaf/wafacme"
 	"bytes"
 	"io"
 	"net/http"

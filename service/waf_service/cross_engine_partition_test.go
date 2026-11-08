@@ -1,3 +1,5 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+
 //go:build crossdb
 
 // 时间分区三动词（E1）的三库回归：建 / 列 / 丢。
@@ -10,9 +12,9 @@
 package waf_service
 
 import (
-	"SamWaf/model"
-	"SamWaf/wafdb/dialect"
-	"SamWaf/wafdb/partition"
+	"HomeWaf/model"
+	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafdb/partition"
 	"testing"
 
 	"gorm.io/gorm"
