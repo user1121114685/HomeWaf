@@ -25,6 +25,15 @@ jobs:
           node-version: '26.13.0'
       - name: Run release regressions
         run: node scripts/verify.mjs
+      - name: Protect already published releases
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft > "$RUNNER_TEMP/homewaf-release-state" 2>/dev/null; then
+            test "$(cat "$RUNNER_TEMP/homewaf-release-state")" = true || { echo 'Refusing to overwrite a public release' >&2; exit 1; }
+          fi
       - name: Produce reviewable archives without publishing
         if: github.ref_type != 'tag'
         uses: goreleaser/goreleaser-action@3d82dc1587053cd8272fa3801faaebfc2e8a12ac
@@ -55,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-15]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-26]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
@@ -159,7 +168,7 @@ jobs:
           docker exec homewaf test -s /app/data/initial_password.txt
           docker exec homewaf /app/homewaf apikey init -o json > /dev/null
           key=$(docker exec homewaf cat /app/data/.keys/cli_api_key)
-          curl -fsS -H "X-API-Key: $key" http://127.0.0.1:26666/api/v1/sysinfo/checkversion -o container-version.json
+          docker exec homewaf wget -qO- --header "X-API-Key: $key" http://127.0.0.1:26666/api/v1/sysinfo/checkversion > container-version.json
           node -e 'const v=JSON.parse(require("fs").readFileSync("container-version.json")); if(v.code!==0 || !v.data.container || v.data.self_update_allowed!==false) throw new Error("Docker update notification policy failed");'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -192,7 +201,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-15]
+        os: [ubuntu-latest, windows-latest, macos-26]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:

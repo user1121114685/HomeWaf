@@ -50,4 +50,5 @@ run([
 run(["test", "./wafupdate", "./wafupgradenotice", "./wafai", "-count=1"]);
 run(["test", "./wafnet", "./supervisor", "-count=1"]);
 run(["test", "./waftask", "-run", "^TestEveryCleanupTableHasSeededPolicy$", "-count=1"]);
+run(["test", "./middleware", "-run", "^TestOpenApiLocalOnlySchemaPreservesKeys$", "-count=1"]);
 run(["test", "./wafenginecore", "./cmd/homewaf", "-run", "Test(ProxyReadiness|WorkerReadiness|Graceful)", "-count=1"]);
