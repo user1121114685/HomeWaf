@@ -1,8 +1,12 @@
 # HomeWaf third-party notices
 
-Generated from the resolved backend runtime graph and frontend lockfile. Third-party rights are not restricted by the HomeWaf license.
+Component inventory for the backend runtime graph, frontend lockfile and embedded resources. Third-party rights are not restricted by the HomeWaf license.
 
-See NOTICE for upstream project attribution and LICENSES for license texts. Development and optional platform packages are identified separately.
+See [NOTICE](NOTICE) for upstream attribution and [LICENSES/THIRD_PARTY.txt](LICENSES/THIRD_PARTY.txt) for complete license texts. Development and optional platform packages are identified separately.
+
+The license bundle groups only byte-identical texts and retains every original source label and copyright notice. The labels inside the bundle are an index, not separate repository files. Licenses beside copied source files remain in place.
+
+When dependencies or embedded assets change, update this inventory, the corresponding texts in the license bundle and [provenance.json](docs/modernization/provenance.json). Keep package versions in `go.mod` / `go.sum` and `web/package-lock.json`; store temporary audit reports and SBOM exports under ignored `artifacts/` or `.cache/` directories.
 
 ## Backend modules
 
@@ -396,22 +400,22 @@ See NOTICE for upstream project attribution and LICENSES for license texts. Deve
 
 | Component | License and provenance |
 |---|---|
-| SamWaf backend and SamWafWeb UI | Apache-2.0; LICENSES/SamWaf*.txt; docs/modernization/upstream.json |
-| Historical TDesign Vue Starter template portions | MIT; LICENSES/TDesign-starter-MIT.txt; runtime framework removed |
-| SQLite3 Multiple Ciphers 2.6.1 / SQLite 3.54.0 / mattn go-sqlite3 1.14.53 | MIT, public-domain/BSD/CC0 component notices; internal/sqlite3 and LICENSES/native |
-| GORM SQLite 1.6.0 and MySQL 1.6.0 adapters; go-mysql 1.16.0 adapter | MIT; LICENSES/native; preserved upstream notices |
+| SamWaf backend and SamWafWeb UI | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`upstream`) |
+| Historical TDesign Vue Starter template portions | MIT; LICENSES/THIRD_PARTY.txt; runtime framework removed |
+| SQLite3 Multiple Ciphers 2.6.1 / SQLite 3.54.0 / mattn go-sqlite3 1.14.53 | MIT, public-domain/BSD/CC0 component notices; internal/sqlite3 and LICENSES/THIRD_PARTY.txt |
+| GORM SQLite 1.6.0 and MySQL 1.6.0 adapters; go-mysql 1.16.0 adapter | MIT; LICENSES/THIRD_PARTY.txt; preserved upstream notices |
 | GoCaptcha 2.0.5 and character data | Apache-2.0; internal/thirdparty/gocaptcha/LICENSE and internal/captchaassets/LICENSE-CHARS |
-| Grule 1.20.4 local adapter, Git loader omitted | Apache-2.0; internal/thirdparty/grule/LICENSE*; docs/modernization/grule-provenance.json |
-| GoDLP 1.2.15 local adapter, maintained YAML v4 | MIT; LICENSES/copied/godlp; docs/modernization/godlp-provenance.json |
-| CAP Go server 1.0.1 local copy | Apache-2.0; LICENSES/copied/capserver; docs/modernization/cap-server-provenance.json |
-| LXGW WenKai 1.530, original font | SIL OFL-1.1; LICENSES/fonts; no font is sold by itself |
-| CAP widget 0.1.61 / wasm 0.0.8 | Apache-2.0; LICENSES/cap-widget.txt; docs/modernization/embedded-web.json |
-| OWASP CRS 4.30.0 | Apache-2.0; LICENSES/crs; docs/modernization/crs-provenance.json |
-| ip2region IPv4 XDB | Apache-2.0 OR MIT; LICENSES/ip2region.txt; docs/modernization/ip2region-provenance.json |
+| Grule 1.20.4 local adapter, Git loader omitted | Apache-2.0; internal/thirdparty/grule/LICENSE*; docs/modernization/provenance.json (`grule-provenance`) |
+| GoDLP 1.2.15 local adapter, maintained YAML v4 | MIT; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`godlp-provenance`) |
+| CAP Go server 1.0.1 local copy | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`cap-server-provenance`) |
+| LXGW WenKai 1.530, original font | SIL OFL-1.1; LICENSES/THIRD_PARTY.txt; no font is sold by itself |
+| CAP widget 0.1.61 / wasm 0.0.8 | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`embedded-web`) |
+| OWASP CRS 4.30.0 | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`crs-provenance`) |
+| ip2region IPv4 XDB | Apache-2.0 OR MIT; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`ip2region-provenance`) |
 | HomeWaf logos, CSS backgrounds and click challenge UI | Original HomeWaf additions; root LICENSE |
 
 DOMPurify is used under its Apache-2.0 alternative. Browser/system fonts are referenced by family name and are not redistributed.
 The optional user-supplied MaxMind databases and ML models are not included in releases; their operators must obtain the corresponding rights.
 Unused upstream crawler IP archives, map data, login imagery, frontend binary bundles and UPX executables are not distributed.
 
-CAP WASM upstream Rust build dependencies are listed in docs/modernization/cap-wasm-build-dependencies.json with crate checksums and LICENSES/wasm notices. The official released WASM is used without claiming its compiler-internal dependencies were independently upgraded.
+CAP WASM upstream Rust build dependencies are listed in docs/modernization/provenance.json (`cap-wasm-build-dependencies`) with crate checksums and LICENSES/THIRD_PARTY.txt notices. The official released WASM is used without claiming its compiler-internal dependencies were independently upgraded.

@@ -2,11 +2,21 @@
 
 ## 工具链与构建
 
-Go 1.27.3、Node 26.13.0；CGO 需要本机 C 编译器。运行 `node scripts/build.mjs`，得到 artifacts 下的 HomeWaf 二进制和离线签名工具。Windows 本次验证使用 MSYS2 GCC；机器上旧的交叉路径 as.exe 无法加载，已通过进程级 `CC="gcc -BC:/msys64/mingw64/bin/"` 选择可用工具，没有修改系统安装。
+工具链版本以 `go.mod`、`web/package.json` 和 CI 配置为准：Go 1.27.3、Node 26.13.0；CGO 需要本机 C 编译器。Windows 可使用 MSYS2 GCC，并通过 `CC` 指定编译器。
+
+在仓库根目录运行 `node scripts/build.mjs`，得到 `artifacts/` 下的 HomeWaf 二进制和离线签名工具。常用选项：
+
+| 命令 | 用途 |
+| --- | --- |
+| `node scripts/build.mjs` | 按锁文件安装依赖，检查并构建前后端 |
+| `node scripts/build.mjs --web-only` | 仅构建并嵌入前端及许可声明 |
+| `node scripts/build.mjs --skip-install` | 已按当前锁文件安装依赖时跳过安装 |
+| `node scripts/verify.mjs` | 编译全部 Go 包并执行选定回归 |
+| `npm test --prefix web` | 执行前端逻辑测试 |
 
 前端 `npm ci` 的根 postinstall 仅执行已入库的编译器兼容补丁。patch-dependencies.mjs 限定版本，保留原版权：entities 9 的 HtmlEntityDecoder、Node 26 ESM 默认导出、estree-walker 导出条件，以及 Vite 对 Rolldown 1.3 预加载标记的完整替换。构建后对所有 JS chunk 做语法验证。同步 source-map 改用修复后的 source-map-js；lodash-unified 改用同 API 的 lodash-es 命名空间。不要使用 --force 或 --legacy-peer-deps 绕过安装错误。
 
-验证入口为 `node scripts/verify.mjs`；它编译全部包，只执行迁移相关的必要回归。外部数据库、消息系统和真实证书签发测试不能指向生产环境。可选测试需自行提供隔离实例。跨平台 CI 已配置，但本地没有执行 Docker 或 Linux/macOS 原生运行验证。
+验证入口为 `node scripts/verify.mjs`；它编译全部包，只执行选定回归。外部数据库、消息系统和真实证书签发测试需自行提供隔离实例。平台支持和测试结果应以对应提交的 CI 记录及部署环境实测为准。
 
 ## 从旧发行版迁移
 
@@ -50,7 +60,13 @@ claims 的 version=2、product=homewaf、edition=commercial；还需填写 licen
 
 ## 交付物
 
-每份发行包/镜像包含 LICENSE、NOTICE、THIRD_PARTY_NOTICES.md、LICENSES 和本目录资料；前端提供本地帮助与许可入口。安装脚本接受显式 HTTPS 下载地址或本地 tar.gz，必须给出发行方 SHA256；不提供默认下载源，不自动安装服务。GitHub 发布流程仅生成可审阅的候选包，不自动向旧账号、镜像仓库或服务上传。
+每份发行包/镜像包含 `LICENSE`、`NOTICE`、`THIRD_PARTY_NOTICES.md`、`LICENSES/THIRD_PARTY.txt`，以及本目录的 `MIGRATION.md` 和 `provenance.json`；前端提供本地帮助与许可入口。
+
+`LICENSES/THIRD_PARTY.txt` 将相同的许可文本合并保存，保留各组件的来源索引和原始版权声明。复制到仓库内的第三方源码仍保留原位置的许可证。`provenance.json` 集中记录内嵌资源和本地适配代码的来源、版本及校验值，不是运行配置。
+
+Go/npm 依赖版本由 `go.mod`、`go.sum`、`web/package.json` 和 `web/package-lock.json` 维护。升级依赖时同步更新第三方清单、许可文本及相关来源记录。版本审计、SBOM、测试结果等临时报告放入已忽略的 `artifacts/` 或 `.cache/`，无需作为源码快照提交。
+
+安装脚本接受显式 HTTPS 下载地址或本地 tar.gz，必须给出发行方 SHA256；不提供默认下载源，不自动安装服务。GitHub 发布流程仅生成可审阅的候选包，不自动向旧账号、镜像仓库或服务上传。
 
 可选构建代理的 Kerberos 协商未被原构建使用，也缺少独立许可文本，已替换为项目内明确拒绝该认证方式的策略模块；HTTPS/Basic 代理与本地构建不受影响。
 

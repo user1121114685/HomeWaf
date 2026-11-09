@@ -1,88 +1,25 @@
-# 安全说明
+# HomeWaf 安全说明
 
-SamWaf 是一款轻量化的网站安全防护产品（Web 应用防火墙）。
+## 部署建议
 
-为了尽最大可能保障安全，我们做了以下工作：
+- 限制管理端口 `26666` 的访问来源，优先通过本地连接或安全隧道管理。
+- 首次启动后取得本机生成的初始口令，登录后及时修改密码。
+- 为管理端配置 HTTPS，并根据需要启用安全路径入口。
+- 定期备份 `conf/`、`data/`、`ssl/`、插件及授权文件；先在备份上验证升级。
+- 签名私钥、生产凭证和用户数据不得提交到仓库或放入公开构建产物。
 
-1. 敏感数据（管理口令、各类凭证、POST 请求体等）本地加密保存
-2. 管理端与业务连接加密通讯
-3. POST 请求数据落库前进行脱敏处理
+## 对外请求
 
-## 对外访问列表
+默认不配置原项目的更新、公告、公网 IP 查询和机器人数据服务。发行方可通过 `HOMEWAF_*` 环境变量显式配置自己的 HTTPS 端点，具体见[迁移与发布说明](docs/modernization/MIGRATION.md#发行方端点)。
 
-- 版本升级检测：https://update.samwaf.com
-- 域名反解析：119.29.29.29
-- 获取外网 IP：http://myexternalip.com/raw
+更新请求默认仅携带软件版本。`update_env_report` 默认关闭，开启后增加系统、架构和运行形态信息，不增加永久机器码。
 
-### 版本检查请求携带的信息
-
-为判断存量版本分布、决定老版本还需兼容多久，版本与清单检查请求会携带：
-
-- 版本号、实例码
-- 编译目标系统与架构、运行形态（容器类型或宿主机）
-
-仅此几项程序自身的信息，不含任何站点域名、日志、规则、证书或业务请求数据；
-二进制与数据包的下载地址不带任何参数。
-
-其中系统架构与运行形态可在 `conf/config.yml` 将 `update_env_report` 置为 `false` 关闭，
-关闭后只携带版本号与实例码。
-
-## 最佳实践
-
-1. 对于管理端口 26666（默认），请在外层安全策略组加入可信 IP 限制访问
-2. 修改默认管理密码
-3. 启用「安全路径入口」，避免管理端暴露在根路径
-4. 为管理端启用 HTTPS 并配置证书
+用户主动启用的证书申请、DNS、通知、IP 数据下载及 AI 服务会访问相应服务商。请结合实际启用的功能、配置和网络环境管理这些请求。
 
 ## 安全问题反馈
 
-如果您发现安全问题，请直接联系我们：
+HomeWaf 独立于 SamWaf 维护。请通过当前 HomeWaf 仓库已启用的私密安全报告渠道联系维护者；如果未启用，请先联系本项目维护者确认私密反馈方式。
 
-邮件主题：`[SecProblem] 简短标题`
+报告应说明受影响版本、复现步骤、影响范围和必要的脱敏日志。不要在公开 Issue 中附上未修复漏洞的利用细节、生产凭证或用户数据。
 
-邮件内容：安全问题的详细说明
-
-- samwafgo@gmail.com
-
-欢迎各位安全研究员提交，请附带完整的 PoC。我们会在收到后 3 个工作日内确认并同步进展；
-出于存量用户升级节奏的考虑，漏洞详情会在修复版本发布后统一披露（不影响 CVE 编号申请）。
-若您已有既定的公开时间安排，请在邮件中说明，我们会与您协商一致后再行动。
-经您同意，我们会在公告中致谢。
-
-### 不在受理范围
-
-以下类型一般不作为安全问题受理，收到后可能不再单独回复：
-
-- 需要先取得服务器本机管理员权限才能触发的问题
-- 社会工程学、物理接触、针对使用者本人的钓鱼
-- 纯流量型拒绝服务与压力测试
-- 扫描器原始输出、仅凭版本号推断、无法复现的报告
-
----
-
-## Reporting a Security Issue
-
-If you find a security issue, please contact us directly:
-
-Email subject: `[SecProblem] short title`
-
-Email body: a detailed description of the issue
-
-- samwafgo@gmail.com
-
-Security researchers are welcome - please include a complete PoC. We will acknowledge your
-report and share progress within 3 business days. Because self-hosted users upgrade at their
-own pace, vulnerability details are disclosed together once the fixed release is out (this does
-not affect CVE assignment). If you already have a planned publication date, please say so in
-your email and we will agree on the timing with you before acting. With your permission, we
-will credit you in the advisory.
-
-### Out of Scope
-
-The following are generally not accepted as security issues, and we may not reply to them
-individually:
-
-- Issues that require local administrator access on the server to trigger
-- Social engineering, physical access, and phishing aimed at the operator
-- Volumetric denial of service and stress testing
-- Raw scanner output, version-banner-only inferences, and reports we cannot reproduce
+原 SamWaf 项目的邮箱和响应时限不适用于 HomeWaf。

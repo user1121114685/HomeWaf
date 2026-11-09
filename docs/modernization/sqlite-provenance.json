@@ -1,8 +1,0 @@
-{
-  "driver": "github.com/mattn/go-sqlite3@v1.14.53",
-  "cipher": "SQLite3MultipleCiphers v2.6.1",
-  "sqlite": "3.54.0",
-  "archive_sha256": "3f25af603566a23c821d8e581778b5ece2a541d2435776de57b8d845c176815a",
-  "compatibility_cipher": "aes128cbc (upstream legacy=0 default)",
-  "dialect": "gorm.io/driver/sqlite@v1.6.0"
-}

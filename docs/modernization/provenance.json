@@ -1,0 +1,327 @@
+{
+  "upstream": {
+    "backend": {
+      "repository": "samwafgo/SamWaf",
+      "commit": "8d60305a6f5392609f39a397c26ee67e758081f7"
+    },
+    "frontend": {
+      "repository": "samwafgo/SamWafWeb",
+      "commit": "c92ee05f84e58f27fa84beacad28071f0ba5931b",
+      "archive_sha256": "69dc6871bb02574336f7efe70a871b0dc56932a9fccba23ee0011dcf3868363f"
+    },
+    "license": "Apache-2.0"
+  },
+  "sqlite-provenance": {
+    "driver": "github.com/mattn/go-sqlite3@v1.14.53",
+    "cipher": "SQLite3MultipleCiphers v2.6.1",
+    "sqlite": "3.54.0",
+    "archive_sha256": "3f25af603566a23c821d8e581778b5ece2a541d2435776de57b8d845c176815a",
+    "compatibility_cipher": "aes128cbc (upstream legacy=0 default)",
+    "dialect": "gorm.io/driver/sqlite@v1.6.0"
+  },
+  "grule-provenance": {
+    "module": "github.com/hyperjumptech/grule-rule-engine",
+    "version": "v1.20.4",
+    "sum": "h1:wGZjwGmCKFj1426Hd54yWQu3HEJGEEEC3WaVhF5ngZI=",
+    "changes": [
+      "local import paths",
+      "omit unused Git resource loader to remove go-git/billy/MPL runtime graph",
+      "update doublestar to v4"
+    ],
+    "files": 50
+  },
+  "godlp-provenance": {
+    "module": "github.com/bytedance/godlp",
+    "version": "v1.2.15",
+    "changes": [
+      "local imports",
+      "YAML v2 replaced by maintained YAML v4.0.0"
+    ],
+    "files": 14
+  },
+  "cap-server-provenance": {
+    "module": "github.com/samwafgo/cap_go_server",
+    "version": "v1.0.1",
+    "sum": "h1:8eDw2pnTeIbdLqYx1+tuqdKttvc/2gPGzIXjQkt1XbM=",
+    "changes": [
+      "local package path with upstream Apache-2.0 retained",
+      "current nonce-array protocol mapped to server-stored challenge tuples; legacy triplets remain supported",
+      "canonical nonce bounds and 1 MiB HTTP request body limit"
+    ]
+  },
+  "crs-provenance": {
+    "version": "v4.30.0",
+    "url": "https://api.github.com/repos/coreruleset/coreruleset/tarball/v4.30.0",
+    "sha256": "643c29c9f21a9ed351a13f69c3aafcbcba8995af005a63dde66ebf46e778db42"
+  },
+  "font-provenance": {
+    "family": "LXGW WenKai",
+    "version": "1.530",
+    "license": "OFL-1.1",
+    "source": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.530/LXGWWenKai-Regular.ttf",
+    "sha256": "2d73eea94ad808999d90c0000c239a84a33b09d4bc6ab6c5b8bbf1eda8a7fc8b",
+    "modified": false
+  },
+  "ip2region-provenance": {
+    "source": "https://raw.githubusercontent.com/lionsoul2014/ip2region/6a276cc7c4f9/data/ip2region_v4.xdb",
+    "sha256": "46249ad1b33bcaa4cc37475b93746cec2b00acffc3316cc4f56167ac821ea2ad",
+    "license": "Apache-2.0 OR MIT",
+    "license_source": "https://raw.githubusercontent.com/lionsoul2014/ip2region/6a276cc7c4f9/LICENSE.md"
+  },
+  "embedded-web": [
+    {
+      "name": "@cap.js/widget",
+      "version": "0.1.61",
+      "license": "Apache-2.0",
+      "dist": {
+        "shasum": "211da70d114d1d2b4663520f053671517a1210de",
+        "tarball": "https://registry.npmjs.org/@cap.js/widget/-/widget-0.1.61.tgz",
+        "fileCount": 12,
+        "integrity": "sha512-O9zRjTjpIYNf9YI4PbJYieywIbtEbbADnL5ZvJOLAR0QfNgdB8K7JdAzlt3TsBbbS8fSfZbRAzTgHeTCNOoEdw==",
+        "signatures": [
+          {
+            "sig": "MEYCIQDByVj0Jtwo3fdWQUJ742lea4+yxkwmKp+Bbs2hZ6YlXAIhAIV8zbLJSSx5cIC38e5M0k5hpTMpuR8GUfEZEStjlBmX",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEUCIGX7MwWmmeDmDkrDAxZiHghTphkSgcILnBj/WTwqMZonAiEA+IuyIN2EG7SrPC0NGAefSBEE2WIUGBTjjBMOPFX3bYw=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 221356
+      }
+    },
+    {
+      "name": "@cap.js/wasm",
+      "version": "0.0.8",
+      "license": "Apache-2.0",
+      "dist": {
+        "shasum": "87cefc32439303f6e6e6c83c7627adca7bbec045",
+        "tarball": "https://registry.npmjs.org/@cap.js/wasm/-/wasm-0.0.8.tgz",
+        "fileCount": 16,
+        "integrity": "sha512-rX+4/v2sz4GKLnygXHOS89O7c4GM2qNQcDJP6Y2cyGwoKjg83bsfWHt1TWr9GBzHpFADvju5fvLWYds21nS8sA==",
+        "signatures": [
+          {
+            "sig": "MEYCIQC6SURwI/TcxOsTwVORKSxuPrKAsGkgEwqMQ8D7G6NDeQIhAKEVyD/989QdSPESpq08N8l14mkKy2ylX1LFXheGOlbB",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEQCIGmhUjQtrfLlCuijYHuIuu4LwxKDAJ1nCTffCqFOcgLnAiBXJnLCOhHE/Q7qrIVIBKiidvc/Khy+kHfauLgTLnRp8Q==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 81696
+      }
+    }
+  ],
+  "quic-provenance": {
+    "base": "quic-go/quic-go@v0.65.0",
+    "fork": "qiulaidongfeng/quic-go@291d013e15949fbaa8599662823db4cd50b0ec74",
+    "status": "ahead",
+    "ahead": 38,
+    "behind": 0,
+    "merge_base": "aa265c3fc6489e3bfa8071b333be95e0e887a51d",
+    "modified_files": [
+      ".github/workflows/auto-merge.yml",
+      ".github/workflows/bsd.yml",
+      ".github/workflows/go-generate.sh",
+      ".github/workflows/unit.yml",
+      "README.md",
+      "closed_conn.go",
+      "closed_conn_test.go",
+      "config.go",
+      "config_test.go",
+      "connection.go",
+      "connection_test.go",
+      "http3/response_writer.go",
+      "http3/response_writer_test.go",
+      "http3/server.go",
+      "http3/server_conn.go",
+      "http3/server_test.go",
+      "integrationtests/self/ecn_test.go",
+      "integrationtests/self/http_content_length_test.go",
+      "integrationtests/self/http_shutdown_test.go",
+      "integrationtests/self/mitm_test.go",
+      "integrationtests/self/mtu_fallback_test.go",
+      "integrationtests/self/mtu_test.go",
+      "integrationtests/self/multiplex_test.go",
+      "integrationtests/self/nat_rebinding_test.go",
+      "integrationtests/self/packetization_test.go",
+      "integrationtests/self/simnet_helper_test.go",
+      "interface.go",
+      "internal/ackhandler/lost_packet_tracker.go",
+      "internal/ackhandler/lost_packet_tracker_test.go",
+      "internal/ackhandler/sent_packet_handler.go",
+      "internal/ackhandler/sent_packet_handler_test.go",
+      "internal/congestion/bbrv1.go",
+      "internal/congestion/clock.go",
+      "internal/congestion/cubic.go",
+      "internal/congestion/cubic_test.go",
+      "internal/congestion/hybrid_slow_start.go",
+      "internal/congestion/interface.go",
+      "internal/congestion/mcc.go",
+      "internal/congestion/pacer.go",
+      "internal/congestion/pacer_test.go",
+      "internal/congestion/reno_sender.go",
+      "internal/congestion/reno_sender_test.go",
+      "internal/mocks/congestion.go",
+      "internal/mocks/mockgen.go",
+      "internal/protocol/params.go",
+      "internal/udp/buffer_pool.go",
+      "internal/udp/buffer_pool_test.go",
+      "internal/udp/buffers.go",
+      "internal/udp/buffers_inspect.go",
+      "internal/udp/buffers_write.go",
+      "internal/udp/conn.go",
+      "internal/udp/conn_darwin.go",
+      "internal/udp/conn_darwin_test.go",
+      "internal/udp/conn_df_other.go",
+      "internal/udp/conn_freebsd.go",
+      "internal/udp/conn_linux.go",
+      "internal/udp/conn_linux_test.go",
+      "internal/udp/conn_nonlinux.go",
+      "internal/udp/conn_oob.go",
+      "internal/udp/conn_oob_test.go",
+      "internal/udp/conn_openbsd.go",
+      "internal/udp/conn_other.go",
+      "internal/udp/conn_test.go",
+      "internal/udp/conn_windows.go",
+      "internal/udp/packet_info_other.go",
+      "internal/utils/connstats.go",
+      "mock_packer_test.go",
+      "mock_packetconn_test.go",
+      "mock_raw_conn_test.go",
+      "mock_send_conn_test.go",
+      "mock_sender_test.go",
+      "mockgen.go",
+      "packet_packer.go",
+      "packet_packer_test.go",
+      "quic_linux_test.go",
+      "received_packet_queue_test.go",
+      "send_conn.go",
+      "send_conn_linux_test.go",
+      "send_conn_test.go",
+      "send_queue.go",
+      "send_queue_test.go",
+      "send_stream.go",
+      "send_stream_test.go",
+      "server.go",
+      "server_test.go",
+      "sys_conn_buffers_inspect_stub.go",
+      "sys_conn_buffers_nonopenbsd.go",
+      "sys_conn_df_darwin_test.go",
+      "sys_conn_df_linux.go",
+      "sys_conn_helper_darwin.go",
+      "sys_conn_helper_nonlinux.go",
+      "sys_conn_no_oob.go",
+      "sys_conn_oob_test.go",
+      "sys_conn_test.go",
+      "sys_conn_windows.go",
+      "sys_conn_windows_test.go",
+      "testutils/simnet/simconn.go",
+      "testutils/simnet/simnet_synctest_test.go",
+      "transport.go",
+      "transport_test.go"
+    ]
+  },
+  "cap-wasm-build-dependencies": [
+    {
+      "name": "bumpalo",
+      "version": "3.20.2",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb",
+      "notice_files": 2
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.4",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801",
+      "notice_files": 2
+    },
+    {
+      "name": "log",
+      "version": "0.4.29",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897",
+      "notice_files": 2
+    },
+    {
+      "name": "once_cell",
+      "version": "1.21.4",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50",
+      "notice_files": 2
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.106",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934",
+      "notice_files": 2
+    },
+    {
+      "name": "quote",
+      "version": "1.0.45",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924",
+      "notice_files": 2
+    },
+    {
+      "name": "rustversion",
+      "version": "1.0.22",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d",
+      "notice_files": 2
+    },
+    {
+      "name": "syn",
+      "version": "2.0.117",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99",
+      "notice_files": 2
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.24",
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "sha256": "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75",
+      "notice_files": 3
+    },
+    {
+      "name": "wasm-bindgen",
+      "version": "0.2.100",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "1edc8929d7499fc4e8f0be2262a241556cfc54a0bea223790e71446f2aab1ef5",
+      "notice_files": 2
+    },
+    {
+      "name": "wasm-bindgen-backend",
+      "version": "0.2.100",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "2f0a0651a5c2bc21487bde11ee802ccaf4c51935d0d3d42a6101f98161700bc6",
+      "notice_files": 2
+    },
+    {
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.100",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "7fe63fc6d09ed3792bd0897b314f53de8e16568c2b3f7982f468c0bf9bd0b407",
+      "notice_files": 2
+    },
+    {
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.100",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "8ae87ea40c9f689fc23f209965b6fb8a99ad69aeeb0231408be24920604395de",
+      "notice_files": 2
+    },
+    {
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.100",
+      "license": "MIT OR Apache-2.0",
+      "sha256": "1a05d73b933a847d6cccdda8f838a22ff101ad9bf93e33684f39c1f5f0eece3d",
+      "notice_files": 2
+    }
+  ]
+}

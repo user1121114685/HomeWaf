@@ -41,8 +41,9 @@ archives:
       - LICENSE
       - NOTICE
       - THIRD_PARTY_NOTICES.md
-      - LICENSES/**
-      - docs/modernization/**
+      - LICENSES/THIRD_PARTY.txt
+      - docs/modernization/MIGRATION.md
+      - docs/modernization/provenance.json
       - install_homewaf.sh
 checksum:
   name_template: 'HomeWaf_{{ .Version }}_checksums.txt'

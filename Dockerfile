@@ -29,7 +29,7 @@ RUN apk add --no-cache ca-certificates tzdata iptables
 COPY --from=backend /out/homewaf /app/homewaf
 COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /app/
 COPY LICENSES /app/LICENSES
-COPY docs/modernization /app/docs/modernization
+COPY docs/modernization/MIGRATION.md docs/modernization/provenance.json /app/docs/modernization/
 VOLUME ["/app/conf", "/app/data", "/app/logs", "/app/ssl"]
 EXPOSE 26666 80 443 443/udp
 ENTRYPOINT ["/app/homewaf"]
