@@ -23,7 +23,6 @@
 import {defineComponent} from 'vue';
 
 
-import config from '@/config/style';
 import websocket from "@/utils/websocket.js";
 import { DialogPlugin } from '@/ui';
 import  {ensureSecSession, currentKeyId, decryptIncoming} from './utils/seccrypto'
@@ -66,7 +65,7 @@ export default defineComponent({
     }
   },
   mounted() {
-    this.$store.dispatch('setting/changeTheme', { ...config });
+    this.$store.dispatch('setting/changeTheme', { ...this.$store.state.setting });
     if (!isSharedScreen() && localStorage.getItem('access_token')) {
       this.$store.dispatch('sysparams/fetchParams');
     }
