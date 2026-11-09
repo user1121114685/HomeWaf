@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const [oldInput, newInput, nextVersion = 'v2.0.1-graceful-test'] = process.argv.slice(2);
+const githubRelease = process.argv.includes('--github');
 if (!oldInput || !newInput) throw new Error('Usage: node scripts/verify-graceful-update.mjs old-binary new-binary next-version');
 const dir = fs.mkdtempSync(path.join(root, '.cache', 'graceful-smoke-'));
 const exe = path.join(dir, process.platform === 'win32' ? 'HomeWaf.exe' : 'HomeWaf');
@@ -49,7 +50,7 @@ origin.on('upgrade', (_req, socket) => {
 });
 const originPort = await listen(origin), managerPort = await freePort(), proxyPort = await freePort();
 fs.writeFileSync(path.join(dir, 'conf', 'config.yml'), `local_port: ${managerPort}\ndrain_time_out: 15\ndebug_worker_header: true\nupdate_restart_timeout: 90\nnotice:\n  isenable: false\n`);
-const env = { ...process.env, HOMEWAF_DEV: '1', HOMEWAF_UPDATE_URL: `http://127.0.0.1:${publisherPort}/` };
+const env = { ...process.env, HOMEWAF_DEV: '1', HOMEWAF_UPDATE_URL: githubRelease ? '' : `http://127.0.0.1:${publisherPort}/`, HOMEWAF_RELEASE_URL: 'https://api.github.com/repos/user1121114685/HomeWaf/releases/latest' };
 const log = fs.openSync(path.join(dir, 'process.log'), 'a');
 const child = spawn(exe, [], { cwd: dir, env, windowsHide: true, stdio: ['ignore', log, log] });
 let key, upgraded, stopped = false;

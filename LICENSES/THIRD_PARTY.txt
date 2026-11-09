@@ -2913,21 +2913,6 @@ SOFTWARE.
 
 ----- END ORIGINAL TEXT cff1f5ec2ebca470e18cff0a25773aa92a1a20057bc178390b05332cc1dba051 -----
 
-===== LICENSE TEXT e8b92ccefb166699257747f6301a2d1078566961f7ad40a636b670e79e752339 =====
-Sources:
-  - go/github.com/go-gormigrate/gormigrate/v2/LICENSE
------ BEGIN ORIGINAL TEXT -----
-MIT License
-Copyright (c) 2016 Andrey Nering
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
------ END ORIGINAL TEXT e8b92ccefb166699257747f6301a2d1078566961f7ad40a636b670e79e752339 -----
-
 ===== LICENSE TEXT 10604a3b87e30197d3c38a907870a549d62de95d66267e391be85e9e334df7f7 =====
 Sources:
   - go/github.com/go-jose/go-jose/v4/json/LICENSE

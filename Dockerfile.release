@@ -1,0 +1,17 @@
+# Package the same verified Linux binaries shipped in the GitHub release.
+FROM alpine:latest@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+ARG TARGETARCH
+ARG HOMEWAF_VERSION
+LABEL org.opencontainers.image.title="HomeWaf" \
+      org.opencontainers.image.source="https://github.com/user1121114685/HomeWaf" \
+      org.opencontainers.image.version="${HOMEWAF_VERSION}" \
+      org.opencontainers.image.licenses="LicenseRef-HomeWaf-NC-1.0"
+WORKDIR /app
+RUN apk add --no-cache ca-certificates tzdata iptables
+COPY docker-dist/${TARGETARCH}/homewaf /app/homewaf
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /app/
+COPY LICENSES /app/LICENSES
+COPY docs/modernization /app/docs/modernization
+VOLUME ["/app/conf", "/app/data", "/app/.homewaf-keys", "/app/logs", "/app/ssl"]
+EXPOSE 26666 80 443 443/udp
+ENTRYPOINT ["/app/homewaf"]

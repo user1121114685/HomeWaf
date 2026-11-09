@@ -138,8 +138,6 @@ github.com/go-acme/tencentclouddnspod v1.3.131 h1:0Bd/OKGdf29c8w7CHwmZVmy+n/XEtO
 github.com/go-acme/tencentclouddnspod v1.3.131/go.mod h1:k16hkO9WcDw+4U2oCjdJdTQ7/MpYeA1HrnDmW9lIzdY=
 github.com/go-co-op/gocron/v2 v2.23.0 h1:Qkhe0ZlUf3sRMCEuoXRi5VU/t8fi5lyD97eO+PsGJ4g=
 github.com/go-co-op/gocron/v2 v2.23.0/go.mod h1:QwAfxPmGC9tPDL5R9R3inaJYPDvYEXs/zkYrXD3L9jk=
-github.com/go-gormigrate/gormigrate/v2 v2.1.7 h1:PdT4jVPbRb4R+0Ey2R0yJOdctVf4Whiq1Qi4necaZdg=
-github.com/go-gormigrate/gormigrate/v2 v2.1.7/go.mod h1:3ouXglTuPrKF5+7cQyVGfvAXTU4vLMaYh9+EPl03uog=
 github.com/go-jose/go-jose/v4 v4.1.9 h1:pKfeQkig1NmgK4hJrZYXLEYURXfoJB61Larw0uIW4gY=
 github.com/go-jose/go-jose/v4 v4.1.9/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
 github.com/go-mysql-org/go-mysql v1.16.0 h1:odv4Ygtc1WHJv3uUF2aoJdE1RS7tA0sD3ET91ZAWQIg=

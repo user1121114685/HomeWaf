@@ -345,7 +345,7 @@ func TestOpenApiLocalOnlyMigration(t *testing.T) {
 	dialect.Register(&dialect.SQLiteDialect{})
 	t.Cleanup(func() { dialect.Register(oldDialect) })
 	db := openApiLocalTestDB(t)
-	if err := wafdb.RunCoreDBMigrations(db); err != nil {
+	if err := wafdb.InitializeCoreSchema(db); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"ordinary", "local"} {
@@ -365,7 +365,7 @@ func TestOpenApiLocalOnlyMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	removeMigrationRecord()
-	if err := wafdb.RunCoreDBMigrations(db); err != nil {
+	if err := wafdb.InitializeCoreSchema(db); err != nil {
 		t.Fatal(err)
 	}
 	var rows []model.OPlatformKey
@@ -385,7 +385,7 @@ func TestOpenApiLocalOnlyMigration(t *testing.T) {
 	}
 	removeMigrationRecord()
 	for i := 0; i < 2; i++ {
-		if err := wafdb.RunCoreDBMigrations(db); err != nil {
+		if err := wafdb.InitializeCoreSchema(db); err != nil {
 			t.Fatal(err)
 		}
 	}

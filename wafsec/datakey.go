@@ -137,18 +137,9 @@ func DataDecrypt(enc string, _ []byte) (string, error) {
 	return "", errors.New("unauthenticated legacy data ciphertext is disabled")
 }
 
-// IsDataKeyCiphertext 判断是否为 swk1 新格式密文（迁移时用来跳过已迁移行）。
+// IsDataKeyCiphertext 判断是否为 swk1 新格式密文。
 func IsDataKeyCiphertext(enc string) bool {
 	return strings.HasPrefix(enc, DataKeyPrefixV1)
-}
-
-// LegacyEncrypt 用旧通讯密钥 CBC 加密（回退工具 --rekey-legacy 专用：把 swk1 密文
-// 重写回旧格式，供降级到旧版二进制后读取）。空串原样返回。
-func LegacyEncrypt(plain string, legacyKey []byte) (string, error) {
-	if plain == "" {
-		return "", nil
-	}
-	return AesEncrypt([]byte(plain), legacyKey)
 }
 
 // gcmEncrypt: 输出 base64(nonce ‖ ciphertext ‖ tag)。

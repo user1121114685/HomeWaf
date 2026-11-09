@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +23,16 @@ func lockHelperPath(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return exe
+}
+
+func lockTestDir(t *testing.T) string {
+	t.Helper()
+	// macOS may place temporary directories below the /var symlink.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }
 
 func startLockHolder(t *testing.T, mode, path string) (*exec.Cmd, <-chan error) {
@@ -111,7 +120,7 @@ func TestFileLeaseCrossProcessSharedAndExclusive(t *testing.T) {
 	if testing.Short() {
 		t.Skip("spawns helper process")
 	}
-	path := filepath.Join(t.TempDir(), "lease.lock")
+	path := filepath.Join(lockTestDir(t), "lease.lock")
 
 	shared, sharedReady := startLockHolder(t, "shared", path)
 	waitLockHolder(t, sharedReady)
@@ -155,7 +164,7 @@ func TestFileLeaseCrossProcessSharedAndExclusive(t *testing.T) {
 }
 
 func TestFileLeaseRejectsSymlinkAndReleaseIsIdempotent(t *testing.T) {
-	dir := t.TempDir()
+	dir := lockTestDir(t)
 	target := filepath.Join(dir, "target.lock")
 	link := filepath.Join(dir, "link.lock")
 	lease, err := AcquireShared(context.Background(), target)
@@ -167,9 +176,6 @@ func TestFileLeaseRejectsSymlinkAndReleaseIsIdempotent(t *testing.T) {
 	if err := lease.Err(); err != nil {
 		t.Fatalf("release returned error: %v", err)
 	}
-	if runtime.GOOS == "windows" {
-		t.Skip("symlink privilege is not guaranteed on Windows")
-	}
 	if err := os.Symlink(target, link); err != nil {
 		t.Skipf("symlink unavailable: %v", err)
 	}
@@ -178,5 +184,53 @@ func TestFileLeaseRejectsSymlinkAndReleaseIsIdempotent(t *testing.T) {
 		t.Fatal("symlink lock path accepted")
 	} else if !strings.Contains(err.Error(), "symlink") {
 		t.Fatalf("unexpected symlink rejection error: %v", err)
+	}
+}
+
+func TestFileLeaseRejectsSymlinkComponents(t *testing.T) {
+	for _, name := range []string{"file", "dangling_file", "parent", "missing_parent", "dangling_parent"} {
+		t.Run(name, func(t *testing.T) {
+			dir, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			target := filepath.Join(dir, "target")
+			link := filepath.Join(dir, "link")
+			path := link
+			switch name {
+			case "file":
+				err = os.WriteFile(target, nil, 0600)
+			case "parent", "missing_parent":
+				err = os.Mkdir(target, 0700)
+				path = filepath.Join(link, "lease.lock")
+				if err == nil && name == "parent" {
+					err = os.WriteFile(filepath.Join(target, "lease.lock"), nil, 0600)
+				} else if name == "missing_parent" {
+					path = filepath.Join(link, "missing", "lease.lock")
+				}
+			case "dangling_parent":
+				// Create a directory link, then remove its target.
+				err = os.Mkdir(target, 0700)
+				path = filepath.Join(link, "lease.lock")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(target, link); err != nil {
+				t.Skipf("symlink unavailable: %v", err)
+			}
+			if name == "dangling_parent" {
+				if err := os.Remove(target); err != nil {
+					t.Fatal(err)
+				}
+			}
+			lease, err := AcquireShared(context.Background(), path)
+			if lease != nil {
+				lease.Release()
+			}
+			if !errors.Is(err, errSymlinkPath) {
+				t.Fatalf("symlink path must be rejected: %v", err)
+			}
+		})
 	}
 }

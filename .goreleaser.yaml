@@ -31,6 +31,22 @@ builds:
     goarch: [amd64]
     ldflags:
       - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
+  - id: homewaf_macos
+    main: ./cmd/homewaf
+    binary: HomeWafDarwin64
+    env: [CGO_ENABLED=0]
+    goos: [darwin]
+    goarch: [amd64]
+    ldflags:
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
+  - id: homewaf_macos_arm64
+    main: ./cmd/homewaf
+    binary: HomeWafDarwinArm64
+    env: [CGO_ENABLED=0]
+    goos: [darwin]
+    goarch: [arm64]
+    ldflags:
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
 archives:
   - formats: [tar.gz]
     format_overrides:
@@ -46,6 +62,9 @@ archives:
       - docs/modernization/SECURITY.md
       - docs/modernization/provenance.json
       - install_homewaf.sh
+      - install_homewaf.ps1
+      - README.md
+      - docker-compose.release.yml
 checksum:
   name_template: 'HomeWaf_{{ .Version }}_checksums.txt'
 release:
@@ -55,3 +74,7 @@ release:
   draft: true
   prerelease: auto
   header: 'HomeWaf {{ .Tag }}'
+  extra_files:
+    - glob: install_homewaf.sh
+    - glob: install_homewaf.ps1
+    - glob: docker-compose.release.yml

@@ -103,26 +103,26 @@ func InitCoreDb(currentDir string) (bool, error) {
 		// 注册默认的AES加解密策略
 		//crypto.RegisterCryptoStrategy(strategy.NewAesCryptoStrategy("3Y)(27EtO^tK8Bj~"))
 
-		// ============ 使用 gormigrate 替代 AutoMigrate（完全向后兼容） ============
-		zlog.Info("开始执行core数据库迁移...")
-		if err := RunCoreDBMigrations(db); err != nil {
+		// ============ 初始化当前表结构和索引 ============
+		zlog.Info("开始执行core数据库初始化...")
+		if err := InitializeCoreSchema(db); err != nil {
 			// 记录详细的错误信息
 			errStr := fmt.Sprintf("%v", err)
-			zlog.Error("core数据库迁移失败", "error_string", errStr, "error_type", fmt.Sprintf("%T", err))
-			zlog.Error("core数据库迁移失败详细信息: " + errStr)
-			panic("core database migration failed: " + errStr)
+			zlog.Error("core数据库初始化失败", "error_string", errStr, "error_type", fmt.Sprintf("%T", err))
+			zlog.Error("core数据库初始化失败详细信息: " + errStr)
+			panic("core database initialization failed: " + errStr)
 		}
 
-		// ============ 执行任务初始化迁移 ============
-		zlog.Info("开始执行任务初始化迁移...")
-		if err := RunTaskInitMigrations(db); err != nil {
+		// ============ 执行任务初始化 ============
+		zlog.Info("开始执行任务初始化...")
+		if err := InitializeTasks(db); err != nil {
 			// 记录详细的错误信息
 			errStr := fmt.Sprintf("%v", err)
-			zlog.Error("任务初始化迁移失败", "error_string", errStr, "error_type", fmt.Sprintf("%T", err))
-			zlog.Error("任务初始化迁移失败详细信息: " + errStr)
-			panic("task initialization migration failed: " + errStr)
+			zlog.Error("任务初始化失败", "error_string", errStr, "error_type", fmt.Sprintf("%T", err))
+			zlog.Error("任务初始化失败详细信息: " + errStr)
+			panic("task initialization failed: " + errStr)
 		}
-		// ============ 迁移代码结束 ============
+		// ============ 初始化代码结束 ============
 
 		global.GWAF_LOCAL_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
 		global.GWAF_LOCAL_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
@@ -130,8 +130,8 @@ func InitCoreDb(currentDir string) (bool, error) {
 		//重启需要删除无效规则
 		db.Where("user_code = ? and rule_status = 999", global.GWAF_USER_CODE).Delete(model.Rules{})
 
-		// 执行数据补丁和默认值初始化（幂等操作，每次启动都执行）
-		pathCoreSql(db)
+		// 默认数据已随核心表结构完成初始化
+
 		return isNewDb, nil
 	} else {
 		return false, nil
@@ -181,20 +181,19 @@ func InitLogDb(currentDir string) (bool, error) {
 		// 注册默认的AES加解密策略
 		//crypto.RegisterCryptoStrategy(strategy.NewAesCryptoStrategy("3Y)(27EtO^tK8Bj~"))
 
-		// ============ 使用 gormigrate 替代 AutoMigrate（完全向后兼容） ============
-		zlog.Info("开始执行log数据库迁移...")
-		if err := RunLogDBMigrations(db); err != nil {
+		// ============ 初始化当前表结构和索引 ============
+		zlog.Info("开始执行log数据库初始化...")
+		if err := InitializeLogSchema(db); err != nil {
 			errStr := fmt.Sprintf("%v", err)
-			zlog.Error("log数据库迁移失败", "error_string", errStr, "error_type", fmt.Sprintf("%T", err))
-			zlog.Error("log数据库迁移失败详细信息: " + errStr)
-			panic("log database migration failed: " + errStr)
+			zlog.Error("log数据库初始化失败", "error_string", errStr, "error_type", fmt.Sprintf("%T", err))
+			zlog.Error("log数据库初始化失败详细信息: " + errStr)
+			panic("log database initialization failed: " + errStr)
 		}
-		// ============ 迁移代码结束 ============
+		// ============ 初始化代码结束 ============
 
 		global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
 		global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
-		pathLogSql(db)
 		ensureLiveShardRecord(global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, LiveLogName())
 
 		return isNewDb, nil
@@ -205,7 +204,7 @@ func InitLogDb(currentDir string) (bool, error) {
 
 // InitManaulLogDb 按需只读打开一个 SQLite 归档日志分片，已打开的直接复用。
 //
-// 归档文件只读：不跑迁移、连接层 query_only，打开前先确认文件在——不在就返回 ErrShardMissing，
+// 归档文件只读：不跑初始化、连接层 query_only，打开前先确认文件在——不在就返回 ErrShardMissing，
 // 不会在原位置建出一个空库。读侧按分片实际有的表与列取数（ResolveTierTables / webLogSelect），
 // 不需要归档跟着实时库补表补列。页缓存与连接数按只读场景收小，多个分片同时打开时内存可控。
 func InitManaulLogDb(currentDir string, custFileName string) error {
@@ -295,20 +294,18 @@ func InitStatsDb(currentDir string) (bool, error) {
 		// 注册默认的AES加解密策略
 		//crypto.RegisterCryptoStrategy(strategy.NewAesCryptoStrategy("3Y)(27EtO^tK8Bj~"))
 
-		// ============ 使用 gormigrate 替代 AutoMigrate（完全向后兼容） ============
-		zlog.Info("开始执行stats数据库迁移...")
-		if err := RunStatsDBMigrations(db); err != nil {
+		// ============ 初始化当前表结构和索引 ============
+		zlog.Info("开始执行stats数据库初始化...")
+		if err := InitializeStatsSchema(db); err != nil {
 			errStr := fmt.Sprintf("%v", err)
-			zlog.Error("stats数据库迁移失败", "error_string", errStr, "error_type", fmt.Sprintf("%T", err))
-			zlog.Error("stats数据库迁移失败详细信息: " + errStr)
-			panic("stats database migration failed: " + errStr)
+			zlog.Error("stats数据库初始化失败", "error_string", errStr, "error_type", fmt.Sprintf("%T", err))
+			zlog.Error("stats数据库初始化失败详细信息: " + errStr)
+			panic("stats database initialization failed: " + errStr)
 		}
-		// ============ 迁移代码结束 ============
+		// ============ 初始化代码结束 ============
 
 		global.GWAF_LOCAL_STATS_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
 		global.GWAF_LOCAL_STATS_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
-
-		pathStatsSql(db)
 
 		return isNewDb, nil
 	} else {

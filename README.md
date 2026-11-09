@@ -6,7 +6,10 @@
 
 HomeWaf 是基于 SamWaf 的独立修改发行版，重点服务于家庭和个人自建服务场景，以简单、易用为目标。
 
-[构建与运行](#构建与运行) · [平滑重启](#手动平滑重启) · [使用许可](#使用许可) · [迁移与发布](docs/modernization/MIGRATION.md) · [第三方声明](THIRD_PARTY_NOTICES.md)
+[一键安装](#一键安装) · [Docker](#docker-一键运行) · [在线更新](#在线更新) · [源码构建](#构建与运行) · [使用许可](#使用许可) · [第三方声明](THIRD_PARTY_NOTICES.md)
+
+[![Release](https://img.shields.io/github/v/release/user1121114685/HomeWaf)](https://github.com/user1121114685/HomeWaf/releases/latest)
+[![Build](https://github.com/user1121114685/HomeWaf/actions/workflows/ci-test.yml/badge.svg)](https://github.com/user1121114685/HomeWaf/actions/workflows/ci-test.yml)
 
 ## 为什么面向家庭用户
 
@@ -35,6 +38,87 @@ HomeWaf 采用免费与付费并存的方式。面向家庭的非商业使用免
 项目以收支平衡、持续维护为目标。如果产生结余，将继续投入开发，并向上游 SamWaf 捐赠。吃水不忘挖井人。
 
 付费服务的范围和价格以实际公布的方案为准；目前仓库提供离线签名授权机制，云授权、订单系统和付费功能清单尚未定义。
+
+## 一键安装
+
+安装脚本从 **本仓库最新正式 Release** 下载对应平台的安装包，校验 SHA256 后安装并注册系统服务。首次启动直接创建当前数据库结构和默认配置，不导入旧版 SamWaf 数据，也不执行历史升级补丁。
+
+| 系统 | 架构 | 默认安装目录 | 服务管理 |
+| --- | --- | --- | --- |
+| Windows | x64 | `C:\ProgramData\HomeWaf` | Windows 服务 |
+| Linux | x86_64、ARM64 | `/opt/homewaf` | systemd |
+| macOS | Intel、Apple Silicon | `/opt/homewaf` | launchd |
+| Docker | Linux amd64、arm64 | 容器 `/app`，数据放命名卷 | Docker |
+
+### Windows PowerShell
+
+以**管理员身份**打开 PowerShell，复制执行：
+
+```powershell
+irm https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1 | iex
+```
+
+支持 Windows PowerShell 5.1 和 PowerShell 7。服务名为 `HomeWafService`。
+
+### Linux 与 macOS
+
+终端复制执行；需要 `curl`，安装服务时会通过 `sudo` 请求管理员权限：
+
+```sh
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh | sudo bash
+```
+
+脚本自动识别 Intel/AMD 64 位或 ARM64。没有 systemd 的 Linux 环境可使用 Docker，或下载脚本后加 `--no-service`，自行启动程序。
+
+### Docker 一键运行
+
+安装 Docker 后执行下面这一行；Windows/macOS 使用 Docker Desktop 的 **Linux 容器**模式：
+
+```sh
+docker run -d --name homewaf --restart unless-stopped -p 127.0.0.1:26666:26666 -p 80:80 -p 443:443 -p 443:443/udp -v homewaf-conf:/app/conf -v homewaf-data:/app/data -v homewaf-keys:/app/.homewaf-keys -v homewaf-logs:/app/logs -v homewaf-ssl:/app/ssl ghcr.io/user1121114685/homewaf:latest
+```
+
+也可以使用 Compose（Linux/macOS）：
+
+```sh
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/docker-compose.release.yml -o homewaf-compose.yml && docker compose -f homewaf-compose.yml up -d
+```
+
+`latest` 对应最新正式版；固定版本使用例如 `ghcr.io/user1121114685/homewaf:v2.0.0`。管理端仅映射到本机；80/443 用于被防护网站，需确保这些端口没有被其他程序占用。没有使用主机防火墙联动时无需授予 `NET_ADMIN`。
+
+### 首次登录
+
+打开 **http://127.0.0.1:26666**，账号为 `admin`，初始密码随机生成：
+
+| 安装方式 | 查看初始密码 |
+| --- | --- |
+| Windows | `Get-Content C:\ProgramData\HomeWaf\data\initial_password.txt` |
+| Linux/macOS | `sudo cat /opt/homewaf/data/initial_password.txt` |
+| Docker | `docker exec homewaf cat /app/data/initial_password.txt` |
+
+首次启动需要初始化资源，若文件尚未生成请稍等片刻。登录后修改密码。远程服务器可以通过 SSH 隧道访问管理端，例如 `ssh -L 26666:127.0.0.1:26666 user@server`。
+
+### 手动下载、自定义目录与卸载
+
+所有二进制、安装脚本和校验清单都在 [GitHub Releases](https://github.com/user1121114685/HomeWaf/releases)。Windows 解压后可直接运行 `HomeWaf64.exe`；Linux/macOS 解压后运行对应的 `HomeWafLinux64`、`HomeWafLinuxArm64`、`HomeWafDarwin64` 或 `HomeWafDarwinArm64`。
+
+下载脚本到本机后，可以指定 `--version v2.0.0 --dir /opt/homewaf --no-service`（Shell），或 `-Version v2.0.0 -Directory C:\HomeWaf -NoService`（PowerShell）。不加 `--no-service`/`-NoService` 时自动安装并启动服务。
+
+卸载服务：Shell 使用 `sudo bash install_homewaf.sh uninstall`；管理员 PowerShell 使用 `./install_homewaf.ps1 -Action uninstall`。自定义目录需同时指定。卸载服务保留配置、数据库、证书和密钥。
+
+## 在线更新
+
+登录管理后台时会自动检查本仓库的正式 Release；发现较新版本后显示更新提示，也可以点击顶部的“检查更新”。相同版本不重复下载，测试版和草稿不会作为正式更新推送。
+
+Windows/Linux/macOS 原生安装可在提示中确认升级。程序下载当前系统和架构的安装包，核对 GitHub 提供的 SHA256 后替换二进制，再由 Supervisor 启动新 Worker 并排空旧 Worker。更新失败、网络错误或下载校验失败会明确报错。更新渠道只指向 `user1121114685/HomeWaf`，不访问原项目的软件更新地址。
+
+Docker 内保留版本检查和更新提示，升级通过拉取新镜像、重新创建容器完成。Compose 安装执行：
+
+```sh
+docker compose -f homewaf-compose.yml pull && docker compose -f homewaf-compose.yml up -d
+```
+
+备份时保留 `conf/`、`data/`、`ssl/` 和 **`.homewaf-keys/`**；数据密钥与数据库必须配套，不能删除密钥后生成新密钥来读取原有密文。容器命名卷默认会在重建时保留，不要执行 `down -v`。
 
 ## 构建与运行
 
@@ -67,7 +151,7 @@ node scripts/verify.mjs
 npm run dev --prefix web
 ```
 
-后端地址通过 `web/.env` 中的 `HOMEWAF_BACKEND` 指定。更多构建选项、验证方式和签名工具用法见[构建、迁移与发布说明](docs/modernization/MIGRATION.md)。
+后端地址通过 `web/.env` 中的 `HOMEWAF_BACKEND` 指定。更多构建选项、验证方式和签名工具用法见[构建与发布说明](docs/modernization/MIGRATION.md)。
 
 ### 手动平滑重启
 
@@ -91,7 +175,7 @@ Linux arm64 使用 `./HomeWafLinuxArm64 rolling-restart`。如果可执行文件
 
 旧业务连接的排空期限由 `conf/config.yml` 中的 `drain_time_out` 控制，默认 30 秒；超过期限的长连接会被关闭。在线升级自动使用同一交接流程。普通 `restart` 是服务的停止／启动操作，管理端“重启 WAF 引擎”用于重载引擎配置。
 
-协议支持范围、独占资源接管及数据库迁移限制见[平滑升级与滚动重启说明](docs/modernization/MIGRATION.md#平滑升级与滚动重启)。
+协议支持范围和独占资源接管限制见[平滑升级与滚动重启说明](docs/modernization/MIGRATION.md#平滑升级与滚动重启)。
 
 ### 使用 Docker Compose
 
@@ -122,7 +206,7 @@ HomeWaf 自有新增代码及修改使用根目录 [LICENSE](LICENSE) 中的源�
 
 软件更新默认检查 `user1121114685/HomeWaf` 仓库的正式 GitHub Release。原项目的更新、公告、公网 IP 查询和机器人数据镜像默认禁用。发行方可显式配置自己的 HTTPS 服务；主动启用证书申请、DNS、通知或 AI 服务时，会向对应服务商发送实现功能所需的数据。
 
-详细配置见[迁移与发布说明](docs/modernization/MIGRATION.md)，部署和问题反馈见[安全说明](SECURITY.md)。
+详细配置见[初始化与发布说明](docs/modernization/MIGRATION.md)，部署和问题反馈见[安全说明](SECURITY.md)。
 
 ## 上游来源与致谢
 

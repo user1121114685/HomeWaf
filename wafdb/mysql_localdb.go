@@ -227,20 +227,20 @@ func InitCoreDbMySQL() (bool, error) {
 	db = applyGormLogger(db)
 	global.GWAF_LOCAL_DB = db
 
-	zlog.Info("开始执行core数据库迁移...")
-	if err := RunCoreDBMigrations(db); err != nil {
-		panic("core database migration failed: " + err.Error())
+	zlog.Info("开始执行core数据库初始化...")
+	if err := InitializeCoreSchema(db); err != nil {
+		panic("core database initialization failed: " + err.Error())
 	}
-	zlog.Info("开始执行任务初始化迁移...")
-	if err := RunTaskInitMigrations(db); err != nil {
-		panic("task initialization migration failed: " + err.Error())
+	zlog.Info("开始执行任务初始化...")
+	if err := InitializeTasks(db); err != nil {
+		panic("task initialization failed: " + err.Error())
 	}
 
 	global.GWAF_LOCAL_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
 	global.GWAF_LOCAL_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
 	db.Where("user_code = ? and rule_status = 999", global.GWAF_USER_CODE).Delete(model.Rules{})
-	pathCoreSql(db)
+
 	return false, nil
 }
 
@@ -260,15 +260,13 @@ func InitLogDbMySQL() (bool, error) {
 	db = applyGormLogger(db)
 	global.GWAF_LOCAL_LOG_DB = db
 
-	zlog.Info("开始执行log数据库迁移...")
-	if err := RunLogDBMigrations(db); err != nil {
-		panic("log database migration failed: " + err.Error())
+	zlog.Info("开始执行log数据库初始化...")
+	if err := InitializeLogSchema(db); err != nil {
+		panic("log database initialization failed: " + err.Error())
 	}
 
 	global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
 	global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
-
-	pathLogSql(db)
 
 	// live 分片标识用 web_logs 表名（与 ResolveLogDB 的 live 判定一致），不能用库名，否则读取会误入历史分支
 	ensureLiveShardRecord(global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, LiveLogName())
@@ -292,14 +290,13 @@ func InitStatsDbMySQL() (bool, error) {
 	db = applyGormLogger(db)
 	global.GWAF_LOCAL_STATS_DB = db
 
-	zlog.Info("开始执行stats数据库迁移...")
-	if err := RunStatsDBMigrations(db); err != nil {
-		panic("stats database migration failed: " + err.Error())
+	zlog.Info("开始执行stats数据库初始化...")
+	if err := InitializeStatsSchema(db); err != nil {
+		panic("stats database initialization failed: " + err.Error())
 	}
 
 	global.GWAF_LOCAL_STATS_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
 	global.GWAF_LOCAL_STATS_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
-	pathStatsSql(db)
 	return false, nil
 }
