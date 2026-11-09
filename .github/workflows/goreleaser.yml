@@ -7,7 +7,6 @@ on:
     tags: ['v[0-9]*.[0-9]*.[0-9]*']
 permissions:
   contents: write
-  packages: write
 jobs:
   package:
     runs-on: ubuntu-latest
@@ -28,10 +27,18 @@ jobs:
         run: node scripts/verify.mjs
       - name: Produce reviewable archives without publishing
         if: github.ref_type != 'tag'
-        run: go run github.com/goreleaser/goreleaser/v2@v2.20.0 release --snapshot --clean
+        uses: goreleaser/goreleaser-action@3d82dc1587053cd8272fa3801faaebfc2e8a12ac
+        with:
+          distribution: goreleaser
+          version: v2.20.0
+          args: release --snapshot --clean --parallelism 2
       - name: Build a draft release for the tagged version
         if: github.ref_type == 'tag'
-        run: go run github.com/goreleaser/goreleaser/v2@v2.20.0 release --clean
+        uses: goreleaser/goreleaser-action@3d82dc1587053cd8272fa3801faaebfc2e8a12ac
+        with:
+          distribution: goreleaser
+          version: v2.20.0
+          args: release --clean --parallelism 2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -100,72 +107,86 @@ jobs:
   container:
     if: github.ref_type == 'tag'
     needs: package
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+            asset_arch: x86_64
+            binary: HomeWafLinux64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            asset_arch: arm64
+            binary: HomeWafLinuxArm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: HomeWaf-release-candidate
           path: dist
-      - name: Prepare verified Linux executables
+      - name: Build portable Docker image archive
         shell: bash
         run: |
           version='${{ github.ref_name }}'
+          arch='${{ matrix.arch }}'
+          asset_arch='${{ matrix.asset_arch }}'
           cd dist
           sha256sum --check "HomeWaf_${version#v}_checksums.txt"
           cd ..
-          mkdir -p docker-dist/amd64 docker-dist/arm64
-          tar -xzf "dist/HomeWaf_Linux_x86_64_${version#v}.tar.gz" -C docker-dist/amd64 HomeWafLinux64
-          tar -xzf "dist/HomeWaf_Linux_arm64_${version#v}.tar.gz" -C docker-dist/arm64 HomeWafLinuxArm64
-          mv docker-dist/amd64/HomeWafLinux64 docker-dist/amd64/homewaf
-          mv docker-dist/arm64/HomeWafLinuxArm64 docker-dist/arm64/homewaf
-      - uses: docker/setup-qemu-action@5138f26214adf9d69718655df70f66d2b3c81db3
-      - uses: docker/setup-buildx-action@bf8388060db527dff14f48b6a5fdbe70763c1213
-      - uses: docker/login-action@d0b8297dd55199249f38268efae35fcb03f75aab
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@562e51947939164e4fe808a6eab5101977e509e0
-        with:
-          context: .
-          file: Dockerfile.release
-          platforms: linux/amd64,linux/arm64
-          build-args: HOMEWAF_VERSION=${{ github.ref_name }}
-          push: true
-          tags: ghcr.io/user1121114685/homewaf:${{ github.ref_name }}
-      - name: Verify container startup and persistent keys
+          mkdir -p "docker-dist/$arch" docker-release
+          tar -xzf "dist/HomeWaf_Linux_${asset_arch}_${version#v}.tar.gz" -C "docker-dist/$arch" '${{ matrix.binary }}'
+          mv "docker-dist/$arch/${{ matrix.binary }}" "docker-dist/$arch/homewaf"
+          docker build -f Dockerfile.release --build-arg "TARGETARCH=$arch" --build-arg "HOMEWAF_VERSION=$version" -t "homewaf:$version" .
+          archive="HomeWaf_Docker_Linux_${asset_arch}_${version#v}.tar.gz"
+          docker save "homewaf:$version" | gzip -1 > "docker-release/$archive"
+          cd docker-release
+          sha256sum "$archive" > "$arch.checksums.txt"
+      - name: Verify Docker installers and persistent keys
         shell: bash
         run: |
-          docker run -d --name homewaf-smoke -p 127.0.0.1:26666:26666 ghcr.io/user1121114685/homewaf:${{ github.ref_name }}
-          trap 'docker logs homewaf-smoke > container-smoke.log 2>&1; docker rm -f homewaf-smoke' EXIT
-          for attempt in $(seq 1 90); do
-            if curl -fsS --max-time 2 http://127.0.0.1:26666/ -o /dev/null; then
-              docker exec homewaf-smoke test -s /app/.homewaf-keys/data_key
-              docker exec homewaf-smoke test -s /app/data/initial_password.txt
-              exit 0
-            fi
-            sleep 1
-          done
-          exit 1
+          version='${{ github.ref_name }}'
+          archive="docker-release/HomeWaf_Docker_Linux_${{ matrix.asset_arch }}_${version#v}.tar.gz"
+          checksums='docker-release/${{ matrix.arch }}.checksums.txt'
+          trap 'docker rm -f homewaf || true' EXIT
+          bash install_homewaf.sh --docker --version "$version" --archive "$archive" --checksums "$checksums"
+          before=$(docker exec homewaf sha256sum /app/.homewaf-keys/data_key)
+          pwsh -NoProfile -File install_homewaf.ps1 -Docker -Directory /tmp/homewaf-unused -Version "$version" -ArchivePath "$archive" -ChecksumsPath "$checksums"
+          after=$(docker exec homewaf sha256sum /app/.homewaf-keys/data_key)
+          test "$before" = "$after"
+          docker exec homewaf test -s /app/data/initial_password.txt
+          docker exec homewaf /app/homewaf apikey init -o json > /dev/null
+          key=$(docker exec homewaf cat /app/data/.keys/cli_api_key)
+          curl -fsS -H "X-API-Key: $key" http://127.0.0.1:26666/api/v1/sysinfo/checkversion -o container-version.json
+          node -e 'const v=JSON.parse(require("fs").readFileSync("container-version.json")); if(v.code!==0 || !v.data.container || v.data.self_update_allowed!==false) throw new Error("Docker update notification policy failed");'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: HomeWaf-container-${{ matrix.arch }}
+          compression-level: 0
+          path: docker-release/*
   publish:
     if: github.ref_type == 'tag'
     needs: [smoke, container]
     runs-on: ubuntu-latest
     steps:
-      - uses: docker/setup-buildx-action@bf8388060db527dff14f48b6a5fdbe70763c1213
-      - uses: docker/login-action@d0b8297dd55199249f38268efae35fcb03f75aab
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish stable release and container tag
+          pattern: HomeWaf-container-*
+          merge-multiple: true
+          path: docker-release
+      - name: Publish verified native and Docker packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          docker buildx imagetools create -t ghcr.io/user1121114685/homewaf:latest ghcr.io/user1121114685/homewaf:${{ github.ref_name }}
-          gh release edit '${{ github.ref_name }}' --repo '${{ github.repository }}' --draft=false --latest
+          version='${{ github.ref_name }}'
+          cd docker-release
+          cat *.checksums.txt > "HomeWaf_${version#v}_docker_checksums.txt"
+          sha256sum --check "HomeWaf_${version#v}_docker_checksums.txt"
+          gh release upload "$version" --repo '${{ github.repository }}' *.tar.gz "HomeWaf_${version#v}_docker_checksums.txt" --clobber
+          gh release edit "$version" --repo '${{ github.repository }}' --draft=false --latest
   online-install:
     needs: publish
     strategy:
@@ -184,6 +205,11 @@ jobs:
   public-container:
     needs: publish
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Verify anonymous Docker download
-        run: docker pull ghcr.io/user1121114685/homewaf:latest
+      - name: Verify one-command public Docker installation
+        shell: bash
+        run: |
+          trap 'docker rm -f homewaf || true' EXIT
+          curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh | bash -s -- --docker
+          docker exec homewaf test -s /app/.homewaf-keys/data_key

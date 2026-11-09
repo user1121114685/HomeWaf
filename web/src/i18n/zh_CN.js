@@ -254,9 +254,9 @@ export default {
       beta_confirm_yes: '确认更新',
       beta_confirm_no: '取消',
       container_blocked_title: '容器环境不支持应用内升级',
-      container_blocked_tips: '检测到 HomeWaf 运行在容器（{container}）中，已禁用应用内升级。容器内的程序文件位于镜像可写层，升级只对当前容器有效；容器一旦重建（docker compose up -d / 更换镜像 / 重装宿主机），程序会回退到镜像自带的旧版本，而数据库已按新版本迁移且无法回退，会造成程序与数据版本不一致。',
+      container_blocked_tips: '检测到 HomeWaf 运行在容器（{container}）中。请更新 Docker 镜像并重新创建容器，确保重建后的程序版本一致；容器内直接替换程序不会更新原始镜像。',
       container_howto_label: '请改用更新镜像的方式升级：',
-      container_howto_tips: '挂载的 conf / data / logs / ssl 数据不受影响。若确实把程序文件挂到了卷里，可在「系统配置」中把 allow_container_selfupdate 置为 1 自行放行。',
+      container_howto_tips: '官方安装脚本会校验镜像包，保留 conf / data / .homewaf-keys / logs / ssl 命名卷并重建容器。自定义部署请使用自己的容器配置；升级前备份数据和实例密钥。',
       container_doc_link: '查看升级文档',
       progress: {
         title_running: '正在升级',

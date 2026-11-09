@@ -72,19 +72,25 @@ curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/in
 
 ### Docker 一键运行
 
-安装 Docker 后执行下面这一行；Windows/macOS 使用 Docker Desktop 的 **Linux 容器**模式：
+安装并启动 Docker 后，选择 **Linux 容器**模式。脚本从公开 Release 下载对应 Docker 引擎架构的镜像包，校验 SHA256，加载镜像并启动容器；无需镜像仓库账号。
+
+Linux/macOS：
 
 ```sh
-docker run -d --name homewaf --restart unless-stopped -p 127.0.0.1:26666:26666 -p 80:80 -p 443:443 -p 443:443/udp -v homewaf-conf:/app/conf -v homewaf-data:/app/data -v homewaf-keys:/app/.homewaf-keys -v homewaf-logs:/app/logs -v homewaf-ssl:/app/ssl ghcr.io/user1121114685/homewaf:latest
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh | bash -s -- --docker
 ```
 
-也可以使用 Compose（Linux/macOS）：
+Windows PowerShell（Docker Desktop）：
 
-```sh
-curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/docker-compose.release.yml -o homewaf-compose.yml && docker compose -f homewaf-compose.yml up -d
+```powershell
+& ([scriptblock]::Create((irm https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1))) -Docker
 ```
 
-`latest` 对应最新正式版；固定版本使用例如 `ghcr.io/user1121114685/homewaf:v2.0.0`。管理端仅映射到本机；80/443 用于被防护网站，需确保这些端口没有被其他程序占用。没有使用主机防火墙联动时无需授予 `NET_ADMIN`。
+安装后容器名为 `homewaf`，镜像标记为 `homewaf:v2.0.1` 和 `homewaf:latest`，配置、数据、密钥、日志及证书分别保存在命名卷中。管理端映射 `127.0.0.1:26666`，网站端口映射 80/TCP、443/TCP 和 443/UDP；请确保这些端口可用。
+
+再次执行同一命令会安装最新正式版并重新创建容器，保留命名卷；新容器启动失败时尝试恢复原镜像。脚本只接管由它创建的容器，不覆盖已有的自定义部署。Linux 用户需有访问 Docker 的权限。
+
+也可在 [Releases](https://github.com/user1121114685/HomeWaf/releases) 下载 `HomeWaf_Docker_Linux_*.tar.gz`，校验后通过 `docker load -i 文件名` 导入，再自行配置 `docker run`。仓库的 `docker-compose.yml` 用于从源码构建容器。
 
 ### 首次登录
 
@@ -102,7 +108,7 @@ curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/do
 
 所有二进制、安装脚本和校验清单都在 [GitHub Releases](https://github.com/user1121114685/HomeWaf/releases)。Windows 解压后可直接运行 `HomeWaf64.exe`；Linux/macOS 解压后运行对应的 `HomeWafLinux64`、`HomeWafLinuxArm64`、`HomeWafDarwin64` 或 `HomeWafDarwinArm64`。
 
-下载脚本到本机后，可以指定 `--version v2.0.0 --dir /opt/homewaf --no-service`（Shell），或 `-Version v2.0.0 -Directory C:\HomeWaf -NoService`（PowerShell）。不加 `--no-service`/`-NoService` 时自动安装并启动服务。
+下载脚本到本机后，可以指定 `--version v2.0.1 --dir /opt/homewaf --no-service`（Shell），或 `-Version v2.0.1 -Directory C:\HomeWaf -NoService`（PowerShell）。不加 `--no-service`/`-NoService` 时自动安装并启动服务。
 
 卸载服务：Shell 使用 `sudo bash install_homewaf.sh uninstall`；管理员 PowerShell 使用 `./install_homewaf.ps1 -Action uninstall`。自定义目录需同时指定。卸载服务保留配置、数据库、证书和密钥。
 
@@ -112,11 +118,7 @@ curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/do
 
 Windows/Linux/macOS 原生安装可在提示中确认升级。程序下载当前系统和架构的安装包，核对 GitHub 提供的 SHA256 后替换二进制，再由 Supervisor 启动新 Worker 并排空旧 Worker。更新失败、网络错误或下载校验失败会明确报错。更新渠道只指向 `user1121114685/HomeWaf`，不访问原项目的软件更新地址。
 
-Docker 内保留版本检查和更新提示，升级通过拉取新镜像、重新创建容器完成。Compose 安装执行：
-
-```sh
-docker compose -f homewaf-compose.yml pull && docker compose -f homewaf-compose.yml up -d
-```
+Docker 内保留版本检查和更新提示；升级时再次执行上面的 Docker 一键安装命令，下载并校验新镜像后重新创建容器。原生部署使用后台在线升级，Docker 部署使用镜像更新。
 
 备份时保留 `conf/`、`data/`、`ssl/` 和 **`.homewaf-keys/`**；数据密钥与数据库必须配套，不能删除密钥后生成新密钥来读取原有密文。容器命名卷默认会在重建时保留，不要执行 `down -v`。
 
@@ -172,6 +174,8 @@ Linux x86_64：
 Linux arm64 使用 `./HomeWafLinuxArm64 rolling-restart`。如果可执行文件已改名，请使用实际文件名。
 
 命令连接正在运行的 Supervisor，先启动新 Worker，确认就绪后再让旧 Worker 排空并退出；新 Worker 就绪失败时，旧 Worker 继续服务。命令返回表示请求已提交，是否交接完成请查看 Supervisor 日志。
+
+Windows 使用 `SO_REUSEADDR` 接管监听端口，切换瞬间新建 TCP 连接可能需要重试；不能对每一次新连接握手承诺零中断。已受理请求与长连接按排空期限处理。
 
 旧业务连接的排空期限由 `conf/config.yml` 中的 `drain_time_out` 控制，默认 30 秒；超过期限的长连接会被关闭。在线升级自动使用同一交接流程。普通 `restart` 是服务的停止／启动操作，管理端“重启 WAF 引擎”用于重载引擎配置。
 

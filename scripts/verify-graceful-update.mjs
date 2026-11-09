@@ -55,6 +55,7 @@ const log = fs.openSync(path.join(dir, 'process.log'), 'a');
 const child = spawn(exe, [], { cwd: dir, env, windowsHide: true, stdio: ['ignore', log, log] });
 let key, upgraded, stopped = false;
 let monitor = [];
+const proxyAgent = new http.Agent({ keepAlive: true, maxSockets: 8, maxFreeSockets: 8 });
 const readState = () => JSON.parse(fs.readFileSync(path.join(dir, 'data', 'supervisor.state'), 'utf8'));
 const api = async (name) => {
   const response = await fetch(`http://127.0.0.1:${managerPort}/api/v1/sysinfo/${name}`, { headers: { 'X-API-Key': key }, signal: AbortSignal.timeout(20000) });
@@ -63,7 +64,7 @@ const api = async (name) => {
   return body.data;
 };
 const proxyRequest = (urlPath = '/', firstChunk) => new Promise((resolve, reject) => {
-  const request = http.get({ hostname: '127.0.0.1', port: proxyPort, path: urlPath, headers: { Host: `graceful.test:${proxyPort}`, Connection: 'close' }, agent: false }, (res) => {
+  const request = http.get({ hostname: '127.0.0.1', port: proxyPort, path: urlPath, headers: { Host: `graceful.test:${proxyPort}` }, agent: proxyAgent }, (res) => {
     let body = '';
     res.on('data', (chunk) => { body += chunk; firstChunk?.(); });
     res.on('error', reject);
@@ -146,10 +147,17 @@ try {
 } finally {
   stopped = true;
   upgraded?.destroy();
+  proxyAgent.destroy();
   await Promise.allSettled(monitor);
+  if (child.pid && child.exitCode === null && child.signalCode === null) {
+    await new Promise(resolve => {
+      const timeout = setTimeout(() => child.kill('SIGKILL'), 10000);
+      child.once('exit', () => { clearTimeout(timeout); resolve(); });
+      child.kill();
+    });
+  }
   // These PIDs come only from the fresh test instance's state file.
   try { for (const pid of readState().pids) { try { process.kill(pid); } catch {} } } catch {}
-  child.kill();
   publisher.closeAllConnections(); publisher.close();
   origin.closeAllConnections(); origin.close();
   fs.closeSync(log);
