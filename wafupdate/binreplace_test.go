@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -23,7 +24,10 @@ func TestUniqueOldPathNeverCollides(t *testing.T) {
 
 	seen := make(map[string]bool)
 	for i := 0; i < 100; i++ {
-		p := uniqueOldPath(dir, exe)
+		p, err := uniqueOldPath(dir, exe)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if _, err := os.Lstat(p); !os.IsNotExist(err) {
 			t.Fatalf("uniqueOldPath 返回了已存在的路径: %s", p)
 		}
@@ -38,6 +42,33 @@ func TestUniqueOldPathNeverCollides(t *testing.T) {
 		if !strings.HasPrefix(filepath.Base(p), oldPrefix(exe)) {
 			t.Fatalf("命名未落在 .old 前缀下: %s", p)
 		}
+	}
+}
+
+func TestUniqueOldPathConcurrentCallers(t *testing.T) {
+	dir := t.TempDir()
+	var wg sync.WaitGroup
+	paths := make(chan string, 128)
+	for i := 0; i < cap(paths); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p, err := uniqueOldPath(dir, "HomeWaf64.exe")
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			paths <- p
+		}()
+	}
+	wg.Wait()
+	close(paths)
+	seen := map[string]bool{}
+	for p := range paths {
+		if seen[p] {
+			t.Fatalf("concurrent callers received the same backup path: %s", p)
+		}
+		seen[p] = true
 	}
 }
 

@@ -215,6 +215,11 @@ func GetCurrentDir() string {
 		return ""
 	}
 	exeDir := filepath.Dir(exePath)
+	// The installation directory is a trusted root. Resolve system aliases
+	// such as macOS /var -> /private/var before constructing protected paths.
+	if resolved, err := filepath.EvalSymlinks(exeDir); err == nil {
+		return resolved
+	}
 	return exeDir
 }
 
