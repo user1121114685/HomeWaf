@@ -53,42 +53,41 @@ func TestUpdaterWithEmptyPayloadNoErrorNoUpdate(t *testing.T) {
 }
 
 func TestUpdaterCheckTime(t *testing.T) {
-	mr := &mockRequester{}
-	mr.handleRequest(
-		func(url string) (io.ReadCloser, error) {
-			equals(t, "http://updates.yourdomain.com/myapp/"+plat+".json?"+ClientQuery(), url)
-			return newTestReaderCloser(`{"Version":"v1.0.0","Sha256":"` + base64.StdEncoding.EncodeToString(make([]byte, 32)) + `"}`), nil
+	for _, times := range [][2]int{{0, 0}, {0, 5}, {1, 0}, {100, 100}} {
+		t.Run(fmt.Sprintf("check=%d/jitter=%d", times[0], times[1]), func(t *testing.T) {
+			mr := &mockRequester{}
+			mr.handleRequest(func(url string) (io.ReadCloser, error) {
+				equals(t, "http://updates.yourdomain.com/myapp/"+plat+".json?"+ClientQuery(), url)
+				return newTestReaderCloser(`{"Version":"v1.0.0","Sha256":"` + base64.StdEncoding.EncodeToString(make([]byte, 32)) + `"}`), nil
+			})
+			runTestTimeChecks(t, mr, times[0], times[1])
 		})
-
-	// Run test with various time
-	runTestTimeChecks(t, mr, 0, 0, false)
-	runTestTimeChecks(t, mr, 0, 5, true)
-	runTestTimeChecks(t, mr, 1, 0, true)
-	runTestTimeChecks(t, mr, 100, 100, true)
+	}
 }
 
 // Helper function to run check time tests
-func runTestTimeChecks(t *testing.T, mr *mockRequester, checkTime int, randomizeTime int, expectUpdate bool) {
+func runTestTimeChecks(t *testing.T, mr *mockRequester, checkTime int, randomizeTime int) {
+	t.Helper()
 	updater := createUpdater(mr)
 	updater.ClearUpdateState()
+	t.Cleanup(updater.ClearUpdateState)
 	updater.CheckTime = checkTime
 	updater.RandomizeTime = randomizeTime
-
-	updater.BackgroundRun()
-
-	if updater.WantUpdate() == expectUpdate {
-		t.Errorf("WantUpdate returned %v; want %v", updater.WantUpdate(), expectUpdate)
+	started := time.Now().Truncate(time.Second)
+	if err := updater.BackgroundRun(); err != nil {
+		t.Fatal(err)
 	}
-
-	maxHrs := time.Duration(updater.CheckTime+updater.RandomizeTime) * time.Hour
-	maxTime := time.Now().Add(maxHrs)
-
-	if !updater.NextUpdate().Before(maxTime) {
-		t.Errorf("NextUpdate should less than %s hrs (CheckTime + RandomizeTime) from now; now %s; next update %s", maxHrs, time.Now(), updater.NextUpdate())
+	now := time.Now()
+	next := updater.NextUpdate()
+	minimum := started.Add(time.Duration(checkTime) * time.Hour)
+	maximum := now.Add(time.Duration(checkTime+randomizeTime) * time.Hour)
+	if next.Before(minimum) || next.After(maximum) {
+		t.Errorf("NextUpdate %s outside [%s, %s]", next, minimum, maximum)
 	}
-
-	if maxHrs > 0 && !updater.NextUpdate().After(time.Now()) {
-		t.Errorf("NextUpdate should be after now")
+	// Jitter is inclusive of zero. With CheckTime=0, an immediate check is
+	// valid; deriving the expectation from the saved time covers both bounds.
+	if want := !next.After(now); updater.WantUpdate() != want {
+		t.Errorf("WantUpdate returned %v; want %v for next=%s", updater.WantUpdate(), want, next)
 	}
 }
 
