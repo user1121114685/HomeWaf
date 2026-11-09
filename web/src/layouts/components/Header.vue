@@ -96,6 +96,7 @@ docker compose up -d</pre>
       <menu-content v-show="layout !== 'side'" class="header-menu" :navData="menu" />
       <template #operations>
         <div class="operations-container">
+          <router-link to="/dashboard/screen" target="_blank" rel="noopener noreferrer" class="screen-entry">{{ $t('menu.dashboard.screen_title') }}</router-link>
           <!-- 系统监控 -->
           <system-monitor @open-wechat="navToHelper" />
           <!-- 搜索框 -->
@@ -598,6 +599,15 @@ import {defineComponent} from 'vue';
   });
 </script>
 <style lang="less">
+.screen-entry {
+  color: var(--td-brand-color);
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: 12px;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 5px;
+  padding: 6px 10px;
+}
   @import '@/style/variables.less';
 
   .header-menu {

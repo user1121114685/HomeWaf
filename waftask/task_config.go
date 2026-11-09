@@ -906,11 +906,11 @@ func TaskLoadSetting(initLoad bool) {
 		global.GCONFIG_IP_V6_SOURCE, "IPv6数据库来源",
 		"options", "ip2region|ip2region,geolite2|GeoLite2", configMap)
 	updateConfigStringItem(initLoad, "ip_database", "ip_v4_format",
-		global.GCONFIG_IP_V4_FORMAT, "IPv4 xdb字段格式",
-		"options", "legacy|老版本,opensource|开源版,full|满载版,standard|标准版,compact|精简版", configMap)
+		"opensource", "IPv4 xdb字段格式（默认开源版）",
+		"options", "opensource|开源版,legacy|老版本,full|满载版,standard|标准版,compact|精简版", configMap)
 	updateConfigStringItem(initLoad, "ip_database", "ip_v6_format",
-		global.GCONFIG_IP_V6_FORMAT, "IPv6 xdb字段格式(仅ip2region时有效)",
-		"options", "legacy|老版本,opensource|开源版,full|满载版,standard|标准版,compact|精简版", configMap)
+		"opensource", "IPv6 xdb字段格式(仅ip2region时有效，默认开源版)",
+		"options", "opensource|开源版,legacy|老版本,full|满载版,standard|标准版,compact|精简版", configMap)
 
 	// 日志文件写入相关配置
 	updateConfigIntItem(initLoad, "logfile", "log_file_write_enable", global.GCONFIG_LOG_FILE_WRITE_ENABLE, "日志文件写入开关（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)

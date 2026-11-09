@@ -12,7 +12,7 @@ const whiteListRouters = store.getters['permission/whiteListRouters'];
 
 router.beforeEach(async (to, from, next) => {
   NProgress.start();
-  if (to.path === '/help') { next(); return; }
+  if (to.path === '/help' || to.name === 'DashboardShared') { next(); return; }
 
   const token = store.getters['user/token'];
 

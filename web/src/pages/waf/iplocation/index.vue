@@ -186,6 +186,7 @@
         <div class="pathbar-hint">{{ $t('page.iplocation.path_hint') }}</div>
       </div>
 
+      <div v-if="upgradeInfo.source_label" style="margin-bottom: 12px; color: var(--td-text-color-secondary);">{{ $t('page.iplocation.update_source') }}：{{ upgradeInfo.source_label }}</div>
       <hw-alert v-if="upgradeError" theme="warning" :message="upgradeError" style="margin-bottom: 12px;"></hw-alert>
 
       <!-- 下载进度：35MB 的包不给进度只给个转圈，用户根本不知道要等多久 -->
@@ -424,17 +425,17 @@ export default defineComponent({
       },
       configForm: {
         ipv4_source: 'ip2region',
-        ipv4_format: 'legacy',
+        ipv4_format: 'opensource',
         // GeoLite2 去内嵌后 IPv6 默认改用 ip2region，与后端默认值保持一致
         ipv6_source: 'ip2region',
-        ipv6_format: 'legacy',
+        ipv6_format: 'opensource',
       },
       // 最近一次保存成功的配置，脏检查以它为基准
       savedConfig: {
         ipv4_source: 'ip2region',
-        ipv4_format: 'legacy',
+        ipv4_format: 'opensource',
         ipv6_source: 'ip2region',
-        ipv6_format: 'legacy',
+        ipv6_format: 'opensource',
       },
       protoList: [
         {
@@ -640,11 +641,9 @@ export default defineComponent({
       if (!fields || fields === '-') return 0;
       return String(fields).split('|').length;
     },
-    // 只有内置的老版本格式是中文，社区版全是英文——地区规则写中文国名的会踩这个坑
+    // 格式决定字段顺序，语言由数据文件决定。官方开源库中英文地区名并存。
     formatLangText(code) {
-      return code === 'legacy'
-        ? this.$t('page.iplocation.format_hint_lang_zh')
-        : this.$t('page.iplocation.format_hint_lang_en');
+      return this.$t('page.iplocation.format_hint_lang_data');
     },
     // ---- 正在运行的键值对 ----
     runRows(proto) {
@@ -816,11 +815,11 @@ export default defineComponent({
       this.downloadChecking = true;
       this.upgradeError = '';
       try {
-        const res = await checkIPDBUpgradeApi(manual ? undefined : { background: true });
+        const res = await checkIPDBUpgradeApi({ background: !manual, timeout: 20000 });
         if (res.code === 0 && res.data) {
           this.upgradeInfo = res.data.info || { files: [] };
           if (res.data.error) {
-            this.upgradeError = this.$t('page.iplocation.download_check_failed');
+            this.upgradeError = this.$t('page.iplocation.download_check_error', { reason: res.data.error });
           }
         } else {
           this.upgradeError = res.msg || this.$t('page.iplocation.download_check_failed');

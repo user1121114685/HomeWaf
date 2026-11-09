@@ -152,6 +152,8 @@ func (web *WafWebManager) initRouter(r *gin.Engine) {
 	router.PublicApiGroupApp.InitLoginRouter(PublicRouterGroup)
 	router.PublicApiGroupApp.InitSecKeyRouter(PublicRouterGroup)
 	router.ApiGroupApp.InitAdminTitlesPublicRouter(PublicRouterGroup)
+	dashboardScreenApi := &api.WafDashboardScreenApi{}
+	PublicRouterGroup.GET("/api/v1/public/dashboard-share", dashboardScreenApi.PublicShare)
 
 	RouterGroup := r.Group("")
 	RouterGroup.Use(logExportTransportLimit(), middleware.Auth(), middleware.ReplayProtect(), middleware.OpenApiLogMiddleware(), middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.SecApi(), middleware.GinGlobalExceptionMiddleWare())
@@ -162,6 +164,12 @@ func (web *WafWebManager) initRouter(r *gin.Engine) {
 		router.ApiGroupApp.InitLogRouter(RouterGroup)
 		router.ApiGroupApp.InitEngineRouter(RouterGroup)
 		router.ApiGroupApp.InitStatRouter(RouterGroup)
+		RouterGroup.GET("/api/v1/dashboard/snapshot", dashboardScreenApi.Snapshot)
+		dashboardManage := RouterGroup.Group("/api/v1/dashboard", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN))
+		dashboardManage.GET("/shares", dashboardScreenApi.Shares)
+		dashboardManage.POST("/shares", dashboardScreenApi.CreateShare)
+		dashboardManage.POST("/shares/revoke", dashboardScreenApi.RevokeShare)
+		dashboardManage.POST("/target", dashboardScreenApi.SaveTarget)
 		router.ApiGroupApp.InitLoginOutRouter(RouterGroup)
 		router.ApiGroupApp.InitWebSocketRouter(RouterGroup)
 		router.ApiGroupApp.InitSysInfoRouter(RouterGroup)
