@@ -34,7 +34,8 @@ const (
 )
 
 var (
-	ErrHashMismatch = errors.New("new file hash mismatch after patch")
+	ErrHashMismatch       = errors.New("new file hash mismatch after patch")
+	ErrNoPublishedRelease = errors.New("HomeWaf 更新源尚未发布可用版本")
 
 	defaultHTTPRequester = HTTPRequester{}
 )
@@ -211,7 +212,7 @@ func (u *Updater) UpdateAvailableWithChannel(channel string) (bool, string, stri
 			return false, "", "", err
 		}
 		// 比较版本号
-		cmp := semver.Compare(u.Info.Version, u.CurrentVersion)
+		cmp := semver.Compare(normalizedVersion(u.Info.Version), normalizedVersion(u.CurrentVersion))
 		// 如果更新的版本大于当前版本，返回 true，表示有可用的更新
 		if cmp > 0 {
 			return true, u.Info.Version, u.Info.Desc, nil
@@ -225,7 +226,7 @@ func (u *Updater) UpdateAvailableWithChannel(channel string) (bool, string, stri
 			return false, "", "", err
 		}
 		// 比较版本号
-		cmp := semver.Compare(u.Info.Version, u.CurrentVersion)
+		cmp := semver.Compare(normalizedVersion(u.Info.Version), normalizedVersion(u.CurrentVersion))
 		// 如果更新的版本大于当前版本，返回 true，表示有可用的更新
 		if cmp > 0 {
 			return true, u.Info.Version, u.Info.Desc, nil
@@ -246,6 +247,9 @@ func (u *Updater) UpdateAvailable() (bool, string, string, error) {
 
 // Update initiates the self update process
 func (u *Updater) Update() error {
+	if u.ApiURL == "" {
+		return u.updateRelease(false)
+	}
 	path, err := os.Executable()
 	if err != nil {
 		return err
@@ -263,7 +267,7 @@ func (u *Updater) Update() error {
 	}
 
 	// 检测是新版本才更新，否则不更新
-	cmp := semver.Compare(u.Info.Version, u.CurrentVersion)
+	cmp := semver.Compare(normalizedVersion(u.Info.Version), normalizedVersion(u.CurrentVersion))
 	if cmp <= 0 {
 		return nil
 	}
@@ -309,158 +313,124 @@ func (u *Updater) Update() error {
 
 // UpdateWithChannel 通过渠道来检测
 func (u *Updater) UpdateWithChannel(channel string) error {
-	path, err := os.Executable()
+	if channel == "github" {
+		return u.updateRelease(true)
+	}
+	if channel == "" || channel == "official" {
+		return u.Update()
+	}
+	return fmt.Errorf("unsupported update channel: %s", channel)
+}
+
+func (u *Updater) updateRelease(beta bool) error {
+	u.Tracker.StageStart(StageManifest)
+	var err error
+	if beta {
+		err = u.fetchInfoGithub()
+	} else {
+		err = u.fetchReleaseInfo(global.GUPDATE_RELEASE_URL, false)
+	}
+	if err != nil {
+		return err
+	}
+	if semver.Compare(u.Info.Version, normalizedVersion(u.CurrentVersion)) <= 0 {
+		return nil
+	}
+	u.Tracker.StageDone(StageManifest, u.Info.Version)
+	// 从 GitHub 下载资源
+	u.Tracker.StageStart(StageDownload)
+	r, dlSize, err := u.fetchSized(u.BinGithubURL)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	body := newProgressReader(r, u.Tracker, dlSize)
+
+	// 创建临时目录用于解压文件
+	tempDir, err := ioutil.TempDir("", "homewaf_update"+u.Info.Version)
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDir)
+
+	// 保存下载的文件到临时文件
+	tempFile := filepath.Join(tempDir, "download")
+	out, err := os.Create(tempFile)
 	if err != nil {
 		return err
 	}
 
-	if resolvedPath, err := filepath.EvalSymlinks(path); err == nil {
-		path = resolvedPath
+	archiveHash := sha256.New()
+	_, err = io.Copy(io.MultiWriter(out, archiveHash), body)
+	closeErr := out.Close()
+	if err == nil {
+		err = closeErr
 	}
+	if err != nil {
+		return err
+	}
+	u.Tracker.StageDone(StageDownload, "")
+	u.Tracker.StageStart(StageVerify)
+	if hex.EncodeToString(archiveHash.Sum(nil)) != u.ArchiveSHA256 {
+		return ErrHashMismatch
+	}
+	u.Tracker.StageDone(StageVerify, "SHA256 校验通过")
+	// HomeWaf verifies the publisher digest before extracting this archive.
+	u.Tracker.StageStart(StageExtract)
 
-	if channel == "" || channel == "official" {
-		// go fetch latest updates manifest
-		u.Tracker.StageStart(StageManifest)
-		err = u.fetchInfo()
+	// 根据文件类型和平台解压并获取正确的可执行文件
+	var binPath string
+
+	if strings.HasSuffix(u.BinGithubURL, ".exe") {
+		//使用win7内核
+		binPath = tempFile
+	} else if strings.HasSuffix(u.BinGithubURL, ".zip") {
+		// 情况 1: 从 ZIP 中提取 HomeWaf64.exe
+		err = utils.Unzip(tempFile, tempDir)
+		if err != nil {
+			return err
+		}
+		binPath = filepath.Join(tempDir, "HomeWaf64.exe")
+	} else if strings.HasSuffix(u.BinGithubURL, ".tar.gz") {
+		// 处理 Linux 平台的 tar.gz 文件
+		err = utils.ExtractTarGz(tempFile, tempDir)
 		if err != nil {
 			return err
 		}
 
-		// 检测是新版本才更新，否则不更新
-		cmp := semver.Compare(u.Info.Version, u.CurrentVersion)
-		if cmp <= 0 {
-			return nil
-		}
-		u.Tracker.StageDone(StageManifest, u.Info.Version)
-
-		old, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer old.Close()
-
-		// if patch failed grab the full new bin
-		bin, err := u.fetchAndVerifyFullBin()
-		if err != nil {
-			if err == ErrHashMismatch {
-				log.Println("update: hash mismatch from full binary")
-			} else {
-				log.Println("update: fetching full binary,", err)
-			}
-			return err
-		}
-
-		// close the old binary before installing because on windows
-		// it can't be renamed if a handle to the file is still open
-		old.Close()
-
-		u.Tracker.StageStart(StageExtract)
-		err, errRecover := fromStreamWithTracker(bytes.NewBuffer(bin), u.Tracker)
-		if errRecover != nil {
-			return fmt.Errorf("update and recovery errors: %q %q", err, errRecover)
-		}
-		if err != nil {
-			return err
-		}
-
-		// update was successful, run func if set
-		if u.OnSuccessfulUpdate != nil {
-			u.OnSuccessfulUpdate()
-		}
-	} else if channel == "github" {
-		u.Tracker.StageStart(StageManifest)
-		err = u.fetchInfoGithub()
-		if err != nil {
-			return err
-		}
-		u.Tracker.StageDone(StageManifest, u.Info.Version)
-		// 从 GitHub 下载资源
-		u.Tracker.StageStart(StageDownload)
-		r, dlSize, err := u.fetchSized(u.BinGithubURL)
-		if err != nil {
-			return err
-		}
-		defer r.Close()
-		body := newProgressReader(r, u.Tracker, dlSize)
-
-		// 创建临时目录用于解压文件
-		tempDir, err := ioutil.TempDir("", "homewaf_beta_update"+u.Info.Version)
-		if err != nil {
-			return err
-		}
-		defer os.RemoveAll(tempDir)
-
-		// 保存下载的文件到临时文件
-		tempFile := filepath.Join(tempDir, "download")
-		out, err := os.Create(tempFile)
-		if err != nil {
-			return err
-		}
-
-		archiveHash := sha256.New()
-		_, err = io.Copy(io.MultiWriter(out, archiveHash), body)
-		out.Close()
-		if err != nil {
-			return err
-		}
-		if hex.EncodeToString(archiveHash.Sum(nil)) != u.ArchiveSHA256 {
-			return ErrHashMismatch
-		}
-		u.Tracker.StageDone(StageDownload, "")
-		// HomeWaf verifies the publisher digest before extracting this archive.
-		u.Tracker.StageStart(StageExtract)
-
-		// 根据文件类型和平台解压并获取正确的可执行文件
-		var binPath string
-
-		if strings.HasSuffix(u.BinGithubURL, ".exe") {
-			//使用win7内核
-			binPath = tempFile
-		} else if strings.HasSuffix(u.BinGithubURL, ".zip") {
-			// 情况 1: 从 ZIP 中提取 HomeWaf64.exe
-			err = utils.Unzip(tempFile, tempDir)
-			if err != nil {
-				return err
-			}
-			binPath = filepath.Join(tempDir, "HomeWaf64.exe")
-		} else if strings.HasSuffix(u.BinGithubURL, ".tar.gz") {
-			// 处理 Linux 平台的 tar.gz 文件
-			err = utils.ExtractTarGz(tempFile, tempDir)
-			if err != nil {
-				return err
-			}
-
-			if strings.Contains(u.BinGithubURL, "Linux_x86_64") {
-				// 情况 2: 从 tar.gz 中提取 HomeWafLinux64
-				binPath = filepath.Join(tempDir, "HomeWafLinux64")
-			} else if strings.Contains(u.BinGithubURL, "Linux_arm64") {
-				// 情况 3: 从 tar.gz 中提取 HomeWafLinuxArm64
-				binPath = filepath.Join(tempDir, "HomeWafLinuxArm64")
-			}
-		}
-
-		// 检查是否找到了可执行文件
-		if binPath == "" {
-			return errors.New("无法找到适合当前平台的可执行文件")
-		}
-		fileBytes, err := ioutil.ReadFile(binPath)
-		if err != nil {
-			return err
-		}
-		err, errRecover := fromStreamWithTracker(bytes.NewBuffer(fileBytes), u.Tracker)
-		if errRecover != nil {
-			return fmt.Errorf("update and recovery errors: %q %q", err, errRecover)
-		}
-		if err != nil {
-			return err
-		}
-
-		// update was successful, run func if set
-		if u.OnSuccessfulUpdate != nil {
-			u.OnSuccessfulUpdate()
+		if strings.Contains(u.BinGithubURL, "Linux_x86_64") {
+			// 情况 2: 从 tar.gz 中提取 HomeWafLinux64
+			binPath = filepath.Join(tempDir, "HomeWafLinux64")
+		} else if strings.Contains(u.BinGithubURL, "Darwin_x86_64") {
+			binPath = filepath.Join(tempDir, "HomeWafDarwin64")
+		} else if strings.Contains(u.BinGithubURL, "Darwin_arm64") {
+			binPath = filepath.Join(tempDir, "HomeWafDarwinArm64")
+		} else if strings.Contains(u.BinGithubURL, "Linux_arm64") {
+			// 情况 3: 从 tar.gz 中提取 HomeWafLinuxArm64
+			binPath = filepath.Join(tempDir, "HomeWafLinuxArm64")
 		}
 	}
 
+	// 检查是否找到了可执行文件
+	if binPath == "" {
+		return errors.New("无法找到适合当前平台的可执行文件")
+	}
+	fileBytes, err := ioutil.ReadFile(binPath)
+	if err != nil {
+		return err
+	}
+	err, errRecover := fromStreamWithTracker(bytes.NewBuffer(fileBytes), u.Tracker)
+	if errRecover != nil {
+		return fmt.Errorf("update and recovery errors: %q %q", err, errRecover)
+	}
+	if err != nil {
+		return err
+	}
+
+	// update was successful, run func if set
+	if u.OnSuccessfulUpdate != nil {
+		u.OnSuccessfulUpdate()
+	}
 	return nil
 }
 
@@ -529,7 +499,7 @@ func fromStreamWithTracker(updateWith io.Reader, tracker *ProgressTracker) (err 
 // and updates u.Info.
 func (u *Updater) fetchInfo() error {
 	if u.ApiURL == "" {
-		return errors.New("HomeWaf update source is not configured")
+		return u.fetchReleaseInfo(global.GUPDATE_RELEASE_URL, false)
 	}
 	r, err := u.fetch(u.ApiURL + url.QueryEscape(u.CmdName) + "/" + url.QueryEscape(plat) + ".json?" + ClientQuery())
 	if err != nil {
@@ -543,95 +513,6 @@ func (u *Updater) fetchInfo() error {
 	if len(u.Info.Sha256) != sha256.Size {
 		return errors.New("bad cmd hash in info")
 	}
-	return nil
-}
-
-// fetchInfoGithub 从GitHub获取最新beta版本信息
-func (u *Updater) fetchInfoGithub() error {
-	if global.GUPDATE_GITHUB_VERSION_URL == "" {
-		return errors.New("HomeWaf beta source is not configured")
-	}
-	r, err := u.fetch(global.GUPDATE_GITHUB_VERSION_URL + "?" + ClientQuery())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	// 解析GitHub API返回的JSON数据
-	var githubRelease struct {
-		TagName string `json:"tag_name"`
-		Name    string `json:"name"`
-		Body    string `json:"body"`
-		Assets  []struct {
-			Name               string `json:"name"`
-			BrowserDownloadURL string `json:"browser_download_url"`
-			Size               int64  `json:"size"`
-			ContentType        string `json:"content_type"`
-			Digest             string `json:"digest"`
-		} `json:"assets"`
-	}
-
-	err = json.NewDecoder(r).Decode(&githubRelease)
-	if err != nil {
-		return err
-	}
-	//判断tagname 是否包含beta
-	if !strings.Contains(githubRelease.TagName, "beta") {
-		//return errors.New("not beta version")
-	}
-
-	// 过滤掉debug版本，防止用户意外升级到debug版本
-	if strings.Contains(githubRelease.TagName, "debug") || strings.Contains(strings.ToLower(githubRelease.Name), "debug") {
-		return errors.New("debug version detected, skipping update to prevent accidental upgrade")
-	}
-
-	// 查找适合当前平台的资源
-	var downloadURL string
-
-	// 根据平台选择合适的下载文件
-	platformSuffix := ""
-	utils.IsSupportedWindows7Version()
-	switch plat {
-	case "windows-amd64":
-		platformSuffix = "Windows_x86_64"
-	case "linux-amd64":
-		platformSuffix = "Linux_x86_64"
-	case "linux-arm64":
-		platformSuffix = "Linux_arm64"
-	case "darwin-amd64":
-		platformSuffix = "Darwin_x86_64"
-	case "darwin-arm64":
-		platformSuffix = "Darwin_arm64"
-	}
-
-	// 查找匹配当前平台的资源，同时过滤掉debug版本
-	for _, asset := range githubRelease.Assets {
-		// 跳过包含DEBUG_SYMBOLS的文件
-		if strings.Contains(asset.Name, "DEBUG_SYMBOLS") || strings.Contains(strings.ToUpper(asset.Name), "DEBUG") {
-			continue
-		}
-		if strings.Contains(asset.Name, platformSuffix) {
-			downloadURL = asset.BrowserDownloadURL
-			u.ArchiveSHA256 = strings.TrimPrefix(asset.Digest, "sha256:")
-			break
-		}
-	}
-
-	// 如果没有找到适合的资源，返回错误
-	if downloadURL == "" {
-		return errors.New("no suitable release asset found for this platform")
-	}
-	parsedURL, parseErr := url.Parse(downloadURL)
-	if parseErr != nil || parsedURL.Scheme != "https" || parsedURL.Hostname() == "" || parsedURL.User != nil {
-		return errors.New("invalid HTTPS release asset URL")
-	}
-	digest, digestErr := hex.DecodeString(u.ArchiveSHA256)
-	if digestErr != nil || len(digest) != sha256.Size {
-		return errors.New("release asset is missing a valid SHA256 digest")
-	}
-	u.BinGithubURL = downloadURL
-	u.Info.Version = githubRelease.TagName
-	u.Info.Desc = githubRelease.Body
 	return nil
 }
 

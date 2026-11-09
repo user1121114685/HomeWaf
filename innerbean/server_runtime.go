@@ -1,6 +1,7 @@
 package innerbean
 
 import (
+	"HomeWaf/wafnet"
 	"net"
 	"net/http"
 	"sync"
@@ -58,4 +59,6 @@ type ServerRunTime struct {
 	// StateNew +1 ；StateClosed / StateHijacked -1 。用于升级排空时观测"还剩多少连接"。
 	// 为指针以便随 ServerRunTime 值在 SafeServerMap 间复制时仍共享同一计数。
 	Conns *int64
+	// Includes hijacked WebSocket connections until their underlying socket closes.
+	Connections *wafnet.ConnTracker
 }

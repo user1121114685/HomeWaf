@@ -63,6 +63,12 @@ func (w *workerState) send(m wafipc.Message) {
 	}
 }
 
+func (w *workerState) connected() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.conn != nil
+}
+
 // Supervisor 监护器。
 type Supervisor struct {
 	opts     Options
@@ -252,7 +258,7 @@ func (s *Supervisor) handleConn(c *wafipc.Conn) {
 		zlog.Info("[Supervisor] 收到手动滚动重启(TRIGGER_UPGRADE)请求 from " + c.RemoteAddr().String())
 		_ = c.Send(wafipc.Message{Type: wafipc.MsgAck})
 		_ = c.Close()
-		go s.doUpgrade()
+		go s.doUpgrade(false)
 		return
 	}
 	if first.Type != wafipc.MsgHello {
@@ -275,7 +281,9 @@ func (s *Supervisor) handleConn(c *wafipc.Conn) {
 		w = &workerState{pid: pid, state: "starting"}
 		s.workers[pid] = w
 	}
+	w.mu.Lock()
 	w.conn = c
+	w.mu.Unlock()
 	w.version = first.Version
 	w.beats = time.Now()
 	s.mu.Unlock()
@@ -286,11 +294,11 @@ func (s *Supervisor) handleConn(c *wafipc.Conn) {
 	for {
 		m, err := c.Recv()
 		if err != nil {
-			s.mu.Lock()
+			w.mu.Lock()
 			if w.conn == c {
 				w.conn = nil
 			}
-			s.mu.Unlock()
+			w.mu.Unlock()
 			return
 		}
 		s.onWorkerMsg(w, m)
@@ -305,6 +313,12 @@ func (s *Supervisor) onWorkerMsg(w *workerState, m wafipc.Message) {
 		s.mu.Unlock()
 		zlog.Info("[Supervisor] Worker pid=" + strconv.Itoa(w.pid) + " 上报 READY")
 		s.signalReady(w.pid)
+	case wafipc.MsgReadyFailed:
+		s.mu.Lock()
+		w.state = "failed"
+		s.mu.Unlock()
+		zlog.Error("[Supervisor] Worker 就绪失败 pid=" + strconv.Itoa(w.pid) + ": " + m.Err)
+		s.signalReady(w.pid)
 	case wafipc.MsgHeartbeat:
 		s.mu.Lock()
 		w.beats = time.Now()
@@ -315,7 +329,7 @@ func (s *Supervisor) onWorkerMsg(w *workerState, m wafipc.Message) {
 	case wafipc.MsgGone:
 		zlog.Info("[Supervisor] Worker pid=" + strconv.Itoa(w.pid) + " 已完成排空，即将退出")
 	case wafipc.MsgRequestUpgrade:
-		go s.doUpgrade()
+		go s.doUpgrade(true)
 	}
 }
 
@@ -331,12 +345,14 @@ func (s *Supervisor) spawn(takeover bool) (int, error) {
 	// Stdin 必须显式兜底：nil 时 os/exec 会去打开系统空设备(Windows 上是 NUL)，
 	// 精简版系统缺失该设备会导致 Start() 直接失败，连首个 Worker 都拉不起来。
 	wafexec.FixStdin(cmd)
+	// Registration must precede HELLO processing, even for a very fast child.
+	s.mu.Lock()
 	if err := cmd.Start(); err != nil {
+		s.mu.Unlock()
 		return 0, err
 	}
 	pid := cmd.Process.Pid
 	w := &workerState{pid: pid, proc: cmd.Process, state: "starting", takeover: takeover, beats: time.Now()}
-	s.mu.Lock()
 	s.workers[pid] = w
 	if !takeover && s.activePID == 0 {
 		s.activePID = pid // 首个 worker 乐观置为 active
@@ -366,6 +382,7 @@ func (s *Supervisor) monitor(w *workerState) {
 	delete(s.workers, w.pid)
 	down := s.shuttingDown
 	s.mu.Unlock()
+	s.signalReady(w.pid) // Wake startup waiters immediately if the candidate exits.
 	s.writeState()
 
 	zlog.Info("[Supervisor] Worker pid=" + strconv.Itoa(w.pid) + " 退出(" + exitInfo + ") code=" + strconv.Itoa(exitCode) + " planned=" + strconv.FormatBool(planned))
@@ -495,9 +512,9 @@ func (s *Supervisor) handleCrashRespawn() {
 }
 
 // doUpgrade 编排滚动升级：起新 takeover Worker → 等其 READY → 令老 Worker 排空退出。
-func (s *Supervisor) doUpgrade() {
+func (s *Supervisor) doUpgrade(replaceBinary bool) {
 	s.mu.Lock()
-	if s.upgrading {
+	if s.upgrading || s.shuttingDown {
 		s.mu.Unlock()
 		zlog.Warn("[Supervisor] 已有升级在进行中，忽略本次请求")
 		return
@@ -517,21 +534,30 @@ func (s *Supervisor) doUpgrade() {
 	newPID, err := s.spawn(true)
 	if err != nil {
 		zlog.Error("[Supervisor] 升级：拉起新 Worker 失败: " + err.Error())
+		s.upgradeFailed(oldPID, replaceBinary, err)
 		return
 	}
 
 	if !s.waitReady(newPID, time.Duration(s.opts.ReadyTimeout)*time.Second) {
 		zlog.Error("[Supervisor] 升级：新 Worker pid=" + strconv.Itoa(newPID) + " 未在超时内就绪，回滚（保留旧 Worker）")
 		s.killWorker(newPID)
-		s.rollbackBinary()
+		s.upgradeFailed(oldPID, replaceBinary, fmt.Errorf("新 Worker %d 未能就绪，旧 Worker 继续服务", newPID))
 		return
 	}
 
 	// 新 Worker 就绪 → 切为 active，令旧 Worker 排空退出
 	s.mu.Lock()
+	if s.shuttingDown || s.workers[newPID] == nil || s.workers[newPID].state != "active-candidate" {
+		s.mu.Unlock()
+		s.killWorker(newPID)
+		s.upgradeFailed(oldPID, replaceBinary, fmt.Errorf("新 Worker 在接管前退出或服务正在停止"))
+		return
+	}
 	s.activePID = newPID
 	// 记录本次升级切换时刻：从此进入"升级观察期"，期内新版本若连续崩溃才判坏版本并回滚二进制。
-	s.lastUpgradeAt = time.Now()
+	if replaceBinary {
+		s.lastUpgradeAt = time.Now()
+	}
 	if nw := s.workers[newPID]; nw != nil {
 		nw.state = "active"
 	}
@@ -561,7 +587,19 @@ func (s *Supervisor) doUpgrade() {
 
 	// 业务已在新版本上跑起来了，最后让 Supervisor 自己也换到新二进制。
 	// 放在最后、且只在升级确认成功后做：失败也只是"Supervisor 继续跑旧版本"，业务不受影响。
-	s.selfHandoff(newPID)
+	if replaceBinary {
+		s.selfHandoff(newPID)
+	}
+}
+
+func (s *Supervisor) upgradeFailed(oldPID int, replaceBinary bool, err error) {
+	// A same-binary rolling restart must never restore an unrelated old backup.
+	if replaceBinary {
+		s.rollbackBinary()
+	}
+	if old := s.getWorker(oldPID); old != nil {
+		old.send(wafipc.Message{Type: wafipc.MsgUpgradeFailed, Err: err.Error()})
+	}
 }
 
 // selfHandoff 让 Supervisor 自身也换到新二进制（设计文档 §4.6 Supervisor 自我升级）。
@@ -722,7 +760,7 @@ func (s *Supervisor) adoptOrphans(prev *stateFile) bool {
 	var confirmed []int
 	for _, pid := range candidates {
 		w := s.getWorker(pid)
-		if w != nil && w.conn != nil {
+		if w != nil && w.connected() {
 			confirmed = append(confirmed, pid)
 			s.mu.Lock()
 			w.state = "draining"
@@ -763,7 +801,7 @@ func (s *Supervisor) singleSameVersionOrphan(candidates []int) (int, bool) {
 		return 0, false
 	}
 	w := s.workers[candidates[0]]
-	if w == nil || w.conn == nil {
+	if w == nil || !w.connected() {
 		return 0, false
 	}
 	if w.version == "" || w.version != global.GWAF_RELEASE_VERSION {
@@ -778,7 +816,7 @@ func (s *Supervisor) allConnected(pids []int) bool {
 	defer s.mu.Unlock()
 	for _, pid := range pids {
 		w := s.workers[pid]
-		if w == nil || w.conn == nil {
+		if w == nil || !w.connected() {
 			return false
 		}
 	}
@@ -855,7 +893,10 @@ func (s *Supervisor) waitReady(pid int, timeout time.Duration) bool {
 
 	select {
 	case <-ch:
-		return true
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		w := s.workers[pid]
+		return !s.shuttingDown && w != nil && (w.state == "active-candidate" || w.state == "active")
 	case <-time.After(timeout):
 		return false
 	}

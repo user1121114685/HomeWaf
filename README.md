@@ -6,7 +6,7 @@
 
 HomeWaf 是基于 SamWaf 的独立修改发行版，重点服务于家庭和个人自建服务场景，以简单、易用为目标。
 
-[构建与运行](#构建与运行) · [使用许可](#使用许可) · [迁移与发布](docs/modernization/MIGRATION.md) · [第三方声明](THIRD_PARTY_NOTICES.md)
+[构建与运行](#构建与运行) · [平滑重启](#手动平滑重启) · [使用许可](#使用许可) · [迁移与发布](docs/modernization/MIGRATION.md) · [第三方声明](THIRD_PARTY_NOTICES.md)
 
 ## 为什么面向家庭用户
 
@@ -67,6 +67,30 @@ npm run dev --prefix web
 
 后端地址通过 `web/.env` 中的 `HOMEWAF_BACKEND` 指定。更多构建选项、验证方式和签名工具用法见[构建、迁移与发布说明](docs/modernization/MIGRATION.md)。
 
+### 手动平滑重启
+
+HomeWaf 已在运行时，可在**当前实例的安装目录**执行以下命令，平滑重启当前版本，不下载新程序。
+
+Windows（PowerShell）：
+
+```powershell
+.\HomeWaf64.exe rolling-restart
+```
+
+Linux x86_64：
+
+```sh
+./HomeWafLinux64 rolling-restart
+```
+
+Linux arm64 使用 `./HomeWafLinuxArm64 rolling-restart`。如果可执行文件已改名，请使用实际文件名。
+
+命令连接正在运行的 Supervisor，先启动新 Worker，确认就绪后再让旧 Worker 排空并退出；新 Worker 就绪失败时，旧 Worker 继续服务。命令返回表示请求已提交，是否交接完成请查看 Supervisor 日志。
+
+旧业务连接的排空期限由 `conf/config.yml` 中的 `drain_time_out` 控制，默认 30 秒；超过期限的长连接会被关闭。在线升级自动使用同一交接流程。普通 `restart` 是服务的停止／启动操作，管理端“重启 WAF 引擎”用于重载引擎配置。
+
+协议支持范围、独占资源接管及数据库迁移限制见[平滑升级与滚动重启说明](docs/modernization/MIGRATION.md#平滑升级与滚动重启)。
+
 ### 使用 Docker Compose
 
 ```sh
@@ -76,7 +100,7 @@ docker compose up -d
 
 默认管理端仅映射到宿主机 `127.0.0.1:26666`，请通过安全隧道访问，或自行配置访问控制。
 
-持久化数据位于 `conf/`、`data/`、`ssl/` 和 `logs/`。升级前请备份；不要让新旧服务同时占用相同端口或写入同一数据库。
+持久化数据位于 `conf/`、`data/`、`ssl/` 和 `logs/`。升级前请备份；不要自行同时启动两个独立实例共用端口或数据目录。内置平滑升级的新旧 Worker 重叠期由 Supervisor 统一管理。
 
 ## 使用许可
 
@@ -94,7 +118,7 @@ HomeWaf 自有新增代码及修改使用根目录 [LICENSE](LICENSE) 中的源�
 
 管理后台「系统设置 → HomeWaf 授权」支持查看实例 ID、验证签名文件和确认导入授权。发行方应离线保管 Ed25519 私钥，仅将可信公钥写入构建；默认空信任库不接受商业授权或插件签名。
 
-默认禁用原项目的更新、公告、公网 IP 查询和机器人数据镜像。发行方可显式配置自己的 HTTPS 服务；主动启用证书申请、DNS、通知或 AI 服务时，会向对应服务商发送实现功能所需的数据。
+软件更新默认检查 `user1121114685/HomeWaf` 仓库的正式 GitHub Release。原项目的更新、公告、公网 IP 查询和机器人数据镜像默认禁用。发行方可显式配置自己的 HTTPS 服务；主动启用证书申请、DNS、通知或 AI 服务时，会向对应服务商发送实现功能所需的数据。
 
 详细配置见[迁移与发布说明](docs/modernization/MIGRATION.md)，部署和问题反馈见[安全说明](SECURITY.md)。
 

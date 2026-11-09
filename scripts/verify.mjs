@@ -34,7 +34,9 @@ run([
   "test",
   "./api",
   "-run",
-  "^TestSignedLicenseImportBoundToSession$",
+  "^Test(SignedLicenseImportBoundToSession|HomeWafUpdateSourceResponses)$",
   "-count=1",
 ]);
 run(["test", "./wafupdate", "./wafupgradenotice", "./wafai", "-count=1"]);
+run(["test", "./wafnet", "./supervisor", "-count=1"]);
+run(["test", "./wafenginecore", "./cmd/homewaf", "-run", "Test(ProxyReadiness|WorkerReadiness|Graceful)", "-count=1"]);

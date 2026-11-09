@@ -163,70 +163,57 @@ func (w *WafSysInfoApi) SysRuntimeInfoApi(c *gin.Context) {
 }
 
 func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
-	if global.GUPDATE_VERSION_URL == "" {
-		response.FailWithMessage("未配置 HomeWaf 更新源，请联系发行方或使用离线安装包", c)
+	if global.GWAF_RUNTIME_IS_UPDATETING {
+		response.FailWithMessage("正在升级中，请等待升级结果", c)
 		return
 	}
-	if global.GWAF_RUNTIME_IS_UPDATETING == true {
-		response.FailWithMessage("正在升级中...请在消息等待结果", c)
-		return
+	updater := &wafupdate.Updater{
+		CurrentVersion: global.GWAF_RELEASE_VERSION,
+		ApiURL:         softwareManifestURL(),
+		CmdName:        "homewaf_update",
 	}
-	var remoteURL string
-	if global.GWAF_RUNTIME_WIN7_VERSION == "true" || utils.IsSupportedWindows7Version() {
-		remoteURL = fmt.Sprintf("%s%s", global.GUPDATE_VERSION_URL, "win7/")
-	} else {
-		remoteURL = fmt.Sprintf("%s%s", global.GUPDATE_VERSION_URL, "")
+	available, newVer, desc, err := updater.UpdateAvailable()
+	message := "当前已是最新版本"
+	if errors.Is(err, wafupdate.ErrNoPublishedRelease) {
+		message = "HomeWaf 更新源尚未发布正式版本，发布后即可检查更新"
+		err = nil
 	}
-	var updater = &wafupdate.Updater{
-		CurrentVersion: global.GWAF_RELEASE_VERSION, // Manually update the const, or set it using `go build -ldflags="-X main.VERSION=<newver>" -o hello-updater src/hello-updater/main.go`
-		ApiURL:         remoteURL,                   // The server hosting `$CmdName/$GOOS-$ARCH.json` which contains the checksum for the binary
-		BinURL:         remoteURL,                   // The server hosting the zip file containing the binary application which is a fallback for the patch method
-		DiffURL:        remoteURL,                   // The server hosting the binary patch diff for incremental updates
-		Dir:            "tmp_update/",               // The directory created by the app when run which stores the cktime file
-		CmdName:        "homewaf_update",            // The app name which is appended to the ApiURL to look for an update
-		//ForceCheck:     true,                     // For this example, always check for an update unless the version is "dev"
-	}
-	available, newVer, desc, _ := updater.UpdateAvailable()
-	if available {
-		global.GWAF_RUNTIME_NEW_VERSION = newVer
-		global.GWAF_RUNTIME_NEW_VERSION_DESC = desc
-		response.OkWithDetailed(model.VersionInfo{
-			Version:           global.GWAF_RELEASE_VERSION,
-			VersionName:       global.GWAF_RELEASE_VERSION_NAME,
-			VersionRelease:    global.GWAF_RELEASE,
-			NeedUpdate:        true,
-			VersionNew:        newVer,
-			VersionDesc:       desc,
-			Container:         utils.DetectContainerRuntime(),
-			SelfUpdateAllowed: isSelfUpdateAllowed(),
-		}, "有新版本", c)
-	} else {
-		// 检查是否启用beta版本检测
-		if global.GCONFIG_CHECK_BETA_VERSION == 1 {
-			available, newVer, desc, _ = updater.UpdateAvailableWithChannel("github")
-			if available {
-				global.GWAF_RUNTIME_NEW_VERSION = newVer
-				global.GWAF_RUNTIME_NEW_VERSION_DESC = desc
-				response.OkWithDetailed(model.VersionInfo{
-					Version:           global.GWAF_RELEASE_VERSION,
-					VersionName:       global.GWAF_RELEASE_VERSION_NAME,
-					VersionRelease:    global.GWAF_RELEASE,
-					NeedUpdate:        true,
-					VersionNew:        newVer,
-					VersionDesc:       desc,
-					Container:         utils.DetectContainerRuntime(),
-					SelfUpdateAllowed: isSelfUpdateAllowed(),
-				}, "有新版本(测试版)", c)
-			} else {
-				response.FailWithMessage("没有最新版本", c)
-				return
-			}
-		} else {
-			response.FailWithMessage("没有最新版本", c)
-			return
+	if !available && global.GCONFIG_CHECK_BETA_VERSION == 1 && global.GUPDATE_GITHUB_VERSION_URL != "" {
+		betaAvailable, betaVersion, betaDesc, betaErr := updater.UpdateAvailableWithChannel("github")
+		if betaAvailable {
+			available, newVer, desc, err = true, betaVersion, betaDesc, nil
+		} else if betaErr != nil && !errors.Is(betaErr, wafupdate.ErrNoPublishedRelease) {
+			err = betaErr
 		}
 	}
+	if err != nil {
+		response.FailWithMessage("检查 HomeWaf 更新失败："+err.Error(), c)
+		return
+	}
+	global.GWAF_RUNTIME_NEW_VERSION = newVer
+	global.GWAF_RUNTIME_NEW_VERSION_DESC = desc
+	if available {
+		message = "有新版本"
+	}
+	response.OkWithDetailed(model.VersionInfo{
+		Version:           global.GWAF_RELEASE_VERSION,
+		VersionName:       global.GWAF_RELEASE_VERSION_NAME,
+		VersionRelease:    global.GWAF_RELEASE,
+		NeedUpdate:        available,
+		VersionNew:        newVer,
+		VersionDesc:       desc,
+		Container:         utils.DetectContainerRuntime(),
+		SelfUpdateAllowed: isSelfUpdateAllowed(),
+	}, message, c)
+}
 
+// An empty manifest root selects GitHub Releases, not a relative win7 URL.
+func softwareManifestURL() string {
+	root := global.GUPDATE_VERSION_URL
+	if root != "" && (global.GWAF_RUNTIME_WIN7_VERSION == "true" || utils.IsSupportedWindows7Version()) {
+		root += "win7/"
+	}
+	return root
 }
 
 // SystemParamsApi 返回认证后才能获取的系统参数（可扩展）
@@ -292,22 +279,20 @@ func (w *WafSysInfoApi) RollbackApi(c *gin.Context) {
 
 // 去升级
 func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
-	if global.GUPDATE_VERSION_URL == "" {
-		response.FailWithMessage("未配置 HomeWaf 更新源，请联系发行方或使用离线安装包", c)
+	channel := c.DefaultQuery("channel", "official")
+	if channel != "official" && channel != "github" {
+		response.FailWithMessage("无效的更新渠道", c)
 		return
 	}
-	// 获取请求中的 channel 参数
-	channel := c.Query("channel")
+	if (channel == "official" && global.GUPDATE_VERSION_URL == "" && global.GUPDATE_RELEASE_URL == "") || (channel == "github" && global.GUPDATE_GITHUB_VERSION_URL == "") {
+		response.FailWithMessage("所选 HomeWaf 更新渠道已禁用，请配置对应更新源", c)
+		return
+	}
 	if global.GWAF_RUNTIME_IS_UPDATETING == true {
 		response.FailWithMessage("正在升级中...请在消息等待结果", c)
 		return
 	}
-	var remoteURL string
-	if global.GWAF_RUNTIME_WIN7_VERSION == "true" || utils.IsSupportedWindows7Version() {
-		remoteURL = fmt.Sprintf("%s%s", global.GUPDATE_VERSION_URL, "win7/")
-	} else {
-		remoteURL = fmt.Sprintf("%s%s", global.GUPDATE_VERSION_URL, "")
-	}
+	remoteURL := softwareManifestURL()
 	// 容器环境默认拦截应用内升级：
 	// 容器里的程序文件位于镜像可写层，升级只在本次容器生命周期内有效；容器一旦重建
 	// (docker compose up -d / 换镜像 / 重装宿主) 就会回退成镜像自带的旧版本，
@@ -343,9 +328,9 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 		//ForceCheck:     true,                     // For this example, always check for an update unless the version is "dev"
 		Tracker: tracker,
 		OnSuccessfulUpdate: func() {
-			global.GWAF_RUNTIME_IS_UPDATETING = false
-			// 二进制已替换完成，接下来是重启：此后 WebSocket 必断，
-			// 界面转为轮询版本号判断新版本是否已就绪。
+			// Keep the old worker locked until handoff succeeds (it exits) or the
+			// supervisor reports failure. A second update must not overwrite a candidate.
+			// 管理端 WebSocket 可能重连，界面轮询新 Worker 的版本确认交接。
 			tracker.MarkRestarting()
 			zlog.Info("OnSuccessfulUpdate 升级成功")
 			wafDelayMsgService.Add("升级结果", "升级结果", "升级成功，当前版本为："+global.GWAF_RUNTIME_NEW_VERSION+" 版本说明:"+global.GWAF_RUNTIME_NEW_VERSION_DESC)

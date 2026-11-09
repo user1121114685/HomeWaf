@@ -226,8 +226,9 @@ var (
 	GWebSocket *gwebsocket.WebSocketOnline
 
 	//升级相关
-	GUPDATE_VERSION_URL        string = "" // 官方下载
-	GUPDATE_GITHUB_VERSION_URL string = "" //从gitHub自动下载镜像
+	GUPDATE_VERSION_URL        string = "" // Optional publisher manifest root; also used by announcement/data services.
+	GUPDATE_RELEASE_URL        string = "https://api.github.com/repos/user1121114685/HomeWaf/releases/latest"
+	GUPDATE_GITHUB_VERSION_URL string = "" // Optional prerelease metadata endpoint.
 	//GUPDATE_GITHUB_VERSION_URL string = ""
 	// http://127.0.0.1:8111/beta_update/latest_release.json
 	// http://10.0.2.2:8111/beta_update_linux/latest_release.json

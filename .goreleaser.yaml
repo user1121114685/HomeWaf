@@ -14,7 +14,7 @@ builds:
     goos: [linux]
     goarch: [amd64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION={{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
   - id: homewaf_linux_arm64
     main: ./cmd/homewaf
     binary: HomeWafLinuxArm64
@@ -22,7 +22,7 @@ builds:
     goos: [linux]
     goarch: [arm64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION={{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
   - id: homewaf_windows
     main: ./cmd/homewaf
     binary: HomeWaf64
@@ -30,7 +30,7 @@ builds:
     goos: [windows]
     goarch: [amd64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION={{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
 archives:
   - formats: [tar.gz]
     format_overrides:
@@ -48,5 +48,9 @@ archives:
 checksum:
   name_template: 'HomeWaf_{{ .Version }}_checksums.txt'
 release:
-  disable: true
+  github:
+    owner: user1121114685
+    name: HomeWaf
+  draft: true
+  prerelease: auto
   header: 'HomeWaf {{ .Tag }}'

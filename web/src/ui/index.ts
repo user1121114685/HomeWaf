@@ -768,7 +768,10 @@ const components: Record<string, any> = {
     layout: 'total, sizes, prev, pager, next, jumper',
     'onUpdate:currentPage': (current: number) => a.onChange?.({ current, pageSize: a.pageSize }),
   })),
-  'hw-color-picker-panel': input('HwColorPickerPanel', E.ElColorPicker),
+  'hw-color-picker-panel': input('HwColorPickerPanel', E.ElColorPickerPanel, (_p, a) => ({
+    colorFormat: String(a.format || 'hex').toLowerCase(),
+    predefine: a.swatchColors,
+  })),
   'hw-swiper': E.ElCarousel,
   'hw-swiper-item': E.ElCarouselItem,
   'hw-sticky-tool': plain('HwStickyTool', 'aside', () => ({ class: 'hw-sticky-tool' })),

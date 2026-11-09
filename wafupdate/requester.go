@@ -60,6 +60,17 @@ type HTTPRequester struct {
 	Client *http.Client
 }
 
+// HTTPStatusError lets callers distinguish an unpublished release from network failures.
+type HTTPStatusError struct {
+	URL        string
+	StatusCode int
+	Status     string
+}
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("bad http status from %s: %s", e.URL, e.Status)
+}
+
 // Fetch will return an HTTP request to the specified url and return
 // the body of the result. An error will occur for a non 200 status code.
 func (httpRequester *HTTPRequester) Fetch(url string) (io.ReadCloser, error) {
@@ -74,7 +85,7 @@ func (httpRequester *HTTPRequester) Fetch(url string) (io.ReadCloser, error) {
 
 	if resp.StatusCode != 200 {
 		resp.Body.Close()
-		return nil, fmt.Errorf("bad http status from %s: %v", url, resp.Status)
+		return nil, &HTTPStatusError{URL: url, StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 
 	return resp.Body, nil
@@ -100,7 +111,7 @@ func (httpRequester *HTTPRequester) FetchWithSize(url string) (io.ReadCloser, in
 
 	if resp.StatusCode != 200 {
 		resp.Body.Close()
-		return nil, 0, fmt.Errorf("bad http status from %s: %v", url, resp.Status)
+		return nil, 0, &HTTPStatusError{URL: url, StatusCode: resp.StatusCode, Status: resp.Status}
 	}
 
 	size := resp.ContentLength

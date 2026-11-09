@@ -52,7 +52,9 @@ type WafEngine struct {
 	routing atomic.Pointer[routingTable]
 	writeMu sync.Mutex
 	//服务在线情况（key：端口，value :服务情况）
-	ServerOnline *wafenginmodel.SafeServerMap
+	ServerOnline      *wafenginmodel.SafeServerMap
+	listenerReadiness sync.Map          // port -> *wafnet.Readiness, local to this worker
+	StartupReady      *wafnet.Readiness // Do not bind shared ports while policy initialization is incomplete.
 
 	AllCertificate      AllCertificate //所有证书
 	EngineCurrentStatus int            // 当前waf引擎状态
@@ -1699,7 +1701,17 @@ func (waf *WafEngine) StartProxyServer(innruntime innerbean.ServerRunTime) {
 		//如果是空的就不进行了
 		return
 	}
+	ready := &wafnet.Readiness{}
+	connections := &wafnet.ConnTracker{}
+	waf.listenerReadiness.Store(innruntime.Port, ready)
 	go func(innruntime innerbean.ServerRunTime) {
+		defer ready.Fail(fmt.Errorf("端口 %d 的监听已停止", innruntime.Port))
+		if waf.StartupReady != nil {
+			if err := waf.StartupReady.Wait(context.Background()); err != nil {
+				ready.Fail(err)
+				return
+			}
+		}
 
 		if (innruntime.ServerType) == "https" {
 
@@ -1755,6 +1767,7 @@ func (waf *WafEngine) StartProxyServer(innruntime innerbean.ServerRunTime) {
 			serclone, _ := waf.ServerOnline.Get(innruntime.Port)
 			serclone.Svr = svr
 			serclone.Conns = attachConnCounter(svr)
+			serclone.Connections = connections
 			serclone.H3 = h3Holder
 			serclone.Status = 0
 			waf.ServerOnline.Set(innruntime.Port, serclone)
@@ -1769,10 +1782,11 @@ func (waf *WafEngine) StartProxyServer(innruntime innerbean.ServerRunTime) {
 				// 端口复用监听，使升级重叠期新旧 Worker 同端口并存
 				rln, rerr := wafnet.ReusePortTCPListenNetwork(utils.NetworkForIPVersion(innruntime.IPVersion), svr.Addr)
 				if rerr != nil {
+					ready.Fail(rerr)
 					waf.notifyListenFail(innruntime, rerr)
 					return
 				}
-				err := redirectServer.ServeTLSWithListener(rln, "", "")
+				err := redirectServer.ServeTLSWithListener(wafnet.WithReadiness(connections.Listener(rln), ready), "", "")
 				if err == http.ErrServerClosed {
 					zlog.Error("[HTTPServer] https redirect server has been close, cause:[%v]", err)
 				}
@@ -1781,9 +1795,11 @@ func (waf *WafEngine) StartProxyServer(innruntime innerbean.ServerRunTime) {
 
 				ln, err := wafnet.ReusePortTCPListenNetwork(utils.NetworkForIPVersion(innruntime.IPVersion), svr.Addr)
 				if err != nil {
+					ready.Fail(err)
 					waf.notifyListenFail(innruntime, err)
 					return
 				}
+				ln = wafnet.WithReadiness(connections.Listener(ln), ready)
 				if global.GCONFIG_ENABLE_PROXY_PROTOCOL == 1 {
 					ln = &proxyproto.Listener{Listener: ln}
 				}
@@ -1822,6 +1838,7 @@ func (waf *WafEngine) StartProxyServer(innruntime innerbean.ServerRunTime) {
 			serclone, _ := waf.ServerOnline.Get(innruntime.Port)
 			serclone.Svr = svr
 			serclone.Conns = attachConnCounter(svr)
+			serclone.Connections = connections
 			serclone.Status = 0
 
 			waf.ServerOnline.Set(innruntime.Port, serclone)
@@ -1829,9 +1846,11 @@ func (waf *WafEngine) StartProxyServer(innruntime innerbean.ServerRunTime) {
 			zlog.Info("启动HTTP 服务器" + strconv.Itoa(innruntime.Port))
 			ln, err := wafnet.ReusePortTCPListenNetwork(utils.NetworkForIPVersion(innruntime.IPVersion), svr.Addr)
 			if err != nil {
+				ready.Fail(err)
 				waf.notifyListenFail(innruntime, err)
 				return
 			}
+			ln = wafnet.WithReadiness(connections.Listener(ln), ready)
 			if global.GCONFIG_ENABLE_PROXY_PROTOCOL == 1 {
 				ln = &proxyproto.Listener{Listener: ln}
 
@@ -1904,7 +1923,16 @@ func (waf *WafEngine) gracefulStopServer(v innerbean.ServerRunTime, timeout time
 		if v.Conns != nil {
 			remain = atomic.LoadInt64(v.Conns)
 		}
-		if err := v.Svr.Shutdown(ctx); err != nil {
+		err := v.Svr.Shutdown(ctx)
+		if err != nil {
+			_ = v.Svr.Close()
+		}
+		if v.Connections != nil {
+			if drainErr := v.Connections.Drain(ctx); drainErr != nil {
+				err = drainErr
+			}
+		}
+		if err != nil {
 			// 超时(或出错)：记录剩余连接数后强制关闭，不让停止流程卡死
 			if v.Conns != nil {
 				remain = atomic.LoadInt64(v.Conns)
@@ -1933,44 +1961,40 @@ func attachConnCounter(svr *http.Server) *int64 {
 	return counter
 }
 
-// WaitProxyReady 对所有已上线代理端口做就绪自检：逐个 Dial 127.0.0.1:port，
-// 全部可连才返回 nil；任一端口在 timeout 内不可连则返回错误。
-// 用于升级接管(takeover)时，新 Worker 在向 Supervisor 上报 READY 前确认端口已真正接管成功，
-// 覆盖任意数量的自定义端口。
+// WaitProxyReady checks this worker's Accept loops, never the old worker's shared ports.
 func (waf *WafEngine) WaitProxyReady(timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	ports := make([]int, 0)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return waf.WaitProxyReadyContext(ctx)
+}
+
+func (waf *WafEngine) WaitProxyReadyContext(ctx context.Context) error {
+	var readyErr error
 	waf.ServerOnline.Range(func(port int, v innerbean.ServerRunTime) bool {
-		if v.Port > 0 {
-			ports = append(ports, v.Port)
+		if v.Port <= 0 || v.ServerType == "" {
+			return true
+		}
+		value, ok := waf.listenerReadiness.Load(port)
+		if !ok {
+			readyErr = fmt.Errorf("本 Worker 的端口 %d 尚未启动", port)
+			return false
+		}
+		if err := value.(*wafnet.Readiness).Wait(ctx); err != nil {
+			readyErr = fmt.Errorf("本 Worker 的端口 %d 未就绪: %w", port, err)
+			return false
 		}
 		return true
 	})
-	for _, port := range ports {
-		addr := "127.0.0.1:" + strconv.Itoa(port)
-		ok := false
-		for time.Now().Before(deadline) {
-			conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
-			if err == nil {
-				_ = conn.Close()
-				ok = true
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		if !ok {
-			return fmt.Errorf("端口 %d 就绪自检失败(在 %s 内未能建立连接)", port, timeout)
-		}
-	}
-	zlog.Info("[ReadyCheck] 所有代理端口就绪自检通过，端口数=" + strconv.Itoa(len(ports)))
-	return nil
+	return readyErr
 }
 
 // TotalConns 汇总所有在线端口当前打开的连接数（用于升级时向 Supervisor 上报心跳/排空进度）。
 func (waf *WafEngine) TotalConns() int64 {
 	var total int64
 	waf.ServerOnline.Range(func(port int, v innerbean.ServerRunTime) bool {
-		if v.Conns != nil {
+		if v.Connections != nil {
+			total += v.Connections.Count()
+		} else if v.Conns != nil {
 			total += atomic.LoadInt64(v.Conns)
 		}
 		return true

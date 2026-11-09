@@ -100,7 +100,30 @@ export const SwapIcon = make('Sort');
 export const SystemLogIcon = make('Tickets');
 export const SystemSettingIcon = make('Tools');
 export const ThunderIcon = make('Lightning');
-export const TranslateIcon = make('Switch');
+export const TranslateIcon = defineComponent({
+  name: 'HwTranslate',
+  inheritAttrs: false,
+  setup(_, { attrs }) {
+    return () => h(ElIcon, {
+      ...attrs,
+      class: ['hw-icon', 't-icon', attrs.class],
+      'data-icon': 'Translate',
+      'aria-hidden': attrs['aria-label'] ? undefined : true,
+      size: typeof attrs.size === 'number' || typeof attrs.size === 'string' ? attrs.size : '1em',
+    }, () => h('svg', { viewBox: '0 0 24 24', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' }, [
+      h('g', { 'data-icon-part': 'translate' }, [
+        h('path', {
+          stroke: 'currentColor', 'stroke-linecap': 'square', 'stroke-width': 2,
+          d: 'M13 14H17M17 14H21M17 14V12.5M20 14C20 17.866 16.866 21 13 21M14.6736 17C15.7971 19.3649 18.2076 21 21 21M9 7.5V5C9 3.89543 8.10457 3 7 3H5C3.89543 3 3 3.89543 3 5V7.5M9 7.5V10M9 7.5H3M3 10V7.5',
+        }),
+        h('path', {
+          stroke: 'currentColor', 'stroke-linecap': 'square', 'stroke-width': 2,
+          d: 'M13 4.5H18C19.1046 4.5 20 5.39543 20 6.5V8M5 14V19C5 20.1046 5.89543 21 7 21H8.5',
+        }),
+      ]),
+    ]));
+  },
+});
 export const UserAvatarIcon = make('UserFilled');
 export const UserCircleIcon = make('Avatar');
 export const UserIcon = make('User');

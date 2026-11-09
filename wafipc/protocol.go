@@ -26,6 +26,8 @@ const (
 	// Worker → Supervisor
 	MsgHello          = "HELLO"           // 注册：携带 pid/version/proto_ver/token
 	MsgReady          = "READY"           // 端口就绪自检通过，可承接流量
+	MsgReadyFailed    = "READY_FAILED"    // 本 Worker 初始化/监听失败，保留旧 Worker
+	MsgUpgradeFailed  = "UPGRADE_FAILED"  // Supervisor 交接失败，恢复旧 Worker 的更新界面
 	MsgHeartbeat      = "HEARTBEAT"       // 心跳：携带当前连接数
 	MsgDraining       = "DRAINING"        // 排空进度：剩余连接数
 	MsgGone           = "GONE"            // 已完成排空，即将退出

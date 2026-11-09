@@ -33,6 +33,7 @@ import (
 	"HomeWaf/wafipban"
 	"HomeWaf/wafipc"
 	"HomeWaf/wafmangeweb"
+	"HomeWaf/wafnet"
 	"HomeWaf/wafnotify"
 	"HomeWaf/wafowasp"
 	"HomeWaf/wafqueue"
@@ -43,9 +44,11 @@ import (
 	"HomeWaf/waftask"
 	"HomeWaf/waftunnelengine"
 	"HomeWaf/wafupdate"
+	"context"
 	"crypto/tls"
 	"embed"
 	_ "embed"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -99,7 +102,7 @@ var httpauth embed.FS
 var accessAssets embed.FS
 
 // wafSystenService 实现了 service.Service 接口
-type wafSystenService struct{}
+type wafSystenService struct{ startup wafnet.Readiness }
 
 var webmanager *wafmangeweb.WafWebManager // web管理端
 
@@ -135,6 +138,7 @@ func NeverExit(name string, f func()) {
 
 // run 是服务的主要逻辑
 func (m *wafSystenService) run() {
+	defer m.startup.Fail(errors.New("Worker 初始化或事件循环已退出"))
 
 	// 先尝试监听端口，检查是否被占用。
 	// 升级接管(takeover)模式下旧 Worker 仍持有管理端口 :26666，新 Worker 预期与其并存，故跳过该探测。
@@ -458,6 +462,7 @@ func (m *wafSystenService) run() {
 	)
 	//启动waf
 	globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE = &wafenginecore.WafEngine{
+		StartupReady: &m.startup,
 		//路由表(HostTarget/HostCode/HostTargetNoPort/HostTargetMoreDomain)改为 RCU 快照，
 		//下方 InitRouting() 初始化为空表；读走 rt()，写走 copy-on-write 助手。
 		ServerOnline: wafenginmodel.NewSafeServerMap(),
@@ -499,7 +504,7 @@ func (m *wafSystenService) run() {
 		zlog.Info("[Worker] takeover 模式：暂不启动隧道/应用，等待旧 Worker 退出后由 Supervisor 的 ACTIVATE 接管")
 	}
 	//启动管理界面
-	webmanager = &wafmangeweb.WafWebManager{LogName: "WebManager"}
+	webmanager = &wafmangeweb.WafWebManager{LogName: "WebManager", StartupReady: &m.startup}
 	go func() {
 		webmanager.StartLocalServer()
 	}()
@@ -631,6 +636,7 @@ func (m *wafSystenService) run() {
 			zlog.Info("[Fresh Install] A random initial admin password has been generated, please see file: data/initial_password.txt and change it right after first login")
 		}
 	}
+	m.startup.Ready()
 	for {
 		select {
 		case msg := <-global.GWAF_CHAN_MSG:
@@ -889,7 +895,11 @@ func (m *wafSystenService) run() {
 				// 本进程不自行退出，等待 Supervisor 下发 DRAIN，从而实现业务零中断。
 				if gWorkerCtrl != nil {
 					zlog.Info("[Worker] 二进制已就绪，请求 Supervisor 发起滚动升级（业务不中断）")
-					gWorkerCtrl.RequestUpgrade()
+					if err := gWorkerCtrl.RequestUpgrade(); err != nil {
+						global.GWAF_RUNTIME_IS_UPDATETING = false
+						wafupdate.GlobalUpdateProgress.Fail(err)
+						zlog.Error("请求平滑升级失败: " + err.Error())
+					}
 					break
 				}
 				// 兜底：非 Supervisor 托管的独立运行模式，沿用原“停止→拉起新进程→退出”的硬重启。
@@ -1030,11 +1040,15 @@ func (m *wafSystenService) stopHomeWaf() {
 	zlog.Info("Shutdown HomeWaf HostGuard finished")
 
 	zlog.Info("Shutdown HomeWaf Cron...")
-	globalobj.GWAF_RUNTIME_OBJ_WAF_TaskScheduler.Stop()
+	if globalobj.GWAF_RUNTIME_OBJ_WAF_TaskScheduler != nil {
+		globalobj.GWAF_RUNTIME_OBJ_WAF_TaskScheduler.Stop()
+	}
 	zlog.Info("Shutdown HomeWaf Cron finished")
 
 	zlog.Info("Shutdown HomeWaf WebManager...")
-	webmanager.Shutdown()
+	if webmanager != nil {
+		webmanager.Shutdown()
+	}
 	zlog.Info("Shutdown HomeWaf WebManager finished")
 
 	zlog.Info("Shutdown HomeWaf IPDatabase...")
@@ -1111,6 +1125,7 @@ var logExportWorkerLifecycle workerLogExportLifecycle
 // 回收各引擎/队列/任务资源，最后关闭数据库连接。供信号、服务 Stop 和升级 DRAIN 复用。
 func (m *wafSystenService) Graceful() {
 	gracefulOnce.Do(func() {
+		m.startup.Fail(errors.New("Worker 正在排空退出"))
 		zlog.Info("[Graceful] 开始优雅停止：排空业务连接并回收资源 ...")
 		zlog.Info("Shutdown HomeWaf LogExport...")
 		logExportWorkerLifecycle.stop(waf_service.WafLogExportServiceApp.Stop)
@@ -1426,27 +1441,30 @@ func (wc *workerCtrl) loop() {
 func (wc *workerCtrl) serve(conn *wafipc.Conn) {
 	stop := make(chan struct{})
 	defer close(stop)
+	ctx, cancelReady := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancelReady()
 
-	// 就绪上报：等引擎端口起来后发 READY
+	// Publish READY only after initialization and this worker's listeners succeed.
 	go func() {
-		for i := 0; i < 600; i++ { // 最多约 60s 等引擎对象建立
-			if globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE != nil {
-				break
+		if err := wc.prg.waitReady(ctx); err != nil {
+			if !errors.Is(err, context.Canceled) {
+				zlog.Error("[Worker] 就绪检查失败，保留旧 Worker: " + err.Error())
+				wc.send(wafipc.Message{Type: wafipc.MsgReadyFailed, PID: os.Getpid(), Err: err.Error()})
 			}
-			select {
-			case <-stop:
-				return
-			case <-time.After(100 * time.Millisecond):
-			}
+			return
 		}
-		if globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE != nil {
-			_ = globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.WaitProxyReady(60 * time.Second)
+		wc.mu.Lock()
+		defer wc.mu.Unlock()
+		if wc.conn == conn && !wc.down && ctx.Err() == nil {
+			_ = conn.Send(wafipc.Message{Type: wafipc.MsgReady, PID: os.Getpid()})
 		}
-		wc.send(wafipc.Message{Type: wafipc.MsgReady, PID: os.Getpid()})
 	}()
 
 	// 心跳：上报当前连接数
 	go func() {
+		if wc.prg.startup.Wait(ctx) != nil {
+			return
+		}
 		t := time.NewTicker(3 * time.Second)
 		defer t.Stop()
 		for {
@@ -1477,6 +1495,10 @@ func (wc *workerCtrl) serve(conn *wafipc.Conn) {
 		case wafipc.MsgActivate:
 			zlog.Info("[Worker] 收到 ACTIVATE 指令，接管独占单例(应用/隧道/任务调度)")
 			go activateSingletons()
+		case wafipc.MsgUpgradeFailed:
+			global.GWAF_RUNTIME_IS_UPDATETING = false
+			wafupdate.GlobalUpdateProgress.Fail(errors.New(m.Err))
+			zlog.Error("[Worker] 平滑升级失败，旧版本继续服务: " + m.Err)
 		case wafipc.MsgPing:
 			wc.send(wafipc.Message{Type: wafipc.MsgPong, PID: os.Getpid()})
 		}
@@ -1492,16 +1514,30 @@ func (wc *workerCtrl) gracefulExit() {
 }
 
 // RequestUpgrade 通知 Supervisor 发起滚动升级（二进制已被 selfupdate 替换到磁盘）。
-func (wc *workerCtrl) RequestUpgrade() {
-	wc.send(wafipc.Message{Type: wafipc.MsgRequestUpgrade, PID: os.Getpid()})
+func (wc *workerCtrl) RequestUpgrade() error {
+	return wc.send(wafipc.Message{Type: wafipc.MsgRequestUpgrade, PID: os.Getpid()})
 }
 
-func (wc *workerCtrl) send(m wafipc.Message) {
+func (wc *workerCtrl) send(m wafipc.Message) error {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
 	if wc.conn != nil {
-		_ = wc.conn.Send(m)
+		return wc.conn.Send(m)
 	}
+	return errors.New("Supervisor 控制连接不可用，请稍后重试")
+}
+
+func (m *wafSystenService) waitReady(ctx context.Context) error {
+	if err := m.startup.Wait(ctx); err != nil {
+		return err
+	}
+	if globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE == nil || webmanager == nil {
+		return errors.New("Worker 引擎或管理端未初始化")
+	}
+	if err := globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.WaitProxyReadyContext(ctx); err != nil {
+		return err
+	}
+	return webmanager.WaitReady(ctx)
 }
 
 func (wc *workerCtrl) setConn(c *wafipc.Conn) {
