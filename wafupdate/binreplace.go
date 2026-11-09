@@ -4,6 +4,7 @@ package wafupdate
 
 import (
 	"HomeWaf/common/zlog"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -61,24 +62,23 @@ func oldPrefix(exeName string) string {
 
 // uniqueOldPath 生成一个当前目录中一定不存在的 .old 路径，形如
 //
-//	.SamWaf64.exe.old.20260728153012.4712
+//	.SamWaf64.exe.old.4712.<random suffix>
 //
 // 这是本模块的核心：rename 的目标永不预先存在 ⇒ MoveFileEx 无需删除目标 ⇒ 不会 ACCESS_DENIED。
-func uniqueOldPath(dir, exeName string) string {
+func uniqueOldPath(dir, exeName string) (string, error) {
 	base := filepath.Join(dir, oldPrefix(exeName))
 	pid := os.Getpid()
-	for i := 0; i < 50; i++ {
-		p := fmt.Sprintf("%s.%s.%d", base, time.Now().Format("20060102150405"), pid)
-		if i > 0 {
-			p = fmt.Sprintf("%s.%d", p, i)
-		}
+	for i := 0; i < 100; i++ {
+		// Windows wall-clock timestamps can repeat even at UnixNano precision.
+		// Use independent random names, including for concurrent callers.
+		p := fmt.Sprintf("%s.%d.%s", base, pid, rand.Text())
 		if _, err := os.Lstat(p); os.IsNotExist(err) {
-			return p
+			return p, nil
+		} else if err != nil {
+			return "", fmt.Errorf("check old executable path: %w", err)
 		}
-		// 同一秒内的冲突由上面的 .i 序号消解，无需等待下一秒。
 	}
-	// 理论上到不了这里；兜底加纳秒，保证调用方总能拿到一个路径。
-	return fmt.Sprintf("%s.%d.%d", base, time.Now().UnixNano(), pid)
+	return "", fmt.Errorf("cannot allocate a unique old executable path in %s", dir)
 }
 
 // retryFileOp 有限次重试 + 退避执行文件操作，用于对抗杀软/EDR 对刚落盘文件的瞬时占用。
@@ -215,7 +215,10 @@ func replaceExecutable(exePath, stagedPath string) (err error, errRecover error)
 	// 源的 READONLY 会让 rename 失败。
 	_ = clearFileAttrs(exePath)
 
-	oldPath := uniqueOldPath(updateDir, filename)
+	oldPath, pathErr := uniqueOldPath(updateDir, filename)
+	if pathErr != nil {
+		return pathErr, nil
+	}
 
 	// 把当前程序挪开。目标唯一 ⇒ 不存在"目标被占用无法覆盖"的问题。
 	if e := retryFileOp("重命名当前程序", renameAttempts, func() error {

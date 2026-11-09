@@ -5,6 +5,7 @@ package wafdb
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"HomeWaf/common/zlog"
@@ -34,6 +35,12 @@ func TestMain(m *testing.M) {
 	if err := os.Chdir(tmpDir); err != nil {
 		panic("切换到临时目录失败: " + err.Error())
 	}
+	// Package globals are initialized before TestMain switches directories.
+	// Use the isolated fixture root, including macOS's canonical temp path.
+	if tmpDir, err = filepath.EvalSymlinks(tmpDir); err != nil {
+		panic(err)
+	}
+	SetLogLifecycleLockPath(filepath.Join(tmpDir, "data", ".samwaf_log_lifecycle.lock"))
 
 	code := m.Run()
 

@@ -30,7 +30,11 @@ func testOptions(t *testing.T, format string) Options {
 	if err := wafsec.InitDataKey(t.TempDir(), ""); err != nil {
 		t.Fatal(err)
 	}
-	return Options{Dir: t.TempDir(), Format: format, Tables: []string{"access_log", "security_event"}, TaskID: "task-1"}
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Options{Dir: dir, Format: format, Tables: []string{"access_log", "security_event"}, TaskID: "task-1"}
 }
 func testRow(id string) map[string]interface{} {
 	return map[string]interface{}{"req_uuid": id, "url": "中文\nquoted,\"text\"", "guest_id_entification": "00001234567890123456789", "create_time": "2026-10-29 12:00:00", "time_spent": int64(9007199254740993), "ai_score": 0.25, "status_code": int64(200), "body": "excluded"}
