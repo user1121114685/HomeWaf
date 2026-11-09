@@ -245,9 +245,11 @@ func TestLocalOnlyKeyOrdinaryCompatibility(t *testing.T) {
 	if err := db.Where("id = ?", id).First(&raw).Error; err != nil {
 		t.Fatalf("read ordinary row: %v", err)
 	}
-	if raw.ApiKey != ordinary || raw.LocalOnly != 0 {
-		t.Fatal("ordinary key storage and scope must stay compatible")
+	digest, err := wafsec.CredentialDigest(ordinary, "openapi")
+	if err != nil || raw.ApiKey != digest || raw.LocalOnly != 0 {
+		t.Fatal("ordinary key must use an instance-keyed digest")
 	}
+	assertLocalAPIKeyRejected(t, raw.ApiKey)
 	local, action, err := svc.EnsureLocalOnlyKey(false)
 	if err != nil || action != "created" || local == ordinary {
 		t.Fatalf("create independent local key action=%s error=%v", action, err)
@@ -263,8 +265,9 @@ func TestLocalOnlyKeyOrdinaryCompatibility(t *testing.T) {
 	if err := db.Where("id = ?", id).First(&reset).Error; err != nil {
 		t.Fatalf("read reset ordinary row: %v", err)
 	}
-	if reset.ApiKey != replacement || reset.LocalOnly != 0 {
-		t.Fatal("ordinary reset must preserve existing storage and scope")
+	expectedDigest, err := wafsec.CredentialDigest(replacement, "openapi")
+	if err != nil || reset.ApiKey != expectedDigest || reset.LocalOnly != 0 {
+		t.Fatal("ordinary reset must store an instance-keyed digest and preserve scope")
 	}
 	assertLocalAPIKeyRejected(t, ordinary)
 	if got, err := svc.GetByApiKey(replacement); err != nil || got.Id != id {
@@ -283,9 +286,7 @@ func TestLocalOnlyKeyLegacyPlaintextUpgrade(t *testing.T) {
 	if err := db.Model(&model.OPlatformKey{}).Where("id = ?", row.Id).Update("api_key", key).Error; err != nil {
 		t.Fatalf("set plaintext local row: %v", err)
 	}
-	if got, err := svc.GetByApiKey(key); err != nil || got.Id != row.Id {
-		t.Fatal("existing plaintext local row must resolve")
-	}
+	assertLocalAPIKeyRejected(t, key)
 	reused, action, err := svc.EnsureLocalOnlyKey(false)
 	if err != nil || action != "reused" || reused != key {
 		t.Fatalf("upgrade local row action=%s error=%v", action, err)

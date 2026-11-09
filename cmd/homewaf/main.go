@@ -357,11 +357,11 @@ func (m *wafSystenService) run() {
 		// Publisher endpoints are configured explicitly with HOMEWAF_UPDATE_URL.
 	}
 
-	//初始化每实例静态数据加密密钥(DEK)：首启生成 data/.keys/data_key(0600)，或用
+	//初始化每实例静态数据加密密钥(DEK)：首启生成 .homewaf-keys/data_key(0600)，或用
 	//config.yml 的 security.data_key_file 指定自管路径。须在数据库初始化之前就绪，
 	//否则落库敏感字段(Access 密钥/CDN 凭证/2FA 密钥)无法按新格式加解密。
 	if err := wafsec.InitDataKey(utils.GetCurrentDir(), global.GCONFIG_DATA_KEY_FILE); err != nil {
-		zlog.Error("初始化数据加密密钥失败，程序退出，请检查 data/.keys 目录权限或 security.data_key_file 配置", "error", err)
+		zlog.Error("初始化数据加密密钥失败，程序退出，请检查 .homewaf-keys 目录权限或 security.data_key_file 配置", "error", err)
 		os.Exit(1)
 	}
 
@@ -376,8 +376,8 @@ func (m *wafSystenService) run() {
 		zlog.Error("初始化核心数据库失败，程序退出，请检查conf/config.yml数据库配置是否正确", "error", err)
 		os.Exit(1)
 	}
-	//存量敏感字段静态加密迁移：把旧格式密文一次性重写为每实例 DEK 密文(幂等，单行失败跳过)。
-	wafdb.MigrateDataKeyEncryption(global.GWAF_LOCAL_DB)
+	// Never automatically bless plaintext or legacy ciphertext injected into
+	// the database. Any offline conversion must be explicitly operator-driven.
 	if _, err := wafdb.InitLogDb(""); err != nil {
 		zlog.Error("初始化日志数据库失败，程序退出，请检查conf/config.yml数据库配置是否正确", "error", err)
 		os.Exit(1)

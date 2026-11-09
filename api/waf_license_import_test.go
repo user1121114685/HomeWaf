@@ -4,6 +4,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/internal/licensing"
 	"HomeWaf/wafreg"
+	"HomeWaf/wafsec"
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -21,6 +22,9 @@ import (
 // Covers the actual import boundary: preview must not activate; another
 // authenticated session must not consume it; invalid replacements fail closed.
 func TestSignedLicenseImportBoundToSession(t *testing.T) {
+	if err := wafsec.InitDataKey(t.TempDir(), ""); err != nil {
+		t.Fatal(err)
+	}
 	t.Chdir(t.TempDir())
 	t.Setenv("HOMEWAF_DEV", "1")
 	oldKeys, oldUser, oldTenant := licensing.TrustedKeysJSON, global.GWAF_USER_CODE, global.GWAF_TENANT_ID

@@ -56,7 +56,7 @@ func newLookupBase(id string) baseorm.BaseOrm {
 func TestLookupMatchesCIDR(t *testing.T) {
 	db := setupIPLookupTestDB(t)
 	db.Create(&model.Hosts{BaseOrm: newLookupBase("h1"), Code: "hostA", Host: "www.demo.com"})
-	db.Create(&model.IPBlockList{BaseOrm: newLookupBase("b1"), HostCode: "hostA", Ip: "1.2.3.0/24", Remarks: "网段封禁"})
+	db.Create(&model.IPBlockList{IsEnable: 1, BaseOrm: newLookupBase("b1"), HostCode: "hostA", Ip: "1.2.3.0/24", Remarks: "网段封禁"})
 
 	resp, err := WafIPLookupServiceApp.Lookup("1.2.3.4", nil)
 	if err != nil {
@@ -81,7 +81,7 @@ func TestLookupMatchesCIDR(t *testing.T) {
 // 否则用户会以为这条只影响某一个站点
 func TestLookupGlobalScope(t *testing.T) {
 	db := setupIPLookupTestDB(t)
-	db.Create(&model.IPAllowList{BaseOrm: newLookupBase("a1"), HostCode: "", Ip: "10.0.0.1"})
+	db.Create(&model.IPAllowList{IsEnable: 1, BaseOrm: newLookupBase("a1"), HostCode: "", Ip: "10.0.0.1"})
 
 	resp, _ := WafIPLookupServiceApp.Lookup("10.0.0.1", nil)
 	if len(resp.Hits) != 1 || resp.Hits[0].Scope != "全局" {
@@ -89,12 +89,12 @@ func TestLookupGlobalScope(t *testing.T) {
 	}
 	// 全局站点其实是 hosts 表里一条 host="全局网站" 的普通记录，走站点名即可
 	db.Create(&model.Hosts{BaseOrm: newLookupBase("hg"), Code: "uuid-global", Host: "全局网站"})
-	db.Create(&model.IPAllowList{BaseOrm: newLookupBase("a2"), HostCode: "uuid-global", Ip: "10.0.0.2"})
+	db.Create(&model.IPAllowList{IsEnable: 1, BaseOrm: newLookupBase("a2"), HostCode: "uuid-global", Ip: "10.0.0.2"})
 	if r2, _ := WafIPLookupServiceApp.Lookup("10.0.0.2", nil); r2.Hits[0].Scope != "全局网站" {
 		t.Fatalf("全局站点应显示站点名，实际 %q", r2.Hits[0].Scope)
 	}
 	// 指向已删除站点的名单不会生效，必须标出来而不是显示一串 uuid
-	db.Create(&model.IPAllowList{BaseOrm: newLookupBase("a3"), HostCode: "gone-uuid", Ip: "10.0.0.3"})
+	db.Create(&model.IPAllowList{IsEnable: 1, BaseOrm: newLookupBase("a3"), HostCode: "gone-uuid", Ip: "10.0.0.3"})
 	if r3, _ := WafIPLookupServiceApp.Lookup("10.0.0.3", nil); !strings.Contains(r3.Hits[0].Scope, "不生效") {
 		t.Fatalf("站点不存在应提示不生效，实际 %q", r3.Hits[0].Scope)
 	}
@@ -109,7 +109,7 @@ func TestLookupGroupRefEffect(t *testing.T) {
 	db := setupIPLookupTestDB(t)
 	db.Create(&model.IPGroup{BaseOrm: newLookupBase("g1"), GroupName: "办公出口", GroupCode: "office"})
 	db.Create(&model.IPGroupItem{BaseOrm: newLookupBase("gi1"), GroupCode: "office", Ip: "192.168.1.0/24"})
-	db.Create(&model.IPBlockList{BaseOrm: newLookupBase("b1"), HostCode: "hostA", IpType: model.IPEntryTypeGroup, GroupCode: "office"})
+	db.Create(&model.IPBlockList{IsEnable: 1, BaseOrm: newLookupBase("b1"), HostCode: "hostA", IpType: model.IPEntryTypeGroup, GroupCode: "office"})
 
 	resp, _ := WafIPLookupServiceApp.Lookup("192.168.1.9", nil)
 	if len(resp.Hits) != 1 {
@@ -120,7 +120,7 @@ func TestLookupGroupRefEffect(t *testing.T) {
 	}
 
 	// 再加一个白名单引用，效果应翻成放行
-	db.Create(&model.IPAllowList{BaseOrm: newLookupBase("a1"), HostCode: "hostA", IpType: model.IPEntryTypeGroup, GroupCode: "office"})
+	db.Create(&model.IPAllowList{IsEnable: 1, BaseOrm: newLookupBase("a1"), HostCode: "hostA", IpType: model.IPEntryTypeGroup, GroupCode: "office"})
 	resp2, _ := WafIPLookupServiceApp.Lookup("192.168.1.9", nil)
 	if resp2.Hits[0].Effect != "allow" {
 		t.Fatalf("黑白名单同时引用同一组时白名单优先，应为 allow，实际 %q", resp2.Hits[0].Effect)
@@ -189,7 +189,7 @@ func TestLookupSystemLayerFlag(t *testing.T) {
 	}
 
 	// WAF 层的黑名单不该被误标成系统层，否则每次加白都会弹一个无关的警告
-	db.Create(&model.IPBlockList{BaseOrm: newLookupBase("b1"), HostCode: "", Ip: "6.6.6.6"})
+	db.Create(&model.IPBlockList{IsEnable: 1, BaseOrm: newLookupBase("b1"), HostCode: "", Ip: "6.6.6.6"})
 	resp2, _ := WafIPLookupServiceApp.Lookup("6.6.6.6", nil)
 	if len(resp2.Hits) != 1 || resp2.Hits[0].SystemLayer {
 		t.Fatalf("IP黑名单只在WAF层，不该标系统层，实际 %+v", resp2.Hits)
@@ -209,7 +209,7 @@ func TestLandsOnSystem(t *testing.T) {
 // 不能直接判非法——取代表IP查，并如实说明查的是哪个
 func TestLookupAcceptsCIDR(t *testing.T) {
 	db := setupIPLookupTestDB(t)
-	db.Create(&model.IPBlockList{BaseOrm: newLookupBase("b1"), HostCode: "", Ip: "1.2.3.0/24"})
+	db.Create(&model.IPBlockList{IsEnable: 1, BaseOrm: newLookupBase("b1"), HostCode: "", Ip: "1.2.3.0/24"})
 
 	resp, err := WafIPLookupServiceApp.Lookup("1.2.3.0/24", nil)
 	if err != nil {

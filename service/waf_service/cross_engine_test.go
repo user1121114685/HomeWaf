@@ -34,7 +34,6 @@ import (
 	"HomeWaf/wafdb"
 	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafsec"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -116,19 +115,19 @@ var silentCfg = &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)}
 func setupSQLite(t *testing.T) (*xdb, func()) {
 	dir := t.TempDir()
 	dialect.Register(&dialect.SQLiteDialect{})
-	open := func(name, key string) *gorm.DB {
-		dsn := filepath.Join(dir, name) + "?_db_key=" + url.QueryEscape(key)
+	open := func(name string) *gorm.DB {
+		dsn := filepath.Join(dir, name)
 		db, err := gorm.Open(sqlitedriver.Open(dsn), silentCfg)
 		if err != nil {
 			t.Fatalf("sqlite 打开 %s 失败: %v", name, err)
 		}
 		return db
 	}
-	core := open("core.db", "kcore")
+	core := open("core.db")
 	migrateCore(t, core)
-	logdb := open("log.db", "klog")
+	logdb := open("log.db")
 	migrateLog(t, logdb)
-	stats := open("stats.db", "kstats")
+	stats := open("stats.db")
 	migrateStats(t, stats)
 
 	return &xdb{core, logdb, stats}, func() {

@@ -11,7 +11,6 @@ package waf_service
 
 import (
 	"HomeWaf/customtype"
-	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
@@ -20,7 +19,6 @@ import (
 	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafdb/partition"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,7 +51,7 @@ func runSQLiteArchiveCases(t *testing.T, core, logdb *gorm.DB) {
 
 	// 被污染的归档：web_logs 3 行（其中 1 行是拦截），新三表存在但为空
 	path := filepath.Join("data", polluted)
-	adb, err := gorm.Open(sqlitedriver.Open(path+"?_db_key="+url.QueryEscape(global.GWAF_PWD_LOGDB)), silentCfg)
+	adb, err := gorm.Open(sqlitedriver.Open(path), silentCfg)
 	fatalIf(t, err)
 	fatalIf(t, adb.AutoMigrate(&innerbean.WebLog{}, &model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{}))
 	for i := 0; i < 3; i++ {

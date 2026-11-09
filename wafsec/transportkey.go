@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -105,32 +104,13 @@ func CommPublicKey() (string, error) {
 }
 
 func loadOrCreateCommKey(path string) (*[commKeyLen]byte, error) {
+	raw, err := loadOrCreateKey(path, commKeyLen)
+	if err != nil {
+		return nil, err
+	}
+	defer clear(raw)
 	var key [commKeyLen]byte
-
-	if raw, err := os.ReadFile(path); err == nil {
-		decoded, decErr := base64.StdEncoding.DecodeString(strings.TrimSpace(string(raw)))
-		if decErr != nil {
-			return nil, fmt.Errorf("传输密钥文件内容无法解析: %w", decErr)
-		}
-		if len(decoded) != commKeyLen {
-			return nil, fmt.Errorf("传输密钥长度非法(期望%d字节,实际%d字节): %s", commKeyLen, len(decoded), path)
-		}
-		copy(key[:], decoded)
-		return &key, nil
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("读取传输密钥文件失败: %w", err)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return nil, fmt.Errorf("创建传输密钥目录失败: %w", err)
-	}
-	if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
-		return nil, fmt.Errorf("生成传输密钥失败: %w", err)
-	}
-	encoded := base64.StdEncoding.EncodeToString(key[:])
-	if err := os.WriteFile(path, []byte(encoded), 0600); err != nil {
-		return nil, fmt.Errorf("写入传输密钥文件失败: %w", err)
-	}
+	copy(key[:], raw)
 	return &key, nil
 }
 

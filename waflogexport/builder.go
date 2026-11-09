@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -96,7 +95,7 @@ func NewBuilder(ctx context.Context, o Options) (*Builder, error) {
 	if o.Format != "csv" && o.Format != "jsonl" && o.Format != "sqlite" {
 		return nil, errors.New("unsupported export format")
 	}
-	if len(o.Tables) < 1 || len(o.Tables) > 2 || len(o.Key) == 0 || len(o.TaskID) == 0 {
+	if len(o.Tables) < 1 || len(o.Tables) > 2 || len(o.TaskID) == 0 {
 		return nil, errors.New("invalid export options")
 	}
 	seen := map[string]bool{}
@@ -153,7 +152,7 @@ func NewBuilder(ctx context.Context, o Options) (*Builder, error) {
 		b.manifest.Notes = append(b.manifest.Notes, "CSV NULL and empty string both use empty cells; formula-like text (including leading whitespace/control characters) is prefixed with an apostrophe; long identifiers and timestamps are text.")
 	}
 	if o.Format == "sqlite" {
-		b.manifest.Notes = append(b.manifest.Notes, "SQLite requires a compatible encrypted SQLite driver and this instance log database key; no key is included.")
+		b.manifest.Notes = append(b.manifest.Notes, "SQLite files use the standard unencrypted format and can be opened by ordinary SQLite tools; the stored export package remains encrypted.")
 	}
 	for _, t := range o.Tables {
 		b.manifest.Counts[t] = TableCount{}
@@ -163,7 +162,7 @@ func NewBuilder(ctx context.Context, o Options) (*Builder, error) {
 		return nil, err
 	}
 	fail := func(e error) (*Builder, error) { _ = b.Abort(); return nil, e }
-	b.db, err = b.openDB("dedup.encrypted.db")
+	b.db, err = b.openDB("dedup.db")
 	if err != nil {
 		return fail(err)
 	}
@@ -171,7 +170,7 @@ func NewBuilder(ctx context.Context, o Options) (*Builder, error) {
 		return fail(errors.New("initialize export deduplication"))
 	}
 	if o.Format == "sqlite" {
-		b.sqliteDB, err = b.openDB("logs.encrypted.db")
+		b.sqliteDB, err = b.openDB("logs.db")
 		if err != nil {
 			return fail(err)
 		}
@@ -250,10 +249,10 @@ func (b *Builder) openDB(name string) (*gorm.DB, error) {
 	if err = f.Close(); err != nil {
 		return nil, err
 	}
-	dsn := filepath.ToSlash(filepath.Join(b.options.Dir, name)) + "?_db_key=" + url.QueryEscape(b.options.Key) + "&_journal_mode=MEMORY&_synchronous=FULL&_temp_store=MEMORY"
+	dsn := sqlite.FileDSN(filepath.Join(b.options.Dir, name), "journal_mode(MEMORY)", "synchronous(FULL)", "temp_store(MEMORY)")
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent), SkipDefaultTransaction: true})
 	if err != nil {
-		return nil, errors.New("open encrypted export database")
+		return nil, errors.New("open export database")
 	}
 	raw, err := db.DB()
 	if err != nil {
@@ -544,11 +543,11 @@ func (b *Builder) closePackage() error {
 			return err
 		}
 		b.sqliteDB = nil
-		f, err := os.Open(filepath.Join(b.options.Dir, "logs.encrypted.db"))
+		f, err := os.Open(filepath.Join(b.options.Dir, "logs.db"))
 		if err != nil {
 			return err
 		}
-		w, err := b.zip.Create("logs.encrypted.db")
+		w, err := b.zip.Create("logs.db")
 		if err != nil {
 			_ = f.Close()
 			return err
@@ -566,7 +565,7 @@ func (b *Builder) closePackage() error {
 		for _, c := range b.manifest.Counts {
 			rows += c.Written
 		}
-		b.manifest.Files = append(b.manifest.Files, FileInfo{Name: "logs.encrypted.db", Bytes: n, Rows: rows, SHA256: hex.EncodeToString(h.Sum(nil))})
+		b.manifest.Files = append(b.manifest.Files, FileInfo{Name: "logs.db", Bytes: n, Rows: rows, SHA256: hex.EncodeToString(h.Sum(nil))})
 	} else {
 		b.finishPart()
 		for _, t := range b.options.Tables {

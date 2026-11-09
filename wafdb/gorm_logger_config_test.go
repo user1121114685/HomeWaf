@@ -3,6 +3,7 @@
 package wafdb
 
 import (
+	"context"
 	"testing"
 
 	"HomeWaf/global"
@@ -10,6 +11,15 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+func TestSQLLogParametersStayRedacted(t *testing.T) {
+	l := NewGormZLoggerForConfig()
+	query := "INSERT INTO private_infos(private_value) VALUES (?)"
+	sql, params := l.ParamsFilter(context.Background(), query, "fixture-secret")
+	if sql != query || len(params) != 0 {
+		t.Fatal("secret values were returned for SQL interpolation")
+	}
+}
 
 // 护栏：db_debug_enable 关闭时主库挂载的必须是 Error 级且忽略 record not found 的 GormZLogger。
 // 若退回 gorm.Config{} 的内置默认 logger（Warn 级、不忽略），First()/Take() 未命中会把

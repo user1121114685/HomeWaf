@@ -131,7 +131,9 @@ func (receiver *WafHostService) AddApi(wafHostAddReq request.WafHostAddReq) (str
 		GroupCode:                 wafHostAddReq.GroupCode,
 		PortListensJSON:           wafHostAddReq.PortListensJSON,
 	}
-	global.GWAF_LOCAL_DB.Create(wafHost)
+	if err := global.GWAF_LOCAL_DB.Create(wafHost).Error; err != nil {
+		return "", err
+	}
 	return wafHost.Code, nil
 }
 

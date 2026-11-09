@@ -12,12 +12,15 @@
     "license": "Apache-2.0"
   },
   "sqlite-provenance": {
-    "driver": "github.com/mattn/go-sqlite3@v1.14.53",
-    "cipher": "SQLite3MultipleCiphers v2.6.1",
-    "sqlite": "3.54.0",
-    "archive_sha256": "3f25af603566a23c821d8e581778b5ece2a541d2435776de57b8d845c176815a",
-    "compatibility_cipher": "aes128cbc (upstream legacy=0 default)",
-    "dialect": "gorm.io/driver/sqlite@v1.6.0"
+    "driver": "modernc.org/sqlite@v1.62.0",
+    "repository": "https://gitlab.com/cznic/sqlite",
+    "commit": "d04d243c4dfdb9f9fb19bd1c0c8c37d3923f0589",
+    "sum": "h1:gMaCjSM1qpl+iOjiWhR1LYP3zqrYDI+5GYLGt6veP2g=",
+    "sqlite": "3.54.1",
+    "libc": "modernc.org/libc@v1.80.1",
+    "dialect": "gorm.io/driver/sqlite@v1.6.0 adapted for modernc",
+    "storage": "standard unencrypted SQLite; no legacy encrypted database migration",
+    "cgo": false
   },
   "grule-provenance": {
     "module": "github.com/hyperjumptech/grule-rule-engine",

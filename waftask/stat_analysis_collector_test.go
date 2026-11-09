@@ -6,7 +6,6 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/wafdb/dialect"
-	"net/url"
 	"path/filepath"
 	"testing"
 
@@ -58,7 +57,7 @@ func TestPathGatePrunesOldDays(t *testing.T) {
 func openAnalysisTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dialect.Register(&dialect.SQLiteDialect{})
-	dsn := filepath.Join(t.TempDir(), "stats.db") + "?_db_key=" + url.QueryEscape("ktest")
+	dsn := filepath.Join(t.TempDir(), "stats.db")
 	db, err := gorm.Open(sqlitedriver.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})

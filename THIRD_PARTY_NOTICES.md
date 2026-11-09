@@ -35,6 +35,7 @@ When dependencies or embedded assets change, update this inventory, the correspo
 | github.com/denisbrodbeck/machineid | v1.0.1 | MIT |
 | github.com/dmitryikh/leaves | v0.0.0-20230708180554-25d19a787328 | MIT |
 | github.com/dsnet/compress | v0.0.1 | BSD-3-Clause |
+| github.com/dustin/go-humanize | v1.1.0 | MIT |
 | github.com/ebitengine/purego | v0.11.3 | Apache-2.0 |
 | github.com/fsnotify/fsnotify | v1.10.1 | BSD-3-Clause |
 | github.com/gabriel-vasile/mimetype | v1.4.16 | MIT |
@@ -79,6 +80,7 @@ When dependencies or embedded assets change, update this inventory, the correspo
 | github.com/miekg/dns | v1.1.73 | BSD-3-Clause |
 | github.com/modern-go/concurrent | v0.0.0-20180306012644-bacd9c7ef1dd | Apache-2.0 |
 | github.com/modern-go/reflect2 | v1.0.3-0.20250322232337-35a7c28c31ee | Apache-2.0 |
+| github.com/ncruces/go-strftime | v1.1.0 | MIT |
 | github.com/oschwald/geoip2-golang/v2 | v2.5.0 | ISC |
 | github.com/oschwald/maxminddb-golang/v2 | v2.9.0 | ISC |
 | github.com/pelletier/go-toml/v2 | v2.4.3 | MIT |
@@ -92,6 +94,7 @@ When dependencies or embedded assets change, update this inventory, the correspo
 | github.com/quic-go/qpack | v0.6.0 | MIT |
 | github.com/quic-go/quic-go | v0.0.0-20261108163454-291d013e1594 | MIT |
 | github.com/redis/go-redis/v9 | v9.23.0 | BSD-2-Clause |
+| github.com/remyoudompheng/bigfft | v0.0.0-20230129092748-24d4a6f8daec | BSD-3-Clause |
 | github.com/richardlehane/mscfb | v1.0.9 | Apache-2.0 |
 | github.com/richardlehane/msoleps | v1.0.6 | Apache-2.0 |
 | github.com/robfig/cron/v3 | v3.0.1 | MIT |
@@ -145,6 +148,10 @@ When dependencies or embedded assets change, update this inventory, the correspo
 | gopkg.in/natefinch/lumberjack.v2 | v2.2.1 | MIT |
 | gorm.io/driver/postgres | v1.6.3 | MIT |
 | gorm.io/gorm | v1.31.2 | MIT |
+| modernc.org/libc | v1.80.1 | BSD-3-Clause; bundled third-party notices |
+| modernc.org/mathutil | v1.7.1 | BSD-3-Clause |
+| modernc.org/memory | v1.12.1 | BSD-3-Clause; bundled third-party notices |
+| modernc.org/sqlite | v1.62.0 | BSD-3-Clause; SQLite public domain; bundled third-party notices |
 | rsc.io/binaryregexp | v0.2.0 | BSD-3-Clause |
 
 ## Frontend and build packages
@@ -434,7 +441,7 @@ MapLibre GL JS and its added dependency license texts are retained in [LICENSES/
 |---|---|
 | SamWaf backend and SamWafWeb UI | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`upstream`) |
 | Historical TDesign Vue Starter template portions | MIT; LICENSES/THIRD_PARTY.txt; runtime framework removed |
-| SQLite3 Multiple Ciphers 2.6.1 / SQLite 3.54.0 / mattn go-sqlite3 1.14.53 | MIT, public-domain/BSD/CC0 component notices; internal/sqlite3 and LICENSES/THIRD_PARTY.txt |
+| SQLite 3.54.1 through modernc.org/sqlite 1.62.0 (pure Go) | BSD-3-Clause and public-domain/component notices; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`sqlite-provenance`) |
 | GORM SQLite 1.6.0 and MySQL 1.6.0 adapters; go-mysql 1.16.0 adapter | MIT; LICENSES/THIRD_PARTY.txt; preserved upstream notices |
 | GoCaptcha 2.0.5 and character data | Apache-2.0; internal/thirdparty/gocaptcha/LICENSE and internal/captchaassets/LICENSE-CHARS |
 | Grule 1.20.4 local adapter, Git loader omitted | Apache-2.0; internal/thirdparty/grule/LICENSE*; docs/modernization/provenance.json (`grule-provenance`) |

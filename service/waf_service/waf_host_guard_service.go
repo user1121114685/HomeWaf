@@ -21,7 +21,7 @@ import (
 // 主机防爆破的数据服务：事件、封禁账本、攻击者档案、阶梯配置。
 
 type WafHostGuardService struct {
-	// 事件写入缓冲。爆破高峰下每秒几十上百条，逐条 INSERT 会把加密 SQLite
+	// 事件写入缓冲。爆破高峰下每秒几十上百条，逐条 INSERT 会把SQLite
 	// 打成慢查询——观察模式尤其明显(所有事件都要落库，一条都不过滤)。
 	bufMu      sync.Mutex
 	buf        []model.HostLoginEvent

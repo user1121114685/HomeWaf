@@ -30,12 +30,12 @@ func setupLogLookupTest(t *testing.T) (*gorm.DB, *gorm.DB, string) {
 	}()
 	dialect.Register(&dialect.SQLiteDialect{})
 	oldCore, oldLog := global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB
-	oldTenant, oldUser, oldKey := global.GWAF_TENANT_ID, global.GWAF_USER_CODE, global.GWAF_PWD_LOGDB
-	global.GWAF_TENANT_ID, global.GWAF_USER_CODE, global.GWAF_PWD_LOGDB = "lookup-tenant", "lookup-user", ""
+	oldTenant, oldUser := global.GWAF_TENANT_ID, global.GWAF_USER_CODE
+	global.GWAF_TENANT_ID, global.GWAF_USER_CODE = "lookup-tenant", "lookup-user"
 	InvalidateShardCounts()
 	t.Cleanup(func() {
 		global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB = oldCore, oldLog
-		global.GWAF_TENANT_ID, global.GWAF_USER_CODE, global.GWAF_PWD_LOGDB = oldTenant, oldUser, oldKey
+		global.GWAF_TENANT_ID, global.GWAF_USER_CODE = oldTenant, oldUser
 		InvalidateShardCounts()
 		dialect.Register(priorDialect)
 	})

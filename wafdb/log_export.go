@@ -8,7 +8,6 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/wafdb/dialect"
 	"fmt"
-	"net/url"
 	"os"
 
 	sqlite "HomeWaf/internal/sqlitedialect"
@@ -54,10 +53,10 @@ var exportTierDefs = []exportTierDef{
 	{ExportTierWeblog, &innerbean.WebLog{}, LogTableName, func(t TierTables) string { return t.WebLog }},
 }
 
-// ExportLogRangeDb 把各数据源（实时库 + 命中的归档分区）按时间段导出成一个新的加密 SQLite 文件（C11）。
+// ExportLogRangeDb 把各数据源（实时库 + 命中的归档分区）按时间段导出成一个新的标准 SQLite 文件（C11）。
 //
 // 分层后「导出一个 .db」不再是备份整个库文件：按选定层 + 时间段导出行，
-// 导出件自带表结构（AutoMigrate），可直接用同一套密钥打开查阅。
+// 导出件自带表结构（AutoMigrate），可直接用标准 SQLite 工具打开查阅。
 // startTime/endTime 为 "2006-01-02 15:04:05"，空 = 不限制。返回每层导出的行数。
 func ExportLogRangeDb(outPath, startTime, endTime string, tiers map[string]bool, sources []ExportSource) (map[string]int64, error) {
 	counts := map[string]int64{}
@@ -68,8 +67,7 @@ func ExportLogRangeDb(outPath, startTime, endTime string, tiers map[string]bool,
 		return counts, fmt.Errorf("导出文件已存在: %s", outPath)
 	}
 
-	key := url.QueryEscape(global.GWAF_PWD_LOGDB)
-	dst, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_db_key=%s", outPath, key)),
+	dst, err := gorm.Open(sqlite.Open(sqlite.FileDSN(outPath)),
 		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		return counts, fmt.Errorf("创建导出文件失败: %w", err)

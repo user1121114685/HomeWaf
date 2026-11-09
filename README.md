@@ -44,9 +44,11 @@ HomeWaf 采用免费与付费并存的方式。面向家庭的非商业使用免
 | -------- | -------------------------------- |
 | Go       | `1.27.3`，见 `go.mod`            |
 | Node.js  | `26.13.0`，见 `web/package.json` |
-| C 编译器 | 需要支持 CGO                     |
+| C 编译器 | 不需要；默认 `CGO_ENABLED=0`      |
 
 前端源码和依赖锁文件均在本仓库中。Go 主模块为 `HomeWaf`，程序入口为 `cmd/homewaf`，前端包为 `homewaf-web`。
+
+数据库采用标准 SQLite，敏感字段使用实例密钥加密。部署和备份时请单独持久化 `.homewaf-keys/`；源码公开情况下的保护范围与授权限制见[安全说明](docs/modernization/SECURITY.md)。
 
 ### 从源码构建
 

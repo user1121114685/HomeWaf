@@ -237,11 +237,6 @@ var (
 	//任务开关信息
 	GWAF_SWITCH_TASK_COUNTER bool
 
-	//数据密码
-	GWAF_PWD_COREDB = "3Y)(27EtO^tK8Bj~CORE" //加密
-	GWAF_PWD_STATDB = "3Y)(27EtO^tK8Bj~STAT" //加密
-	GWAF_PWD_LOGDB  = "3Y)(27EtO^tK8Bj~LOG"  //加密
-
 	// Database driver: "sqlite" | "mysql" | "postgres" (default: sqlite)
 	GWAF_DB_DRIVER string = "sqlite"
 
@@ -293,9 +288,8 @@ var (
 	/**
 	授权注册信息部分
 	*/
-	GWAF_REG_INFO    model.RegistrationInfo       //当前注册信息
-	GWAF_REG_VERSION = "v2"                       //注册信息版本
-	GWAF_REG_KEY     = []byte("5F!vion$k@a7QZ&)") //注册信息加密密钥
+	GWAF_REG_INFO    model.RegistrationInfo //当前注册信息
+	GWAF_REG_VERSION = "v2"                 //注册信息版本
 )
 
 func GetCurrentVersionInt() int {

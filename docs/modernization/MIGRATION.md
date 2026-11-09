@@ -2,7 +2,7 @@
 
 ## 工具链与构建
 
-工具链版本以 `go.mod`、`web/package.json` 和 CI 配置为准：Go 1.27.3、Node 26.13.0；CGO 需要本机 C 编译器。Windows 可使用 MSYS2 GCC，并通过 `CC` 指定编译器。
+工具链版本以 `go.mod`、`web/package.json` 和 CI 配置为准：Go 1.27.3、Node 26.13.0。SQLite 使用 `modernc.org/sqlite`（上游 `gitlab.com/cznic/sqlite`）纯 Go 驱动；构建脚本默认 `CGO_ENABLED=0`，CI 和发行构建显式关闭 CGO，不需要 GCC、MinGW、musl 或交叉 C 编译器。
 
 在仓库根目录运行 `node scripts/build.mjs`，得到 `artifacts/` 下的 HomeWaf 二进制和离线签名工具。常用选项：
 
@@ -24,9 +24,19 @@
 2. 使用新目录预演迁移，复制备份进行验证；确认后再切换服务。不要让两个版本同时写同一数据库或监听相同端口。
 3. 新服务名是 HomeWafService，二进制为 HomeWaf64.exe / HomeWafLinux64 / HomeWafLinuxArm64；显式安装和启动新服务。旧服务由操作员停用/卸载，本脚本不自动删除。
 4. 现有 tenant ID（例如 SamWafCom）、数据库字段、锁文件、认证 Cookie、swt2 报文、挑战 URL 和 HTML 占位符属于兼容协议，仍可保留原字符串；它们不是产品包名。直接改值可能造成租户数据不可见、锁失效或已有页面无法登录。
-5. 旧 AES128CBC 数据库读取已通过合成旧版库验证。仍应先在备份上测试实际数据。数据库结构升级后的回退应恢复完整备份，不能假定旧程序能读新库。
+5. 当前 SQLite 使用标准未加密文件，不兼容旧 AES128CBC 加密数据库，也不提供自动转换。HomeWaf 尚无存量用户，本次替换以新安装为目标；开发时请使用新数据目录，保留旧目录备份，不要让新程序覆盖旧库。MySQL/PostgreSQL 不受此驱动替换影响。
 6. 资源释放遵守 lock.txt、自定义内容指纹和 .new 文件机制；新规则/字体/挑战页需要管理员检查差异，不能强行覆盖自定义文件。新版 CRS 更严格，先观察再启用阻断。
 7. 旧无签名/伪授权文件不能升级为有效商业授权，需按新实例 ID 重签；旧插件必须针对新协议重新编译并签名。删除旧前端浏览器缓存后重新登录。
+
+## SQLite 存储与导出
+
+核心库、日志库、统计库、归档、在线备份及导出的 `.db` 都是标准 SQLite 文件，不再使用 `_db_key` 或文件级加密；误传 `_db_key` 会明确报错，不会静默忽略。导出包内的数据库文件名为 `logs.db`，可用普通 SQLite 工具读取。应用密码/密钥保护及服务端导出包的流式加密继续保留；应通过操作系统目录权限保护本地数据库和解压后的导出文件。
+
+证书私钥、DNS 凭证及通知渠道秘密等字段额外使用每实例 AES-GCM 加密；标准 SQLite 文件不意味着这些字段以明文保存。默认数据密钥已移到 `.homewaf-keys/data_key`，Docker 需持久化对应独立卷。新增字段要求新安装，不自动信任旧明文。完整保护范围、恢复要求和开源授权边界见 [SECURITY.md](SECURITY.md)。
+
+GORM 方言及迁移逻辑保留。连接默认设置 5 秒锁等待，并使用 SQLite 可识别、保留时区偏移的时间格式；归档连接逐连接设置只读及缓存限制。在线备份使用 modernc 的备份接口，包含尚未 checkpoint 的 WAL 数据。
+
+运行 `node scripts/verify.mjs` 验证所有 Go 包可编译，并执行驱动、数据库、归档及日志导出回归。数据库压测可单独使用 `go test -trimpath ./wafdb -run TestSqlite -count=1`。交叉编译仅需设置 `CGO_ENABLED=0`、`GOOS` 和 `GOARCH`；目标需同时被应用和 modernc 支持。`modernc.org/libc` 是 Go 实现的运行时依赖，不要求安装系统 C 库；其版本必须与所选 SQLite 驱动的 `go.mod` 一致。
 
 ## 发行方端点
 
@@ -79,7 +89,7 @@ homewaf-license sign-plugin --key-id publisher-2026 --key /secure/offline/privat
 
 在受控发行构建中用 Go linker `-X` 给 `HomeWaf/internal/licensing.TrustedKeysJSON` 和 `HomeWaf/plugin/process.TrustedKeysJSON` 设置对应公钥 JSON。私钥只保留在离线签发环境，不放进源码、容器、CI 公开变量或交付包。Windows 的 0600 模式不能代替 NTFS ACL，应由发行方用独立目录/账号限制签名私钥访问。
 
-claims 的 version=2、product=homewaf、edition=commercial；还需填写 license_id、subject、instance_id、features，以及 UTC issued_at、not_before、expires_at。实例 ID 通过后台授权页读取；显示名称变动不改变实例 ID。确认导入重新验证签名与期限。无可信公钥时安全拒绝，不接受旧 RSA 注册文件或伪造许可。
+claims 的 version=2、product=homewaf、edition=commercial；还需填写 license_id、subject、instance_id、features，以及 UTC issued_at、not_before、expires_at。实例 ID 通过后台授权页读取，并绑定实例数据密钥派生标识、tenant/user 信息；显示名称变动不改变实例 ID。此次加固改变了实例 ID 的生成方式，开发期已有授权需按新 ID 重签。确认导入及后续功能判断均验证签名与期限。无可信公钥时安全拒绝，不接受旧 RSA 注册文件或伪造许可。
 
 已实现离线许可和特性检查接口。未来云授权协议、订单系统、价格和付费功能清单尚未定义，不应宣传为已上线。
 

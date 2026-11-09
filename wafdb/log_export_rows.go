@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -333,8 +332,8 @@ func openExportSource(ctx context.Context, ident string) (*gorm.DB, string, stri
 	if !info.Mode().IsRegular() {
 		return nil, "", "", noop, errors.New("archive is not a regular file")
 	}
-	params := url.Values{"mode": {"ro"}, "_query_only": {"1"}, "_db_key": {global.GWAF_PWD_LOGDB}, "_busy_timeout": {"5000"}, "_cache_size": {"-8192"}}
-	db, err := gorm.Open(sqlite.Open("file:"+filepath.ToSlash(path)+"?"+params.Encode()), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	dsn := sqlite.FileDSN(path, "query_only(1)", "cache_size(-8192)") + "&mode=ro"
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		return nil, "", "", noop, errors.New("EXPORT_SOURCE_OPEN_FAILED")
 	}

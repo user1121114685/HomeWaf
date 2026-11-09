@@ -16,6 +16,7 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/spec"
+	"HomeWaf/wafsec"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -38,6 +39,9 @@ import (
 // openNotifyTestDB 打开一个临时 sqlite 测试库（用例结束自动关闭）。
 func openNotifyTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	if err := wafsec.InitDataKey(t.TempDir(), ""); err != nil {
+		t.Fatal(err)
+	}
 	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "notify_test.db")),
 		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {

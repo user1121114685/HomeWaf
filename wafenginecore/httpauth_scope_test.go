@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -49,7 +48,7 @@ func TestHttpAuthPathScope(t *testing.T) {
 	dialect.Register(&dialect.SQLiteDialect{})
 	dir := t.TempDir()
 	open := func(name string) *gorm.DB {
-		dsn := filepath.Join(dir, name) + "?_db_key=" + url.QueryEscape("ktest")
+		dsn := filepath.Join(dir, name)
 		db, err := gorm.Open(sqlitedriver.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 		if err != nil {
 			t.Fatalf("sqlite 打开 %s 失败: %v", name, err)
@@ -185,7 +184,7 @@ func TestHttpAuthLogAttribution(t *testing.T) {
 	dialect.Register(&dialect.SQLiteDialect{})
 	dir := t.TempDir()
 	open := func(name string) *gorm.DB {
-		dsn := filepath.Join(dir, name) + "?_db_key=" + url.QueryEscape("ktest")
+		dsn := filepath.Join(dir, name)
 		db, err := gorm.Open(sqlitedriver.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 		if err != nil {
 			t.Fatalf("sqlite 打开 %s 失败: %v", name, err)

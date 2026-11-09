@@ -5,7 +5,6 @@ package wafdb
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -89,7 +88,7 @@ func makeArchive(t *testing.T, name string, legacyRows, accessRows int) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join("data", name)
-	dsn := path + "?_db_key=" + url.QueryEscape(global.GWAF_PWD_LOGDB)
+	dsn := path
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatalf("建归档文件失败: %v", err)

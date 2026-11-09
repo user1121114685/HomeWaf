@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,12 +18,12 @@ import (
 // TOTP/rq 签名密钥、CDN 厂商凭证、管理端 2FA 密钥等）改用本模块的每实例随机密钥，
 // 拿到数据库文件不再等于拿到明文。
 //
-// 落地形态（与 security.ssl_export_allowed_dirs 等同口径）：密钥文件放 data/.keys/
-// 下、权限 0600，不进数据库、不经 API 回显；运营方可用 config.yml 的
+// 数据密钥放在安装目录的 .homewaf-keys/，与 data/ 数据库目录分开。
+// Unix 权限 0600，Windows 限定 DACL；不进数据库、不经 API 回显。运营方可用
 // security.data_key_file 指定自管位置。
 //
-// 密文格式：DataEncrypt 产出带 "swk1:" 前缀（AES-256-GCM）；DataDecrypt 见到前缀走
-// DEK、无前缀按旧通讯密钥 CBC 解，保证升级前的存量密文仍可读。
+// 密文格式：DataEncrypt 产出带 "swk1:" 前缀（AES-256-GCM）；运行期拒绝公开
+// 通讯密钥加密的旧 CBC 数据，防止攻击者伪造旧格式凭证来绕过完整性校验。
 
 const (
 	// DataKeyPrefixV1 是 swk1 版密文前缀：AES-256-GCM。
@@ -48,7 +47,22 @@ func InitDataKey(dataDir, customFile string) error {
 	dataKeyOnce.Do(func() {
 		path := strings.TrimSpace(customFile)
 		if path == "" {
-			path = filepath.Join(dataDir, "data", dataKeyDirName, dataKeyFileName)
+			path = filepath.Join(dataDir, ".homewaf-keys", dataKeyFileName)
+		}
+		if _, err := os.Lstat(path); os.IsNotExist(err) {
+			if strings.TrimSpace(customFile) != "" {
+				dataKeyErr = errors.New("configured data key is missing; restore or provision the key file")
+				return
+			}
+			if _, oldErr := os.Lstat(filepath.Join(dataDir, "data", dataKeyDirName, dataKeyFileName)); !os.IsNotExist(oldErr) {
+				dataKeyErr = errors.New("legacy data key found; move it to .homewaf-keys/data_key or set security.data_key_file")
+				return
+			}
+			files, globErr := filepath.Glob(filepath.Join(dataDir, "data", "*.db"))
+			if globErr != nil || len(files) != 0 {
+				dataKeyErr = errors.New("database exists but data key is missing; restore the original key instead of generating a replacement")
+				return
+			}
 		}
 		key, err := loadOrCreateDataKey(path)
 		if err != nil {
@@ -70,33 +84,7 @@ func DataKeyReady() bool {
 }
 
 func loadOrCreateDataKey(path string) ([]byte, error) {
-	// 已存在：读取并校验长度。
-	if raw, err := os.ReadFile(path); err == nil {
-		key, decErr := base64.StdEncoding.DecodeString(strings.TrimSpace(string(raw)))
-		if decErr != nil {
-			return nil, fmt.Errorf("数据密钥文件内容无法解析: %w", decErr)
-		}
-		if len(key) != dataKeyLen {
-			return nil, fmt.Errorf("数据密钥长度非法(期望%d字节,实际%d字节): %s", dataKeyLen, len(key), path)
-		}
-		return key, nil
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("读取数据密钥文件失败: %w", err)
-	}
-
-	// 不存在：首次生成，落 0600 文件。
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return nil, fmt.Errorf("创建数据密钥目录失败: %w", err)
-	}
-	key := make([]byte, dataKeyLen)
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		return nil, fmt.Errorf("生成数据密钥失败: %w", err)
-	}
-	encoded := base64.StdEncoding.EncodeToString(key)
-	if err := os.WriteFile(path, []byte(encoded), 0600); err != nil {
-		return nil, fmt.Errorf("写入数据密钥文件失败: %w", err)
-	}
-	return key, nil
+	return loadOrCreateKey(path, dataKeyLen)
 }
 
 // currentDataKey 取当前 DEK 的副本；未就绪返回错误。
@@ -120,6 +108,7 @@ func DataEncrypt(plain string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer clear(key)
 	ct, err := gcmEncrypt([]byte(plain), key)
 	if err != nil {
 		return "", err
@@ -127,10 +116,9 @@ func DataEncrypt(plain string) (string, error) {
 	return DataKeyPrefixV1 + ct, nil
 }
 
-// DataDecrypt 解密 DataEncrypt 的产物。带 swk1: 前缀走 DEK(GCM)；无前缀视为升级前的
-// 旧密文，用通讯密钥 CBC 解（兜底，保证存量可读）。空串原样返回。
-// legacyKey 传 global.GWAF_COMMUNICATION_KEY（本包不反向依赖 global）。
-func DataDecrypt(enc string, legacyKey []byte) (string, error) {
+// DataDecrypt accepts authenticated instance ciphertext only. The second
+// argument is retained for source compatibility; it cannot enable legacy CBC.
+func DataDecrypt(enc string, _ []byte) (string, error) {
 	if enc == "" {
 		return "", nil
 	}
@@ -139,18 +127,14 @@ func DataDecrypt(enc string, legacyKey []byte) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		defer clear(key)
 		b, err := gcmDecrypt(strings.TrimPrefix(enc, DataKeyPrefixV1), key)
 		if err != nil {
 			return "", err
 		}
 		return string(b), nil
 	}
-	// 无前缀：旧通讯密钥 CBC 密文。
-	b, err := AesDecrypt(enc, legacyKey)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
+	return "", errors.New("unauthenticated legacy data ciphertext is disabled")
 }
 
 // IsDataKeyCiphertext 判断是否为 swk1 新格式密文（迁移时用来跳过已迁移行）。

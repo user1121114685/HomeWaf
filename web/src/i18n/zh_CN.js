@@ -5082,7 +5082,7 @@ export default {
       threads: "线程数",
       fds: "文件句柄",
       not_supported: "不支持",
-      cgo_mem: "C侧内存(估算)",
+      cgo_mem: "Go堆外内存(估算)",
       heap_alloc: "堆活对象",
       heap_inuse: "堆使用中",
       heap_idle: "堆空闲",

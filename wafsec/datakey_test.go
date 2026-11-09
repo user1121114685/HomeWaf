@@ -60,8 +60,8 @@ func TestDataEncryptNonceUnique(t *testing.T) {
 	}
 }
 
-// DataDecrypt 必须能读升级前用旧通讯密钥 CBC 加密的存量密文（无 swk1 前缀）。
-func TestDataDecryptLegacyCBC(t *testing.T) {
+// Public source includes the old CBC key; runtime must reject forged legacy data.
+func TestDataDecryptRejectsLegacyCBC(t *testing.T) {
 	setupDataKey(t)
 	plain := "legacy-cbc-credential"
 	legacyEnc, err := AesEncrypt([]byte(plain), legacyKey)
@@ -72,11 +72,8 @@ func TestDataDecryptLegacyCBC(t *testing.T) {
 		t.Fatalf("旧 CBC 密文不应带 swk1 前缀")
 	}
 	got, err := DataDecrypt(legacyEnc, legacyKey)
-	if err != nil {
-		t.Fatalf("DataDecrypt 旧密文失败: %v", err)
-	}
-	if got != plain {
-		t.Fatalf("旧密文解出不一致: got %q want %q", got, plain)
+	if err == nil || got != "" {
+		t.Fatal("accepted ciphertext forged with the public legacy key")
 	}
 }
 

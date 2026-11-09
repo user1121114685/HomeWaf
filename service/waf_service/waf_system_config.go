@@ -34,31 +34,30 @@ func IsSensitiveConfigItem(item string) bool {
 // encConfigValue / decConfigValue 密钥类配置值的落库加解密（每实例 DEK，swk1 前缀）。
 // 非密钥项原样返回，行为不变。
 //
-// 加密失败时退回明文并告警，而不是让保存失败：配置页是运维自救入口，不能因加密不可用锁死；
-// 下次启动的存量迁移会把这类明文行重新加密，可自愈。
-func encConfigValue(item, plain string) string {
+// 加密失败时拒绝写入，绝不退回明文保存。
+func encConfigValue(item, plain string) (string, error) {
 	if plain == "" || !model.IsSensitiveConfigItem(item) {
-		return plain
+		return plain, nil
 	}
 	// 防御：哨兵值代表“清空”，任何路径都不该把它当密钥本身加密落库。
 	if plain == ConfigClearSentinel {
-		return ""
+		return "", nil
 	}
 	enc, err := wafsec.DataEncrypt(plain)
 	if err != nil || enc == "" {
-		zlog.Error("配置项加密失败，暂以原值落库", "item", item, "err", err)
-		return plain
+		return "", errors.New("配置密钥加密失败，未保存；请检查实例数据密钥")
 	}
-	return enc
+	return enc, nil
 }
 
-// decConfigValue 读出明文：swk1 走 DEK 解；无前缀视为升级前的明文，原样返回（存量兜底）。
+// decConfigValue rejects unencrypted replacements of sensitive settings.
 func decConfigValue(item, stored string) string {
 	if stored == "" || !model.IsSensitiveConfigItem(item) {
 		return stored
 	}
 	if !wafsec.IsDataKeyCiphertext(stored) {
-		return stored
+		zlog.Error("拒绝未加密的敏感配置项", "item", item)
+		return ""
 	}
 	plain, err := wafsec.DataDecrypt(stored, global.GWAF_COMMUNICATION_KEY)
 	if err != nil {
@@ -95,6 +94,10 @@ func (receiver *WafSystemConfigService) AddApi(wafSystemConfigAddReq request.Waf
 		// 已存在，跳过插入
 		return nil
 	}
+	value, err := encConfigValue(wafSystemConfigAddReq.Item, wafSystemConfigAddReq.Value)
+	if err != nil {
+		return err
+	}
 	var bean = &model.SystemConfig{
 		BaseOrm: baseorm.BaseOrm{
 			Id:          uuid.GenUUID(),
@@ -105,13 +108,12 @@ func (receiver *WafSystemConfigService) AddApi(wafSystemConfigAddReq request.Waf
 		},
 		ItemClass: wafSystemConfigAddReq.ItemClass,
 		Item:      wafSystemConfigAddReq.Item,
-		Value:     encConfigValue(wafSystemConfigAddReq.Item, wafSystemConfigAddReq.Value),
+		Value:     value,
 		IsSystem:  "0",
 		Remarks:   wafSystemConfigAddReq.Remarks,
 		HashInfo:  "",
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return nil
+	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
 func (receiver *WafSystemConfigService) CheckIsExistApi(wafSystemConfigAddReq request.WafSystemConfigAddReq) error {
@@ -123,10 +125,14 @@ func (receiver *WafSystemConfigService) ModifyApi(req request.WafSystemConfigEdi
 	if req.Id != "" && req.Item != req.Item {
 		return errors.New("当前配置已经存在")
 	}
+	value, encryptErr := encConfigValue(req.Item, req.Value)
+	if encryptErr != nil {
+		return encryptErr
+	}
 	editMap := map[string]interface{}{
 		"Item":        req.Item,
 		"ItemClass":   req.ItemClass,
-		"Value":       encConfigValue(req.Item, req.Value),
+		"Value":       value,
 		"Remarks":     req.Remarks,
 		"ItemType":    req.ItemType,
 		"Options":     req.Options,
@@ -146,8 +152,12 @@ func (receiver *WafSystemConfigService) ModifyByItemApi(req request.WafSystemCon
 		return errors.New("配置项不存在")
 	}
 
+	value, encryptErr := encConfigValue(req.Item, req.Value)
+	if encryptErr != nil {
+		return encryptErr
+	}
 	editMap := map[string]interface{}{
-		"Value":       encConfigValue(req.Item, req.Value),
+		"Value":       value,
 		"UPDATE_TIME": customtype.JsonTime(time.Now()),
 	}
 

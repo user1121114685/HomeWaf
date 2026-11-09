@@ -7,7 +7,6 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
-	"net/url"
 	"path/filepath"
 	"testing"
 
@@ -21,7 +20,7 @@ import (
 // 无 CGO / 驱动不可用的环境自动跳过，不阻塞普通 go test。
 func openTrafficTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	dsn := filepath.Join(t.TempDir(), "stats.db") + "?_db_key=" + url.QueryEscape("ktest")
+	dsn := filepath.Join(t.TempDir(), "stats.db")
 	db, err := gorm.Open(sqlitedriver.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
