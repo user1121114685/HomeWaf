@@ -151,7 +151,10 @@ func testSupervisor(t *testing.T) (*Supervisor, string) {
 
 func TestRollingRestartPreservesTraffic(t *testing.T) {
 	s, base := testSupervisor(t)
-	client := &http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{DisableKeepAlives: true}}
+	// Exercise normal HTTP connection reuse. Forcing thousands of fresh TCP
+	// sockets into TIME_WAIT can exhaust a Windows runner's ephemeral ports,
+	// turning a process-handoff regression into an unrelated load test.
+	client := &http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{MaxIdleConns: 8, MaxIdleConnsPerHost: 8}}
 	defer client.CloseIdleConnections()
 	var count, failures atomic.Int64
 	var wg sync.WaitGroup
@@ -172,11 +175,13 @@ func TestRollingRestartPreservesTraffic(t *testing.T) {
 				resp, err := client.Get(base)
 				if err != nil {
 					failures.Add(1)
+					t.Logf("traffic request failed: %v", err)
 				} else {
 					body, err := io.ReadAll(resp.Body)
 					_ = resp.Body.Close()
 					if err != nil || resp.StatusCode != 200 || !strings.HasPrefix(string(body), "worker=") {
 						failures.Add(1)
+						t.Logf("traffic response failed: status=%d body=%q err=%v", resp.StatusCode, body, err)
 					}
 				}
 				count.Add(1)
@@ -236,6 +241,9 @@ func TestRollingRestartPreservesTraffic(t *testing.T) {
 		_ = resp.Body.Close()
 	}
 	stopTraffic()
+	if count.Load() < 100 {
+		t.Fatalf("insufficient continuous traffic: %d requests", count.Load())
+	}
 	if failures.Load() != 0 {
 		t.Fatalf("%d failures in %d requests", failures.Load(), count.Load())
 	}

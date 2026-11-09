@@ -254,9 +254,9 @@ export default {
       beta_confirm_yes: 'Confirm Update',
       beta_confirm_no: 'Cancel',
       container_blocked_title: 'In-app update is not supported in containers',
-      container_blocked_tips: 'HomeWaf is running inside a container ({container}), so in-app update has been disabled. The binary lives in the image writable layer, so an in-app update only applies to the current container; once the container is recreated (docker compose up -d / new image / host reinstall) the binary rolls back to the version shipped in the image, while the database has already been migrated by the newer version and cannot roll back, leaving program and data out of sync.',
+      container_blocked_tips: 'HomeWaf is running in a container ({container}). Update the Docker image and recreate the container so the installed version survives recreation; replacing the executable inside a container does not update its source image.',
       container_howto_label: 'Please upgrade by updating the image instead:',
-      container_howto_tips: 'Mounted conf / data / logs / ssl data is not affected. If you really did mount the binary into a volume, you can set allow_container_selfupdate to 1 in System Config to allow it.',
+      container_howto_tips: 'The official installer verifies the image archive and recreates the container while preserving the conf / data / .homewaf-keys / logs / ssl named volumes. Keep your own configuration for custom deployments, and back up data and instance keys before updating.',
       container_doc_link: 'Upgrade documentation',
       progress: {
         title_running: 'Upgrading',

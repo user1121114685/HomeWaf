@@ -64,7 +64,6 @@ archives:
       - install_homewaf.sh
       - install_homewaf.ps1
       - README.md
-      - docker-compose.release.yml
 checksum:
   name_template: 'HomeWaf_{{ .Version }}_checksums.txt'
 release:
@@ -77,4 +76,3 @@ release:
   extra_files:
     - glob: install_homewaf.sh
     - glob: install_homewaf.ps1
-    - glob: docker-compose.release.yml

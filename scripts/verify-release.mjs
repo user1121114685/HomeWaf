@@ -88,11 +88,18 @@ try {
   if ((await api('checkversion')).need_update) throw new Error('Current version incorrectly offered as an update');
   console.log(JSON.stringify({ platform: assetPlatform, version, online, checks: ['SHA256-verified installer', 'fresh database startup', 'embedded web UI', 'version API', 'random initial password', 'instance key', 'new-version notification', 'no redundant update'] }));
 } finally {
+  // Stop the supervisor first so it cannot respawn a worker during cleanup.
+  if (child.pid && child.exitCode === null && child.signalCode === null) {
+    await new Promise(resolve => {
+      const timeout = setTimeout(() => child.kill('SIGKILL'), 10000);
+      child.once('exit', () => { clearTimeout(timeout); resolve(); });
+      child.kill();
+    });
+  }
   try {
     const state = JSON.parse(fs.readFileSync(path.join(dir, 'data/supervisor.state'), 'utf8'));
     for (const pid of state.pids || []) { if (Number.isInteger(pid) && pid > 1 && pid !== process.pid) { try { process.kill(pid); } catch {} } }
   } catch {}
-  child.kill();
   publisher.closeAllConnections(); publisher.close();
   fs.closeSync(log);
 }

@@ -20,8 +20,11 @@
         <template #message>
           <div>{{ $t('topNav.update.container_blocked_tips', { container: container_type || 'container' }) }}</div>
           <div style="margin-top:8px"><strong>{{ $t('topNav.update.container_howto_label') }}</strong></div>
-          <pre style="margin:4px 0;padding:8px;background:rgba(0,0,0,.05);border-radius:4px;white-space:pre-wrap">docker compose pull
-docker compose up -d</pre>
+          <pre style="margin:4px 0;padding:8px;background:rgba(0,0,0,.05);border-radius:4px;white-space:pre-wrap">Linux / macOS:
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh | bash -s -- --docker
+
+Windows PowerShell:
+&amp; ([scriptblock]::Create((irm https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1))) -Docker</pre>
           <div>{{ $t('topNav.update.container_howto_tips') }}</div>
         </template>
       </hw-alert>

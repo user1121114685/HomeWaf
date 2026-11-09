@@ -78,6 +78,8 @@ Linux x86_64 对应运行 `./HomeWafLinux64 rolling-restart`，Linux arm64 运�
 
 本地回归：`go test ./wafnet ./supervisor` 包含真实子进程切换、持续 HTTP 请求、慢请求、升级连接和候选启动失败场景。完整在线升级测试可用两个版本递增的本地二进制运行 `node scripts/verify-graceful-update.mjs <旧程序> <新程序> <新版本号>`；脚本使用临时目录、回环更新源和关闭挑战拦截的临时测试站点，只验证传输连续性，不使用生产数据。
 
+持续 HTTP 回归使用正常连接复用，避免强制短连接压力耗尽 Windows 临时端口。Windows 的 `SO_REUSEADDR` 不保证多个监听 socket 的确定性分流，切换瞬间的新建 TCP 连接可能需要客户端重试；平滑升级不承诺所有新连接握手都零中断。
+
 ## 商业授权与插件
 
 离线签名工具：
@@ -102,7 +104,7 @@ claims 的 version=2、product=homewaf、edition=commercial；还需填写 licen
 
 Go/npm 依赖版本由 `go.mod`、`go.sum`、`web/package.json` 和 `web/package-lock.json` 维护。升级依赖时同步更新第三方清单、许可文本及相关来源记录。版本审计、SBOM、测试结果等临时报告放入已忽略的 `artifacts/` 或 `.cache/`，无需作为源码快照提交。
 
-安装脚本默认从本仓库最新正式 Release 下载并校验安装包，然后安装服务。发布工作流先创建草稿，完成五个平台的原生安装/启动/更新提示检查和 Docker 启动检查后公开 release，再验证公开下载。工作流只向本仓库及 ghcr.io/user1121114685/homewaf 发布。
+安装脚本默认从本仓库最新正式 Release 下载并校验安装包，然后安装服务。发布工作流先创建草稿，完成五个平台的原生安装/启动/更新提示检查和 Docker 启动检查后公开 release，再验证公开下载。Docker 镜像使用可由 docker load 导入的架构独立归档，安装脚本下载、校验并运行，无需镜像仓库登录。工作流只向本仓库的公开 Release 发布。
 
 可选构建代理的 Kerberos 协商未被原构建使用，也缺少独立许可文本，已替换为项目内明确拒绝该认证方式的策略模块；HTTPS/Basic 代理与本地构建不受影响。
 
