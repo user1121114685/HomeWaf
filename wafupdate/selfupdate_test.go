@@ -11,6 +11,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -21,7 +23,7 @@ func TestUpdaterFetchMustReturnNonNilReaderCloser(t *testing.T) {
 		func(url string) (io.ReadCloser, error) {
 			return nil, nil
 		})
-	updater := createUpdater(mr)
+	updater := createUpdater(t, mr)
 	updater.CheckTime = 24
 	updater.RandomizeTime = 24
 
@@ -42,7 +44,7 @@ func TestUpdaterWithEmptyPayloadNoErrorNoUpdate(t *testing.T) {
 			equals(t, "http://updates.yourdomain.com/myapp/"+plat+".json?"+ClientQuery(), url)
 			return newTestReaderCloser(`{"Version":"v1.0.0","Sha256":"` + base64.StdEncoding.EncodeToString(make([]byte, 32)) + `"}`), nil
 		})
-	updater := createUpdater(mr)
+	updater := createUpdater(t, mr)
 	updater.CheckTime = 24
 	updater.RandomizeTime = 24
 
@@ -68,7 +70,7 @@ func TestUpdaterCheckTime(t *testing.T) {
 // Helper function to run check time tests
 func runTestTimeChecks(t *testing.T, mr *mockRequester, checkTime int, randomizeTime int) {
 	t.Helper()
-	updater := createUpdater(mr)
+	updater := createUpdater(t, mr)
 	updater.ClearUpdateState()
 	t.Cleanup(updater.ClearUpdateState)
 	updater.CheckTime = checkTime
@@ -98,11 +100,14 @@ func TestUpdaterWithEmptyPayloadNoErrorNoUpdateEscapedPath(t *testing.T) {
 			equals(t, "http://updates.yourdomain.com/myapp%2Bfoo/"+plat+".json?"+ClientQuery(), url)
 			return newTestReaderCloser(`{"Version":"v1.0.0","Sha256":"` + base64.StdEncoding.EncodeToString(make([]byte, 32)) + `"}`), nil
 		})
-	updater := createUpdaterWithEscapedCharacters(mr)
+	updater := createUpdaterWithEscapedCharacters(t, mr)
 
 	err := updater.BackgroundRun()
 	if err != nil {
 		t.Errorf("Error occurred: %#v", err)
+	}
+	if mr.currentIndex != 1 {
+		t.Fatalf("expected one metadata request, got %d", mr.currentIndex)
 	}
 }
 
@@ -117,7 +122,7 @@ func TestUpdateAvailable(t *testing.T) {
 	"Desc":"fixsamebug"
 }`), nil
 		})
-	updater := createUpdater(mr)
+	updater := createUpdater(t, mr)
 
 	available, ver, desc, err := updater.UpdateAvailable()
 	if err != nil {
@@ -128,28 +133,32 @@ func TestUpdateAvailable(t *testing.T) {
 	equals(t, "fixsamebug", desc)
 }
 
-func createUpdater(mr *mockRequester) *Updater {
+func createUpdater(t *testing.T, mr *mockRequester) *Updater {
+	t.Helper()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir, err := filepath.Rel(filepath.Dir(exe), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	return &Updater{
 		CurrentVersion: "v1.0.0",
 		ApiURL:         "http://updates.yourdomain.com/",
 		BinURL:         "http://updates.yourdownmain.com/",
 		DiffURL:        "http://updates.yourdomain.com/",
-		Dir:            "update/",
+		Dir:            dir + string(filepath.Separator),
 		CmdName:        "myapp", // app name
 		Requester:      mr,
 	}
 }
 
-func createUpdaterWithEscapedCharacters(mr *mockRequester) *Updater {
-	return &Updater{
-		CurrentVersion: "1.2+foobar",
-		ApiURL:         "http://updates.yourdomain.com/",
-		BinURL:         "http://updates.yourdownmain.com/",
-		DiffURL:        "http://updates.yourdomain.com/",
-		Dir:            "update/",
-		CmdName:        "myapp+foo", // app name
-		Requester:      mr,
-	}
+func createUpdaterWithEscapedCharacters(t *testing.T, mr *mockRequester) *Updater {
+	u := createUpdater(t, mr)
+	u.CurrentVersion = "v1.2.0+foobar"
+	u.CmdName = "myapp+foo"
+	return u
 }
 
 func equals(t *testing.T, expected, actual interface{}) {
@@ -202,7 +211,7 @@ func TestFetchInfoGithubIntegration(t *testing.T) {
 	payload, _ := json.Marshal(map[string]any{"tag_name": "v2.0.1", "body": "test release", "assets": []map[string]any{{"name": "HomeWaf_" + platform + "_2.0.1" + extension, "browser_download_url": "https://publisher.example/HomeWaf" + extension, "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}}})
 	mr := &mockRequester{}
 	mr.handleRequest(func(url string) (io.ReadCloser, error) { return newTestReaderCloser(string(payload)), nil })
-	updater := createUpdater(mr)
+	updater := createUpdater(t, mr)
 	if err := updater.fetchInfoGithub(); err != nil {
 		t.Fatal(err)
 	}
