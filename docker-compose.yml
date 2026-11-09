@@ -12,6 +12,7 @@ services:
     volumes:
       - ./conf:/app/conf
       - ./data:/app/data
+      - ./.homewaf-keys:/app/.homewaf-keys
       - ./logs:/app/logs
       - ./ssl:/app/ssl
     restart: unless-stopped

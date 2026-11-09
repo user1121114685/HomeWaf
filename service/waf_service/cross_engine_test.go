@@ -5,7 +5,7 @@
 // 跨三种数据库（SQLite / MySQL / PostgreSQL）兼容回归测试 —— 骨架与公共设施。
 //
 // 目标：对 service 层的数据库操作，在三种引擎各跑一遍，断言 ①不崩溃 ②数据正确。
-// 建表走**真实迁移**（RunCoreDBMigrations/RunLogDBMigrations/RunStatsDBMigrations），
+// 建表走**真实迁移**（InitializeCoreSchema/InitializeLogSchema/InitializeStatsSchema），
 // 与生产完全一致（含索引、种子数据、方言分支），而非手写 AutoMigrate 清单。
 //
 // 分组用例分布在同包的其它 crossdb 文件里：
@@ -85,10 +85,10 @@ func registerTenantScope(db *gorm.DB) {
 // runRealMigrations 在给定连接上跑真实建表迁移并注册租户回调。
 func migrateCore(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	if err := wafdb.RunCoreDBMigrations(db); err != nil {
+	if err := wafdb.InitializeCoreSchema(db); err != nil {
 		t.Fatalf("core 迁移失败: %v", err)
 	}
-	if err := wafdb.RunTaskInitMigrations(db); err != nil {
+	if err := wafdb.InitializeTasks(db); err != nil {
 		t.Fatalf("task 初始化迁移失败: %v", err)
 	}
 	registerTenantScope(db)
@@ -96,7 +96,7 @@ func migrateCore(t *testing.T, db *gorm.DB) {
 
 func migrateLog(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	if err := wafdb.RunLogDBMigrations(db); err != nil {
+	if err := wafdb.InitializeLogSchema(db); err != nil {
 		t.Fatalf("log 迁移失败: %v", err)
 	}
 	registerTenantScope(db)
@@ -104,7 +104,7 @@ func migrateLog(t *testing.T, db *gorm.DB) {
 
 func migrateStats(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	if err := wafdb.RunStatsDBMigrations(db); err != nil {
+	if err := wafdb.InitializeStatsSchema(db); err != nil {
 		t.Fatalf("stats 迁移失败: %v", err)
 	}
 	registerTenantScope(db)

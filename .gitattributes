@@ -1,4 +1,5 @@
 # Preserve upstream legal texts verbatim.
+*.sh text eol=lf
 LICENSES/** whitespace=-blank-at-eol,-blank-at-eof
 # Keep the consolidated original texts and their SHA-256 index byte-for-byte.
 LICENSES/THIRD_PARTY.txt -text

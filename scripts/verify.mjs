@@ -19,9 +19,11 @@ run([
   "./internal/secretfield",
   "./wafsec",
   "./wafreg",
+  "./wafcli",
   "./internal/thirdparty/capserver",
   "./internal/sqlitedialect",
   "./internal/mysqldriver",
+  "./utils/filelease",
   "./common/gwebsocket",
   "./wafinit",
   "./wafenginecore/wafcaptcha",
@@ -47,4 +49,5 @@ run([
 ]);
 run(["test", "./wafupdate", "./wafupgradenotice", "./wafai", "-count=1"]);
 run(["test", "./wafnet", "./supervisor", "-count=1"]);
+run(["test", "./waftask", "-run", "^TestEveryCleanupTableHasSeededPolicy$", "-count=1"]);
 run(["test", "./wafenginecore", "./cmd/homewaf", "-run", "Test(ProxyReadiness|WorkerReadiness|Graceful)", "-count=1"]);

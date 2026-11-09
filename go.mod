@@ -20,7 +20,6 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/go-co-op/gocron/v2 v2.23.0
-	github.com/go-gormigrate/gormigrate/v2 v2.1.7
 	github.com/go-mysql-org/go-mysql v1.16.0
 	github.com/google/uuid v1.6.0
 	github.com/ipipdotnet/ipdb-go v1.3.3

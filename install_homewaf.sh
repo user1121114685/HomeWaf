@@ -1,48 +1,93 @@
 #!/usr/bin/env bash
-# HomeWaf installer. No default vendor URL; verify publisher checksum first.
+# HomeWaf online installer for Linux and macOS.
 set -euo pipefail
-archive=${1:-}
-checksum=${2:-}
-destination=${3:-/opt/homewaf}
-if [[ -z "$archive" || ! "$checksum" =~ ^[0-9a-fA-F]{64}$ ]]; then
-  echo 'Usage: bash install_homewaf.sh ARCHIVE_OR_HTTPS_URL SHA256 [ABSOLUTE_DESTINATION]' >&2
-  echo 'Stop the old service and back up conf/data/ssl before installing.' >&2
-  exit 2
+repo=https://github.com/user1121114685/HomeWaf
+action=install
+version=latest
+destination=/opt/homewaf
+service=1
+archive=
+checksums=
+die() { printf 'HomeWaf: %s\n' "$*" >&2; exit 1; }
+if [[ ${1:-} == install || ${1:-} == uninstall ]]; then action=$1; shift; fi
+while (($#)); do
+  case "$1" in
+    --version) version=${2:?Missing version}; shift 2 ;;
+    --dir) destination=${2:?Missing directory}; shift 2 ;;
+    --no-service) service=0; shift ;;
+    --archive) archive=${2:?Missing archive}; shift 2 ;;
+    --checksums) checksums=${2:?Missing checksums file}; shift 2 ;;
+    --help|-h) echo 'Usage: bash install_homewaf.sh [install|uninstall] [--version v2.0.0] [--dir /opt/homewaf] [--no-service]'; exit 0 ;;
+    *) die "Unknown option: $1" ;;
+  esac
+done
+[[ $destination == /* && $destination != / ]] || die 'Use an absolute application directory, not /.'
+case $(uname -s) in
+  Linux) os=Linux ;;
+  Darwin) os=Darwin ;;
+  *) die 'Supported systems: Linux and macOS. On Windows use install_homewaf.ps1.' ;;
+esac
+case $(uname -m) in
+  x86_64|amd64) arch=x86_64; suffix=64 ;;
+  aarch64|arm64) arch=arm64; suffix=Arm64 ;;
+  *) die "Unsupported architecture: $(uname -m)" ;;
+esac
+binary=HomeWaf${os}${suffix}
+if ((service)) && ((EUID != 0)); then die 'Service installation requires root; run this script with sudo.'; fi
+if [[ $action == uninstall ]]; then
+  [[ -x $destination/$binary ]] || die "HomeWaf is not installed in $destination"
+  "$destination/$binary" stop
+  "$destination/$binary" uninstall
+  echo "Service removed. Your application, configuration, data and keys remain in $destination."
+  exit 0
 fi
-[[ "$destination" = /* && "$destination" != / ]] || { echo 'Destination must be an absolute application directory' >&2; exit 2; }
+for command in curl tar install; do command -v "$command" >/dev/null || die "Required command not found: $command"; done
+download() { curl --fail --silent --show-error --location --retry 3 --connect-timeout 20 --max-time 600 --proto '=https' --proto-redir '=https' "$1" -o "$2"; }
 temporary=$(mktemp -d)
 trap 'rm -rf -- "$temporary"' EXIT
-if [[ "$archive" = https://* ]]; then
-  curl --fail --location --proto '=https' --proto-redir '=https' --max-time 300 "$archive" -o "$temporary/package.tar.gz"
-elif [[ "$archive" = *://* ]]; then
-  echo 'Only HTTPS downloads are accepted' >&2; exit 2
-else
-  cp -- "$archive" "$temporary/package.tar.gz"
+if [[ $version == latest ]]; then
+  effective=$(curl --fail --silent --show-error --location --retry 3 --connect-timeout 20 --max-time 60 --proto '=https' --proto-redir '=https' -o /dev/null -w '%{url_effective}' "$repo/releases/latest")
+  version=${effective##*/}
 fi
-printf '%s  %s\n' "$checksum" "$temporary/package.tar.gz" | sha256sum --check --status
-tar -tzf "$temporary/package.tar.gz" > "$temporary/entries"
-if grep -Eq '(^/|(^|/)\.\.(/|$)|\\)' "$temporary/entries"; then
-  echo 'Unsafe archive paths' >&2; exit 1
-fi
-tar -tvzf "$temporary/package.tar.gz" > "$temporary/types"
-if grep -Eq '^[lh]' "$temporary/types"; then
-  echo 'Archive links are not accepted' >&2; exit 1
-fi
+[[ $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][A-Za-z0-9.-]+)?$ ]] || die "Invalid release version: $version"
+asset=HomeWaf_${os}_${arch}_${version#v}.tar.gz
+base=$repo/releases/download/$version
+echo "Installing HomeWaf $version ($os/$arch) to $destination"
+if [[ -n $archive ]]; then cp -- "$archive" "$temporary/$asset"; else download "$base/$asset" "$temporary/$asset"; fi
+if [[ -n $checksums ]]; then cp -- "$checksums" "$temporary/checksums.txt"; else download "$base/HomeWaf_${version#v}_checksums.txt" "$temporary/checksums.txt"; fi
+expected=$(awk -v name="$asset" '$2 == name || $2 == "*" name { print $1 }' "$temporary/checksums.txt")
+[[ $expected =~ ^[0-9a-fA-F]{64}$ ]] || die "No unique SHA256 checksum for $asset"
+if command -v sha256sum >/dev/null; then actual=$(sha256sum "$temporary/$asset"); else actual=$(shasum -a 256 "$temporary/$asset"); fi
+[[ ${actual%% *} == "$expected" ]] || die 'Archive SHA256 verification failed.'
+tar -tzf "$temporary/$asset" > "$temporary/entries"
+if grep -Eq '(^/|(^|/)\.\.(/|$)|\\)' "$temporary/entries"; then die 'Unsafe archive paths.'; fi
+tar -tvzf "$temporary/$asset" > "$temporary/types"
+if grep -Eq '^[lhcbps]' "$temporary/types"; then die 'Archive links and special files are not accepted.'; fi
 mkdir "$temporary/unpacked"
-tar --no-same-owner --no-same-permissions -xzf "$temporary/package.tar.gz" -C "$temporary/unpacked"
-case $(uname -m) in
-  x86_64) binary=HomeWafLinux64 ;;
-  aarch64|arm64) binary=HomeWafLinuxArm64 ;;
-  *) echo 'Unsupported architecture' >&2; exit 1 ;;
-esac
+tar --no-same-owner --no-same-permissions -xzf "$temporary/$asset" -C "$temporary/unpacked"
 for required in "$binary" LICENSE NOTICE THIRD_PARTY_NOTICES.md LICENSES; do
-  [[ -e "$temporary/unpacked/$required" ]] || { echo "Missing $required" >&2; exit 1; }
+  [[ -e $temporary/unpacked/$required ]] || die "Missing $required"
 done
+installed=0
+if ((service)); then
+  if [[ -f /etc/systemd/system/HomeWafService.service || -f /Library/LaunchDaemons/HomeWafService.plist ]]; then
+    [[ -x $destination/$binary ]] || die 'Existing service uses another directory; use its original --dir.'
+    "$destination/$binary" stop
+    installed=1
+  fi
+fi
 install -d -m 0750 "$destination"
 install -m 0755 "$temporary/unpacked/$binary" "$destination/$binary.new"
 mv -f -- "$destination/$binary.new" "$destination/$binary"
-cp -- "$temporary/unpacked/LICENSE" "$temporary/unpacked/NOTICE" "$temporary/unpacked/THIRD_PARTY_NOTICES.md" "$destination/"
-cp -R -- "$temporary/unpacked/LICENSES" "$destination/"
-if [[ -d "$temporary/unpacked/docs" ]]; then cp -R -- "$temporary/unpacked/docs" "$destination/"; fi
-echo "Installed $destination/$binary. Read docs/modernization/MIGRATION.md before starting."
-echo "Service installation is explicit: cd '$destination' and run ./$binary install, then ./$binary start."
+for required in LICENSE NOTICE THIRD_PARTY_NOTICES.md LICENSES docs; do
+  [[ ! -e $temporary/unpacked/$required ]] || cp -R "$temporary/unpacked/$required" "$destination/"
+done
+if ((service)); then
+  if ((installed == 0)); then "$destination/$binary" install; fi
+  "$destination/$binary" start
+  echo 'HomeWaf service started. Open http://127.0.0.1:26666'
+else
+  echo "Installed. Start with: $destination/$binary"
+fi
+echo "Account: admin. Initial password: $destination/data/initial_password.txt (created on first start)."
+echo "Keep $destination/.homewaf-keys together with your backups."

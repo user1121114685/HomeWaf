@@ -136,7 +136,7 @@ type MigrateTool struct {
 	// because a migration needs BOTH ends at once. Every DBDialect method takes the
 	// *gorm.DB it should act on, so an instance is fully usable on its own.
 	// dialect.Register() still receives the TARGET dialect: the schema-migration
-	// functions (RunCoreDBMigrations -> safeCreateIndex) consult dialect.Get().
+	// functions (InitializeCoreSchema -> safeCreateIndex) consult dialect.Get().
 	srcDia dialect.DBDialect
 	dstDia dialect.DBDialect
 
@@ -457,10 +457,10 @@ func (t *MigrateTool) buildPairs() []migPair {
 		dstDBName: t.dstCoreDBName(),
 		dstLabel:  t.dstKind + "_core",
 		schemaMig: func(db *gorm.DB) error {
-			if err := RunCoreDBMigrations(db); err != nil {
+			if err := InitializeCoreSchema(db); err != nil {
 				return err
 			}
-			return RunTaskInitMigrations(db)
+			return InitializeTasks(db)
 		},
 	}
 	logPair := migPair{
@@ -469,7 +469,7 @@ func (t *MigrateTool) buildPairs() []migPair {
 		srcDBName: global.GWAF_MYSQL_LOG_DB,
 		dstDBName: t.dstLogDBName(),
 		dstLabel:  t.dstKind + "_log",
-		schemaMig: RunLogDBMigrations,
+		schemaMig: InitializeLogSchema,
 	}
 	statsPair := migPair{
 		srcLabel:  "stats",
@@ -477,7 +477,7 @@ func (t *MigrateTool) buildPairs() []migPair {
 		srcDBName: global.GWAF_MYSQL_STATS_DB,
 		dstDBName: t.dstStatsDBName(),
 		dstLabel:  t.dstKind + "_stats",
-		schemaMig: RunStatsDBMigrations,
+		schemaMig: InitializeStatsSchema,
 	}
 	return []migPair{core, logPair, statsPair}
 }

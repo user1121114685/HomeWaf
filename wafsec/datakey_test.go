@@ -77,36 +77,6 @@ func TestDataDecryptRejectsLegacyCBC(t *testing.T) {
 	}
 }
 
-// --rekey-legacy 的核心：swk1 → 旧 CBC 后，仍能用旧密钥解回原文（模拟降级到旧版）。
-func TestLegacyEncryptRoundTrip(t *testing.T) {
-	setupDataKey(t)
-	plain := "rollback-me"
-	enc, _ := DataEncrypt(plain)
-	back, err := LegacyEncrypt(mustDecrypt(t, enc), legacyKey)
-	if err != nil {
-		t.Fatalf("LegacyEncrypt: %v", err)
-	}
-	if IsDataKeyCiphertext(back) {
-		t.Fatalf("回退产物不应带 swk1 前缀")
-	}
-	b, err := AesDecrypt(back, legacyKey)
-	if err != nil {
-		t.Fatalf("旧版应能用旧密钥解回退后的密文: %v", err)
-	}
-	if string(b) != plain {
-		t.Fatalf("回退往返不一致: got %q want %q", string(b), plain)
-	}
-}
-
-func mustDecrypt(t *testing.T, enc string) string {
-	t.Helper()
-	s, err := DataDecrypt(enc, legacyKey)
-	if err != nil {
-		t.Fatalf("DataDecrypt: %v", err)
-	}
-	return s
-}
-
 // 篡改 swk1 密文应被 GCM 完整性校验拒绝（CBC 做不到这一点）。
 func TestDataDecryptTamperRejected(t *testing.T) {
 	setupDataKey(t)

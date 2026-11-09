@@ -47,7 +47,6 @@ When dependencies or embedded assets change, update this inventory, the correspo
 | github.com/go-acme/lego/v4 | v4.35.2 | MIT |
 | github.com/go-acme/tencentclouddnspod | v1.3.131 | Apache-2.0 |
 | github.com/go-co-op/gocron/v2 | v2.23.0 | MIT |
-| github.com/go-gormigrate/gormigrate/v2 | v2.1.7 | MIT |
 | github.com/go-jose/go-jose/v4 | v4.1.9 | Apache-2.0 AND BSD-3-Clause |
 | github.com/go-mysql-org/go-mysql | v1.16.0 | MIT |
 | github.com/go-ole/go-ole | v1.3.0 | MIT |

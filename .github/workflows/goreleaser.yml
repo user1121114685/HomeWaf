@@ -7,6 +7,7 @@ on:
     tags: ['v[0-9]*.[0-9]*.[0-9]*']
 permissions:
   contents: write
+  packages: write
 jobs:
   package:
     runs-on: ubuntu-latest
@@ -23,6 +24,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '26.13.0'
+      - name: Run release regressions
+        run: node scripts/verify.mjs
       - name: Produce reviewable archives without publishing
         if: github.ref_type != 'tag'
         run: go run github.com/goreleaser/goreleaser/v2@v2.20.0 release --snapshot --clean
@@ -34,7 +37,153 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: HomeWaf-release-candidate
+          compression-level: 0
           path: |
             dist/*.tar.gz
             dist/*.zip
             dist/*checksums.txt
+  smoke:
+    if: github.ref_type == 'tag'
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '26.13.0'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: HomeWaf-release-candidate
+          path: dist
+      - name: Install candidate and verify startup and update notifications
+        run: node scripts/verify-release.mjs dist ${{ github.ref_name }}
+      - name: Verify Windows service installation
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'
+          $number = $version.Substring(1)
+          $dir = Join-Path $env:RUNNER_TEMP 'homewaf-service'
+          try {
+            ./install_homewaf.ps1 -Version $version -Directory $dir -ArchivePath "dist/HomeWaf_Windows_x86_64_$number.zip" -ChecksumsPath "dist/HomeWaf_${number}_checksums.txt"
+            $ready = $false
+            for ($i=0; $i -lt 90; $i++) {
+              try { if ((Invoke-WebRequest -Uri http://127.0.0.1:26666/ -TimeoutSec 2).StatusCode -eq 200) { $ready=$true; break } } catch {}
+              Start-Sleep -Seconds 1
+            }
+            if (-not $ready) { throw 'Windows service did not serve the console' }
+          } finally {
+            if (Test-Path "$dir/HomeWaf64.exe") { & "$dir/HomeWaf64.exe" stop; & "$dir/HomeWaf64.exe" uninstall }
+          }
+      - name: Verify Unix service installation
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          version='${{ github.ref_name }}'
+          os=$(uname -s)
+          case $(uname -m) in x86_64) arch=x86_64; suffix=64 ;; *) arch=arm64; suffix=Arm64 ;; esac
+          dir="$RUNNER_TEMP/homewaf-service"
+          binary="HomeWaf${os}${suffix}"
+          trap 'if [[ -x "$dir/$binary" ]]; then sudo "$dir/$binary" stop || true; sudo "$dir/$binary" uninstall || true; fi' EXIT
+          sudo bash install_homewaf.sh --version "$version" --dir "$dir" --archive "dist/HomeWaf_${os}_${arch}_${version#v}.tar.gz" --checksums "dist/HomeWaf_${version#v}_checksums.txt"
+          for attempt in $(seq 1 90); do
+            if curl -fsS --max-time 2 http://127.0.0.1:26666/ -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo 'Service did not serve the console' >&2
+          exit 1
+  container:
+    if: github.ref_type == 'tag'
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: HomeWaf-release-candidate
+          path: dist
+      - name: Prepare verified Linux executables
+        shell: bash
+        run: |
+          version='${{ github.ref_name }}'
+          cd dist
+          sha256sum --check "HomeWaf_${version#v}_checksums.txt"
+          cd ..
+          mkdir -p docker-dist/amd64 docker-dist/arm64
+          tar -xzf "dist/HomeWaf_Linux_x86_64_${version#v}.tar.gz" -C docker-dist/amd64 HomeWafLinux64
+          tar -xzf "dist/HomeWaf_Linux_arm64_${version#v}.tar.gz" -C docker-dist/arm64 HomeWafLinuxArm64
+          mv docker-dist/amd64/HomeWafLinux64 docker-dist/amd64/homewaf
+          mv docker-dist/arm64/HomeWafLinuxArm64 docker-dist/arm64/homewaf
+      - uses: docker/setup-qemu-action@5138f26214adf9d69718655df70f66d2b3c81db3
+      - uses: docker/setup-buildx-action@bf8388060db527dff14f48b6a5fdbe70763c1213
+      - uses: docker/login-action@d0b8297dd55199249f38268efae35fcb03f75aab
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@562e51947939164e4fe808a6eab5101977e509e0
+        with:
+          context: .
+          file: Dockerfile.release
+          platforms: linux/amd64,linux/arm64
+          build-args: HOMEWAF_VERSION=${{ github.ref_name }}
+          push: true
+          tags: ghcr.io/user1121114685/homewaf:${{ github.ref_name }}
+      - name: Verify container startup and persistent keys
+        shell: bash
+        run: |
+          docker run -d --name homewaf-smoke -p 127.0.0.1:26666:26666 ghcr.io/user1121114685/homewaf:${{ github.ref_name }}
+          trap 'docker logs homewaf-smoke > container-smoke.log 2>&1; docker rm -f homewaf-smoke' EXIT
+          for attempt in $(seq 1 90); do
+            if curl -fsS --max-time 2 http://127.0.0.1:26666/ -o /dev/null; then
+              docker exec homewaf-smoke test -s /app/.homewaf-keys/data_key
+              docker exec homewaf-smoke test -s /app/data/initial_password.txt
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+  publish:
+    if: github.ref_type == 'tag'
+    needs: [smoke, container]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@bf8388060db527dff14f48b6a5fdbe70763c1213
+      - uses: docker/login-action@d0b8297dd55199249f38268efae35fcb03f75aab
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish stable release and container tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker buildx imagetools create -t ghcr.io/user1121114685/homewaf:latest ghcr.io/user1121114685/homewaf:${{ github.ref_name }}
+          gh release edit '${{ github.ref_name }}' --repo '${{ github.repository }}' --draft=false --latest
+  online-install:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '26.13.0'
+      - name: Verify public release downloads and online installation
+        run: node scripts/verify-release.mjs dist ${{ github.ref_name }} --online
+  public-container:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify anonymous Docker download
+        run: docker pull ghcr.io/user1121114685/homewaf:latest

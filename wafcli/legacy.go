@@ -5,9 +5,7 @@ package wafcli
 import (
 	"HomeWaf/global"
 	"HomeWaf/supervisor"
-	"HomeWaf/utils"
 	"HomeWaf/wafdb"
-	"HomeWaf/wafsec"
 	"HomeWaf/wafupdate"
 	"errors"
 	"fmt"
@@ -56,27 +54,6 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 			return nil
 		},
 	})
-	for _, name := range []string{"rekey", "rekey-legacy"} {
-		legacy := name == "rekey-legacy"
-		root.AddCommand(&cobra.Command{Use: name, Short: map[bool]string{false: "升级遗留敏感字段的数据密钥格式", true: "旧格式降级入口（已停用）"}[legacy],
-			GroupID: "datakey", Args: cobra.NoArgs, Example: "  samwaf " + name,
-			RunE: func(cmd *cobra.Command, args []string) error {
-				if legacy {
-					return fail(ExitFailed, errors.New("已停用旧公开密钥加密格式，拒绝降低敏感数据保护"))
-				}
-				if err := wafsec.InitDataKey(utils.GetCurrentDir(), global.GCONFIG_DATA_KEY_FILE); err != nil {
-					return fail(ExitFailed, fmt.Errorf("数据密钥初始化失败: %w", err))
-				}
-				if err := initCoreDatabase(); err != nil {
-					return fail(ExitFailed, err)
-				}
-				n := wafdb.RekeyDataKey(global.GWAF_LOCAL_DB)
-				fmt.Fprintf(cmd.OutOrStdout(), "已把 %d 行遗留敏感字段升级为当前数据密钥格式。\n", n)
-				fmt.Fprintln(cmd.OutOrStdout(), "注意：本命令不做密钥轮换；请勿在替换 data_key 文件后运行它。")
-				return nil
-			},
-		})
-	}
 	for _, item := range []struct {
 		name, short string
 		run         func()

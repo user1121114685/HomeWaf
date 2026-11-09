@@ -1,4 +1,4 @@
-# HomeWaf 构建、迁移与发布
+# HomeWaf 构建、初始化与发布
 
 ## 工具链与构建
 
@@ -18,15 +18,16 @@
 
 验证入口为 `node scripts/verify.mjs`；它编译全部包，只执行选定回归。外部数据库、消息系统和真实证书签发测试需自行提供隔离实例。平台支持和测试结果应以对应提交的 CI 记录及部署环境实测为准。
 
-## 从旧发行版迁移
+## 新安装与版本发布
 
-1. 停止旧服务；备份整个安装目录，特别是 conf、data、ssl、plugins 和 registration_data.bin。记录旧版本、数据库类型、配置和自定义挑战页/规则。
-2. 使用新目录预演迁移，复制备份进行验证；确认后再切换服务。不要让两个版本同时写同一数据库或监听相同端口。
-3. 新服务名是 HomeWafService，二进制为 HomeWaf64.exe / HomeWafLinux64 / HomeWafLinuxArm64；显式安装和启动新服务。旧服务由操作员停用/卸载，本脚本不自动删除。
-4. 现有 tenant ID（例如 SamWafCom）、数据库字段、锁文件、认证 Cookie、swt2 报文、挑战 URL 和 HTML 占位符属于兼容协议，仍可保留原字符串；它们不是产品包名。直接改值可能造成租户数据不可见、锁失效或已有页面无法登录。
-5. 当前 SQLite 使用标准未加密文件，不兼容旧 AES128CBC 加密数据库，也不提供自动转换。HomeWaf 尚无存量用户，本次替换以新安装为目标；开发时请使用新数据目录，保留旧目录备份，不要让新程序覆盖旧库。MySQL/PostgreSQL 不受此驱动替换影响。
-6. 资源释放遵守 lock.txt、自定义内容指纹和 .new 文件机制；新规则/字体/挑战页需要管理员检查差异，不能强行覆盖自定义文件。新版 CRS 更严格，先观察再启用阻断。
-7. 旧无签名/伪授权文件不能升级为有效商业授权，需按新实例 ID 重签；旧插件必须针对新协议重新编译并签名。删除旧前端浏览器缓存后重新登录。
+HomeWaf 面向全新安装，不提供旧版 SamWaf 数据导入、旧密文转换或降级命令。
+首次启动按当前模型直接建立核心库、日志库、统计库及索引，并创建默认任务和策略；
+不运行上游历史迁移链，不创建历史 migrations 表。重复启动保留用户修改的任务和策略。
+开发期使用新的安装目录。软件更新仍然保留安装后的配置、数据、证书和实例密钥。
+
+公开发行支持 Windows x64、Linux x64/ARM64、macOS Intel/Apple Silicon。
+安装入口和 Docker 命令见根目录 README。脚本从本仓库正式 Release 自动选取平台包，
+下载 SHA256 清单并校验，随后注册并启动服务；可显式选择无服务模式和自定义目录。
 
 ## SQLite 存储与导出
 
@@ -34,7 +35,7 @@
 
 证书私钥、DNS 凭证及通知渠道秘密等字段额外使用每实例 AES-GCM 加密；标准 SQLite 文件不意味着这些字段以明文保存。默认数据密钥已移到 `.homewaf-keys/data_key`，Docker 需持久化对应独立卷。新增字段要求新安装，不自动信任旧明文。完整保护范围、恢复要求和开源授权边界见 [SECURITY.md](SECURITY.md)。
 
-GORM 方言及迁移逻辑保留。连接默认设置 5 秒锁等待，并使用 SQLite 可识别、保留时区偏移的时间格式；归档连接逐连接设置只读及缓存限制。在线备份使用 modernc 的备份接口，包含尚未 checkpoint 的 WAL 数据。
+GORM 方言保留，首次启动直接初始化当前表结构。连接默认设置 5 秒锁等待，并使用 SQLite 可识别、保留时区偏移的时间格式；归档连接逐连接设置只读及缓存限制。在线备份使用 modernc 的备份接口，包含尚未 checkpoint 的 WAL 数据。
 
 运行 `node scripts/verify.mjs` 验证所有 Go 包可编译，并执行驱动、数据库、归档及日志导出回归。数据库压测可单独使用 `go test -trimpath ./wafdb -run TestSqlite -count=1`。交叉编译仅需设置 `CGO_ENABLED=0`、`GOOS` 和 `GOARCH`；目标需同时被应用和 modernc 支持。`modernc.org/libc` 是 Go 实现的运行时依赖，不要求安装系统 C 库；其版本必须与所选 SQLite 驱动的 `go.mod` 一致。
 
@@ -101,10 +102,10 @@ claims 的 version=2、product=homewaf、edition=commercial；还需填写 licen
 
 Go/npm 依赖版本由 `go.mod`、`go.sum`、`web/package.json` 和 `web/package-lock.json` 维护。升级依赖时同步更新第三方清单、许可文本及相关来源记录。版本审计、SBOM、测试结果等临时报告放入已忽略的 `artifacts/` 或 `.cache/`，无需作为源码快照提交。
 
-安装脚本接受显式 HTTPS 下载地址或本地 tar.gz，必须给出发行方 SHA256；不提供默认下载源，不自动安装服务。GitHub 发布流程仅生成可审阅的候选包，不自动向旧账号、镜像仓库或服务上传。
+安装脚本默认从本仓库最新正式 Release 下载并校验安装包，然后安装服务。发布工作流先创建草稿，完成五个平台的原生安装/启动/更新提示检查和 Docker 启动检查后公开 release，再验证公开下载。工作流只向本仓库及 ghcr.io/user1121114685/homewaf 发布。
 
 可选构建代理的 Kerberos 协商未被原构建使用，也缺少独立许可文本，已替换为项目内明确拒绝该认证方式的策略模块；HTTPS/Basic 代理与本地构建不受影响。
 
 授权文件固定写入应用安装/开发目录，不依赖 Windows 服务管理器的工作目录。
 
-使用 `node scripts/build.mjs` 时，可将 `HOMEWAF_LICENSE_PUBLIC_KEYS`、`HOMEWAF_PLUGIN_PUBLIC_KEYS` 分别设置为公钥 JSON 文件路径。构建脚本校验键 ID 和 32 字节 Ed25519 公钥，仅嵌入公钥；不读取私钥。GoReleaser 的发布目标固定为 `user1121114685/HomeWaf`，创建草稿后由发行方审核并公开发布。
+使用 `node scripts/build.mjs` 时，可将 `HOMEWAF_LICENSE_PUBLIC_KEYS`、`HOMEWAF_PLUGIN_PUBLIC_KEYS` 分别设置为公钥 JSON 文件路径。构建脚本校验键 ID 和 32 字节 Ed25519 公钥，仅嵌入公钥；不读取私钥。GoReleaser 的发布目标固定为 `user1121114685/HomeWaf`，创建草稿后通过原生安装和容器验证，再自动公开发布。

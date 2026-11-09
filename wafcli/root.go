@@ -66,7 +66,6 @@ func newRootCommand(deps Deps) *cobra.Command {
 	root.AddGroup(
 		&cobra.Group{ID: "service", Title: "服务管理:"},
 		&cobra.Group{ID: "maintain", Title: "维护工具:"},
-		&cobra.Group{ID: "datakey", Title: "数据密钥:"},
 		&cobra.Group{ID: "auto", Title: "自动化:"},
 	)
 	addLegacyCommands(root, deps)

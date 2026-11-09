@@ -63,7 +63,7 @@ func TestExecuteSingleJSON(t *testing.T) {
 
 func TestLegacyRegistration(t *testing.T) {
 	root := newRootCommand(Deps{ServiceControl: func(s string) error { return errors.New("failure") }})
-	for _, name := range []string{"install", "start", "stop", "restart", "uninstall", "rolling-restart", "resetpwd", "resetotp", "repairdb", "execsql", "migratedb", "rollback", "rekey", "rekey-legacy"} {
+	for _, name := range []string{"install", "start", "stop", "restart", "uninstall", "rolling-restart", "resetpwd", "resetotp", "repairdb", "execsql", "migratedb", "rollback"} {
 		cmd, _, err := root.Find([]string{name})
 		if err != nil || cmd.Name() != name || cmd.Example == "" || cmd.GroupID == "" {
 			t.Fatalf("missing %s", name)

@@ -38,12 +38,20 @@ func openLockFile(path string) (*os.File, error) {
 		return nil, err
 	}
 	abs = filepath.Clean(abs)
-	if actual, err := filepath.EvalSymlinks(abs); err == nil {
-		if actual != abs {
+	// Inspect path components instead of comparing EvalSymlinks output: on
+	// Windows it also expands 8.3 names and normalizes case for regular paths.
+	// Check parents even when the lock file has not been created yet.
+	for current := abs; ; current = filepath.Dir(current) {
+		info, err := os.Lstat(current)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		if err == nil && info.Mode()&os.ModeSymlink != 0 {
 			return nil, fmt.Errorf("%w: %s", errSymlinkPath, path)
 		}
-	} else if !os.IsNotExist(err) {
-		return nil, err
+		if filepath.Dir(current) == current {
+			break
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(abs), 0700); err != nil {
 		return nil, err
