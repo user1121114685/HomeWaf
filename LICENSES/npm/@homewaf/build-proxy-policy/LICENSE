@@ -1,4 +1,0 @@
-Original HomeWaf build policy adapter.
-SPDX-License-Identifier: LicenseRef-HomeWaf-NC-1.0
-The repository root LICENSE applies. This package does not contain upstream
-proxy-agent-negotiate code and intentionally rejects optional Kerberos auth.

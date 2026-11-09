@@ -47,5 +47,6 @@ jobs:
             LICENSE
             NOTICE
             THIRD_PARTY_NOTICES.md
-            LICENSES/**
-            docs/modernization/**
+            LICENSES/THIRD_PARTY.txt
+            docs/modernization/MIGRATION.md
+            docs/modernization/provenance.json
