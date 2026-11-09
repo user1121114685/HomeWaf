@@ -131,7 +131,7 @@ func TestUpdateAvailable(t *testing.T) {
 
 func createUpdater(mr *mockRequester) *Updater {
 	return &Updater{
-		CurrentVersion: "1.2",
+		CurrentVersion: "v1.0.0",
 		ApiURL:         "http://updates.yourdomain.com/",
 		BinURL:         "http://updates.yourdownmain.com/",
 		DiffURL:        "http://updates.yourdomain.com/",
@@ -196,7 +196,11 @@ func TestFetchInfoGithubIntegration(t *testing.T) {
 	if platform == "" {
 		t.Skip("release platform not supported")
 	}
-	payload, _ := json.Marshal(map[string]any{"tag_name": "v2.0.1", "body": "test release", "assets": []map[string]any{{"name": "HomeWaf_" + platform + "_2.0.1.zip", "browser_download_url": "https://publisher.example/HomeWaf.zip", "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}}})
+	extension := ".tar.gz"
+	if platform == "Windows_x86_64" {
+		extension = ".zip"
+	}
+	payload, _ := json.Marshal(map[string]any{"tag_name": "v2.0.1", "body": "test release", "assets": []map[string]any{{"name": "HomeWaf_" + platform + "_2.0.1" + extension, "browser_download_url": "https://publisher.example/HomeWaf" + extension, "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}}})
 	mr := &mockRequester{}
 	mr.handleRequest(func(url string) (io.ReadCloser, error) { return newTestReaderCloser(string(payload)), nil })
 	updater := createUpdater(mr)

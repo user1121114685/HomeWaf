@@ -11,13 +11,14 @@ import (
 	"strings"
 )
 
-// Publisher endpoints are opt-in. Never fall back to an upstream vendor.
+// Software releases default to the HomeWaf repository. Other publisher services are opt-in.
 func applyHomeWafEndpoints() {
 	for _, endpoint := range []struct {
 		name string
 		dest *string
 	}{
 		{"HOMEWAF_UPDATE_URL", &global.GUPDATE_VERSION_URL},
+		{"HOMEWAF_RELEASE_URL", &global.GUPDATE_RELEASE_URL},
 		{"HOMEWAF_BETA_UPDATE_URL", &global.GUPDATE_GITHUB_VERSION_URL},
 		{"HOMEWAF_BOT_DATA_URL", &global.GWAF_BOT_IP_URL_MAIN},
 	} {
@@ -40,7 +41,7 @@ func applyHomeWafEndpoints() {
 			panic(fmt.Sprintf("invalid %s: HTTPS is required", endpoint.name))
 		}
 		*endpoint.dest = strings.TrimRight(u.String(), "/")
-		if endpoint.name != "HOMEWAF_BETA_UPDATE_URL" {
+		if endpoint.name != "HOMEWAF_BETA_UPDATE_URL" && endpoint.name != "HOMEWAF_RELEASE_URL" {
 			*endpoint.dest += "/"
 		}
 	}

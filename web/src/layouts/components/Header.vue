@@ -87,8 +87,10 @@ docker compose up -d</pre>
           <logo-full class="t-logo"/>
         </span>
         <div v-else class="header-operate-left">
-          <hw-button theme="default" shape="square" variant="text" @click="changeCollapsed">
-            <view-list-icon class="collapsed-icon" />
+          <hw-button theme="default" shape="square" variant="text" class="sidebar-toggle" @click="changeCollapsed"
+            :aria-expanded="!$store.state.setting.isSidebarCompact"
+            :aria-label="$store.state.language.currentLanguage === 'en_US' ? ($store.state.setting.isSidebarCompact ? 'Expand sidebar' : 'Collapse sidebar') : ($store.state.setting.isSidebarCompact ? '展开侧栏' : '收起侧栏')">
+            <Icon :name="$store.state.setting.isSidebarCompact ? 'menu-unfold' : 'menu-fold'" :size="20" class="collapsed-icon" />
           </hw-button>
           <!--<search :layout="layout" />-->
         </div>
@@ -144,8 +146,9 @@ docker compose up -d</pre>
               variant="text"
               class="lang-btn"
               :title="$t('common.language')"
+              :aria-label="$t('common.language')"
             >
-              <translate-icon />
+              <translate-icon :size="20" />
             </hw-button>
           </hw-dropdown>
           <hw-dropdown :min-column-width="125" trigger="click">
@@ -200,7 +203,6 @@ import {defineComponent} from 'vue';
 
 
   import {
-    ViewListIcon,
     LogoGithubIcon,
     HelpCircleIcon,
     UserCircleIcon,
@@ -242,7 +244,6 @@ import {defineComponent} from 'vue';
       SystemMonitor,
       UpdateProgress,
       ChangePasswordDialog,
-      ViewListIcon,
       LogoGithubIcon,
       HelpCircleIcon,
       UserCircleIcon,
@@ -452,6 +453,14 @@ import {defineComponent} from 'vue';
             let resdata = res
             console.log(resdata)
             if (resdata.code === 0) {
+              if (resdata.data.need_update === false) {
+                that.hasNewVersion = false
+                that.update_new_ver = ''
+                that.update_desc = ''
+                that.update_visible = false
+                if (method === 'manual') that.$message.info(resdata.msg)
+                return
+              }
               that.hasNewVersion = true
               that.update_new_ver = resdata.data.version_new
               that.update_desc = resdata.data.version_desc

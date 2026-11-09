@@ -3,6 +3,7 @@
 /* eslint-disable no-param-reassign */
 import STYLE_CONFIG from '@/config/style';
 import { COLOR_TOKEN, ColorSeries, ColorToken, LIGHT_CHART_COLORS, DARK_CHART_COLORS } from '@/config/color';
+import { applyBrandTheme } from '@/ui/brandTheme';
 
 // 定义的state初始值
 const state = {
@@ -76,21 +77,21 @@ const getters = {
 const actions = {
   changeTheme({ commit, dispatch }, payload: IStateType) {
     dispatch('changeMode', payload);
-    dispatch('changeBrandTheme', payload);
     commit('update', payload);
   },
-  changeMode({ commit, state }, payload: IStateType) {
+  changeMode({ commit, state, dispatch }, payload: IStateType) {
     const theme = payload.mode === 'auto' ? state.systemMode : payload.mode;
     const isDarkMode = theme === 'dark';
 
     document.documentElement.setAttribute('theme-mode', isDarkMode ? 'dark' : 'light');
 
     commit('changeChartColor', isDarkMode ? DARK_CHART_COLORS : LIGHT_CHART_COLORS);
+    dispatch('changeBrandTheme', payload);
   },
-  changeBrandTheme(_: { state: IStateType }, payload: IStateType) {
+  changeBrandTheme({ state, commit }, payload: IStateType) {
     const { brandTheme } = payload;
-
-    document.documentElement.setAttribute('theme-color', brandTheme);
+    const mode = payload.mode === 'auto' ? state.systemMode : payload.mode;
+    commit('addColor', applyBrandTheme(brandTheme, mode));
   },
 };
 

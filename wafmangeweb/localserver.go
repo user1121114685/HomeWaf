@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-contrib/pprof"
@@ -39,6 +40,10 @@ import (
 var emergencyPageHTML string
 
 type WafWebManager struct {
+	StartupReady          *wafnet.Readiness
+	readyMu               sync.Mutex
+	readiness             *wafnet.Readiness
+	readinessStarted      bool
 	HttpServer            *http.Server
 	R                     *gin.Engine
 	LogName               string
@@ -401,6 +406,8 @@ func isLoopbackOrigin(origin string) bool {
 
 // StartLocalServer 启动本地管理服务器
 func (web *WafWebManager) StartLocalServer() error {
+	ready := web.beginReadiness()
+	defer ready.Fail(errors.New("管理端监听已停止"))
 	if global.GWAF_RELEASE == "true" {
 		gin.SetMode(gin.ReleaseMode)
 		gin.DefaultWriter = io.Discard
@@ -552,6 +559,7 @@ func (web *WafWebManager) serveHTTPFallback(reason string) error {
 	// 换掉 Handler：管理端路由不再挂载，明文端口上不会出现登录框或任何接口。
 	// 复用同一个 HttpServer 是为了让既有的优雅关闭/重启链路照常生效。
 	web.HttpServer.Handler = httpsRequiredHandler(reason)
+	web.currentReadiness().Fail(errors.New(reason))
 
 	zlog.Info(web.LogName, "启动 HTTP 管理端（仅回 503 提示，不提供管理功能）, port:", global.GWAF_LOCAL_SERVER_PORT)
 	if err := web.listenAndServeHTTPReuse(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -564,6 +572,11 @@ func (web *WafWebManager) serveHTTPFallback(reason string) error {
 
 // listenAndServeHybrid 混合监听器，同时支持 HTTPS 和 HTTP
 func (web *WafWebManager) listenAndServeHybrid(cert tls.Certificate) error {
+	if web.StartupReady != nil {
+		if err := web.StartupReady.Wait(context.Background()); err != nil {
+			return err
+		}
+	}
 	addr := web.HttpServer.Addr
 	if addr == "" {
 		addr = ":http"
@@ -577,7 +590,7 @@ func (web *WafWebManager) listenAndServeHybrid(cert tls.Certificate) error {
 
 	// 创建混合监听器
 	hybridListener := &hybridListener{
-		Listener: ln,
+		Listener: wafnet.WithReadiness(ln, web.currentReadiness()),
 		cert:     cert,
 	}
 
@@ -588,6 +601,11 @@ func (web *WafWebManager) listenAndServeHybrid(cert tls.Certificate) error {
 // listenAndServeHTTPReuse 用端口复用监听启动 HTTP 管理端，
 // 使升级重叠期新旧 Worker 可同时绑定管理端口 :26666（旧 Worker 退出后由新 Worker 承接）。
 func (web *WafWebManager) listenAndServeHTTPReuse() error {
+	if web.StartupReady != nil {
+		if err := web.StartupReady.Wait(context.Background()); err != nil {
+			return err
+		}
+	}
 	addr := web.HttpServer.Addr
 	if addr == "" {
 		addr = ":http"
@@ -596,7 +614,30 @@ func (web *WafWebManager) listenAndServeHTTPReuse() error {
 	if err != nil {
 		return err
 	}
-	return web.HttpServer.Serve(ln)
+	return web.HttpServer.Serve(wafnet.WithReadiness(ln, web.currentReadiness()))
+}
+
+func (web *WafWebManager) WaitReady(ctx context.Context) error {
+	return web.currentReadiness().Wait(ctx)
+}
+
+func (web *WafWebManager) currentReadiness() *wafnet.Readiness {
+	web.readyMu.Lock()
+	defer web.readyMu.Unlock()
+	if web.readiness == nil {
+		web.readiness = &wafnet.Readiness{}
+	}
+	return web.readiness
+}
+
+func (web *WafWebManager) beginReadiness() *wafnet.Readiness {
+	web.readyMu.Lock()
+	defer web.readyMu.Unlock()
+	if web.readiness == nil || web.readinessStarted {
+		web.readiness = &wafnet.Readiness{}
+	}
+	web.readinessStarted = true
+	return web.readiness
 }
 
 // hybridListener 混合监听器，可以同时处理 HTTPS 和 HTTP 连接

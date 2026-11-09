@@ -43,23 +43,33 @@
                 expand-animation
                 placement="bottom-right"
                 trigger="click"
-                :visible="isColoPickerDisplay"
-                @visible-change="onPopupVisibleChange"
+                v-model:visible="isColoPickerDisplay"
+                popper-class="theme-color-popup"
                 :overlayStyle="{ padding: 0 }"
               >
                 <template #content>
-                  <hw-color-picker-panel
-                    :on-change="changeColor"
-                    :color-modes="['monochrome']"
-                    format="HEX"
-                    :swatch-colors="[]"
-                /></template>
-                <hw-radio-button
-                  :value="COLOR_OPTIONS[COLOR_OPTIONS.length - 1]"
-                  class="setting-layout-color-group dynamic-color-btn"
+                  <div role="dialog" :aria-label="customColorLabel">
+                    <hw-color-picker-panel v-if="isColoPickerDisplay"
+                      :value="customThemeColor"
+                      @change="changeColor"
+                      format="RGB"
+                      :swatch-colors="[]"
+                    >
+                      <template #footer><hw-button size="small" @click="isColoPickerDisplay = false">{{ $store.state.language.currentLanguage === 'en_US' ? 'Done' : '完成' }}</hw-button></template>
+                    </hw-color-picker-panel>
+                  </div>
+                </template>
+                <button
+                  type="button"
+                  class="dynamic-color-btn"
+                  :class="{ 'is-active': formData.brandTheme.startsWith('#') }"
+                  :aria-label="customColorLabel"
+                  :title="customColorLabel"
+                  :aria-expanded="isColoPickerDisplay"
+                  aria-haspopup="dialog"
                 >
                   <color-container :value="COLOR_OPTIONS[COLOR_OPTIONS.length - 1]" />
-                </hw-radio-button>
+                </button>
               </hw-popup>
             </div>
           </hw-radio-group>
@@ -143,11 +153,10 @@
 </template>
 <script lang="ts">
 import { mapGetters } from '@/store/helpers';
-import { Color } from '@/ui/color';
-import { PopupVisibleChangeContext } from '@/ui';
+import { normalizeThemeColor } from '@/ui/brandTheme';
 
 import STYLE_CONFIG from '@/config/style';
-import { insertThemeStylesheet, generateColorMap } from '@/config/color';
+import { getBrandColor } from '@/config/color';
 
 import Thumbnail from '@/components/thumbnail/index.vue';
 import LayoutSideThumbnail from '@/assets/assets-setting-layout-side.svg?url';
@@ -199,6 +208,12 @@ export default {
     };
   },
   computed: {
+    customColorLabel() {
+      return this.$store.state.language.currentLanguage === 'en_US' ? 'Custom theme color (RGB)' : '自定义主题色（RGB）';
+    },
+    customThemeColor() {
+      return normalizeThemeColor(this.formData.brandTheme) || getBrandColor(this.formData.brandTheme, this.$store.state.setting.colorList)?.['--td-brand-color'] || '#0052d9';
+    },
     ...mapGetters('setting', ['showSettingBtn']),
     showSettingPanel: {
       get() {
@@ -236,11 +251,6 @@ export default {
       this.$store.dispatch('setting/changeTheme', { ...this.formData, isSidebarCompact });
     }
   },
-  mounted() {
-    document.querySelector('.dynamic-color-btn')?.addEventListener('click', () => {
-      this.isColoPickerDisplay = true;
-    });
-  },
   methods: {
     // 保存前端请求超时（浏览器本地设置，立即生效，无需刷新）
     saveLocalTimeout() {
@@ -253,9 +263,6 @@ export default {
       const savedMs = setRequestTimeout(DEFAULT_REQUEST_TIMEOUT);
       this.localTimeoutSec = Math.round(savedMs / 1000);
       this.$message.success(this.$t('page.right_setting.local_timeout_saved'));
-    },
-    onPopupVisibleChange(visible: boolean, context: PopupVisibleChangeContext) {
-      if (!visible && context.trigger === 'document') this.isColoPickerDisplay = visible;
     },
     onReset(): void {
       this.formData = {
@@ -291,6 +298,7 @@ export default {
       this.$store.commit('setting/toggleSettingPanel', true);
     },
     handleCloseDrawer(): void {
+      this.isColoPickerDisplay = false;
       this.$store.commit('setting/toggleSettingPanel', false);
     },
     handleCopy(): void {
@@ -300,22 +308,9 @@ export default {
         this.$message.success('复制成功');
       });
     },
-    changeColor(hex: string) {
-      const { setting } = this.$store.state;
-
-      // hex 主题色
-      const newPalette = Color.getPaletteByGradation({
-        colors: [hex],
-        step: 10,
-      })[0];
-      const { mode } = this.$store.state.setting;
-      const colorMap = generateColorMap(hex, newPalette, mode);
-
-      this.$store.commit('setting/addColor', { [hex]: colorMap });
-
-      insertThemeStylesheet(hex, colorMap, mode);
-
-      this.$store.dispatch('setting/changeTheme', { ...setting, brandTheme: hex });
+    changeColor(color: string) {
+      const hex = normalizeThemeColor(color);
+      if (hex) this.formData.brandTheme = hex;
     },
     getSettingFromStorage() {
       try {
@@ -499,6 +494,15 @@ export default {
     line-height: 22px;
   }
   .setting-theme-colors { gap: 8px; }
+  .dynamic-color-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; padding: 4px;
+    border: 2px solid var(--el-border-color); border-radius: 50%;
+    background: var(--el-bg-color); cursor: pointer;
+    &.is-active { border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
+    &:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+    .color-container { flex: 0 0 24px; }
+  }
   .setting-theme-modes svg { display: block; width: 88px; height: 48px; max-width: 100%; }
   .setting-navigation-layout img { display: block; max-width: 100%; object-fit: contain; }
 

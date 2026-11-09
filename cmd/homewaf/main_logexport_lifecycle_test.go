@@ -26,7 +26,7 @@ func TestGracefulStopsLogExportBeforeEngineShutdown(t *testing.T) {
 		block = block[:end]
 	}
 	stopAt := strings.Index(block, "logExportWorkerLifecycle.stop(")
-	engineAt := strings.Index(block, "m.stopSamWaf()")
+	engineAt := strings.Index(block, "m.stopHomeWaf()")
 	if stopAt < 0 || engineAt < 0 || stopAt > engineAt {
 		t.Fatalf("导出执行器必须先于引擎关闭停止: stop=%d engine=%d", stopAt, engineAt)
 	}
