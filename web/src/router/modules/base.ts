@@ -21,6 +21,12 @@ export default [
         meta: { title: 'menu.dashboard.dashboard_title'},
       },
       {
+        path: 'screen',
+        name: 'DashboardScreen',
+        component: () => import('@/pages/dashboard/screen/index.vue'),
+        meta: { title: 'menu.dashboard.screen_title', fullscreen: true, openInNewTab: true, roleCode: 'DashboardBase' },
+      },
+      {
         path: 'stats',
         name: 'DashboardStats',
         component: () => import('@/pages/dashboard/stats/index.vue'),

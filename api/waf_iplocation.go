@@ -191,9 +191,9 @@ func (w *WafIPLocationApi) GetIPDBStatusApi(c *gin.Context) {
 func (w *WafIPLocationApi) GetIPDBConfigApi(c *gin.Context) {
 	resp := IPDBConfigResp{
 		Ipv4Source: getConfigOrDefault("ip_v4_source", "ip2region"),
-		Ipv4Format: getConfigOrDefault("ip_v4_format", "legacy"),
+		Ipv4Format: getConfigOrDefault("ip_v4_format", "opensource"),
 		Ipv6Source: getConfigOrDefault("ip_v6_source", "ip2region"),
-		Ipv6Format: getConfigOrDefault("ip_v6_format", "legacy"),
+		Ipv6Format: getConfigOrDefault("ip_v6_format", "opensource"),
 	}
 	response.OkWithDetailed(resp, "获取成功", c)
 }
@@ -461,7 +461,33 @@ func (w *WafIPLocationApi) ApplyIPDBUpgradeApi(c *gin.Context) {
 		return
 	}
 	dataDir := filepath.Join(utils.GetCurrentDir(), "data")
-	if err := iplocation.StartUpgrade(dataDir, req.Key, reloadManagerByCurrentConfig); err != nil {
+	item, previous := "ip_v4_format", global.GCONFIG_IP_V4_FORMAT
+	if req.Key == "ip2region_v6" {
+		item, previous = "ip_v6_format", global.GCONFIG_IP_V6_FORMAT
+	}
+	reload := func() error {
+		// Official open-source downloads must not be parsed with a previous legacy/commercial layout.
+		if iplocation.UsesOpenSourceUpdates() {
+			if err := applyIPConfig(item, "opensource"); err != nil {
+				return err
+			}
+			if err := reloadManagerByCurrentConfig(); err != nil {
+				_ = applyIPConfig(item, previous)
+				return err
+			}
+			return nil
+		}
+		return reloadManagerByCurrentConfig()
+	}
+	rollback := func() error {
+		if iplocation.UsesOpenSourceUpdates() {
+			if err := applyIPConfig(item, previous); err != nil {
+				return err
+			}
+		}
+		return reloadManagerByCurrentConfig()
+	}
+	if err := iplocation.StartUpgradeWithRollback(dataDir, req.Key, reload, rollback); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}

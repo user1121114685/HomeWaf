@@ -169,7 +169,7 @@ var (
 	// 注：IPv6 默认自 1.3.24-beta.6 由 geolite2 改为 ip2region —— GeoLite2 受 MaxMind 再分发授权限制，
 	// 已不再随程序内置。ip2region_v6.xdb 需在【IP库管理】在线下载或自行放入 data/。
 	// 只影响新装；老用户 sys_config 里已有的值不动，由 ReloadFromConfig 做运行时降级。
-	GCONFIG_IP_V4_FORMAT string = "legacy"     // IPv4 xdb 字段格式
+	GCONFIG_IP_V4_FORMAT string = "opensource" // IPv4 xdb 字段格式，所有发行版本统一默认开源版
 	GCONFIG_IP_V6_FORMAT string = "opensource" // IPv6 xdb 字段格式（仅 ip2region 时有效）
 
 	// IP Location Manager 全局实例

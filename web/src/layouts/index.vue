@@ -2,6 +2,8 @@
 
 <template>
   <div>
+    <router-view v-if="$route.meta.fullscreen" />
+    <template v-else>
     <!-- HTTP 访问提示条：放在三种布局之外，side/top/mix 都能显示 -->
     <insecure-banner />
     <template v-if="setting.layout === 'side'">
@@ -32,6 +34,7 @@
     <setting />
     <!-- AI 助手放在布局外层：三种布局(side/top/mix)下都可用 -->
     <ai-assistant />
+    </template>
   </div>
 </template>
 

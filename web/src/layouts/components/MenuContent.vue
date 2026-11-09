@@ -103,6 +103,7 @@ export default defineComponent({
   },
   methods: {
     getHref(item: MenuRoute) {
+      if (item.meta?.openInNewTab) return [this.$router.resolve(item.path).href];
       return item.path.match(/(http|https):\/\/([\w.]+\/?)\S*/);
     },
   },

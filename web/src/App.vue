@@ -29,6 +29,7 @@ import { DialogPlugin } from '@/ui';
 import  {ensureSecSession, currentKeyId, decryptIncoming} from './utils/seccrypto'
 import { clearLocalStorageExceptPreserved, saveCurrentUrl } from '@/constants';
 const env = import.meta.env.MODE || 'development';
+const isSharedScreen = () => window.location.hash.split('?')[0] === '#/dashboard/shared';
 
 // WebSocket 断线重连的指数退避参数。
 // 后端会主动踢掉写超时(5s)/读超时(90s)的死连接，掉线后固定等 10s 再连的话，
@@ -66,7 +67,7 @@ export default defineComponent({
   },
   mounted() {
     this.$store.dispatch('setting/changeTheme', { ...config });
-    if (localStorage.getItem('access_token')) {
+    if (!isSharedScreen() && localStorage.getItem('access_token')) {
       this.$store.dispatch('sysparams/fetchParams');
     }
     this.setupGlobalErrorHandler();
@@ -129,6 +130,7 @@ export default defineComponent({
         this.showEmergencyDialog = false;
       },
       async initWebSocket() {
+        if (isSharedScreen()) return;
         console.log("log",window.location.host)
         // 已有连接就别再建：这个判断必须在 await 之前，否则两次调用（created 与一次重连）
         // 会双双穿过判断各建一条，重蹈「一条广播被同一页面收 N 次」的覆辙

@@ -128,7 +128,9 @@ export default defineComponent({
     },
     handleNavigate(path: string) {
       if (!path) return;
-      this.$router.push(path).catch(() => {});
+      const target = this.$router.resolve(path);
+      if (target.meta.openInNewTab) window.open(target.href, '_blank', 'noopener,noreferrer');
+      else this.$router.push(path).catch(() => {});
       this.$nextTick(() => {
         this.searchData = null;
         this.searchVisible = false;

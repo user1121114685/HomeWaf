@@ -32,7 +32,7 @@ func ParseRegion(region string, format DBFormat) *IPLocationResult {
 		result.City = getField(3)
 		result.ISP = getField(4)
 
-	case FormatOpenSource: // 国家|省份|城市|网络运营商
+	case FormatOpenSource: // 国家|省份|城市|网络运营商[|国家代码]，末尾代码不影响前四项
 		result.Country = getField(0)
 		result.Province = getField(1)
 		result.City = getField(2)
@@ -60,12 +60,11 @@ func ParseRegion(region string, format DBFormat) *IPLocationResult {
 		result.ISP = getField(3)
 
 	default:
-		// 默认按 legacy 格式处理
+		// 未指定格式时与前后端初始化保持一致，默认开源版。
 		result.Country = getField(0)
-		result.Region = getField(1)
-		result.Province = getField(2)
-		result.City = getField(3)
-		result.ISP = getField(4)
+		result.Province = getField(1)
+		result.City = getField(2)
+		result.ISP = getField(3)
 	}
 
 	// 处理特殊标记 "内网IP"

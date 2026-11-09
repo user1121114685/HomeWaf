@@ -323,5 +323,20 @@
       "sha256": "1a05d73b933a847d6cccdda8f838a22ff101ad9bf93e33684f39c1f5f0eece3d",
       "notice_files": 2
     }
-  ]
+  ],
+  "monitoring-map": {
+    "renderer": "maplibre-gl",
+    "version": "6.17.0",
+    "license": "BSD-3-Clause",
+    "repository": "https://github.com/maplibre/maplibre-gl-js",
+    "npm_integrity": "sha512-2chIZwpLGenoUQOcnm9Pk4SLbA8ppNFq8jlpXiq9vcYm3Y1wJ3fc82FL0GLwBaPYJCLzPv/mC46KEupVov75rQ==",
+    "countries": {
+      "source": "https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_admin_0_countries.geojson",
+      "license": "Public domain",
+      "source_sha256": "6866c877d39cba9c357620878839b336d569f8c662d3cfab4cb1dbe2d39c977f",
+      "generated_sha256": "fb35fd28ba8b81af6474c9e69163da98f782320f1275f0bb9d59f686ed8dfb57"
+    },
+    "runtime_network": "Same-origin packaged map data and worker; no external tiles, glyphs or styles",
+    "generator": "web/scripts/generate-screen-countries.mjs"
+  }
 }

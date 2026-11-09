@@ -237,7 +237,7 @@ export default defineComponent({
     ...mapMutations('stats', ['setSystemMonitor']),
 
     onPopupVisibleChange(visible: boolean, context) {
-      if (context.trigger === 'trigger-element-click') {
+      if (context?.trigger === 'trigger-element-click') {
         this.isMonitorVisible = true;
         return;
       }

@@ -135,7 +135,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
+import {defineComponent, h} from 'vue';
 
 
 import { marked } from 'marked';
@@ -405,8 +405,8 @@ export default defineComponent({
         this.checkGptConfig();
       }
     },
-    renderChatIcon(createElement) {
-      return createElement(ChatIcon);
+    renderChatIcon() {
+      return h(ChatIcon);
     },
   },
 });

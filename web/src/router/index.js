@@ -5,6 +5,7 @@ import baseRouters from './modules/base';
 import wafRouters from './modules/waf';
 export const asyncRouterList = [...baseRouters, ...wafRouters];
 const routes = [
+  { path: '/dashboard/shared', name: 'DashboardShared', component: () => import('@/pages/dashboard/screen/Shared.vue'), meta: { title: '只读监控大屏' } },
   { path: '/help', name: 'help', component: () => import('@/pages/help/index.vue') },
   { path: '/login', name: 'login', component: () => import('@/pages/login/index.vue') },
   ...asyncRouterList,

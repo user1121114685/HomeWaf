@@ -51,9 +51,9 @@ type Manager struct {
 func NewManager() *Manager {
 	return &Manager{
 		v4Source: SourceIp2Region,
-		v4Format: FormatLegacy,
-		v6Source: SourceGeoLite2,
-		v6Format: FormatLegacy,
+		v4Format: FormatOpenSource,
+		v6Source: SourceIp2Region,
+		v6Format: FormatOpenSource,
 	}
 }
 

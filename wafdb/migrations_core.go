@@ -2482,6 +2482,13 @@ func RunCoreDBMigrations(db *gorm.DB) error {
 				return tx.Migrator().DropColumn(&model.OPlatformKey{}, "LocalOnly")
 			},
 		},
+		{
+			ID:      "202611090001_dashboard_screen",
+			Migrate: func(tx *gorm.DB) error { return tx.AutoMigrate(&model.DashboardShare{}, &model.DashboardTarget{}) },
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Migrator().DropTable(&model.DashboardShare{}, &model.DashboardTarget{})
+			},
+		},
 	})
 
 	// 执行迁移

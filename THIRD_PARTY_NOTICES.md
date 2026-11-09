@@ -396,6 +396,38 @@ When dependencies or embedded assets change, update this inventory, the correspo
 | zrender | 6.1.0 | runtime | BSD-3-Clause |
 | @homewaf/build-proxy-policy | 1.0.0 | development | LicenseRef-HomeWaf-NC-1.0 |
 
+### Map renderer dependencies
+
+| Package | Version | Usage | License |
+|---|---|---|---|
+| @mapbox/jsonlint-lines-primitives | 2.0.3 | runtime | MIT |
+| @mapbox/point-geometry | 1.1.0 | runtime | ISC |
+| @mapbox/tiny-sdf | 2.3.0 | runtime | BSD-2-Clause |
+| @mapbox/unitbezier | 1.0.0 | runtime | BSD-2-Clause |
+| @mapbox/vector-tile | 3.0.0 | runtime | BSD-3-Clause |
+| @maplibre/geojson-vt | 6.3.0 | runtime | ISC |
+| @maplibre/maplibre-gl-style-spec | 26.5.1 | runtime | ISC |
+| @maplibre/mlt | 1.3.0 | runtime | (MIT OR Apache-2.0) |
+| @maplibre/vt-pbf | 4.3.3 | runtime | MIT |
+| @types/geojson | 7946.0.16 | runtime | MIT |
+| bidi-js | 1.1.0 | runtime | MIT |
+| earcut | 3.2.4 | runtime | ISC |
+| gl-matrix | 3.4.4 | runtime | MIT |
+| json-stringify-pretty-compact | 4.0.0 | runtime | MIT |
+| kdbush | 4.1.0 | runtime | ISC |
+| maplibre-gl | 6.17.0 | runtime | BSD-3-Clause |
+| minimist | 1.2.8 | runtime | MIT |
+| murmurhash-js | 1.0.0 | runtime | MIT |
+| pbf | 5.1.2 | runtime | BSD-3-Clause |
+| potpack | 2.1.0 | runtime | ISC |
+| protocol-buffers-schema | 3.6.1 | runtime | MIT |
+| quickselect | 3.0.0 | runtime | ISC |
+| require-from-string | 2.0.2 | runtime | MIT |
+| resolve-protobuf-schema | 2.1.0 | runtime | MIT |
+| tinyqueue | 3.0.0 | runtime | ISC |
+
+MapLibre GL JS and its added dependency license texts are retained in [LICENSES/MapLibre-GL-JS.txt](LICENSES/MapLibre-GL-JS.txt).
+
 ## Copied code and embedded resources
 
 | Component | License and provenance |
@@ -413,6 +445,7 @@ When dependencies or embedded assets change, update this inventory, the correspo
 | OWASP CRS 4.30.0 | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`crs-provenance`) |
 | ip2region IPv4 XDB | Apache-2.0 OR MIT; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`ip2region-provenance`) |
 | HomeWaf logos, CSS backgrounds and click challenge UI | Original HomeWaf additions; root LICENSE |
+| Monitoring screen country polygons, borders, country and city coordinates | Derived from Natural Earth 1:110m countries and 1:10m populated places, public domain; web/src/pages/dashboard/screen/README.md documents source and generation |
 
 DOMPurify is used under its Apache-2.0 alternative. Browser/system fonts are referenced by family name and are not redistributed.
 The optional user-supplied MaxMind databases and ML models are not included in releases; their operators must obtain the corresponding rights.

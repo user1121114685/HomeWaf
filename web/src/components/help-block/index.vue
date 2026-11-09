@@ -77,7 +77,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
+import {defineComponent, h} from 'vue';
 
 
 import { InfoCircleIcon, ChevronDownIcon, ChevronRightIcon } from '@/ui/icons';
@@ -96,7 +96,7 @@ const HelpDetail = defineComponent({
     docs: { type: Array, default: () => [] as any[] },
     docsLabel: { type: String, default: '' },
   },
-  render(h) {
+  render() {
     const kids = [];
 
     if (this.items && this.items.length) {
@@ -136,7 +136,7 @@ const HelpDetail = defineComponent({
               'a',
               {
                 class: 'hb-doclink',
-                attrs: { href: d.url, target: '_blank', rel: 'noopener noreferrer' },
+                href: d.url, target: '_blank', rel: 'noopener noreferrer',
               },
               d.label,
             ),

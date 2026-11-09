@@ -121,6 +121,7 @@ var upgradeCfg atomic.Pointer[UpgradeConfig]
 func ConfigureUpgrader(c UpgradeConfig) {
 	cp := c
 	upgradeCfg.Store(&cp)
+	clearOpenSourceCache()
 }
 
 func currentUpgradeCfg() UpgradeConfig {
@@ -148,9 +149,11 @@ func newHTTPClient() *http.Client {
 
 // remoteFile 远端清单里单个文件的元数据。
 type remoteFile struct {
-	URL    string `json:"url"`
-	SHA256 string `json:"sha256"`
-	Size   int64  `json:"size"`
+	URL        string `json:"url"`
+	SHA256     string `json:"sha256"`
+	Size       int64  `json:"size"`
+	Version    string `json:"version,omitempty"`
+	GitBlobSHA string `json:"git_blob_sha,omitempty"`
 }
 
 // remoteManifest 远端 latest.json。
@@ -189,6 +192,7 @@ type FileUpgradeInfo struct {
 
 // UpgradeInfo 一次检查的整体结果。
 type UpgradeInfo struct {
+	SourceLabel   string            `json:"source_label"`
 	LatestVersion string            `json:"latest_version"`
 	Changelog     string            `json:"changelog"`
 	LastCheckAt   string            `json:"last_check_at"`
@@ -348,11 +352,13 @@ func CheckUpgrade(dataDir string) (*UpgradeInfo, error) {
 		info.Files = append(info.Files, fi)
 	}
 
-	cfg := currentUpgradeCfg()
-	if cfg.UpdateVersionURL == "" {
-		return info, fmt.Errorf("未配置升级源")
+	info.SourceLabel = "自定义发行方数据源"
+	if UsesOpenSourceUpdates() {
+		info.SourceLabel = "ip2region 官方开源数据（GitHub，缓存 5 分钟）"
 	}
-	manifest, err := fetchManifest(context.Background(), manifestURL(cfg))
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+	manifest, err := resolveManifest(ctx)
 	if err != nil {
 		return info, err
 	}
@@ -365,8 +371,12 @@ func CheckUpgrade(dataDir string) (*UpgradeInfo, error) {
 		}
 		info.Files[i].Available = true
 		info.Files[i].RemoteSize = rf.Size
-		info.Files[i].LatestVersion = manifest.Version
-		info.Files[i].NeedUpdate = !info.Files[i].LocalExists || info.Files[i].LocalVersion != manifest.Version
+		version := rf.Version
+		if version == "" {
+			version = manifest.Version
+		}
+		info.Files[i].LatestVersion = version
+		info.Files[i].NeedUpdate = !info.Files[i].LocalExists || info.Files[i].LocalVersion != version
 	}
 	return info, nil
 }
@@ -377,6 +387,11 @@ func CheckUpgrade(dataDir string) (*UpgradeInfo, error) {
 // 用户也只能看到一个转圈，不知道下到哪、还剩多少。
 // 参数校验（key 是否支持、是否已有任务在跑）在返回前同步做完，这样前端能立刻收到错误。
 func StartUpgrade(dataDir, key string, reload func() error) error {
+	return StartUpgradeWithRollback(dataDir, key, reload, reload)
+}
+
+// StartUpgradeWithRollback restores configuration as well as the old file on activation failure.
+func StartUpgradeWithRollback(dataDir, key string, reload, rollback func() error) error {
 	fileName := fileNameByKey(key)
 	if fileName == "" {
 		return fmt.Errorf("不支持下载的数据文件: %s", key)
@@ -395,7 +410,7 @@ func StartUpgrade(dataDir, key string, reload func() error) error {
 			setCancelFunc(nil)
 			downloading.Store(false)
 		}()
-		if err := doUpgrade(ctx, dataDir, key, fileName, reload); err != nil {
+		if err := doUpgrade(ctx, dataDir, key, fileName, reload, rollback); err != nil {
 			// 用户点了取消：不算失败，也别弹错误提示
 			if ctx.Err() != nil {
 				setProgress(func(p *DownloadProgress) {
@@ -455,12 +470,8 @@ func ApplyUpgrade(dataDir, key string, reload func() error) error {
 // 取清单 → 下载到 .downloading 临时文件 → sha256 校验 → 原子改名覆盖 → 记录版本 → 回调重载。
 // 校验不通过就把临时文件删掉，绝不覆盖现有可用的库——宁可保持旧数据，也不能让地区判定基于一个坏文件。
 // reload 由调用方传入（通常是 Manager.ReloadFromConfig 的包装），下载完立即生效，无需重启。
-func doUpgrade(ctx context.Context, dataDir, key, fileName string, reload func() error) error {
-	cfg := currentUpgradeCfg()
-	if cfg.UpdateVersionURL == "" {
-		return notifyErr(fmt.Errorf("未配置升级源"))
-	}
-	manifest, err := fetchManifest(ctx, manifestURL(cfg))
+func doUpgrade(ctx context.Context, dataDir, key, fileName string, reload func() error, rollback ...func() error) error {
+	manifest, err := resolveManifest(ctx)
 	if err != nil {
 		return notifyErr(fmt.Errorf("获取升级清单失败: %w", err))
 	}
@@ -496,22 +507,65 @@ func doUpgrade(ctx context.Context, dataDir, key, fileName string, reload func()
 			return notifyErr(fmt.Errorf("%s 校验不通过，预期 %s 实际 %s", fileName, rf.SHA256, actual))
 		}
 	}
+	if rf.GitBlobSHA != "" {
+		setProgress(func(p *DownloadProgress) { p.State = StateVerifying })
+		if err := verifyGitBlob(tmp, rf.GitBlobSHA, rf.Size); err != nil {
+			return notifyErr(err)
+		}
+	}
+	if err := verifyDataset(tmp, key); err != nil {
+		return notifyErr(err)
+	}
 
 	setProgress(func(p *DownloadProgress) { p.State = StateApplying })
-	// Windows 上 os.Rename 不能覆盖已存在的文件，先删旧的。
-	// 此时新文件已校验通过，删旧文件是安全的。
-	_ = os.Remove(dst)
+	// Keep the old file until the verified replacement has loaded successfully.
+	backup := dst + ".previous"
+	hadOld := false
+	if _, statErr := os.Stat(dst); statErr == nil {
+		if _, backupErr := os.Stat(backup); backupErr == nil {
+			return notifyErr(fmt.Errorf("存在待恢复的备份 %s，请先确认该文件", backup))
+		}
+		if err := os.Rename(dst, backup); err != nil {
+			return notifyErr(fmt.Errorf("备份旧数据库失败: %w", err))
+		}
+		hadOld = true
+	} else if !os.IsNotExist(statErr) {
+		return notifyErr(statErr)
+	}
 	if err = os.Rename(tmp, dst); err != nil {
+		if hadOld {
+			_ = os.Rename(backup, dst)
+		}
 		return notifyErr(fmt.Errorf("替换 %s 失败: %w", fileName, err))
 	}
-	writeLocalVersion(dataDir, key, manifest.Version)
 
 	if reload != nil {
 		if err = reload(); err != nil {
-			return notifyErr(fmt.Errorf("%s 已下载但重载失败: %w", fileName, err))
+			_ = os.Remove(dst)
+			if hadOld {
+				if restoreErr := os.Rename(backup, dst); restoreErr != nil {
+					return notifyErr(fmt.Errorf("重载失败且恢复旧库失败，备份保留在 %s: %w", backup, restoreErr))
+				}
+			}
+			restoreRuntime := reload
+			if len(rollback) > 0 && rollback[0] != nil {
+				restoreRuntime = rollback[0]
+			}
+			if restoreErr := restoreRuntime(); restoreErr != nil {
+				return notifyErr(fmt.Errorf("%s 文件已恢复，但运行时重载失败: %v（原错误: %w）", fileName, restoreErr, err))
+			}
+			return notifyErr(fmt.Errorf("%s 重载失败，已恢复原有文件: %w", fileName, err))
 		}
 	}
-	notify(true, fmt.Sprintf("%s 下载并生效成功，版本 %s", fileName, manifest.Version))
+	if hadOld {
+		_ = os.Remove(backup)
+	}
+	version := rf.Version
+	if version == "" {
+		version = manifest.Version
+	}
+	writeLocalVersion(dataDir, key, version)
+	notify(true, fmt.Sprintf("%s 下载并生效成功，版本 %s", fileName, version))
 	return nil
 }
 
@@ -591,8 +645,17 @@ func downloadFile(ctx context.Context, url, dst string) error {
 
 	// 限个上限，防止升级源被替换后拿一个超大响应把磁盘写满
 	pw := &progressWriter{}
-	_, err = io.Copy(io.MultiWriter(f, pw), io.LimitReader(resp.Body, 512<<20))
+	written, err := io.Copy(io.MultiWriter(f, pw), io.LimitReader(resp.Body, maxDatasetBytes+1))
 	if err != nil {
+		return err
+	}
+	if written > maxDatasetBytes {
+		return fmt.Errorf("数据库文件超过 128 MiB 上限")
+	}
+	if err := f.Sync(); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	// 收尾补一次：节流会让最后不足 256KB 的部分没被记上，不补的话进度条永远差一口气
