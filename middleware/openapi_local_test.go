@@ -336,7 +336,7 @@ func TestOpenApiLogBodyPolicies(t *testing.T) {
 	}
 }
 
-func TestOpenApiLocalOnlyMigration(t *testing.T) {
+func TestOpenApiLocalOnlySchemaPreservesKeys(t *testing.T) {
 	var oldDialect dialect.DBDialect
 	func() {
 		defer func() { _ = recover() }()
@@ -348,29 +348,20 @@ func TestOpenApiLocalOnlyMigration(t *testing.T) {
 	if err := wafdb.InitializeCoreSchema(db); err != nil {
 		t.Fatal(err)
 	}
+	if !db.Migrator().HasColumn(&model.OPlatformKey{}, "LocalOnly") || db.Migrator().HasTable("migrations") {
+		t.Fatal("fresh schema must include local_only without historical migrations")
+	}
 	for _, name := range []string{"ordinary", "local"} {
 		if _, _, err := openApiKeyService.AddApi(request.WafOPlatformKeyAddReq{KeyName: name}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	migrationID := "202611040001_add_oplatform_key_local_only"
-	removeMigrationRecord := func() {
-		t.Helper()
-		var record struct{ ID string }
-		if err := db.Table("migrations").Where("id = ?", migrationID).Delete(&record).Error; err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := db.Migrator().DropColumn(&model.OPlatformKey{}, "LocalOnly"); err != nil {
-		t.Fatal(err)
-	}
-	removeMigrationRecord()
 	if err := wafdb.InitializeCoreSchema(db); err != nil {
 		t.Fatal(err)
 	}
 	var rows []model.OPlatformKey
 	if err := db.Find(&rows).Error; err != nil || len(rows) != 2 {
-		t.Fatalf("upgraded rows: count=%d error=%v", len(rows), err)
+		t.Fatalf("initialized rows: count=%d error=%v", len(rows), err)
 	}
 	for _, row := range rows {
 		if row.LocalOnly != 0 {
@@ -380,21 +371,17 @@ func TestOpenApiLocalOnlyMigration(t *testing.T) {
 	if err := db.Model(&model.OPlatformKey{}).Where("key_name = ?", "local").Update("local_only", 1).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Model(&model.OPlatformKey{}).Where("key_name = ?", "ordinary").Update("local_only", nil).Error; err != nil {
-		t.Fatal(err)
-	}
-	removeMigrationRecord()
 	for i := 0; i < 2; i++ {
 		if err := wafdb.InitializeCoreSchema(db); err != nil {
 			t.Fatal(err)
 		}
 	}
-	var nulls int64
-	if err := db.Model(&model.OPlatformKey{}).Where("local_only IS NULL").Count(&nulls).Error; err != nil || nulls != 0 {
-		t.Fatalf("NULL backfill: count=%d error=%v", nulls, err)
+	var ordinary model.OPlatformKey
+	if err := db.Where("key_name = ?", "ordinary").First(&ordinary).Error; err != nil || ordinary.LocalOnly != 0 {
+		t.Fatal("initialization changed an ordinary key")
 	}
 	var local model.OPlatformKey
 	if err := db.Where("key_name = ?", "local").First(&local).Error; err != nil || local.LocalOnly != 1 {
-		t.Fatal("migration did not preserve an existing local key")
+		t.Fatal("initialization did not preserve an existing local key")
 	}
 }

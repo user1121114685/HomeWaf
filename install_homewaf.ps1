@@ -64,7 +64,13 @@ try {
     if ($entries.Count -ne 1) { throw "No unique SHA256 checksum for $asset" }
     $null = $entries[0] -match $pattern
     $expected = $Matches[1]
-    if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) { throw 'Archive SHA256 verification failed.' }
+    # Use .NET directly: Windows PowerShell launched from PowerShell 7 can
+    # inherit a module path that does not expose the Get-FileHash function.
+    $stream = [IO.File]::OpenRead($archive)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try { $actual = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '') }
+    finally { $stream.Dispose(); $hasher.Dispose() }
+    if ($actual -ne $expected) { throw 'Archive SHA256 verification failed.' }
     if ($Docker) {
         $oldImage = $null
         $existingContainer = & docker container ls -aq --filter 'name=^/homewaf$'

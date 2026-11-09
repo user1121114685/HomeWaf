@@ -71,6 +71,8 @@ release:
     owner: user1121114685
     name: HomeWaf
   draft: true
+  replace_existing_draft: true
+  target_commitish: '{{ .Commit }}'
   prerelease: auto
   header: 'HomeWaf {{ .Tag }}'
   extra_files:
