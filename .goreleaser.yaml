@@ -10,27 +10,27 @@ builds:
   - id: homewaf_linux
     main: ./cmd/homewaf
     binary: HomeWafLinux64
-    env: [CGO_ENABLED=1, CC=x86_64-linux-musl-gcc]
+    env: [CGO_ENABLED=0]
     goos: [linux]
     goarch: [amd64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
   - id: homewaf_linux_arm64
     main: ./cmd/homewaf
     binary: HomeWafLinuxArm64
-    env: [CGO_ENABLED=1, CC=aarch64-linux-gnu-gcc]
+    env: [CGO_ENABLED=0]
     goos: [linux]
     goarch: [arm64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
   - id: homewaf_windows
     main: ./cmd/homewaf
     binary: HomeWaf64
-    env: [CGO_ENABLED=1, CC=x86_64-w64-mingw32-gcc]
+    env: [CGO_ENABLED=0]
     goos: [windows]
     goarch: [amd64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -extldflags '-static'
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
 archives:
   - formats: [tar.gz]
     format_overrides:
@@ -43,6 +43,7 @@ archives:
       - THIRD_PARTY_NOTICES.md
       - LICENSES/THIRD_PARTY.txt
       - docs/modernization/MIGRATION.md
+      - docs/modernization/SECURITY.md
       - docs/modernization/provenance.json
       - install_homewaf.sh
 checksum:

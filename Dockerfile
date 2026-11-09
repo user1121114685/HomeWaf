@@ -12,14 +12,13 @@ RUN npm run typecheck --prefix web && npm run build --prefix web
 
 FROM golang:1.27.3-alpine@sha256:fa3d596898d9f126af7c01d14ee7597bab3f39cccf392ef36b69fe77cd681f18 AS backend
 WORKDIR /src
-RUN apk add --no-cache build-base
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/web/dist ./public/dist
 RUN mkdir -p public/dist/legal && cp LICENSE NOTICE THIRD_PARTY_NOTICES.md public/dist/legal/ && cp -R LICENSES public/dist/legal/ && printf 'version=2.0.0\nsource=local-package-lock\n' > public/web_frontend.txt
 ARG HOMEWAF_VERSION=v2.0.0-dev
-RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=${HOMEWAF_VERSION}" -o /out/homewaf ./cmd/homewaf
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=${HOMEWAF_VERSION}" -o /out/homewaf ./cmd/homewaf
 
 FROM alpine:latest@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 LABEL org.opencontainers.image.title="HomeWaf"
@@ -29,7 +28,7 @@ RUN apk add --no-cache ca-certificates tzdata iptables
 COPY --from=backend /out/homewaf /app/homewaf
 COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /app/
 COPY LICENSES /app/LICENSES
-COPY docs/modernization/MIGRATION.md docs/modernization/provenance.json /app/docs/modernization/
-VOLUME ["/app/conf", "/app/data", "/app/logs", "/app/ssl"]
+COPY docs/modernization/MIGRATION.md docs/modernization/SECURITY.md docs/modernization/provenance.json /app/docs/modernization/
+VOLUME ["/app/conf", "/app/data", "/app/.homewaf-keys", "/app/logs", "/app/ssl"]
 EXPOSE 26666 80 443 443/udp
 ENTRYPOINT ["/app/homewaf"]

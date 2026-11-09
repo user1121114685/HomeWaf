@@ -13,7 +13,6 @@ import (
 	"errors"
 	"io"
 	"math"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,7 +30,7 @@ func testOptions(t *testing.T, format string) Options {
 	if err := wafsec.InitDataKey(t.TempDir(), ""); err != nil {
 		t.Fatal(err)
 	}
-	return Options{Dir: t.TempDir(), Format: format, Tables: []string{"access_log", "security_event"}, Key: "test-only-log-key", TaskID: "task-1"}
+	return Options{Dir: t.TempDir(), Format: format, Tables: []string{"access_log", "security_event"}, TaskID: "task-1"}
 }
 func testRow(id string) map[string]interface{} {
 	return map[string]interface{}{"req_uuid": id, "url": "中文\nquoted,\"text\"", "guest_id_entification": "00001234567890123456789", "create_time": "2026-10-29 12:00:00", "time_spent": int64(9007199254740993), "ai_score": 0.25, "status_code": int64(200), "body": "excluded"}
@@ -171,7 +170,7 @@ func TestCSVEmptyAndFormula(t *testing.T) {
 		t.Fatal("empty header", err)
 	}
 }
-func TestSQLiteEncryptedCompatible(t *testing.T) {
+func TestSQLiteStandardCompatible(t *testing.T) {
 	o := testOptions(t, "sqlite")
 	b, err := NewBuilder(context.Background(), o)
 	if err != nil {
@@ -180,14 +179,14 @@ func TestSQLiteEncryptedCompatible(t *testing.T) {
 	if err = b.AddBatch("access_log", []map[string]interface{}{testRow("1")}); err != nil {
 		t.Fatal(err)
 	}
-	// Both database files are encrypted while the builder is active.
-	for _, name := range []string{"dedup.encrypted.db", "logs.encrypted.db"} {
+	// Temporary databases and exported databases use the standard SQLite format.
+	for _, name := range []string{"dedup.db", "logs.db"} {
 		data, err := os.ReadFile(filepath.Join(o.Dir, name))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if bytes.HasPrefix(data, []byte("SQLite format 3")) {
-			t.Fatal("plaintext sqlite")
+		if !bytes.HasPrefix(data, []byte("SQLite format 3")) {
+			t.Fatal("not a standard SQLite database")
 		}
 	}
 	r, err := b.Close()
@@ -196,10 +195,10 @@ func TestSQLiteEncryptedCompatible(t *testing.T) {
 	}
 	files := readZIP(t, r)
 	path := filepath.Join(t.TempDir(), "check.db")
-	if err = os.WriteFile(path, files["logs.encrypted.db"], 0600); err != nil {
+	if err = os.WriteFile(path, files["logs.db"], 0600); err != nil {
 		t.Fatal(err)
 	}
-	db, err := gorm.Open(sqlite.Open(path+"?_db_key="+url.QueryEscape(o.Key)), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,7 +271,7 @@ func TestQuotaCancelAndWhitelist(t *testing.T) {
 }
 func TestClosePackageKeepsUnownedFile(t *testing.T) {
 	o := testOptions(t, "csv")
-	foreign := filepath.Join(o.Dir, "logs.encrypted.db")
+	foreign := filepath.Join(o.Dir, "logs.db")
 	if err := os.WriteFile(foreign, []byte("keep"), 0600); err != nil {
 		t.Fatal(err)
 	}

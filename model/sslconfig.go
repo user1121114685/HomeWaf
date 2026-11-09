@@ -16,16 +16,16 @@ import (
 
 type SslConfig struct {
 	baseorm.BaseOrm
-	CertContent string              `gorm:"type:text" json:"cert_content"` // 证书文件内容
-	KeyContent  string              `gorm:"type:text" json:"key_content"`  // 密钥文件内容
-	SerialNo    string              `gorm:"size:255" json:"serial_no"`     // 证书序列号
-	Subject     string              `gorm:"size:500" json:"subject"`       // 证书主题
-	Issuer      string              `gorm:"size:500" json:"issuer"`        // 颁发者
-	ValidFrom   customtype.JsonTime `json:"valid_from"`                    // 证书有效期开始时间(未解析时为NULL，避免MySQL严格模式拒绝0000-00-00)
-	ValidTo     customtype.JsonTime `json:"valid_to"`                      // 证书有效期结束时间(未解析时为NULL，避免MySQL严格模式拒绝0000-00-00)
-	Domains     string              `gorm:"type:text" json:"domains"`      // 证书适用的域名
-	KeyPath     string              `gorm:"size:500" json:"key_path"`      //密钥文件位置
-	CertPath    string              `gorm:"size:500" json:"cert_path"`     //crt文件配置
+	CertContent string              `gorm:"type:text" json:"cert_content"`                          // 证书文件内容
+	KeyContent  string              `gorm:"type:text;serializer:homewaf_secret" json:"key_content"` // 密钥文件内容
+	SerialNo    string              `gorm:"size:255" json:"serial_no"`                              // 证书序列号
+	Subject     string              `gorm:"size:500" json:"subject"`                                // 证书主题
+	Issuer      string              `gorm:"size:500" json:"issuer"`                                 // 颁发者
+	ValidFrom   customtype.JsonTime `json:"valid_from"`                                             // 证书有效期开始时间(未解析时为NULL，避免MySQL严格模式拒绝0000-00-00)
+	ValidTo     customtype.JsonTime `json:"valid_to"`                                               // 证书有效期结束时间(未解析时为NULL，避免MySQL严格模式拒绝0000-00-00)
+	Domains     string              `gorm:"type:text" json:"domains"`                               // 证书适用的域名
+	KeyPath     string              `gorm:"size:500" json:"key_path"`                               //密钥文件位置
+	CertPath    string              `gorm:"size:500" json:"cert_path"`                              //crt文件配置
 	// 是否启用「凌晨3点从上面路径自动加载证书」：1=开启(默认) 0=关闭。
 	// 当该证书夹由 SamWaf 自动申请管理时会被自动置为0，避免两个自动渠道互相覆盖。
 	AutoLoadPath int `json:"auto_load_path"`

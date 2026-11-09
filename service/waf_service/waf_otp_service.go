@@ -4,7 +4,6 @@ package waf_service
 
 import (
 	"HomeWaf/common/uuid"
-	"HomeWaf/common/zlog"
 	"HomeWaf/customtype"
 	"HomeWaf/global"
 	"HomeWaf/model"
@@ -20,21 +19,12 @@ type WafOtpService struct{}
 var WafOtpServiceApp = new(WafOtpService)
 
 // encManageOtpSecret 管理端 2FA 密钥加密落库（每实例 DEK，产出 swk1 密文；空值原样返回）。
-// 复用同包 encryptAccessSecret；加密失败时退回原文，避免把 2FA 直接锁死不可用。
-func encManageOtpSecret(plain string) string {
-	if plain == "" {
-		return ""
-	}
-	enc, err := encryptAccessSecret(plain)
-	if err != nil || enc == "" {
-		zlog.Error("管理端2FA密钥加密失败，退回原文落库", "err", err)
-		return plain
-	}
-	return enc
+// 加密失败必须拒绝保存，不能把 2FA 秘密退回明文。
+func encManageOtpSecret(plain string) (string, error) {
+	return encryptAccessSecret(plain)
 }
 
-// decManageOtpSecret 读出管理端 2FA 密钥明文：swk1 走 DEK 解；无前缀视为升级前的
-// 明文（存量兜底，迁移完成前/迁移失败时仍可校验），原样返回。
+// decManageOtpSecret rejects unauthenticated replacements, including plaintext.
 func decManageOtpSecret(stored string) string {
 	if stored == "" {
 		return ""
@@ -42,7 +32,7 @@ func decManageOtpSecret(stored string) string {
 	if wafsec.IsDataKeyCiphertext(stored) {
 		return decryptAccessSecret(stored)
 	}
-	return stored
+	return ""
 }
 
 // decryptOtpBean 就地把 Secret 还原为明文。所有 Get* 统一调用，
@@ -55,6 +45,10 @@ func decryptOtpBean(bean *model.Otp) {
 }
 
 func (receiver *WafOtpService) AddApi(req request.WafOtpAddReq) error {
+	secret, err := encManageOtpSecret(req.Secret)
+	if err != nil {
+		return err
+	}
 	var bean = &model.Otp{
 		BaseOrm: baseorm.BaseOrm{
 			Id:          uuid.GenUUID(),
@@ -66,12 +60,11 @@ func (receiver *WafOtpService) AddApi(req request.WafOtpAddReq) error {
 
 		UserName: req.UserName,
 		Url:      req.Url,
-		Secret:   encManageOtpSecret(req.Secret),
+		Secret:   secret,
 		Issuer:   req.Issuer,
 		Remarks:  req.Remarks,
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return nil
+	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
 func (receiver *WafOtpService) CheckIsExistApi(req request.WafOtpAddReq) int {
@@ -133,11 +126,15 @@ func (receiver *WafOtpService) ModifyApi(req request.WafOtpEditReq) error {
 		return errors.New("当前记录已经存在")
 	}
 
+	secret, encryptErr := encManageOtpSecret(req.Secret)
+	if encryptErr != nil {
+		return encryptErr
+	}
 	beanMap := map[string]interface{}{
 
 		"UserName": req.UserName,
 		"Url":      req.Url,
-		"Secret":   encManageOtpSecret(req.Secret),
+		"Secret":   secret,
 		"Issuer":   req.Issuer,
 		"Remarks":  req.Remarks,
 
@@ -149,6 +146,10 @@ func (receiver *WafOtpService) ModifyApi(req request.WafOtpEditReq) error {
 }
 
 func (receiver *WafOtpService) BindApi(req request.WafOtpBindReq) error {
+	secret, err := encManageOtpSecret(req.Secret)
+	if err != nil {
+		return err
+	}
 	var bean = &model.Otp{
 		BaseOrm: baseorm.BaseOrm{
 			Id:          uuid.GenUUID(),
@@ -160,12 +161,11 @@ func (receiver *WafOtpService) BindApi(req request.WafOtpBindReq) error {
 
 		UserName: req.UserName,
 		Url:      req.Url,
-		Secret:   encManageOtpSecret(req.Secret),
+		Secret:   secret,
 		Issuer:   req.Issuer,
 		Remarks:  req.Remarks,
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return nil
+	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
 // 以下 Get* 一律返回【明文】Secret：库里是 swk1 密文，读取时统一解密，

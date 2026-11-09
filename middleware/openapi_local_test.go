@@ -91,6 +91,9 @@ func TestIsDirectLoopbackRequest(t *testing.T) {
 
 func openApiLocalTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	if err := wafsec.InitDataKey(t.TempDir(), ""); err != nil {
+		t.Fatal(err)
+	}
 	gin.SetMode(gin.TestMode)
 	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "openapi.db")), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
@@ -170,6 +173,15 @@ func TestValidateOpenApiKeyLocalOnly(t *testing.T) {
 				}
 				if err := db.Model(&model.OPlatformKey{}).Where("id = ?", id).Updates(map[string]interface{}{"local_only": tc.localOnly, "status": tc.status}).Error; err != nil {
 					t.Fatal(err)
+				}
+				if tc.localOnly == 1 {
+					stored, err := wafsec.DataEncrypt(apiKey)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := db.Model(&model.OPlatformKey{}).Where("id = ?", id).Update("api_key", stored).Error; err != nil {
+						t.Fatal(err)
+					}
 				}
 				t.Cleanup(func() { rateLimitMap.Delete(id) })
 			}

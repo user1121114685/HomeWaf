@@ -26,7 +26,13 @@ func NewGormZLogger() *GormZLogger {
 		SlowThreshold:        time.Second, // 慢查询阈值
 		LogLevel:             logger.Info, // 默认日志级别
 		IgnoreRecordNotFound: true,        // 忽略记录未找到错误
+		ParameterizedQueries: true,        // SQL 日志不展开密码、密钥、令牌等参数。
 	}
+}
+
+// ParamsFilter prevents GORM from interpolating bound values into SQL logs.
+func (l *GormZLogger) ParamsFilter(_ context.Context, sql string, _ ...interface{}) (string, []interface{}) {
+	return sql, nil
 }
 
 // NewGormZLoggerForConfig 按 db_debug_enable 产出 logger：开=Info 全量 SQL，关=Error 只留真实错误（忽略 record not found）。

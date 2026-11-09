@@ -48,8 +48,7 @@ func (d *SQLiteDialect) UpsertExcludedRef(col string) string {
 	return "excluded." + col
 }
 
-
-// FormatLocalTime adds the local UTC offset back: go-wxsqlite3 stores time.Time
+// FormatLocalTime adds the local UTC offset back: HomeWaf SQLite stores time.Time
 // as text carrying a zone suffix ('+08:00'), which SQLite normalizes to UTC
 // before applying the modifier.
 func (d *SQLiteDialect) FormatLocalTime(colExpr string) string {

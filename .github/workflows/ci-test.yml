@@ -19,6 +19,8 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
+    env:
+      CGO_ENABLED: '0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -31,8 +33,6 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Build frontend and backend locally
         run: node scripts/build.mjs
-        env:
-          CGO_ENABLED: '1'
       - name: Compile all packages and run focused regressions
         run: node scripts/verify.mjs
       - name: Audit frontend graph
@@ -49,4 +49,5 @@ jobs:
             THIRD_PARTY_NOTICES.md
             LICENSES/THIRD_PARTY.txt
             docs/modernization/MIGRATION.md
+            docs/modernization/SECURITY.md
             docs/modernization/provenance.json

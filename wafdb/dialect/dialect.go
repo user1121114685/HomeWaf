@@ -132,7 +132,7 @@ type DBDialect interface {
 	// Storage contract: SamWaf writes time.Time in LOCAL time, never UTC.
 	//   MySQL:  DSN carries loc=Local, so the DATETIME column holds the local
 	//           wall clock with no zone info — format it as-is, no CONVERT_TZ.
-	//   SQLite: go-wxsqlite3 binds time.Time as '2006-01-02 15:04:05.999999999-07:00',
+	//   SQLite: HomeWaf SQLite binds time.Time as '2006-01-02 15:04:05.999999999-07:00',
 	//           so the text carries a zone suffix that SQLite normalizes to UTC;
 	//           the local offset has to be added back.
 	FormatLocalTime(colExpr string) string

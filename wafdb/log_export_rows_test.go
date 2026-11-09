@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -323,15 +322,14 @@ func TestLogExportRowsRealSQLiteArchive(t *testing.T) {
 	}
 	defer os.Chdir(cwd)
 	t.Setenv("SamWafIDE", "1")
-	oldKey, oldTenant, oldUser := global.GWAF_PWD_LOGDB, global.GWAF_TENANT_ID, global.GWAF_USER_CODE
-	global.GWAF_PWD_LOGDB = "export-isolated-test-key"
+	oldTenant, oldUser := global.GWAF_TENANT_ID, global.GWAF_USER_CODE
 	global.GWAF_TENANT_ID, global.GWAF_USER_CODE = "tenantA", "userA"
 	defer func() {
-		global.GWAF_PWD_LOGDB, global.GWAF_TENANT_ID, global.GWAF_USER_CODE = oldKey, oldTenant, oldUser
+		global.GWAF_TENANT_ID, global.GWAF_USER_CODE = oldTenant, oldUser
 	}()
 	name := "local_log_202609.db"
 	path := filepath.Join(root, "data", name)
-	db, e := gorm.Open(sqlite.Open(path+"?_db_key="+url.QueryEscape(global.GWAF_PWD_LOGDB)), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, e := gorm.Open(sqlite.Open(path), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if e != nil {
 		t.Fatal(e)
 	}

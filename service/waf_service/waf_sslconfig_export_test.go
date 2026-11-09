@@ -20,6 +20,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/request"
+	"HomeWaf/wafsec"
 
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
@@ -32,6 +33,9 @@ import (
 // setupSslExportTestDB 建一个临时 sqlite 库，接管全局 DB 并在用例结束后还原。
 func setupSslExportTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	if err := wafsec.InitDataKey(t.TempDir(), ""); err != nil {
+		t.Fatal(err)
+	}
 	db, err := gorm.Open(
 		sqlite.Open(filepath.Join(t.TempDir(), "sslexport_test.db")),
 		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)},

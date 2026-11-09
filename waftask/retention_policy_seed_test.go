@@ -6,7 +6,6 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/wafdb"
 	"HomeWaf/wafdb/dialect"
-	"net/url"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -22,7 +21,7 @@ import (
 // 这条用例把两边钉在一起：白名单里的每张表都必须有预置策略。
 func TestEveryCleanupTableHasSeededPolicy(t *testing.T) {
 	dialect.Register(&dialect.SQLiteDialect{})
-	dsn := filepath.Join(t.TempDir(), "core.db") + "?_db_key=" + url.QueryEscape("kcore")
+	dsn := filepath.Join(t.TempDir(), "core.db")
 	db, err := gorm.Open(sqlitedriver.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})

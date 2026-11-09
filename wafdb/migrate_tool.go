@@ -9,7 +9,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -167,7 +166,6 @@ func RunMigrateDB(opts MigrateOptions) error {
 type migPair struct {
 	srcLabel  string // core | log | stats
 	srcPath   string // sqlite source: .db file path
-	srcKey    string // sqlite source: encryption key
 	srcDBName string // mysql source: database name
 	dstDBName string
 	dstLabel  string
@@ -455,7 +453,6 @@ func (t *MigrateTool) buildPairs() []migPair {
 	core := migPair{
 		srcLabel:  "core",
 		srcPath:   filepath.Join(dataDir, "local.db"),
-		srcKey:    global.GWAF_PWD_COREDB,
 		srcDBName: global.GWAF_MYSQL_CORE_DB,
 		dstDBName: t.dstCoreDBName(),
 		dstLabel:  t.dstKind + "_core",
@@ -469,7 +466,6 @@ func (t *MigrateTool) buildPairs() []migPair {
 	logPair := migPair{
 		srcLabel:  "log",
 		srcPath:   filepath.Join(dataDir, "local_log.db"),
-		srcKey:    global.GWAF_PWD_LOGDB,
 		srcDBName: global.GWAF_MYSQL_LOG_DB,
 		dstDBName: t.dstLogDBName(),
 		dstLabel:  t.dstKind + "_log",
@@ -478,7 +474,6 @@ func (t *MigrateTool) buildPairs() []migPair {
 	statsPair := migPair{
 		srcLabel:  "stats",
 		srcPath:   filepath.Join(dataDir, "local_stats.db"),
-		srcKey:    global.GWAF_PWD_STATDB,
 		srcDBName: global.GWAF_MYSQL_STATS_DB,
 		dstDBName: t.dstStatsDBName(),
 		dstLabel:  t.dstKind + "_stats",
@@ -548,7 +543,7 @@ func (t *MigrateTool) sourceMissing(p migPair) (bool, string) {
 // openSource opens the source database for a pair.
 func (t *MigrateTool) openSource(p migPair) (*gorm.DB, error) {
 	if t.srcKind == "sqlite" {
-		return t.openSQLiteSource(p.srcPath, p.srcKey)
+		return t.openSQLiteSource(p.srcPath)
 	}
 	// MySQL source: never attempt CREATE DATABASE on a database we are only reading.
 	return openMySQLDBRaw(p.srcDBName)
@@ -562,10 +557,9 @@ func (t *MigrateTool) openTarget(dbName string) (*gorm.DB, error) {
 	return openMySQLDB(dbName)
 }
 
-// openSQLiteSource opens an encrypted SQLite database in read mode.
-func (t *MigrateTool) openSQLiteSource(path, key string) (*gorm.DB, error) {
-	encodedKey := url.QueryEscape(key)
-	dsn := fmt.Sprintf("%s?_db_key=%s", path, encodedKey)
+// openSQLiteSource opens a standard SQLite database in read-only mode.
+func (t *MigrateTool) openSQLiteSource(path string) (*gorm.DB, error) {
+	dsn := sqlite.FileDSN(path, "query_only(1)") + "&mode=ro"
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})

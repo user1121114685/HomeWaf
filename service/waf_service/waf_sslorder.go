@@ -35,9 +35,7 @@ func (receiver *WafSSLOrderService) AddApi(req request.WafSslorderaddReq) (model
 		ApplyStatus:      "submitted",
 		PrivateGroupName: req.PrivateGroupName,
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
-
-	return *bean, nil
+	return *bean, global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
 func (receiver *WafSSLOrderService) ModifyApi(req request.WafSslordereditReq) error {
@@ -165,8 +163,7 @@ func (receiver *WafSSLOrderService) RenewAdd(orderId string) (model.SslOrder, er
 		ResultCSR:               order.ResultCSR,
 		PrivateGroupName:        order.PrivateGroupName,
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return *bean, nil
+	return *bean, global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
 // GetLastedInfo 查询最新的没有过期的

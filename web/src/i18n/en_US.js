@@ -5101,7 +5101,7 @@ export default {
       threads: "Threads",
       fds: "File Handles",
       not_supported: "N/A",
-      cgo_mem: "C-side Memory (est.)",
+      cgo_mem: "Non-Go Memory (est.)",
       heap_alloc: "Heap Live Objects",
       heap_inuse: "Heap In Use",
       heap_idle: "Heap Idle",

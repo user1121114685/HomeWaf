@@ -184,7 +184,7 @@ export default defineComponent({
     };
   },
   computed: {
-    // RSS 与 Go 申请内存的差值 ≈ CGO/C 侧（主要是 SQLite）占用
+    // RSS 与 Go Sys 的正差值仅作 Go 堆外内存估算，不能归因为 C/SQLite。
     cgoMemory() {
       const rss = this.snapshot.process.rss_bytes || 0;
       const goSys = this.snapshot.runtime.sys || 0;

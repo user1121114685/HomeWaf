@@ -179,7 +179,7 @@ func coerceNumeric(v interface{}) interface{} {
 }
 
 // pgTimeLayouts are tried in order against a text timestamp from the source.
-// go-wxsqlite3 writes time.Time as '2006-01-02 15:04:05.999999999-07:00'.
+// HomeWaf SQLite writes time.Time as '2006-01-02 15:04:05.999999999-07:00'.
 var pgTimeLayouts = []string{
 	"2006-01-02 15:04:05.999999999-07:00",
 	time.RFC3339Nano,

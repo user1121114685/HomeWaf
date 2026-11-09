@@ -19,7 +19,7 @@ import (
 
 // ipTagUpsertBatch 单条 upsert 语句里最多带多少行：太大容易撞上
 // SQLite 的 999 个绑定变量上限（IPTag 有 8 列，200 行约 1600 个参数，
-// go-wxsqlite3 编译期上限是 32766，留足余量）。
+// HomeWaf SQLite 编译期上限是 32766，留足余量）。
 const ipTagUpsertBatch = 200
 
 // 从日志流批量聚合统计并写入统计库（不依赖日志入库）。

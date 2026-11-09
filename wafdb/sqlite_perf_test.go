@@ -5,7 +5,6 @@ package wafdb
 import (
 	"HomeWaf/innerbean"
 	"fmt"
-	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -21,14 +20,13 @@ import (
 //   - 响应速度：T1 高频写入吞吐(FULL vs NORMAL)、T2 不同数据量下查询延迟
 //   - 文件完整性：T3 多分片 integrity_check + 零丢数据、T4 WAL 受控
 //
-// 注意：SQLite 驱动需要 CGO，运行需 `CGO_ENABLED=1` + C 编译器(mingw)。
+// SQLite 使用纯 Go 驱动，支持 `CGO_ENABLED=0`。
 // 用临时目录隔离，不污染真实 data 目录。
 
-// openPerfTestDB 打开一个临时加密日志库并应用性能 pragma + 迁移 web_logs 表。
+// openPerfTestDB 打开一个临时日志库并应用性能 pragma + 迁移 web_logs 表。
 func openPerfTestDB(t *testing.T, path string, relaxedSync bool) *gorm.DB {
 	t.Helper()
-	key := url.QueryEscape("perf_test_key_3Y)(27Et")
-	dns := fmt.Sprintf("%s?_db_key=%s", path, key)
+	dns := sqlite.FileDSN(path)
 	db, err := gorm.Open(sqlite.Open(dns), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})

@@ -17,7 +17,6 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/wafdb"
 	"HomeWaf/wafdb/dialect"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -107,7 +106,7 @@ func runAnalysisAssertions(t *testing.T, db *gorm.DB) {
 
 func setupAnalysisSQLite(t *testing.T) (*gorm.DB, func()) {
 	dialect.Register(&dialect.SQLiteDialect{})
-	dsn := filepath.Join(t.TempDir(), "stats.db") + "?_db_key=" + url.QueryEscape("kstats")
+	dsn := filepath.Join(t.TempDir(), "stats.db")
 	db, err := gorm.Open(sqlitedriver.Open(dsn), analysisSilentCfg)
 	if err != nil {
 		t.Logf("sqlite 打开失败（跳过）: %v", err)

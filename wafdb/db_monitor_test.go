@@ -84,7 +84,7 @@ func TestDatabaseMonitoring(t *testing.T) {
 		if m.PageCount <= 0 {
 			t.Errorf("%s 的 PageCount 应大于 0，实际 %d", m.DatabaseName, m.PageCount)
 		}
-		// 本项目所有库都带 _db_key 且开 WAL，这两项是回归点：
+		// 本项目日志库使用标准 SQLite 且开 WAL，这两项是回归点：
 		// 之前有过 mmap 导致读出密文的坑，journal_mode 变了要能被发现
 		if m.JournalMode == "" {
 			t.Errorf("%s 未读到 journal_mode", m.DatabaseName)

@@ -1446,7 +1446,7 @@ func RunCoreDBMigrations(db *gorm.DB) error {
 		},
 		// 迁移: 为 firewall_ip_block 加 (status, expire_time) 复合索引
 		// 过期清理任务查询 `status='active' AND expire_time 范围`，原单列索引各只覆盖一半谓词，
-		// 表变大后可能退化为全表扫描(加密 SQLite 全扫更慢，出现秒级 SLOW SQL)。复合索引精确命中该查询。
+		// 表变大后可能退化为全表扫描(SQLite 全扫较慢，出现秒级 SLOW SQL)。复合索引精确命中该查询。
 		{
 			ID: "202607160004_add_firewall_ip_block_status_expire_index",
 			Migrate: func(tx *gorm.DB) error {

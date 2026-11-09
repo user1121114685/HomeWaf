@@ -14,6 +14,29 @@
 #   5. fresh_install: true 的条目只在"全新安装"时生成，不参与版本区间计算
 
 notes:
+  - id: v2_0_0_pure_go_sqlite
+    version: v2.0.0
+    kind: notice
+    level: normal
+    apply:
+      type: none
+    zh:
+      title: SQLite 改为纯 Go 驱动和标准数据库文件
+      detail: >-
+        SQLite 已替换为 modernc.org/sqlite，构建不再依赖 CGO 或 C 编译器。
+        本地数据库、归档、备份及日志导出的 logs.db 使用标准未加密 SQLite 格式，
+        普通 SQLite 工具可直接读取，无需数据库密钥。应用密码/密钥保护及服务端导出包加密保留。
+        不提供旧加密数据库迁移；请使用新的数据目录，并妥善保管数据库及下载文件。
+    en:
+      title: SQLite now uses a pure Go driver and standard database files
+      detail: >-
+        SQLite now uses modernc.org/sqlite and builds without CGO or a C compiler.
+        Local databases, archives, backups and exported logs.db files use standard unencrypted
+        SQLite format and can be read by ordinary SQLite tools without a database key.
+        Application secret protection and server-side export package encryption remain enabled.
+        Legacy encrypted databases are not migrated; use a new data directory and protect database
+        and downloaded files.
+
   - id: v1_3_25_cli_site_automation
     version: v1.3.25
     kind: notice

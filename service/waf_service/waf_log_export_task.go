@@ -724,7 +724,7 @@ func (s *WafLogExportService) execute(ctx context.Context, t model.LogExportTask
 	}
 	cfg := global.GLOG_EXPORT_CONFIG
 	gib := int64(1 << 30)
-	builder, e := waflogexport.NewBuilder(ctx, waflogexport.Options{Dir: dir, Format: t.Format, Tables: tables, Key: global.GWAF_PWD_LOGDB, TaskID: t.Id, MaxBytes: int64(cfg.MaxUncompressedGiB) * gib, TempQuotaBytes: int64(cfg.TempQuotaGiB) * gib, MinFreeBytes: uint64(cfg.MinFreeGiB) * uint64(gib), Manifest: waflogexport.Manifest{ApplicationVersion: global.GWAF_RELEASE_VERSION, TaskID: t.Id, Format: t.Format, Tables: tables, RequestedStart: t.StartTime, RequestedEnd: t.EndTime, ActualStart: t.StartTime, ActualEnd: t.EndTime, Timezone: time.Local.String(), SourceDriver: dialect.Get().Name(), Consistency: "per-source read-only repeatable snapshot; sources are captured at different times"}})
+	builder, e := waflogexport.NewBuilder(ctx, waflogexport.Options{Dir: dir, Format: t.Format, Tables: tables, TaskID: t.Id, MaxBytes: int64(cfg.MaxUncompressedGiB) * gib, TempQuotaBytes: int64(cfg.TempQuotaGiB) * gib, MinFreeBytes: uint64(cfg.MinFreeGiB) * uint64(gib), Manifest: waflogexport.Manifest{ApplicationVersion: global.GWAF_RELEASE_VERSION, TaskID: t.Id, Format: t.Format, Tables: tables, RequestedStart: t.StartTime, RequestedEnd: t.EndTime, ActualStart: t.StartTime, ActualEnd: t.EndTime, Timezone: time.Local.String(), SourceDriver: dialect.Get().Name(), Consistency: "per-source read-only repeatable snapshot; sources are captured at different times"}})
 	if e != nil {
 		failure("EXPORT_FILE_ERROR", "无法创建导出文件，请检查配额与磁盘空间")
 		return

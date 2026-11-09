@@ -7,28 +7,27 @@ import (
 	"HomeWaf/internal/licensing"
 	"HomeWaf/model"
 	"HomeWaf/utils"
+	"HomeWaf/wafsec"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 )
 
-var current struct {
-	sync.RWMutex
-	claims *licensing.Claims
-}
 var saveMu sync.Mutex
 
 func licensePath() string { return filepath.Join(utils.GetCurrentDir(), "registration_data.bin") }
 
 func GenClientMachineInfo() model.MachineInfo {
 	info := model.MachineInfo{Version: "v2", ClientServerName: global.GWAF_CUSTOM_SERVER_NAME, ClientTenantId: global.GWAF_TENANT_ID, ClientUserCode: global.GWAF_USER_CODE}
-	if info.ClientUserCode != "" {
-		identity, _ := json.Marshal([]string{licensing.Product, info.ClientTenantId, info.ClientUserCode})
+	installationID, err := wafsec.InstallationID()
+	if err == nil && info.ClientUserCode != "" {
+		identity, _ := json.Marshal([]string{licensing.Product, installationID, info.ClientTenantId, info.ClientUserCode})
 		info.MachineID = fmt.Sprintf("%x", sha256.Sum256(identity))
 	}
 	return info
@@ -56,37 +55,49 @@ func VerifyServerReg(document []byte) (bool, model.RegistrationInfo, error) {
 	return true, infoFor(c), nil
 }
 func VerifyServerRegByDefaultFile() (bool, model.RegistrationInfo, error) {
-	document, err := os.ReadFile(licensePath())
+	c, err := verifiedFileClaims()
 	if err != nil {
-		current.Lock()
-		current.claims = nil
-		current.Unlock()
 		return false, model.RegistrationInfo{}, err
 	}
-	c, err := verify(document)
-	if err != nil {
-		current.Lock()
-		current.claims = nil
-		current.Unlock()
-		return false, model.RegistrationInfo{}, err
-	}
-	current.Lock()
-	current.claims = &c
-	current.Unlock()
 	return true, infoFor(c), nil
 }
+
+// Every entitlement decision authenticates the signed file. Database flags, UI
+// state and a previously cached license cannot keep a tampered grant alive.
+func verifiedFileClaims() (licensing.Claims, error) {
+	path := licensePath()
+	info, err := os.Lstat(path)
+	if err != nil {
+		return licensing.Claims{}, err
+	}
+	if !info.Mode().IsRegular() || info.Size() > licensing.MaxDocumentSize {
+		return licensing.Claims{}, errors.New("invalid license file")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return licensing.Claims{}, err
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return licensing.Claims{}, errors.New("license file changed while opening")
+	}
+	document, err := io.ReadAll(io.LimitReader(f, licensing.MaxDocumentSize+1))
+	if err != nil {
+		return licensing.Claims{}, err
+	}
+	return verify(document)
+}
 func CurrentInfo() model.RegistrationInfo {
-	current.RLock()
-	defer current.RUnlock()
-	if current.claims == nil {
+	c, err := verifiedFileClaims()
+	if err != nil {
 		return model.RegistrationInfo{Version: "v2", MemberType: "noncommercial", MachineID: GenClientMachineInfo().MachineID}
 	}
-	return infoFor(*current.claims)
+	return infoFor(c)
 }
 func HasFeature(feature string) bool {
-	current.RLock()
-	defer current.RUnlock()
-	return current.claims != nil && current.claims.InstanceID == GenClientMachineInfo().MachineID && current.claims.Allows(feature, time.Now())
+	c, err := verifiedFileClaims()
+	return err == nil && c.Allows(feature, time.Now())
 }
 func Save(document []byte) error {
 	saveMu.Lock()

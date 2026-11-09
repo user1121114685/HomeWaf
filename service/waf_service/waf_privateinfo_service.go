@@ -33,8 +33,7 @@ func (receiver *WafPrivateInfoService) AddApi(req request.WafPrivateInfoAddReq) 
 		PrivateGroupBelongCloud: req.PrivateGroupBelongCloud,
 		Remarks:                 req.Remarks,
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return nil
+	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
 func (receiver *WafPrivateInfoService) CheckIsExistApi(req request.WafPrivateInfoAddReq) int {

@@ -142,8 +142,8 @@ func TestSensitiveConfigEncryptAtRest(t *testing.T) {
 	}
 }
 
-// 存量明文行的兼容：升级前写入的明文值，在迁移完成前也必须能正常读出。
-func TestSensitiveConfigLegacyPlaintextReadable(t *testing.T) {
+// Direct SQL must not turn an injected plaintext secret into a trusted setting.
+func TestSensitiveConfigRejectsInjectedPlaintext(t *testing.T) {
 	db := newSecretTestDB(t)
 
 	// 绕过 service 直接写明文，模拟升级前的存量行。
@@ -154,11 +154,11 @@ func TestSensitiveConfigLegacyPlaintextReadable(t *testing.T) {
 		t.Fatalf("插入存量明文行: %v", err)
 	}
 
-	if got := WafSystemConfigServiceApp.GetDetailByItem("debug_pwd").Value; got != legacy {
-		t.Fatalf("存量明文应原样读出: got %q want %q", got, legacy)
+	if got := WafSystemConfigServiceApp.GetDetailByItem("debug_pwd").Value; got != "" {
+		t.Fatal("injected secret accepted")
 	}
-	if got := WafSystemConfigServiceApp.GetAllConfigs()["debug_pwd"].Value; got != legacy {
-		t.Fatalf("GetAllConfigs 对存量明文应原样读出: got %q", got)
+	if got := WafSystemConfigServiceApp.GetAllConfigs()["debug_pwd"].Value; got != "" {
+		t.Fatal("bulk config load accepted injected secret")
 	}
 	if !model.IsSensitiveConfigItem("debug_pwd") {
 		t.Fatalf("debug_pwd 应在敏感清单内")

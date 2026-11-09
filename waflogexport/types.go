@@ -6,7 +6,6 @@ type Options struct {
 	Dir            string
 	Format         string
 	Tables         []string
-	Key            string
 	TaskID         string
 	MaxBytes       int64
 	TempQuotaBytes int64

@@ -4,12 +4,10 @@ package wafdb
 
 import (
 	"fmt"
-	"net/url"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/model"
 
@@ -126,7 +124,7 @@ func TestExportLogRangeDbFansOutAcrossSources(t *testing.T) {
 	}
 
 	// 用同一密钥打开导出件复核
-	dsn := out + "?_db_key=" + url.QueryEscape(global.GWAF_PWD_LOGDB)
+	dsn := out
 	check, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatalf("打开导出件失败: %v", err)

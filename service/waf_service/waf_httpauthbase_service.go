@@ -31,8 +31,7 @@ func (receiver *WafHttpAuthBaseService) AddApi(req request.WafHttpAuthBaseAddReq
 		UserName: req.UserName,
 		Password: req.Password,
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return nil
+	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
 func (receiver *WafHttpAuthBaseService) CheckIsExistApi(req request.WafHttpAuthBaseAddReq) int {

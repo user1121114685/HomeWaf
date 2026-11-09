@@ -14,6 +14,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -44,7 +45,14 @@ func maskApiKey(key string) string {
 }
 
 func (receiver *WafOPlatformKeyService) AddApi(req request.WafOPlatformKeyAddReq) (string, string, error) {
-	apiKey := "sk-" + genRandomHex(16)
+	apiKey, err := newLocalAPIKey()
+	if err != nil {
+		return "", "", err
+	}
+	stored, err := wafsec.CredentialDigest(apiKey, "openapi")
+	if err != nil {
+		return "", "", err
+	}
 	id := uuid.GenUUID()
 	var bean = &model.OPlatformKey{
 		BaseOrm: baseorm.BaseOrm{
@@ -55,7 +63,7 @@ func (receiver *WafOPlatformKeyService) AddApi(req request.WafOPlatformKeyAddReq
 			UPDATE_TIME: customtype.JsonTime(time.Now()),
 		},
 		KeyName:     req.KeyName,
-		ApiKey:      apiKey,
+		ApiKey:      stored,
 		LocalOnly:   0,
 		Status:      1,
 		Remark:      req.Remark,
@@ -64,7 +72,7 @@ func (receiver *WafOPlatformKeyService) AddApi(req request.WafOPlatformKeyAddReq
 		ExpireTime:  req.ExpireTime,
 		CallCount:   0,
 	}
-	err := global.GWAF_LOCAL_DB.Create(bean).Error
+	err = global.GWAF_LOCAL_DB.Create(bean).Error
 	return id, apiKey, err
 }
 
@@ -129,7 +137,10 @@ func (receiver *WafOPlatformKeyService) ResetApiKey(req request.WafOPlatformKeyR
 	if err != nil {
 		return "", err
 	}
-	stored := newApiKey
+	stored, err := wafsec.CredentialDigest(newApiKey, "openapi")
+	if err != nil {
+		return "", err
+	}
 	if bean.LocalOnly == 1 {
 		stored, err = wafsec.DataEncrypt(newApiKey)
 		if err != nil {
@@ -145,10 +156,18 @@ func (receiver *WafOPlatformKeyService) ResetApiKey(req request.WafOPlatformKeyR
 
 // GetByApiKey 通过 ApiKey 字符串获取 Key 记录
 func (receiver *WafOPlatformKeyService) GetByApiKey(apiKey string) (model.OPlatformKey, error) {
+	if apiKey == "" {
+		return model.OPlatformKey{}, gorm.ErrRecordNotFound
+	}
+	digest, err := wafsec.CredentialDigest(apiKey, "openapi")
+	if err != nil {
+		return model.OPlatformKey{}, err
+	}
 	var bean model.OPlatformKey
 	db := global.GWAF_LOCAL_DB.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)})
-	err := db.Where("api_key = ?", apiKey).First(&bean).Error
-	if err == nil && (bean.LocalOnly != 1 || !wafsec.IsDataKeyCiphertext(bean.ApiKey)) {
+	err = db.Where("api_key = ? AND local_only = 0", digest).First(&bean).Error
+	if err == nil {
+		bean.ApiKey = apiKey
 		return bean, nil
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -184,6 +203,9 @@ func (receiver *WafOPlatformKeyService) IncrCallCount(id string) {
 }
 
 func maskStoredApiKey(bean model.OPlatformKey) string {
+	if strings.HasPrefix(bean.ApiKey, "hwa1:") {
+		return "****"
+	}
 	if bean.LocalOnly == 1 && wafsec.IsDataKeyCiphertext(bean.ApiKey) {
 		plain, err := wafsec.DataDecrypt(bean.ApiKey, nil)
 		if err != nil {

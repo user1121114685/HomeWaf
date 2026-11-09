@@ -9,9 +9,8 @@ import (
 	"HomeWaf/utils"
 	"bufio"
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -22,10 +21,10 @@ import (
 
 	//"github.com/kangarooxin/gorm-webplugin-crypto"
 	//"github.com/kangarooxin/gorm-webplugin-crypto/strategy"
-	gowxsqlite3 "HomeWaf/internal/sqlite3"
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"HomeWaf/wafdb/dialect"
 	"gorm.io/gorm"
+	modernsqlite "modernc.org/sqlite"
 )
 
 // applyPerfPragmas 统一设置 SQLite 性能/可靠性 pragma。
@@ -44,8 +43,6 @@ func applyPerfPragmas(db *gorm.DB, relaxedSync bool) {
 	_ = db.Exec("PRAGMA cache_size=-65536;")
 	// 排序/临时表走内存，加速 ORDER BY / 临时表
 	_ = db.Exec("PRAGMA temp_store=MEMORY;")
-	// 注意：本项目所有库均带 _db_key 加密，禁止开启 PRAGMA mmap_size。
-	// mmap 直接读裸文件、绕过加密 codec，会导致读出密文(integrity_check 报 SQLITE_CORRUPT、Count 归零)。
 	// 每累计约 1000 页触发自动 checkpoint，配合主动 checkpoint 控制 WAL 增长
 	_ = db.Exec("PRAGMA wal_autocheckpoint=1000;")
 }
@@ -86,8 +83,7 @@ func InitCoreDb(currentDir string) (bool, error) {
 			}
 		}
 
-		key := url.QueryEscape(global.GWAF_PWD_COREDB)
-		dns := fmt.Sprintf("%s?_db_key=%s", path, key)
+		dns := sqlite.FileDSN(path)
 		db, err := gorm.Open(sqlite.Open(dns), &gorm.Config{})
 		if err != nil {
 			panic("failed to connect database")
@@ -169,8 +165,7 @@ func InitLogDb(currentDir string) (bool, error) {
 			zlog.Debug("本地日志数据库文件不存在，将创建新数据库")
 		}
 
-		key := url.QueryEscape(global.GWAF_PWD_LOGDB)
-		dns := fmt.Sprintf("%s?_db_key=%s", path, key)
+		dns := sqlite.FileDSN(path)
 		db, err := gorm.Open(sqlite.Open(dns), &gorm.Config{})
 		if err != nil {
 			panic("failed to connect database")
@@ -234,8 +229,8 @@ func InitManaulLogDb(currentDir string, custFileName string) error {
 		}
 		return fmt.Errorf("读取归档分片 %s 失败: %w", custFileName, serr)
 	}
-	key := url.QueryEscape(global.GWAF_PWD_LOGDB)
-	dns := fmt.Sprintf("%s?_db_key=%s&_query_only=1&_cache_size=%d&_busy_timeout=5000", path, key, archiveCacheSizeKB)
+
+	dns := sqlite.FileDSN(path, "query_only(1)", fmt.Sprintf("cache_size(%d)", archiveCacheSizeKB)) + "&mode=ro"
 	db, err := gorm.Open(sqlite.Open(dns), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("打开归档分片 %s 失败: %w", custFileName, err)
@@ -283,8 +278,8 @@ func InitStatsDb(currentDir string) (bool, error) {
 			isNewDb = true
 			zlog.Debug("本地统计数据库文件不存在，将创建新数据库")
 		}
-		key := url.QueryEscape(global.GWAF_PWD_STATDB)
-		dns := fmt.Sprintf("%s?_db_key=%s", path, key)
+
+		dns := sqlite.FileDSN(path)
 		db, err := gorm.Open(sqlite.Open(dns), &gorm.Config{})
 		if err != nil {
 			panic("failed to connect database")
@@ -345,73 +340,30 @@ func BackupDatabase(db *gorm.DB, backupFile string) error {
 	}
 	defer srcConn.Close()
 
-	// 获取底层的 SQLiteConn 对象
-	var srcSQLiteConn *gowxsqlite3.SQLiteConn
-	err = srcConn.Raw(func(driverConn interface{}) error {
-		// 将 driverConn 转换为 *wxsqlite3.SQLiteConn
-		sqliteConn, ok := driverConn.(*gowxsqlite3.SQLiteConn)
+	// Keep the driver connection pinned for the whole backup. A driver
+	// connection must not escape Raw: database/sql may reuse it afterwards.
+	return srcConn.Raw(func(driverConn interface{}) (err error) {
+		source, ok := driverConn.(interface {
+			NewBackup(string) (*modernsqlite.Backup, error)
+		})
 		if !ok {
-			return fmt.Errorf("not a SQLite connection")
+			return fmt.Errorf("not a modernc SQLite connection")
 		}
-		srcSQLiteConn = sqliteConn
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// 打开目标数据库连接
-	destConn, err := sql.Open("sqlite3", backupFile)
-	if err != nil {
-		return err
-	}
-	defer destConn.Close()
-
-	// 获取目标数据库的连接
-	destSqlConn, err := destConn.Conn(context.Background())
-	if err != nil {
-		return err
-	}
-	defer destSqlConn.Close()
-
-	// 获取目标数据库的 SQLiteConn 对象
-	var destSQLiteConn *gowxsqlite3.SQLiteConn
-	err = destSqlConn.Raw(func(driverConn interface{}) error {
-		// 将 driverConn 转换为 *wxsqlite3.SQLiteConn
-		sqliteConn, ok := driverConn.(*gowxsqlite3.SQLiteConn)
-		if !ok {
-			return fmt.Errorf("not a SQLite connection")
+		backup, err := source.NewBackup(sqlite.FileDSN(backupFile, "busy_timeout(5000)"))
+		if err != nil {
+			return err
 		}
-		destSQLiteConn = sqliteConn
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// 执行备份
-	backup, err := destSQLiteConn.Backup("main", srcSQLiteConn, "main")
-	if err != nil {
-		return err
-	}
-	defer backup.Finish()
-
-	// 执行备份步骤 (-1 代表全部备份)
-	for {
-		b, stepErr := backup.Step(-1) // 备份指定多个页面 -1 是所有
-		if b == false {
-			zlog.Debug("backup fail", stepErr)
+		defer func() { err = errors.Join(err, backup.Finish()) }()
+		for {
+			more, stepErr := backup.Step(-1)
 			if stepErr != nil {
 				return stepErr
 			}
-		} else {
-			break
+			if !more {
+				return nil
+			}
 		}
-
-	}
-
-	fmt.Println("Backup completed successfully")
-	return nil
+	})
 }
 
 // cleanupOldBackups 清理旧的备份文件，只保留最新的n个
@@ -463,8 +415,7 @@ func cleanupOldBackups(backupDir string, keepCount int) {
 
 // RepairDatabase 修复损坏的SQLite数据库
 // dbPath: 数据库文件路径
-// password: 数据库密码（如果有加密）
-func RepairDatabase(dbPath string, password string) error {
+func RepairDatabase(dbPath string) error {
 	if !dialect.Get().SupportsRepair() {
 		return fmt.Errorf("RepairDatabase 仅在 SQLite 模式下可用，当前驱动: %s", dialect.Get().Name())
 	}
@@ -493,14 +444,14 @@ func RepairDatabase(dbPath string, password string) error {
 
 	// 2. 打开数据库进行检查
 	zlog.Info("步骤2: 检查数据库完整性...")
-	key := url.QueryEscape(password)
-	dns := fmt.Sprintf("%s?_db_key=%s", dbPath, key)
+
+	dns := sqlite.FileDSN(dbPath)
 	db, err := gorm.Open(sqlite.Open(dns), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		zlog.Error("✗ 无法打开数据库，尝试使用 dump 方式修复...")
-		return repairDatabaseByDump(dbPath, password, backupPath)
+		return repairDatabaseByDump(dbPath, backupPath)
 	}
 
 	sqlDB, err := db.DB()
@@ -514,7 +465,7 @@ func RepairDatabase(dbPath string, password string) error {
 	err = db.Raw("PRAGMA integrity_check;").Scan(&result).Error
 	if err != nil {
 		zlog.Error("✗ 完整性检查失败:", err)
-		return repairDatabaseByDump(dbPath, password, backupPath)
+		return repairDatabaseByDump(dbPath, backupPath)
 	}
 
 	zlog.Info("完整性检查结果:", result)
@@ -544,22 +495,20 @@ func RepairDatabase(dbPath string, password string) error {
 		return nil
 	} else {
 		zlog.Error("✗ 数据库存在完整性问题，尝试使用 dump 方式修复...")
-		return repairDatabaseByDump(dbPath, password, backupPath)
+		return repairDatabaseByDump(dbPath, backupPath)
 	}
 }
 
 // repairDatabaseByDump 使用 dump 和重建的方式修复数据库
-func repairDatabaseByDump(dbPath string, password string, backupPath string) error {
+func repairDatabaseByDump(dbPath string, backupPath string) error {
 	zlog.Info("使用导出重建方式修复数据库...")
 
 	// 创建临时修复文件
 	repairedPath := dbPath + ".repaired_" + time.Now().Format("20060102150405")
 
-	key := url.QueryEscape(password)
-
 	// 1. 尝试打开源数据库（忽略错误继续）
 	zlog.Info("步骤1: 读取源数据库数据...")
-	srcDns := fmt.Sprintf("%s?_db_key=%s", dbPath, key)
+	srcDns := sqlite.FileDSN(dbPath)
 	srcDB, err := gorm.Open(sqlite.Open(srcDns), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -575,7 +524,7 @@ func repairDatabaseByDump(dbPath string, password string, backupPath string) err
 
 	// 2. 创建新的数据库
 	zlog.Info("步骤2: 创建新数据库...")
-	dstDns := fmt.Sprintf("%s?_db_key=%s", repairedPath, key)
+	dstDns := sqlite.FileDSN(repairedPath)
 	dstDB, err := gorm.Open(sqlite.Open(dstDns), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -732,21 +681,17 @@ func ExecuteSQLCommand(currentDir string) {
 	var db *gorm.DB
 	var dbName string
 	var dbPath string
-	var password string
 
 	switch input {
 	case "1":
 		dbPath = currentDir + "/data/local.db"
 		dbName = "核心数据库 (local.db)"
-		password = global.GWAF_PWD_COREDB
 	case "2":
 		dbPath = currentDir + "/data/local_log.db"
 		dbName = "日志数据库 (local_log.db)"
-		password = global.GWAF_PWD_LOGDB
 	case "3":
 		dbPath = currentDir + "/data/local_stats.db"
 		dbName = "统计数据库 (local_stats.db)"
-		password = global.GWAF_PWD_STATDB
 	default:
 		fmt.Println("✗ 无效的选择")
 		writeAuditLog(auditLogger, "ERROR", "无效的数据库选择", fmt.Sprintf("输入: %s", input))
@@ -765,8 +710,8 @@ func ExecuteSQLCommand(currentDir string) {
 
 	// 打开数据库
 	fmt.Printf("\n正在连接到 %s...\n", dbName)
-	key := url.QueryEscape(password)
-	dns := fmt.Sprintf("%s?_db_key=%s", dbPath, key)
+
+	dns := sqlite.FileDSN(dbPath)
 	var err error
 	db, err = gorm.Open(sqlite.Open(dns), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
@@ -1056,24 +1001,20 @@ func RepairAllDatabases(currentDir string) {
 	}
 
 	databases := []struct {
-		Path     string
-		Name     string
-		Password string
+		Path string
+		Name string
 	}{
 		{
-			Path:     currentDir + "/data/local.db",
-			Name:     "核心数据库 (local.db)",
-			Password: global.GWAF_PWD_COREDB,
+			Path: currentDir + "/data/local.db",
+			Name: "核心数据库 (local.db)",
 		},
 		{
-			Path:     currentDir + "/data/local_log.db",
-			Name:     "日志数据库 (local_log.db)",
-			Password: global.GWAF_PWD_LOGDB,
+			Path: currentDir + "/data/local_log.db",
+			Name: "日志数据库 (local_log.db)",
 		},
 		{
-			Path:     currentDir + "/data/local_stats.db",
-			Name:     "统计数据库 (local_stats.db)",
-			Password: global.GWAF_PWD_STATDB,
+			Path: currentDir + "/data/local_stats.db",
+			Name: "统计数据库 (local_stats.db)",
 		},
 	}
 
@@ -1124,7 +1065,7 @@ func RepairAllDatabases(currentDir string) {
 			continue
 		}
 
-		err := RepairDatabase(db.Path, db.Password)
+		err := RepairDatabase(db.Path)
 		if err != nil {
 			fmt.Printf("✗ 修复失败: %v\n", err)
 			errorCount++

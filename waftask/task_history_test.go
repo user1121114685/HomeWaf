@@ -3,34 +3,46 @@
 package waftask
 
 import (
-	"HomeWaf/common/zlog"
 	"HomeWaf/global"
 	"HomeWaf/wafdb"
-	"github.com/spf13/viper"
+	"HomeWaf/wafdb/dialect"
+	"gorm.io/gorm"
 	"testing"
 )
 
 func TestTaskDeleteHistoryInfo(t *testing.T) {
-	currentPath := "../"
-	config := viper.New()
-	config.AddConfigPath(currentPath + "/conf/") // 文件所在目录
-	config.SetConfigName("config")               // 文件名
-	config.SetConfigType("yml")                  // 文件类型
-	if err := config.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			zlog.Error("找不到配置文件..")
-		} else {
-			zlog.Error("配置文件出错..")
+	// Never open ../data: it may contain a developer's live or legacy database.
+	currentPath := t.TempDir()
+	t.Chdir(currentPath)
+	t.Setenv("SamWafIDE", "1")
+	previousDialect := func() (d dialect.DBDialect) {
+		defer func() { _ = recover() }()
+		return dialect.Get()
+	}()
+	dialect.Register(&dialect.SQLiteDialect{})
+	oldCore, oldLog, oldStats := global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GWAF_LOCAL_STATS_DB
+	global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GWAF_LOCAL_STATS_DB = nil, nil, nil
+	t.Cleanup(func() {
+		for _, db := range []*gorm.DB{global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GWAF_LOCAL_STATS_DB} {
+			if db != nil {
+				if raw, err := db.DB(); err == nil {
+					_ = raw.Close()
+				}
+			}
+		}
+		global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GWAF_LOCAL_STATS_DB = oldCore, oldLog, oldStats
+		dialect.Register(previousDialect)
+	})
+	for _, init := range []func(string) (bool, error){wafdb.InitCoreDb, wafdb.InitLogDb, wafdb.InitStatsDb} {
+		if _, err := init(currentPath); err != nil {
+			t.Fatal(err)
 		}
 	}
-
-	global.GWAF_USER_CODE = config.GetString("user_code") // 读取配置
-	global.GWAF_TENANT_ID = global.GWAF_USER_CODE
-	global.GWAF_LOCAL_SERVER_PORT = config.GetInt("local_port")             //读取本地端口
-	global.GWAF_CUSTOM_SERVER_NAME = config.GetString("custom_server_name") //本地服务器其定义名称
-	zlog.Debug(" load ini: ", global.GWAF_USER_CODE)
-	wafdb.InitCoreDb(currentPath)
-	wafdb.InitLogDb(currentPath)
-	wafdb.InitStatsDb(currentPath)
 	TaskDeleteHistoryInfo()
+	for _, db := range []*gorm.DB{global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GWAF_LOCAL_STATS_DB} {
+		var integrity string
+		if err := db.Raw("PRAGMA integrity_check").Scan(&integrity).Error; err != nil || integrity != "ok" {
+			t.Fatalf("cleanup damaged a database: %q, %v", integrity, err)
+		}
+	}
 }

@@ -34,7 +34,7 @@ import (
 func setupExportGuard(t *testing.T) (*WafLogExportService, LogExportActor, *gorm.DB) {
 	t.Helper()
 	oldCore, oldLog := global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB
-	oldTenant, oldUser, oldKey := global.GWAF_TENANT_ID, global.GWAF_USER_CODE, global.GWAF_PWD_LOGDB
+	oldTenant, oldUser := global.GWAF_TENANT_ID, global.GWAF_USER_CODE
 	oldEnabled, oldCfg := global.GWAF_CAN_EXPORT_DOWNLOAD_LOG, global.GLOG_EXPORT_CONFIG
 	oldDialect := func() (d dialect.DBDialect) {
 		defer func() { _ = recover() }()
@@ -51,13 +51,13 @@ func setupExportGuard(t *testing.T) (*WafLogExportService, LogExportActor, *gorm
 	t.Setenv("SamWafIDE", "1")
 	t.Cleanup(func() {
 		global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB = oldCore, oldLog
-		global.GWAF_TENANT_ID, global.GWAF_USER_CODE, global.GWAF_PWD_LOGDB = oldTenant, oldUser, oldKey
+		global.GWAF_TENANT_ID, global.GWAF_USER_CODE = oldTenant, oldUser
 		global.GWAF_CAN_EXPORT_DOWNLOAD_LOG, global.GLOG_EXPORT_CONFIG = oldEnabled, oldCfg
 		dialect.Register(oldDialect)
 		_ = os.Chdir(cwd)
 	})
 	dialect.Register(&dialect.SQLiteDialect{})
-	global.GWAF_TENANT_ID, global.GWAF_USER_CODE, global.GWAF_PWD_LOGDB = "export-tenant", "export-user", "export-test-key"
+	global.GWAF_TENANT_ID, global.GWAF_USER_CODE = "export-tenant", "export-user"
 	global.GWAF_CAN_EXPORT_DOWNLOAD_LOG, global.GLOG_EXPORT_CONFIG = true, global.DefaultLogExportConfig()
 	global.GLOG_EXPORT_CONFIG.MinFreeGiB = 0
 	global.GWAF_LOCAL_LOG_DB = nil
@@ -211,7 +211,7 @@ func exportGuardArtifact(t *testing.T, s *WafLogExportService, a LogExportActor,
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := waflogexport.NewBuilder(context.Background(), waflogexport.Options{Dir: dir, Format: "jsonl", Tables: []string{"access_log"}, Key: global.GWAF_PWD_LOGDB, TaskID: id})
+	b, err := waflogexport.NewBuilder(context.Background(), waflogexport.Options{Dir: dir, Format: "jsonl", Tables: []string{"access_log"}, TaskID: id})
 	if err != nil {
 		t.Fatal(err)
 	}

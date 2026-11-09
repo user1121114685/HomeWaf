@@ -25,7 +25,6 @@ import (
 	req "HomeWaf/model/request"
 	"HomeWaf/wafdb/dialect"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -55,7 +54,7 @@ func perfIPCount() int {
 func openPerfIPTagDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dialect.Register(&dialect.SQLiteDialect{})
-	dsn := filepath.Join(t.TempDir(), "iptag.db") + "?_db_key=" + url.QueryEscape("perf")
+	dsn := filepath.Join(t.TempDir(), "iptag.db")
 	db, err := gorm.Open(sqlitedriver.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatalf("打开 sqlite 失败: %v", err)
