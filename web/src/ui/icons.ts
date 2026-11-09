@@ -3,7 +3,7 @@
 import { defineComponent, h } from 'vue';
 import { ElIcon } from 'element-plus';
 import * as NativeIcons from '@element-plus/icons-vue';
-const make = (name: string) =>
+const make = (name: keyof typeof NativeIcons) =>
   defineComponent({
     name: 'Hw' + name,
     inheritAttrs: false,
@@ -11,8 +11,14 @@ const make = (name: string) =>
       return () =>
         h(
           ElIcon,
-          { ...attrs, size: typeof attrs.size === 'number' || typeof attrs.size === 'string' ? attrs.size : '1em' },
-          () => h((NativeIcons as any)[name] || NativeIcons.Document),
+          {
+            ...attrs,
+            class: ['hw-icon', 't-icon', attrs.class],
+            'data-icon': name,
+            'aria-hidden': attrs['aria-label'] ? undefined : true,
+            size: typeof attrs.size === 'number' || typeof attrs.size === 'string' ? attrs.size : '1em',
+          },
+          () => h(NativeIcons[name]),
         );
     },
   });
@@ -36,7 +42,7 @@ export const ChevronRightIcon = make('ArrowRight');
 export const ClearIcon = make('Delete');
 export const CloseCircleIcon = make('CircleClose');
 export const CloudDownloadIcon = make('Download');
-export const CloudIcon = make('Cloud');
+export const CloudIcon = make('Cloudy');
 export const CloudUploadIcon = make('Upload');
 export const CodeIcon = make('Document');
 export const CopyIcon = make('CopyDocument');
@@ -83,25 +89,25 @@ export const RotateIcon = make('RefreshRight');
 export const SearchIcon = make('Search');
 export const SecuredFilledIcon = make('Lock');
 export const SecuredIcon = make('Lock');
-export const SendIcon = make('Send');
-export const ServerIcon = make('Server');
+export const SendIcon = make('Promotion');
+export const ServerIcon = make('Cpu');
 export const ServiceIcon = make('Service');
 export const SettingIcon = make('Setting');
 export const ShieldErrorFilledIcon = make('WarningFilled');
-export const ShieldErrorIcon = make('ShieldError');
+export const ShieldErrorIcon = make('Warning');
 export const ShopIcon = make('Shop');
 export const SwapIcon = make('Sort');
-export const SystemLogIcon = make('SystemLog');
-export const SystemSettingIcon = make('SystemSetting');
-export const ThunderIcon = make('Thunder');
-export const TranslateIcon = make('Translate');
+export const SystemLogIcon = make('Tickets');
+export const SystemSettingIcon = make('Tools');
+export const ThunderIcon = make('Lightning');
+export const TranslateIcon = make('Switch');
 export const UserAvatarIcon = make('UserFilled');
-export const UserCircleIcon = make('UserCircle');
+export const UserCircleIcon = make('Avatar');
 export const UserIcon = make('User');
-export const UserSafetyIcon = make('UserSafety');
-export const UsergroupAddIcon = make('UsergroupAdd');
-export const UsergroupIcon = make('Usergroup');
-export const ViewListIcon = make('ViewList');
+export const UserSafetyIcon = make('Lock');
+export const UsergroupAddIcon = make('CirclePlus');
+export const UsergroupIcon = make('UserFilled');
+export const ViewListIcon = make('List');
 export const ViewModuleIcon = make('Grid');
 export const icons: Record<string, any> = {
   AddIcon,
@@ -193,12 +199,45 @@ export const icons: Record<string, any> = {
   ViewModuleIcon,
 };
 const kebab = (s: string) => s.replace(/-([a-z])/g, (_m, c) => c.toUpperCase()).replace(/^./, (c) => c.toUpperCase());
+const namedIcons: Record<string, keyof typeof NativeIcons> = {
+  Activity: 'TrendCharts',
+  AddCircle: 'CirclePlus',
+  ArrowDownCircle: 'Bottom',
+  ArrowUpCircle: 'Top',
+  Backward: 'Back',
+  Close: 'Close',
+  CloseCircleFilled: 'CircleCloseFilled',
+  Data: 'Coin',
+  Ellipsis: 'MoreFilled',
+  File: 'Document',
+  FilePaste: 'DocumentAdd',
+  Folder: 'Folder',
+  HardDiskStorage: 'Box',
+  Internet: 'Connection',
+  Jump: 'TopRight',
+  Time: 'Clock',
+  UserPassword: 'Key',
+  Verify: 'CircleCheck',
+  ViewColumn: 'Grid',
+  ChevronLeft: 'ArrowLeft',
+  MenuFold: 'Fold',
+  MenuUnfold: 'Expand',
+  Fullscreen: 'FullScreen',
+  FullscreenExit: 'Aim',
+};
+const dynamicIcons = new Map<string, ReturnType<typeof make>>();
+function resolveIcon(name: string) {
+  if (icons[name + 'Icon']) return icons[name + 'Icon'];
+  const nativeName = namedIcons[name] || (name in NativeIcons ? (name as keyof typeof NativeIcons) : 'QuestionFilled');
+  if (!dynamicIcons.has(nativeName)) dynamicIcons.set(nativeName, make(nativeName));
+  return dynamicIcons.get(nativeName)!;
+}
 export const Icon = defineComponent({
   name: 'HwIcon',
   props: ['name', 'size'],
   setup(p, { attrs }) {
     return () =>
-      h(icons[kebab(String(p.name || 'document')) + 'Icon'] || make(kebab(String(p.name || 'document'))), {
+      h(resolveIcon(kebab(String(p.name || 'document'))), {
         ...attrs,
         size: p.size,
       });

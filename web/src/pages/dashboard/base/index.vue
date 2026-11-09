@@ -29,6 +29,8 @@
     <hw-swiper
       v-if="tipsVisable"
       class="tips-container"
+      height="44px"
+      indicator-position="none"
       :duration="300"
       :interval="5000"
       :navigation="navigation"
@@ -74,12 +76,7 @@
       </hw-list>
     </hw-card>
 
-    <!-- 顶部指标卡片 -->
-    <top-panel class="row-container" />
-    <!-- 中部图表 -->
-    <middle-chart class="row-container" />
-    <!-- 列表排名 -->
-    <rank-list class="row-container" />
+    <traffic-analysis />
 
     <!-- 重要升级须知：一辈子只弹一次，关掉即回写 popup_shown -->
     <hw-dialog
@@ -107,9 +104,7 @@
 </template>
 <script lang="ts">
 import { NotificationIcon, CalendarIcon } from '@/ui/icons';
-import TopPanel from './components/TopPanel.vue';
-import MiddleChart from './components/MiddleChart.vue';
-import RankList from './components/RankList.vue';
+import TrafficAnalysis from './components/TrafficAnalysis.vue';
 import {
   wafStatSysinfoapi
 } from '@/apis/stats';
@@ -119,9 +114,7 @@ import {GetAnnouncementApi} from '@/apis/sysinfo'
 export default {
   name: 'DashboardBase',
   components: {
-    TopPanel,
-    MiddleChart,
-    RankList,
+    TrafficAnalysis,
     NotificationIcon,
     CalendarIcon,
   },

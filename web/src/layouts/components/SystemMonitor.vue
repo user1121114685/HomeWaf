@@ -5,11 +5,13 @@
     expand-animation
     placement="bottom-right"
     trigger="hover"
+    overlay-class-name="system-monitor-popup"
+    :overlay-inner-style="{ padding: 0 }"
     :visible="isMonitorVisible"
     @visible-change="onPopupVisibleChange"
   >
     <template #content>
-      <div class="system-monitor-panel">
+      <div class="system-monitor-panel" role="region" :aria-label="$t('topNav.system_monitor')" @keydown.esc.stop.prevent="isMonitorVisible = false">
         <div class="monitor-header">
           <p>{{ $t('topNav.system_monitor')  }}</p>
           <hw-button
@@ -126,7 +128,14 @@
     <!-- 触发器 - 直观显示系统状态 -->
     <div
       class="system-monitor-trigger"
+      role="button"
+      tabindex="0"
+      :aria-label="$t('topNav.system_monitor')"
+      :aria-expanded="isMonitorVisible"
       @click="isMonitorVisible = true"
+      @keydown.enter.prevent="isMonitorVisible = !isMonitorVisible"
+      @keydown.space.prevent="isMonitorVisible = !isMonitorVisible"
+      @keydown.esc.stop.prevent="isMonitorVisible = false"
       :title="$t('topNav.system_monitor')"
     >
       <!-- 系统整体状态灯（绿/黄/橙/红，悬浮查看含义） -->
@@ -339,10 +348,19 @@ export default defineComponent({
 .system-monitor-panel {
   width: 400px;
   height: 450px;
+  max-width: calc(100vw - 26px);
+  max-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-primary);
 
   .monitor-header {
     position: relative;
     height: 56px;
+    flex: 0 0 56px;
     font-size: 16px;
     color: var(--td-text-color-primary);
     text-align: center;
@@ -370,7 +388,8 @@ export default defineComponent({
 
   .monitor-content {
     padding: 16px;
-    height: calc(100% - 104px);
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     position: relative;
 
@@ -426,6 +445,7 @@ export default defineComponent({
 
   .monitor-footer {
     height: 48px;
+    flex: 0 0 48px;
     align-items: center;
     display: flex;
     justify-content: center;

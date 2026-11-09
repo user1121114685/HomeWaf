@@ -55,6 +55,14 @@ async function mountApp() {
   });
   app.component('help-block', HelpBlock).component('ip-lookup', IpLookup);
   setupMessageGuard();
+  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+  const updateSystemTheme = (event) => {
+    store.commit('setting/setSystemMode', event.matches ? 'dark' : 'light');
+    if (store.state.setting.mode === 'auto') store.dispatch('setting/changeMode', { ...store.state.setting });
+  };
+  updateSystemTheme(systemTheme);
+  systemTheme.addEventListener('change', updateSystemTheme);
+  if (import.meta.hot) import.meta.hot.dispose(() => systemTheme.removeEventListener('change', updateSystemTheme));
   watchEffect(() => {
     i18n.global.locale.value = store.state.language.currentLanguage;
     document.title = adminTitles.admin_title || 'HomeWaf Web Application Firewall';

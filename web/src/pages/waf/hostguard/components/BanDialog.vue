@@ -89,7 +89,7 @@ export default defineComponent({
 
 <style lang="less" scoped>
 // 同 SettingPanel：让说明文字独占一行，别和控件抢 flex 行内空间
-:deep(.t-form__controls-content) {
+:deep(.el-form-item__content) {
   flex-wrap: wrap;
 }
 .desc {

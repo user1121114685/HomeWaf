@@ -523,11 +523,11 @@ export default defineComponent({
 // TDesign 的 .t-form__controls-content 是 flex row，说明文字会和控件抢同一行；
 // 控件被压窄后，radio-button 组就换行竖排了（"封禁范围"最明显）。
 // 让内容区允许换行、并把说明独占整行，控件才能拿到完整宽度保持并排。
-:deep(.t-form__controls-content) {
+:deep(.el-form-item__content) {
   flex-wrap: wrap;
   align-items: center;
 }
-:deep(.t-radio-group) {
+:deep(.el-radio-group) {
   flex-shrink: 0;
 }
 .desc {

@@ -182,7 +182,7 @@ docker compose up -d</pre>
             </hw-button>
           </hw-dropdown>
           <hw-tooltip placement="bottom" :content="$t('topNav.system_config')">
-            <hw-button theme="default" shape="square" variant="text" @click="toggleSettingPanel">
+            <hw-button theme="default" shape="square" variant="text" :aria-label="$t('topNav.system_config')" @click="toggleSettingPanel">
               <setting-icon />
             </hw-button>
           </hw-tooltip>

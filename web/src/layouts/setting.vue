@@ -16,18 +16,18 @@
         <hw-tab-panel value="theme" :label="$t('page.right_setting.tab_theme')">
         <hw-form :data="formData" size="large" ref="form" labelAlign="left" @reset="onReset" @submit="onSubmit">
           <div class="setting-group-title">{{ $t('page.right_setting.theme_mode') }}</div>
-          <hw-radio-group v-model="formData.mode">
+          <hw-radio-group v-model="formData.mode" class="setting-theme-modes" :aria-label="$t('page.right_setting.theme_mode')">
             <div v-for="(item, index) in MODE_OPTIONS" :key="index" class="setting-layout-drawer">
               <div>
-                <hw-radio-button :key="index" :value="item.type"
-                  ><component :is="getModeIcon(item.type)"
+                <hw-radio-button :key="index" :value="item.type" :aria-label="$t(item.textKey)"
+                  ><span class="hw-sr-only">{{ $t(item.textKey) }}</span><component :is="getModeIcon(item.type)"
                 /></hw-radio-button>
-                <p :style="{ textAlign: 'center', marginTop: '8px' }">{{ item.text }}</p>
+                <p class="setting-choice-label">{{ $t(item.textKey) }}</p>
               </div>
             </div>
           </hw-radio-group>
           <div class="setting-group-title">{{ $t('page.right_setting.theme_color') }}</div>
-          <hw-radio-group v-model="formData.brandTheme">
+          <hw-radio-group v-model="formData.brandTheme" class="setting-theme-colors" :aria-label="$t('page.right_setting.theme_color')">
             <div
               v-for="(item, index) in COLOR_OPTIONS.slice(0, COLOR_OPTIONS.length - 1)"
               :key="index"
@@ -65,9 +65,10 @@
           </hw-radio-group>
           <div class="setting-group-title">{{ $t('page.right_setting.navigation_layout') }}</div>
 
-          <hw-radio-group v-model="formData.layout">
+          <hw-radio-group v-model="formData.layout" class="setting-navigation-layout" :aria-label="$t('page.right_setting.navigation_layout')">
             <div v-for="(item, index) in LAYOUT_OPTION" :key="index" class="setting-layout-drawer">
-              <hw-radio-button :key="index" :value="item"><thumbnail :src="getThumbnailUrl(item)" /></hw-radio-button>
+              <hw-radio-button :key="index" :value="item" :aria-label="layoutLabel(item)"><thumbnail :url="getThumbnailUrl(item)" /></hw-radio-button>
+              <p class="setting-choice-label">{{ layoutLabel(item) }}</p>
             </div>
           </hw-radio-group>
 
@@ -157,7 +158,6 @@ import ColorContainer from '@/components/color/index.vue';
 import SettingDarkIcon from '@/assets/assets-setting-dark.svg';
 import SettingLightIcon from '@/assets/assets-setting-light.svg';
 import SettingAutoIcon from '@/assets/assets-setting-auto.svg';
-import i18n from "./../i18n";
 import {
   getRequestTimeout, setRequestTimeout, DEFAULT_REQUEST_TIMEOUT, MIN_REQUEST_TIMEOUT, MAX_REQUEST_TIMEOUT
 } from '@/config/requestTimeout';
@@ -172,9 +172,9 @@ const LAYOUT_THUMBNAIL_MAP = {
 };
 const COLOR_OPTIONS = ['default', 'cyan', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'dynamic'];
 const MODE_OPTIONS = [
-  { type: 'light', text: i18n.global.t('page.right_setting.theme_mode_color_light') },
-  { type: 'dark', text: i18n.global.t('page.right_setting.theme_mode_color_dark')  },
-  { type: 'auto', text: i18n.global.t('page.right_setting.theme_mode_color_auto')  },
+  { type: 'light', textKey: 'page.right_setting.theme_mode_color_light' },
+  { type: 'dark', textKey: 'page.right_setting.theme_mode_color_dark' },
+  { type: 'auto', textKey: 'page.right_setting.theme_mode_color_auto' },
 ];
 
 export default {
@@ -282,6 +282,10 @@ export default {
     },
     getThumbnailUrl(name: string) {
       return LAYOUT_THUMBNAIL_MAP[name] || LayoutSideThumbnail;
+    },
+    layoutLabel(name: string) {
+      const english = this.$store.state.language.currentLanguage === 'en_US';
+      return ({ side: english ? 'Sidebar' : '侧边导航', top: english ? 'Top navigation' : '顶部导航', mix: english ? 'Mixed' : '混合导航' })[name];
     },
     handleClick(): void {
       this.$store.commit('setting/toggleSettingPanel', true);
@@ -394,13 +398,6 @@ export default {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  border-radius: 50% !important;
-  padding: 6px !important;
-  border: 2px solid transparent !important;
-
-  > .t-radio-button__label {
-    display: inline-flex;
-  }
 }
 
 .homewaf-setting-close {
@@ -480,44 +477,73 @@ export default {
     border-top: 1px solid var(--td-component-border);
   }
 
-  .t-radio-group.t-size-m {
+  .el-radio-group {
     min-height: 32px;
     width: 100%;
     height: auto;
-    justify-content: space-between;
-    align-items: center;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-start;
   }
+  .setting-theme-modes,
+  .setting-navigation-layout {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .setting-choice-label {
+    margin: 8px 0 0;
+    text-align: center;
+    color: var(--el-text-color-regular);
+    font-size: 13px;
+    line-height: 22px;
+  }
+  .setting-theme-colors { gap: 8px; }
+  .setting-theme-modes svg { display: block; width: 88px; height: 48px; max-width: 100%; }
+  .setting-navigation-layout img { display: block; max-width: 100%; object-fit: contain; }
 
   .setting-layout-drawer {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-bottom: 16px;
+    min-width: 0;
+    > div { width: 100%; }
 
-    .t-radio-button {
+    .el-radio-button {
+      --el-radio-button-checked-bg-color: var(--el-color-primary-light-9);
+      --el-radio-button-checked-text-color: var(--el-text-color-primary);
       display: inline-flex;
-      max-height: 78px;
-      padding: 8px;
-      border-radius: @border-radius;
-      border: 2px solid var(--td-component-border);
+      width: 100%;
       height: auto;
-
-      > .t-radio-button__label {
-        display: inline-flex;
-      }
     }
-
-    .t-is-checked {
-      border: 2px solid var(--td-brand-color) !important;
+    .el-radio-button > .el-radio-button__inner {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; height: auto; padding: 6px;
+      border-radius: 4px; border: 2px solid var(--el-border-color);
+      background: var(--el-bg-color); box-shadow: none; outline: none;
     }
-
-    .t-form__controls-content {
-      justify-content: end;
+    .el-radio-button.is-active .el-radio-button__inner {
+      border-color: var(--el-color-primary);
+      background: var(--el-color-primary-light-9); box-shadow: none;
+    }
+    .el-radio-button:focus-within .el-radio-button__inner {
+      outline: 2px solid var(--el-color-primary); outline-offset: 2px;
     }
   }
-
-  .t-form__controls-content {
-    justify-content: end;
+  .setting-layout-drawer .setting-layout-color-group > .el-radio-button__inner {
+    border-radius: 50%; width: 36px; height: 36px; padding: 4px;
+  }
+  .el-form-item { align-items: center; margin-bottom: 18px; }
+  .el-form-item__label {
+    flex: 1; width: auto !important; height: auto; line-height: 22px;
+    justify-content: flex-start; color: var(--el-text-color-regular);
+  }
+  .el-form-item__content { flex: 0 0 auto; margin-left: 0 !important; justify-content: flex-end; }
+  .el-drawer__body { padding: 16px 24px; }
+  @media (max-width: 450px) {
+    max-width: 100vw;
+    .el-drawer__body { padding: 12px 16px; }
+    .setting-theme-modes, .setting-navigation-layout { gap: 8px; }
   }
 }
 

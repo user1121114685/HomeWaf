@@ -327,7 +327,7 @@ export default defineComponent({
   border-top: 1px dashed var(--td-border-level-1-color);
   text-align: right;
 
-  :deep(.t-form__controls) {
+  :deep(.el-form-item__content) {
     margin-left: 0 !important;
   }
 }

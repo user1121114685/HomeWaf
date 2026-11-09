@@ -98,11 +98,19 @@ function plain(name: string, component: any, transform: (a: any) => any = () => 
     inheritAttrs: false,
     setup(_, { attrs, slots }) {
       attrs = attributes(attrs);
-      return () => h(component, { ...attrs, ...transform(attrs) }, slots);
+      return () => {
+        const extra = transform(attrs);
+        return h(
+          component,
+          { ...attrs, ...extra, class: [attrs.class, extra.class], style: [attrs.style, extra.style] },
+          slots,
+        );
+      };
     },
   });
 }
 const HwButton = plain('HwButton', E.ElButton, (a) => ({
+  class: ['hw-button', 't-button', { 'hw-button-square': a.shape === 'square' }],
   type: theme(a.theme),
   plain: a.variant === 'outline',
   text: a.variant === 'text',
@@ -117,6 +125,27 @@ const HwTag = plain('HwTag', E.ElTag, (a) => ({
   effect: a.variant === 'outline' ? 'plain' : a.variant === 'dark' ? 'dark' : 'light',
   size: size(a.size),
 }));
+const HwFormItem = defineComponent({
+  name: 'HwFormItem',
+  inheritAttrs: false,
+  setup(_, { attrs: raw, slots }) {
+    const attrs = attributes(raw);
+    return () =>
+      h(
+        E.ElFormItem,
+        { ...attrs, class: ['hw-form-item', attrs.class], prop: attrs.name, label: attrs.label, error: attrs.error },
+        {
+          ...slots,
+          default: () => [
+            slots.default?.(),
+            slots.help || attrs.help
+              ? h('div', { class: 'hw-form-help t-input__help' }, slots.help?.() || attrs.help)
+              : null,
+          ],
+        },
+      );
+  },
+});
 const HwForm = defineComponent({
   name: 'HwForm',
   inheritAttrs: false,
@@ -172,12 +201,15 @@ const HwForm = defineComponent({
           model: p.data,
           rules: rules.value,
           inline: attrs.layout === 'inline',
-          labelWidth: attrs.labelWidth ?? attrs['label-width'],
-          labelPosition: attrs.labelAlign ?? 'right',
+          class: ['hw-form', attrs.class],
+          labelWidth: attrs.labelWidth ?? (attrs.layout === 'inline' ? 'auto' : 100),
+          labelPosition: attrs.layout === 'vertical' ? 'top' : (attrs.labelAlign ?? 'right'),
           onSubmit: async (e: Event) => {
             e.preventDefault();
             const result = await validate();
             emit('submit', {
+              e,
+              result,
               validateResult: result,
               firstError:
                 result === true
@@ -242,7 +274,7 @@ function dialog(drawer = false) {
             modelValue: p.visible ?? p.modelValue ?? false,
             title: typeof p.header === 'string' ? p.header : undefined,
             width: p.width,
-            size: p.width,
+            size: p.width ?? attrs.size,
             direction: ({ left: 'ltr', right: 'rtl', top: 'ttb', bottom: 'btt' } as any)[p.placement] || 'rtl',
             destroyOnClose: p.destroyOnClose,
             closeOnClickModal: p.closeOnOverlayClick ?? false,
@@ -367,6 +399,7 @@ const HwPopup = defineComponent({
   props: ['visible', 'content', 'trigger', 'placement'],
   emits: ['update:visible', 'visible-change'],
   setup(p, { attrs, slots, emit }) {
+    attrs = attributes(attrs);
     return () =>
       renderNative(
         E.ElPopover,
@@ -374,6 +407,9 @@ const HwPopup = defineComponent({
           ...attrs,
           visible: p.visible,
           content: typeof p.content === 'string' ? p.content : undefined,
+          width: attrs.width ?? 'auto',
+          popperClass: ['hw-popup', attrs.overlayClassName, attrs.popperClass].filter(Boolean).join(' '),
+          popperStyle: [attrs.overlayStyle, attrs.overlayInnerStyle, attrs.popperStyle],
           trigger: p.trigger || 'hover',
           placement: popupPlacement(p.placement),
           'onUpdate:visible': (v: boolean) => {
@@ -473,12 +509,126 @@ const HwConfig = defineComponent({
   },
 });
 const HwIconComponent = HwIcon;
+const HwCard = defineComponent({
+  name: 'HwCard',
+  inheritAttrs: false,
+  setup(_, { attrs: raw, slots }) {
+    const attrs = attributes(raw);
+    return () =>
+      h(
+        E.ElCard,
+        {
+          ...attrs,
+          class: ['hw-card', 't-card', attrs.class],
+          shadow: attrs.bordered === false ? 'never' : attrs.shadow,
+        },
+        {
+          ...slots,
+          header:
+            slots.header ||
+            (slots.title || attrs.title || attrs.subtitle || slots.actions
+              ? () =>
+                  h('div', { class: 'hw-card-heading' }, [
+                    h('div', { class: 'hw-card-titles' }, [
+                      h('div', { class: 'hw-card-title t-card__title' }, slots.title?.() || attrs.title),
+                      slots.subtitle || attrs.subtitle
+                        ? h('div', { class: 'hw-card-subtitle' }, slots.subtitle?.() || attrs.subtitle)
+                        : null,
+                    ]),
+                    slots.actions ? h('div', { class: 'hw-card-actions' }, slots.actions()) : null,
+                  ])
+              : undefined),
+        },
+      );
+  },
+});
+const gridBreakpoints = [
+  ['xs', 0],
+  ['sm', 768],
+  ['md', 992],
+  ['lg', 1200],
+  ['xl', 1400],
+  ['xxl', 1880],
+] as const;
+const viewportWidth = ref(window.innerWidth);
+const resizeGrid = () => {
+  viewportWidth.value = window.innerWidth;
+};
+window.addEventListener('resize', resizeGrid, { passive: true });
+if (import.meta.hot) import.meta.hot.dispose(() => window.removeEventListener('resize', resizeGrid));
+const HwRow = defineComponent({
+  name: 'HwRow',
+  inheritAttrs: false,
+  setup(_, { attrs, slots }) {
+    const gap = (value: any) => {
+      if (!value || typeof value !== 'object') return Number(value) || 0;
+      let result = 0;
+      for (const [breakpoint, minimum] of gridBreakpoints)
+        if (viewportWidth.value >= minimum && value[breakpoint] != null) result = Number(value[breakpoint]) || 0;
+      return result;
+    };
+    return () => {
+      const gutters = Array.isArray(attrs.gutter) ? attrs.gutter : [attrs.gutter, 0];
+      return h(
+        E.ElRow,
+        {
+          ...attrs,
+          class: ['hw-row', 't-row', attrs.class],
+          gutter: gap(gutters[0]),
+          align: attrs.align as 'top' | 'middle' | 'bottom' | undefined,
+          style: [{ rowGap: `${gap(gutters[1])}px` }, attrs.style],
+        },
+        slots,
+      );
+    };
+  },
+});
+const columnSize = (value: any) => {
+  if (value == null) return undefined;
+  if (typeof value !== 'object') return Number(value) * 2;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, number]) => [
+      key,
+      ['span', 'offset', 'push', 'pull'].includes(key) ? Number(number) * 2 : number,
+    ]),
+  );
+};
+const HwCol = plain('HwCol', E.ElCol, (a) => {
+  let current = { span: a.span ?? 12, offset: a.offset || 0, push: a.push || 0, pull: a.pull || 0 };
+  for (const [breakpoint, minimum] of gridBreakpoints) {
+    if (viewportWidth.value >= minimum && a[breakpoint] != null)
+      current = { ...current, ...(typeof a[breakpoint] === 'object' ? a[breakpoint] : { span: a[breakpoint] }) };
+  }
+  return {
+    ...(columnSize(current) as Record<string, number>),
+    xs: undefined,
+    sm: undefined,
+    md: undefined,
+    lg: undefined,
+    xl: undefined,
+    xxl: undefined,
+    style:
+      a.flex != null
+        ? {
+            flex:
+              typeof a.flex === 'number'
+                ? `${a.flex} 1 0%`
+                : /^\d+(px|%|rem|em)$/.test(a.flex)
+                  ? `0 0 ${a.flex}`
+                  : a.flex,
+            maxWidth: 'none',
+            width: 'auto',
+            minWidth: 0,
+          }
+        : undefined,
+  };
+});
 
 const components: Record<string, any> = {
   'hw-button': HwButton,
   'hw-tag': HwTag,
   'hw-form': HwForm,
-  'hw-form-item': plain('HwFormItem', E.ElFormItem, (a) => ({ prop: a.name, label: a.label, error: a.error })),
+  'hw-form-item': HwFormItem,
   'hw-input': input('HwInput', E.ElInput, (_p, a) => ({
     showPassword: a.type === 'password',
     maxlength: a.maxlength ?? a.maxcharacter,
@@ -506,15 +656,9 @@ const components: Record<string, any> = {
   'hw-dialog': dialog(),
   'hw-drawer': dialog(true),
   'hw-table': HwTable,
-  'hw-card': plain('HwCard', E.ElCard, (a) => ({
-    header: a.title,
-    shadow: a.bordered === false ? 'never' : undefined,
-  })),
-  'hw-row': E.ElRow,
-  'hw-col': plain('HwCol', E.ElCol, (a) => ({
-    span: a.span == null ? 24 : Number(a.span) * 2,
-    offset: Number(a.offset || 0) * 2,
-  })),
+  'hw-card': HwCard,
+  'hw-row': HwRow,
+  'hw-col': HwCol,
   'hw-space': plain('HwSpace', E.ElSpace, (a) => ({
     wrap: a.breakLine !== false,
     direction: a.direction || 'horizontal',

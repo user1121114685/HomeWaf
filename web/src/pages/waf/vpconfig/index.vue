@@ -2637,7 +2637,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
   }
 
   .form-item-tips {
-    color: rgba(0, 0, 0, 0.4);
+    color: var(--td-text-color-secondary);
     font-size: 12px;
     margin-top: 8px;
   }

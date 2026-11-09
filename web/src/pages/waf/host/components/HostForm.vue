@@ -1348,7 +1348,7 @@ import {defineComponent} from 'vue';
       // 切换 Tab 后把内容区和弹窗滚动位置复位到顶部，避免左侧导航过长时右侧内容"看起来是空的"
       activeTab() {
         this.$nextTick(() => {
-          const content = this.$el.querySelector('.t-tabs__content');
+          const content = this.$el.querySelector('.el-tabs__content');
           if (content) content.scrollTop = 0;
           const dialogBody = this.$el.closest && this.$el.closest('.t-dialog__body');
           if (dialogBody) dialogBody.scrollTop = 0;
@@ -2709,43 +2709,43 @@ import {defineComponent} from 'vue';
 }
 /* 竖向布局：限制整体高度，左侧导航与右侧内容各自独立滚动；
    否则导航过长会把弹窗撑高，切换靠下的 Tab 时内容在顶部，看起来像空的 */
-.host-tabs-wrapper--left :deep(.t-tabs__header),
-.host-tabs-wrapper--left :deep(.t-tabs__content) {
+.host-tabs-wrapper--left :deep(.el-tabs__header),
+.host-tabs-wrapper--left :deep(.el-tabs__content) {
   max-height: 65vh;
   overflow-y: auto;
   /* 滚动条平时隐藏、悬停才显示，避免左右两根粗滚动条并排刺眼 */
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
 }
-.host-tabs-wrapper--left :deep(.t-tabs__header:hover),
-.host-tabs-wrapper--left :deep(.t-tabs__content:hover) {
+.host-tabs-wrapper--left :deep(.el-tabs__header:hover),
+.host-tabs-wrapper--left :deep(.el-tabs__content:hover) {
   scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
 }
 /* 全屏时弹窗 body(96vh-92px) 与 Tab 内容(65vh) 是两个高度不同的滚动容器，
    滚到内层尽头会接力滚外层，视觉上就是画面上下抖动。全屏下把 Tab 撑到与 body 同高，
    让 body 不再产生溢出，全局只留一个滚动容器。 */
-.host-tabs-wrapper--left.host-tabs-wrapper--fullscreen :deep(.t-tabs__header),
-.host-tabs-wrapper--left.host-tabs-wrapper--fullscreen :deep(.t-tabs__content) {
+.host-tabs-wrapper--left.host-tabs-wrapper--fullscreen :deep(.el-tabs__header),
+.host-tabs-wrapper--left.host-tabs-wrapper--fullscreen :deep(.el-tabs__content) {
   max-height: calc(96vh - 200px);
 }
-.host-tabs-wrapper--left :deep(.t-tabs__header::-webkit-scrollbar),
-.host-tabs-wrapper--left :deep(.t-tabs__content::-webkit-scrollbar) {
+.host-tabs-wrapper--left :deep(.el-tabs__header::-webkit-scrollbar),
+.host-tabs-wrapper--left :deep(.el-tabs__content::-webkit-scrollbar) {
   width: 6px;
   height: 6px;
 }
-.host-tabs-wrapper--left :deep(.t-tabs__header::-webkit-scrollbar-thumb),
-.host-tabs-wrapper--left :deep(.t-tabs__content::-webkit-scrollbar-thumb) {
+.host-tabs-wrapper--left :deep(.el-tabs__header::-webkit-scrollbar-thumb),
+.host-tabs-wrapper--left :deep(.el-tabs__content::-webkit-scrollbar-thumb) {
   background: transparent;
   border-radius: 3px;
 }
-.host-tabs-wrapper--left :deep(.t-tabs__header:hover::-webkit-scrollbar-thumb),
-.host-tabs-wrapper--left :deep(.t-tabs__content:hover::-webkit-scrollbar-thumb) {
+.host-tabs-wrapper--left :deep(.el-tabs__header:hover::-webkit-scrollbar-thumb),
+.host-tabs-wrapper--left :deep(.el-tabs__content:hover::-webkit-scrollbar-thumb) {
   background: rgba(0, 0, 0, 0.25);
 }
-.host-tabs-wrapper--left :deep(.t-tabs__header::-webkit-scrollbar-track),
-.host-tabs-wrapper--left :deep(.t-tabs__content::-webkit-scrollbar-track),
-.host-tabs-wrapper--left :deep(.t-tabs__header::-webkit-scrollbar-button),
-.host-tabs-wrapper--left :deep(.t-tabs__content::-webkit-scrollbar-button) {
+.host-tabs-wrapper--left :deep(.el-tabs__header::-webkit-scrollbar-track),
+.host-tabs-wrapper--left :deep(.el-tabs__content::-webkit-scrollbar-track),
+.host-tabs-wrapper--left :deep(.el-tabs__header::-webkit-scrollbar-button),
+.host-tabs-wrapper--left :deep(.el-tabs__content::-webkit-scrollbar-button) {
   display: none;
 }
 .ip-probe-entry {
