@@ -4,7 +4,7 @@ name: HomeWaf build and focused checks
 on:
   pull_request:
   push:
-    branches: [main, homewaf-modernization]
+    branches: [master]
   workflow_dispatch:
 permissions:
   contents: read
