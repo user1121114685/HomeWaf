@@ -11,12 +11,12 @@ import (
 
 // 分层写入的纯逻辑用例。每个用例前重置档位与蓄水池，互不影响。
 func resetTier(mode string) func() {
-	savedMode := global.GDATA_ACCESS_LOG_MODE
+	savedMode := global.CurrentSettings().GDATA_ACCESS_LOG_MODE
 	savedSampler := negSampler
-	global.GDATA_ACCESS_LOG_MODE = mode
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ACCESS_LOG_MODE = mode })
 	negSampler = &sampleReservoir{buckets: map[string]*sampleBucket{}}
 	return func() {
-		global.GDATA_ACCESS_LOG_MODE = savedMode
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ACCESS_LOG_MODE = savedMode })
 		negSampler = savedSampler
 	}
 }
@@ -168,13 +168,13 @@ func TestTier_DedupByUUID(t *testing.T) {
 	first.ACTION = "阻止"
 	second := mkLog("dup1", "1.2.3.4")
 	second.ACTION = "阻止"
-	second.RES_BODY = "done"
+	second.RES_BODY = `{"status":"done"}`
 
 	events, accesses, payloads := tierForStore([]*innerbean.WebLog{first, second})
 	if len(events) != 1 || len(accesses) != 1 || len(payloads) != 1 {
 		t.Fatalf("三张表都应去重成 1 条，实际 %d/%d/%d", len(events), len(accesses), len(payloads))
 	}
-	if payloads[0].RES_BODY != "done" {
+	if payloads[0].RES_BODY != `{"status":"done"}` {
 		t.Fatal("应保留后到的那条（信息更全）")
 	}
 }

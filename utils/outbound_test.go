@@ -14,9 +14,11 @@ import (
 
 func setOutboundAllowHosts(t *testing.T, hosts string) {
 	t.Helper()
-	old := global.GCONFIG_OUTBOUND_ALLOWED_HOSTS
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = hosts
-	t.Cleanup(func() { global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	old := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = hosts })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	})
 }
 
 func TestIsAllowedOutboundURL_内网与危险目标被拒(t *testing.T) {

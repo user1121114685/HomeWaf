@@ -350,6 +350,14 @@ func NewDualWindowDetector(shortSize, longSize int, k float64) *DualWindowDetect
 // AddValue 向两个窗口添加数据
 func (d *DualWindowDetector) AddValue(value float64) {
 	d.shortWindow.AddValue(value)
+	// Once a baseline exists, sustained high traffic must not train itself
+	// into the baseline before the sustained-high threshold can be reached.
+	if len(d.longWindow.window) >= min(d.shortWindow.size, d.longWindow.size) {
+		mean := d.longWindow.sum / float64(len(d.longWindow.window))
+		if mean > 0 && value > mean*1.5 {
+			return
+		}
+	}
 	d.longWindow.AddValue(value)
 }
 
@@ -388,6 +396,9 @@ func (d *DualWindowDetector) DetectAnomaly(value float64) *DetectionResult {
 		if d.sustainedHighCount > d.maxSustainedHigh {
 			shortResult.Confidence = fmt.Sprintf("持续高位运行警告(%d次)", d.sustainedHighCount)
 			shortResult.IsAnomaly = true
+			shortResult.IsRecovered = false
+			d.shortWindow.isInAnomalyState = true
+			d.shortWindow.normalCount = 0
 			// 添加持续高位的特殊标记
 			shortResult.Deviation = shortMean - longMean
 		}

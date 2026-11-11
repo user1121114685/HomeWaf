@@ -38,7 +38,7 @@ func (ls *WafNotifyService) GetNotifier() wafinterface.WafNotify {
 
 // 处理并发送单条日志
 func (ls *WafNotifyService) ProcessSingleLog(log *innerbean.WebLog) error {
-	if ls.enable == 0 {
+	if ls == nil || ls.enable == 0 {
 		return nil
 	}
 	if ls.notifier == nil {
@@ -50,7 +50,7 @@ func (ls *WafNotifyService) ProcessSingleLog(log *innerbean.WebLog) error {
 	zlog.Debug("Processing single log...")
 
 	// 通知处理
-	if err := ls.notifier.NotifySingle(log); err != nil {
+	if err := ls.notifier.NotifySingle(log.RedactedCopy()); err != nil {
 		return fmt.Errorf("failed to notify single log: %v", err)
 	}
 	return nil
@@ -58,7 +58,7 @@ func (ls *WafNotifyService) ProcessSingleLog(log *innerbean.WebLog) error {
 
 // 处理并发送多条日志
 func (ls *WafNotifyService) ProcessBatchLogs(logs []*innerbean.WebLog) error {
-	if ls.enable == 0 {
+	if ls == nil || ls.enable == 0 || ls.notifier == nil {
 		zlog.Debug("kafka没有开启")
 		return nil
 	}
@@ -66,7 +66,13 @@ func (ls *WafNotifyService) ProcessBatchLogs(logs []*innerbean.WebLog) error {
 	zlog.Debug("Processing batch logs...")
 
 	// 通知处理
-	if err := ls.notifier.NotifyBatch(logs); err != nil {
+	safe := make([]*innerbean.WebLog, 0, len(logs))
+	for _, log := range logs {
+		if log != nil {
+			safe = append(safe, log.RedactedCopy())
+		}
+	}
+	if err := ls.notifier.NotifyBatch(safe); err != nil {
 		return fmt.Errorf("failed to notify batch logs: %v", err)
 	}
 	return nil

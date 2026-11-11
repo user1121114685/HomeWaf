@@ -193,7 +193,7 @@ func notifyCases() []notifyCase {
 			tables: []interface{}{&model.IPBlockList{}},
 			seed: func(t *testing.T) string {
 				id := uuid.GenUUID()
-				return seedRow(t, &model.IPBlockList{BaseOrm: newTestBase(id), HostCode: "hostA", Ip: "1.2.3.4"}, id)
+				return seedRow(t, &model.IPBlockList{BaseOrm: newTestBase(id), HostCode: "hostA", IsEnable: 1, Ip: "1.2.3.4"}, id)
 			},
 			handler: new(WafBlockIpApi).ModifyBlockIpApi,
 			editBody: func(id string, changeHost bool) string {
@@ -207,7 +207,7 @@ func notifyCases() []notifyCase {
 			tables: []interface{}{&model.IPAllowList{}},
 			seed: func(t *testing.T) string {
 				id := uuid.GenUUID()
-				return seedRow(t, &model.IPAllowList{BaseOrm: newTestBase(id), HostCode: "hostA", Ip: "1.2.3.4"}, id)
+				return seedRow(t, &model.IPAllowList{BaseOrm: newTestBase(id), HostCode: "hostA", IsEnable: 1, Ip: "1.2.3.4"}, id)
 			},
 			handler: new(WafAllowIpApi).ModifyAllowIpApi,
 			editBody: func(id string, changeHost bool) string {
@@ -221,7 +221,7 @@ func notifyCases() []notifyCase {
 			tables: []interface{}{&model.URLBlockList{}},
 			seed: func(t *testing.T) string {
 				id := uuid.GenUUID()
-				return seedRow(t, &model.URLBlockList{BaseOrm: newTestBase(id), HostCode: "hostA", CompareType: "前缀匹配", Url: "/admin"}, id)
+				return seedRow(t, &model.URLBlockList{BaseOrm: newTestBase(id), HostCode: "hostA", IsEnable: 1, CompareType: "前缀匹配", Url: "/admin"}, id)
 			},
 			handler: new(WafBlockUrlApi).ModifyBlockUrlApi,
 			editBody: func(id string, changeHost bool) string {
@@ -235,7 +235,7 @@ func notifyCases() []notifyCase {
 			tables: []interface{}{&model.URLAllowList{}},
 			seed: func(t *testing.T) string {
 				id := uuid.GenUUID()
-				return seedRow(t, &model.URLAllowList{BaseOrm: newTestBase(id), HostCode: "hostA", CompareType: "前缀匹配", Url: "/health"}, id)
+				return seedRow(t, &model.URLAllowList{BaseOrm: newTestBase(id), HostCode: "hostA", IsEnable: 1, CompareType: "前缀匹配", Url: "/health"}, id)
 			},
 			handler: new(WafAllowUrlApi).ModifyAllowUrlApi,
 			editBody: func(id string, changeHost bool) string {
@@ -263,11 +263,11 @@ func notifyCases() []notifyCase {
 			tables: []interface{}{&model.HttpAuthBase{}},
 			seed: func(t *testing.T) string {
 				id := uuid.GenUUID()
-				return seedRow(t, &model.HttpAuthBase{BaseOrm: newTestBase(id), HostCode: "hostA", UserName: "u1", Password: "p1"}, id)
+				return seedRow(t, &model.HttpAuthBase{BaseOrm: newTestBase(id), HostCode: "hostA", UserName: "u1", Password: "notify-test-password-42"}, id)
 			},
 			handler: new(WafHttpAuthBaseApi).ModifyApi,
 			editBody: func(id string, changeHost bool) string {
-				return `{"id":"` + id + `","host_code":"` + hostOf(changeHost) + `","user_name":"u1","password":"p1"}`
+				return `{"id":"` + id + `","host_code":"` + hostOf(changeHost) + `","user_name":"u1","password":"notify-test-password-42"}`
 			},
 			wantType:     enums.ChanTypeHttpauth,
 			checkContent: sliceChecker[model.HttpAuthBase](),

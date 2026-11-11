@@ -4,7 +4,6 @@ package wafenginecore
 
 import (
 	"HomeWaf/common/zlog"
-	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/utils"
 	"HomeWaf/wafenginecore/clientip"
@@ -55,7 +54,7 @@ func (waf *WafEngine) getBizClientIP(r *http.Request, host model.Hosts) (error, 
 		return waf.extractCDNPreset(r, host)
 	default:
 		// "" 兼容：完全保持旧行为
-		return waf.getClientIP(r, strings.Split(global.GCONFIG_RECORD_PROXY_HEADER, ",")...)
+		return waf.getClientIP(r, strings.Split(requestSettings(r).GCONFIG_RECORD_PROXY_HEADER, ",")...)
 	}
 }
 
@@ -111,6 +110,10 @@ func extractXFFDepth(r *http.Request, host model.Hosts) string {
 	}
 	trusted := strings.TrimSpace(host.IPTrustProxies)
 	if trusted != "" {
+		peerErr, peerIP, _ := splitRemoteAddr(r.RemoteAddr)
+		if peerErr != nil || !ipInCIDRList(peerIP, trusted) {
+			return ""
+		}
 		// 从右往左取第一个非可信 hop
 		for i := len(parts) - 1; i >= 0; i-- {
 			if !ipInCIDRList(parts[i], trusted) {

@@ -1,3 +1,4 @@
+// HomeWaf modification: remove unreachable ANTLR label-use workarounds; preserve reachable error exits.
 // HomeWaf modification: local imports; omit unused Git resource loader. Upstream Apache-2.0 retained.
 // Code generated from grulev3.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
@@ -467,7 +468,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IRuleEntryContext is an interface to support dynamic dispatch.
@@ -726,7 +726,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ISalienceContext is an interface to support dynamic dispatch.
@@ -853,7 +852,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IRuleNameContext is an interface to support dynamic dispatch.
@@ -959,7 +957,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IRuleDescriptionContext is an interface to support dynamic dispatch.
@@ -1065,7 +1062,6 @@ func (p *grulev3Parser) RuleDescription() (localctx IRuleDescriptionContext) {
 		}
 	}
 
-errorExit:
 	if p.HasError() {
 		v := p.GetError()
 		localctx.SetException(v)
@@ -1075,7 +1071,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IWhenScopeContext is an interface to support dynamic dispatch.
@@ -1202,7 +1197,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IThenScopeContext is an interface to support dynamic dispatch.
@@ -1329,7 +1323,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IThenExpressionListContext is an interface to support dynamic dispatch.
@@ -1505,7 +1498,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IThenExpressionContext is an interface to support dynamic dispatch.
@@ -1655,7 +1647,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IAssignmentContext is an interface to support dynamic dispatch.
@@ -1818,7 +1809,6 @@ func (p *grulev3Parser) Assignment() (localctx IAssignmentContext) {
 		p.expression(0)
 	}
 
-errorExit:
 	if p.HasError() {
 		v := p.GetError()
 		localctx.SetException(v)
@@ -1828,7 +1818,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IExpressionContext is an interface to support dynamic dispatch.
@@ -2279,7 +2268,6 @@ errorExit:
 	}
 	p.UnrollRecursionContexts(_parentctx)
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMulDivOperatorsContext is an interface to support dynamic dispatch.
@@ -2390,7 +2378,6 @@ func (p *grulev3Parser) MulDivOperators() (localctx IMulDivOperatorsContext) {
 		}
 	}
 
-errorExit:
 	if p.HasError() {
 		v := p.GetError()
 		localctx.SetException(v)
@@ -2400,7 +2387,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IAddMinusOperatorsContext is an interface to support dynamic dispatch.
@@ -2516,7 +2502,6 @@ func (p *grulev3Parser) AddMinusOperators() (localctx IAddMinusOperatorsContext)
 		}
 	}
 
-errorExit:
 	if p.HasError() {
 		v := p.GetError()
 		localctx.SetException(v)
@@ -2526,7 +2511,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IComparisonOperatorContext is an interface to support dynamic dispatch.
@@ -2652,7 +2636,6 @@ func (p *grulev3Parser) ComparisonOperator() (localctx IComparisonOperatorContex
 		}
 	}
 
-errorExit:
 	if p.HasError() {
 		v := p.GetError()
 		localctx.SetException(v)
@@ -2662,7 +2645,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IAndLogicOperatorContext is an interface to support dynamic dispatch.
@@ -2768,7 +2750,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IOrLogicOperatorContext is an interface to support dynamic dispatch.
@@ -2874,7 +2855,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IExpressionAtomContext is an interface to support dynamic dispatch.
@@ -3225,7 +3205,6 @@ errorExit:
 	}
 	p.UnrollRecursionContexts(_parentctx)
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IConstantContext is an interface to support dynamic dispatch.
@@ -3439,7 +3418,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IVariableContext is an interface to support dynamic dispatch.
@@ -3675,7 +3653,6 @@ errorExit:
 	}
 	p.UnrollRecursionContexts(_parentctx)
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IArrayMapSelectorContext is an interface to support dynamic dispatch.
@@ -3815,7 +3792,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMemberVariableContext is an interface to support dynamic dispatch.
@@ -3934,7 +3910,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFunctionCallContext is an interface to support dynamic dispatch.
@@ -4099,7 +4074,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IMethodCallContext is an interface to support dynamic dispatch.
@@ -4226,7 +4200,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IArgumentListContext is an interface to support dynamic dispatch.
@@ -4396,7 +4369,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFloatLiteralContext is an interface to support dynamic dispatch.
@@ -4546,7 +4518,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IDecimalFloatLiteralContext is an interface to support dynamic dispatch.
@@ -4677,7 +4648,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IHexadecimalFloatLiteralContext is an interface to support dynamic dispatch.
@@ -4808,7 +4778,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IIntegerLiteralContext is an interface to support dynamic dispatch.
@@ -4982,7 +4951,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IDecimalLiteralContext is an interface to support dynamic dispatch.
@@ -5113,7 +5081,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IHexadecimalLiteralContext is an interface to support dynamic dispatch.
@@ -5244,7 +5211,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IOctalLiteralContext is an interface to support dynamic dispatch.
@@ -5375,7 +5341,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IStringLiteralContext is an interface to support dynamic dispatch.
@@ -5481,7 +5446,6 @@ func (p *grulev3Parser) StringLiteral() (localctx IStringLiteralContext) {
 		}
 	}
 
-errorExit:
 	if p.HasError() {
 		v := p.GetError()
 		localctx.SetException(v)
@@ -5491,7 +5455,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IBooleanLiteralContext is an interface to support dynamic dispatch.
@@ -5597,7 +5560,6 @@ func (p *grulev3Parser) BooleanLiteral() (localctx IBooleanLiteralContext) {
 		}
 	}
 
-errorExit:
 	if p.HasError() {
 		v := p.GetError()
 		localctx.SetException(v)
@@ -5607,7 +5569,6 @@ errorExit:
 	}
 	p.ExitRule()
 	return localctx
-	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 func (p *grulev3Parser) Sempred(localctx antlr.RuleContext, ruleIndex, predIndex int) bool {

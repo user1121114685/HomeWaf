@@ -26,6 +26,7 @@ import (
 
 // syncLogFileWriterConfig 将最新的全局配置同步到 LogFileWriter 实例
 func syncLogFileWriterConfig() {
+	cfg := global.CurrentSettings()
 	if global.GNOTIFY_LOG_FILE_WRITER == nil {
 		return
 	}
@@ -35,13 +36,13 @@ func syncLogFileWriterConfig() {
 	}
 	if writer, ok := notifier.(*logfilewriter.LogFileWriter); ok {
 		writer.UpdateConfig(
-			global.GCONFIG_LOG_FILE_WRITE_PATH,
-			global.GCONFIG_LOG_FILE_WRITE_FORMAT,
-			global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL,
-			global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE,
-			int(global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS),
-			int(global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS),
-			global.GCONFIG_LOG_FILE_WRITE_COMPRESS == 1,
+			cfg.GCONFIG_LOG_FILE_WRITE_PATH,
+			cfg.GCONFIG_LOG_FILE_WRITE_FORMAT,
+			cfg.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL,
+			cfg.GCONFIG_LOG_FILE_WRITE_MAX_SIZE,
+			int(cfg.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS),
+			int(cfg.GCONFIG_LOG_FILE_WRITE_MAX_DAYS),
+			cfg.GCONFIG_LOG_FILE_WRITE_COMPRESS == 1,
 		)
 	}
 }
@@ -67,494 +68,516 @@ func normalizeTokenExpireMinutes(v int64) int64 {
 	return v
 }
 
+// Setters share the same prepare/publish/effects transaction as a full reload.
 func setConfigIntValue(name string, value int64, change int) {
+	before := global.CurrentSettings()
+	next := before
+	var effects []func()
+	applyConfigIntValue(&next, &effects, name, value, change)
+	global.CommitSettings(before, next)
+	for _, effect := range effects {
+		effect()
+	}
+}
+func setConfigStringValue(name string, value string, change int) {
+	before := global.CurrentSettings()
+	next := before
+	var effects []func()
+	applyConfigStringValue(&next, &effects, name, value, change)
+	global.CommitSettings(before, next)
+	for _, effect := range effects {
+		effect()
+	}
+}
+
+func applyConfigIntValue(cfg *global.RuntimeSettings, effects *[]func(), name string, value int64, change int) {
 	// 更新全局配置值
 	switch name {
 	case "record_max_req_body_length":
-		global.GCONFIG_RECORD_MAX_BODY_LENGTH = value
+		cfg.GCONFIG_RECORD_MAX_BODY_LENGTH = value
 		break
 	case "record_max_res_body_length":
-		global.GCONFIG_RECORD_MAX_RES_BODY_LENGTH = value
+		cfg.GCONFIG_RECORD_MAX_RES_BODY_LENGTH = value
 		break
 	case "record_resp":
-		global.GCONFIG_RECORD_RESP = value
+		cfg.GCONFIG_RECORD_RESP = value
 		break
 	case "delete_history_log_day":
-		global.GDATA_DELETE_INTERVAL = value
+		cfg.GDATA_DELETE_INTERVAL = value
 		break
 	case "log_db_size":
-		global.GDATA_SHARE_DB_SIZE = value
+		cfg.GDATA_SHARE_DB_SIZE = value
 		break
 	case "db_file_size":
-		global.GDATA_SHARE_DB_FILE_SIZE = value
+		cfg.GDATA_SHARE_DB_FILE_SIZE = value
 		break
 	case "access_log_retention_days":
 		if value < 1 {
 			value = 1
 		}
-		global.GDATA_ACCESS_LOG_RETENTION_DAYS = value
+		cfg.GDATA_ACCESS_LOG_RETENTION_DAYS = value
 		break
 	case "analysis_scan_path_threshold":
 		if value < 1 {
 			value = 1
 		}
-		global.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD = value
+		cfg.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD = value
 		break
 	case "analysis_ua_threshold":
 		if value < 1 {
 			value = 1
 		}
-		global.GDATA_ANALYSIS_UA_THRESHOLD = value
+		cfg.GDATA_ANALYSIS_UA_THRESHOLD = value
 		break
 	case "auto_load_ssl_file":
-		global.GCONFIG_RECORD_AUTO_LOAD_SSL = value
+		cfg.GCONFIG_RECORD_AUTO_LOAD_SSL = value
 		break
 	case "kafka_enable":
-		if global.GCONFIG_RECORD_KAFKA_ENABLE != value && global.GNOTIFY_KAKFA_SERVICE != nil {
-			global.GNOTIFY_KAKFA_SERVICE.ChangeEnable(value)
+		if cfg.GCONFIG_RECORD_KAFKA_ENABLE != value && global.GNOTIFY_KAKFA_SERVICE != nil {
+			*effects = append(*effects, func() { global.GNOTIFY_KAKFA_SERVICE.ChangeEnable(value) })
 		}
-		global.GCONFIG_RECORD_KAFKA_ENABLE = value
+		cfg.GCONFIG_RECORD_KAFKA_ENABLE = value
 		break
 	case "redirect_https_code":
-		global.GCONFIG_RECORD_REDIRECT_HTTPS_CODE = value
+		cfg.GCONFIG_RECORD_REDIRECT_HTTPS_CODE = value
 		break
 	case "proxy_loop_max_hop":
-		global.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP = value
+		cfg.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP = value
 		break
 	case "login_max_error_time":
-		global.GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME = value
+		cfg.GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME = value
 		break
 	case "login_limit_mintutes":
-		global.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES = value
+		cfg.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES = value
 		break
 	case "access_enable":
-		global.GCONFIG_ACCESS_ENABLE = value
+		cfg.GCONFIG_ACCESS_ENABLE = value
 		// 总开关是运行时快照的一部分，改完必须重新发布，否则要等下次配置保存才生效。
 		// 这里也是"改错了能自救"的关键路径：管理端把开关拨回 0，最迟一个刷新周期就恢复。
-		waf_service.WafAccessConfigServiceApp.PublishConfig()
+		*effects = append(*effects, func() { waf_service.WafAccessConfigServiceApp.PublishConfig() })
 		break
 	case "access_audit_retain_days":
-		global.GCONFIG_ACCESS_AUDIT_RETAIN_DAYS = value
+		cfg.GCONFIG_ACCESS_AUDIT_RETAIN_DAYS = value
 		break
 	case "enable_owasp":
-		global.GCONFIG_RECORD_ENABLE_OWASP = value
+		cfg.GCONFIG_RECORD_ENABLE_OWASP = value
 		break
 	case "ai_enable":
-		global.GCONFIG_AI_ENABLE = value
+		cfg.GCONFIG_AI_ENABLE = value
 		break
 	case "rule_chain_mode":
 		if value != 1 {
 			value = 0
 		}
-		global.GCONFIG_RULE_CHAIN_MODE = value
+		cfg.GCONFIG_RULE_CHAIN_MODE = value
 		break
 	case "owasp_block_threshold":
 		if value <= 0 {
 			value = 7
 		}
-		global.GCONFIG_OWASP_BLOCK_THRESHOLD = value
+		cfg.GCONFIG_OWASP_BLOCK_THRESHOLD = value
 		break
 	case "enable_http_80":
-		global.GCONFIG_RECORD_ENABLE_HTTP_80 = value
+		cfg.GCONFIG_RECORD_ENABLE_HTTP_80 = value
 		break
 	case "sslorder_expire_day":
-		global.GCONFIG_RECORD_SSLOrder_EXPIRE_DAY = value
+		cfg.GCONFIG_RECORD_SSLOrder_EXPIRE_DAY = value
 		break
 	case "ssl_ip_expire_day":
-		global.GCONFIG_RECORD_SSL_IP_EXPIRE_DAY = value
+		cfg.GCONFIG_RECORD_SSL_IP_EXPIRE_DAY = value
 		break
 	case "ssl_expire_auto_sync_host":
 		if value != 0 {
 			value = 1
 		}
-		global.GCONFIG_SSL_EXPIRE_AUTO_SYNC_HOST = value
+		cfg.GCONFIG_SSL_EXPIRE_AUTO_SYNC_HOST = value
 		break
 	case "connect_time_out":
-		global.GCONFIG_RECORD_CONNECT_TIME_OUT = value
+		cfg.GCONFIG_RECORD_CONNECT_TIME_OUT = value
 		break
 	case "keepalive_time_out":
-		global.GCONFIG_RECORD_KEEPALIVE_TIME_OUT = value
+		cfg.GCONFIG_RECORD_KEEPALIVE_TIME_OUT = value
 		break
 	case "record_all_src_byte_info":
-		global.GCONFIG_RECORD_ALL_SRC_BYTE_INFO = value
+		cfg.GCONFIG_RECORD_ALL_SRC_BYTE_INFO = value
 		break
 	case "token_expire_time":
 		// 用户填 0/负数表示不限制有效期，统一归一化后再落到全局变量
-		global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES = normalizeTokenExpireMinutes(value)
+		cfg.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES = normalizeTokenExpireMinutes(value)
 		break
 	case "spider_deny":
-		global.GCONFIG_RECORD_SPIDER_DENY = value
+		cfg.GCONFIG_RECORD_SPIDER_DENY = value
 		break
 	case "enable_debug":
-		global.GCONFIG_RECORD_DEBUG_ENABLE = value
+		cfg.GCONFIG_RECORD_DEBUG_ENABLE = value
 		break
 	case "dns_timeout":
-		global.GWAF_RUNTIME_DNS_TIMEOUT = value
+		cfg.GWAF_RUNTIME_DNS_TIMEOUT = value
 		break
 	case "hide_server_header":
-		global.GCONFIG_RECORD_HIDE_SERVER_HEADER = value
+		cfg.GCONFIG_RECORD_HIDE_SERVER_HEADER = value
 		break
 	case "force_bind_2fa":
-		global.GCONFIG_RECORD_FORCE_BIND_2FA = value
+		cfg.GCONFIG_RECORD_FORCE_BIND_2FA = value
 		break
 	case "fake_spider_captcha":
-		global.GCONFIG_RECORD_FAKE_SPIDER_CAPTCHA = value
+		cfg.GCONFIG_RECORD_FAKE_SPIDER_CAPTCHA = value
 		break
 	case "sslhttp_check":
-		global.GCONFIG_RECORD_SSLHTTP_CHECK = value
+		cfg.GCONFIG_RECORD_SSLHTTP_CHECK = value
 		break
 	case "enable_https_redirect":
-		global.GCONFIG_ENABLE_HTTPS_REDIRECT = value
+		cfg.GCONFIG_ENABLE_HTTPS_REDIRECT = value
 		break
 	case "ipprobe_enable":
 		if value != 1 {
-			wafenginecore.ClearAllIPProbeSamples() //关闭时把已采到的样本一并清掉，不留残留
+			*effects = append(*effects, func() { wafenginecore.ClearAllIPProbeSamples() })
 		}
-		global.GCONFIG_IPPROBE_ENABLE = value
+		cfg.GCONFIG_IPPROBE_ENABLE = value
 		break
 	case "allow_container_selfupdate":
-		global.GCONFIG_ALLOW_CONTAINER_SELFUPDATE = value
+		cfg.GCONFIG_ALLOW_CONTAINER_SELFUPDATE = value
 		break
 	case "enable_device_fingerprint":
-		global.GCONFIG_ENABLE_DEVICE_FINGERPRINT = value
+		cfg.GCONFIG_ENABLE_DEVICE_FINGERPRINT = value
 		break
 	case "enable_strict_ip_binding":
-		global.GCONFIG_ENABLE_STRICT_IP_BINDING = value
+		cfg.GCONFIG_ENABLE_STRICT_IP_BINDING = value
 		break
 	case "batch_insert":
-		global.GDATA_BATCH_INSERT = value
+		cfg.GDATA_BATCH_INSERT = value
 		break
 	case "log_persist_enable":
-		global.GCONFIG_LOG_PERSIST_ENABLED = value
+		cfg.GCONFIG_LOG_PERSIST_ENABLED = value
 		break
 	case "enable_proxy_protocol":
-		global.GCONFIG_ENABLE_PROXY_PROTOCOL = value
+		cfg.GCONFIG_ENABLE_PROXY_PROTOCOL = value
 		break
 	case "enable_system_stats_push":
-		global.GCONFIG_ENABLE_SYSTEM_STATS_PUSH = value
+		cfg.GCONFIG_ENABLE_SYSTEM_STATS_PUSH = value
 		break
 	case "ip_tag_db":
 		if value != 0 {
 			value = 1
 		}
-		changed := global.GDATA_IP_TAG_DB != value
-		global.GDATA_IP_TAG_DB = value
+		changed := cfg.GDATA_IP_TAG_DB != value
+		cfg.GDATA_IP_TAG_DB = value
 		if changed {
 			// 归属换了：把另一个库里的历史标签并过来，否则界面按新库查，看起来像"切一下历史就没了"。
 			// 合并可能要搬几十万行，放后台跑，界面用 GDATA_IP_TAG_MERGING 显示"合并中"。
-			go waf_service.MergeIPTagsInto(value)
+			*effects = append(*effects, func() { go waf_service.MergeIPTagsInto(value) })
 		}
 		break
 	case "ip_failure_ban_enabled":
-		global.GCONFIG_IP_FAILURE_BAN_ENABLED = value
+		cfg.GCONFIG_IP_FAILURE_BAN_ENABLED = value
 		break
 	case "ip_failure_ban_lock_time":
-		global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = value
+		cfg.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = value
 		break
 	case "rule_ban_mode":
-		global.GCONFIG_RULE_BAN_MODE = value
+		cfg.GCONFIG_RULE_BAN_MODE = value
 		break
 	case "host_guard_enabled":
-		global.GCONFIG_HOST_GUARD_ENABLED = value
+		cfg.GCONFIG_HOST_GUARD_ENABLED = value
 		// 开关切换不需要重启进程：0→1 启动日志采集，1→0 停止采集并释放 fd/子进程/系统句柄。
 		// 这也是四层自救里的 L1——把开关拨回 0，最迟一个配置刷新周期就不再产生新封禁。
-		wafhostguard.Reload()
+		*effects = append(*effects, func() { wafhostguard.Reload() })
 		break
 	case "host_guard_find_time":
-		global.GCONFIG_HOST_GUARD_FIND_TIME = value
+		cfg.GCONFIG_HOST_GUARD_FIND_TIME = value
 		break
 	case "host_guard_max_retry":
-		global.GCONFIG_HOST_GUARD_MAX_RETRY = value
+		cfg.GCONFIG_HOST_GUARD_MAX_RETRY = value
 		break
 	case "host_guard_offender_reset_day":
-		global.GCONFIG_HOST_GUARD_OFFENDER_RESET_DAY = value
+		cfg.GCONFIG_HOST_GUARD_OFFENDER_RESET_DAY = value
 		break
 	case "host_guard_count_soft_fail":
-		global.GCONFIG_HOST_GUARD_COUNT_SOFT_FAIL = value
+		cfg.GCONFIG_HOST_GUARD_COUNT_SOFT_FAIL = value
 		break
 	case "host_guard_auto_lan":
-		global.GCONFIG_HOST_GUARD_AUTO_LAN = value
-		wafhostguard.InvalidateWhitelist()
+		cfg.GCONFIG_HOST_GUARD_AUTO_LAN = value
+		*effects = append(*effects, func() { wafhostguard.InvalidateWhitelist() })
 		// 内网段豁免同时是威胁情报误报排除集的来源，开关一变要重新落地。
 		// 只在真的变了时做：启动加载(change=0)时排除集本来就会按需构建，
 		// 这里再触发一次对账纯属浪费，还可能赶在防火墙引擎就绪之前。
 		if change == 1 {
-			waf_service.WafThreatIPExcludeServiceApp.NotifySourceChanged()
+			*effects = append(*effects, func() { waf_service.WafThreatIPExcludeServiceApp.NotifySourceChanged() })
 		}
 		break
 	case "host_guard_debounce_sec":
-		global.GCONFIG_HOST_GUARD_DEBOUNCE_SEC = value
+		cfg.GCONFIG_HOST_GUARD_DEBOUNCE_SEC = value
 		break
 	case "host_guard_max_ban_entries":
-		global.GCONFIG_HOST_GUARD_MAX_BAN_ENTRIES = value
+		cfg.GCONFIG_HOST_GUARD_MAX_BAN_ENTRIES = value
 		break
 	case "host_guard_ban_rate_limit":
-		global.GCONFIG_HOST_GUARD_BAN_RATE_LIMIT = value
+		cfg.GCONFIG_HOST_GUARD_BAN_RATE_LIMIT = value
 		break
 	case "host_guard_subnet_aggregate":
-		global.GCONFIG_HOST_GUARD_SUBNET_AGGREGATE = value
+		cfg.GCONFIG_HOST_GUARD_SUBNET_AGGREGATE = value
 		break
 	case "host_guard_subnet_threshold":
-		global.GCONFIG_HOST_GUARD_SUBNET_THRESHOLD = value
+		cfg.GCONFIG_HOST_GUARD_SUBNET_THRESHOLD = value
 		break
 	case "host_guard_notify":
-		global.GCONFIG_HOST_GUARD_NOTIFY = value
+		cfg.GCONFIG_HOST_GUARD_NOTIFY = value
 		break
 	case "host_conn_enabled":
-		global.GCONFIG_HOST_CONN_ENABLED = value
+		cfg.GCONFIG_HOST_CONN_ENABLED = value
 		break
 	case "host_conn_cache_sec":
-		global.GCONFIG_HOST_CONN_CACHE_SEC = value
+		cfg.GCONFIG_HOST_CONN_CACHE_SEC = value
 		break
 	case "check_beta_version":
-		global.GCONFIG_CHECK_BETA_VERSION = value
+		cfg.GCONFIG_CHECK_BETA_VERSION = value
 		break
 	case "http3":
-		global.GCONFIG_ENABLE_HTTP3 = value
+		cfg.GCONFIG_ENABLE_HTTP3 = value
 		if change == 1 {
 			// 光改全局变量不会让任何端口去监听 UDP：h3 实例只在 StartProxyServer 里建，
 			// 而已在监听的端口(Status==0)会被直接跳过，所以必须显式让引擎重新对齐(issue #916)。
 			// 先赋值再投递，避免消费方读到旧值。
-			global.NotifyHTTP3ConfigChanged()
+			*effects = append(*effects, func() { global.NotifyHTTP3ConfigChanged() })
 		}
 	case "record_log_desensitize":
-		global.GCONFIG_RECORD_LOG_DESENSITIZE = value
+		cfg.GCONFIG_RECORD_LOG_DESENSITIZE = value
 	case "pwd_min_length":
-		global.GCONFIG_PWD_MIN_LENGTH = value
+		cfg.GCONFIG_PWD_MIN_LENGTH = value
 	case "pwd_require_upper":
-		global.GCONFIG_PWD_REQUIRE_UPPER = value
+		cfg.GCONFIG_PWD_REQUIRE_UPPER = value
 	case "pwd_require_lower":
-		global.GCONFIG_PWD_REQUIRE_LOWER = value
+		cfg.GCONFIG_PWD_REQUIRE_LOWER = value
 	case "pwd_require_digit":
-		global.GCONFIG_PWD_REQUIRE_DIGIT = value
+		cfg.GCONFIG_PWD_REQUIRE_DIGIT = value
 	case "pwd_require_special":
-		global.GCONFIG_PWD_REQUIRE_SPECIAL = value
+		cfg.GCONFIG_PWD_REQUIRE_SPECIAL = value
 	case "pwd_expire_days":
-		global.GCONFIG_PWD_EXPIRE_DAYS = value
+		cfg.GCONFIG_PWD_EXPIRE_DAYS = value
 	case "pwd_history_count":
-		global.GCONFIG_PWD_HISTORY_COUNT = value
+		cfg.GCONFIG_PWD_HISTORY_COUNT = value
 	case "pwd_force_change_default":
-		global.GCONFIG_PWD_FORCE_CHANGE_DEFAULT = value
+		cfg.GCONFIG_PWD_FORCE_CHANGE_DEFAULT = value
 	case "log_file_write_enable":
-		if global.GCONFIG_LOG_FILE_WRITE_ENABLE != value && global.GNOTIFY_LOG_FILE_WRITER != nil {
-			global.GNOTIFY_LOG_FILE_WRITER.ChangeEnable(value)
+		if cfg.GCONFIG_LOG_FILE_WRITE_ENABLE != value && global.GNOTIFY_LOG_FILE_WRITER != nil {
+			*effects = append(*effects, func() { global.GNOTIFY_LOG_FILE_WRITER.ChangeEnable(value) })
 		}
-		global.GCONFIG_LOG_FILE_WRITE_ENABLE = value
+		cfg.GCONFIG_LOG_FILE_WRITE_ENABLE = value
 	case "log_file_write_max_size":
-		global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE = value
-		syncLogFileWriterConfig()
+		cfg.GCONFIG_LOG_FILE_WRITE_MAX_SIZE = value
+		*effects = append(*effects, func() { syncLogFileWriterConfig() })
 	case "log_file_write_max_backups":
-		global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS = value
-		syncLogFileWriterConfig()
+		cfg.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS = value
+		*effects = append(*effects, func() { syncLogFileWriterConfig() })
 	case "log_file_write_max_days":
-		global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS = value
-		syncLogFileWriterConfig()
+		cfg.GCONFIG_LOG_FILE_WRITE_MAX_DAYS = value
+		*effects = append(*effects, func() { syncLogFileWriterConfig() })
 	case "log_file_write_compress":
-		global.GCONFIG_LOG_FILE_WRITE_COMPRESS = value
-		syncLogFileWriterConfig()
+		cfg.GCONFIG_LOG_FILE_WRITE_COMPRESS = value
+		*effects = append(*effects, func() { syncLogFileWriterConfig() })
 	case "open_platform_enabled":
-		global.GCONFIG_OPEN_PLATFORM_ENABLED = value
+		cfg.GCONFIG_OPEN_PLATFORM_ENABLED = value
 	case "task_log_retain_days":
-		global.GCONFIG_TASK_LOG_RETAIN_DAYS = value
+		cfg.GCONFIG_TASK_LOG_RETAIN_DAYS = value
 		// 动态更新任务日志管理器的保留天数
 		if tasklog.GlobalTaskLogManager != nil {
-			tasklog.GlobalTaskLogManager.UpdateRetainDays(int(value))
+			*effects = append(*effects, func() { tasklog.GlobalTaskLogManager.UpdateRetainDays(int(value)) })
 		}
 	case "http3_bbr":
-		global.GCONFIG_ENABLE_HTTP3_BBR = value
+		cfg.GCONFIG_ENABLE_HTTP3_BBR = value
 		if change == 1 {
 			// 拥塞算法变了需要重建 QUIC 监听，同样要通知引擎
-			global.NotifyHTTP3ConfigChanged()
+			*effects = append(*effects, func() { global.NotifyHTTP3ConfigChanged() })
 		}
 	default:
 		zlog.Warn("Unknown config item:", name)
 	}
 }
 
-func setConfigStringValue(name string, value string, change int) {
+func applyConfigStringValue(cfg *global.RuntimeSettings, effects *[]func(), name string, value string, change int) {
 	// 更新全局配置值
 	switch name {
 	case "dns_server":
-		global.GWAF_RUNTIME_DNS_SERVER = value
+		cfg.GWAF_RUNTIME_DNS_SERVER = value
 		break
 	case "record_log_type":
-		global.GWAF_RUNTIME_RECORD_LOG_TYPE = value
+		cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = value
 		break
 	case "access_log_mode":
 		if value != "off" && value != "sample" {
 			value = "db"
 		}
-		global.GDATA_ACCESS_LOG_MODE = value
+		cfg.GDATA_ACCESS_LOG_MODE = value
 		break
 	case "attack_tag_exclude":
-		global.GCONFIG_ATTACK_TAG_EXCLUDE = value
+		cfg.GCONFIG_ATTACK_TAG_EXCLUDE = value
 		break
 	case "exclude_ip_log":
-		global.GCONFIG_EXCLUDE_IP_LOG = value
+		cfg.GCONFIG_EXCLUDE_IP_LOG = value
 		// 同步编译全局排除快照，保存即生效，无需重启
-		wafenginecore.SetGlobalIPLogExclude(value)
+		*effects = append(*effects, func() { wafenginecore.SetGlobalIPLogExclude(value) })
 		break
 	case "gwaf_proxy_header":
-		global.GCONFIG_RECORD_PROXY_HEADER = value
+		cfg.GCONFIG_RECORD_PROXY_HEADER = value
 		break
 	case "gwaf_manage_proxy_header":
-		global.GCONFIG_MANAGE_PROXY_HEADER = value
+		cfg.GCONFIG_MANAGE_PROXY_HEADER = value
 		break
 	case "owasp_mode":
 		switch value {
 		case "On", "DetectionOnly", "Off":
-			global.GCONFIG_OWASP_MODE = value
+			cfg.GCONFIG_OWASP_MODE = value
 		case "":
-			global.GCONFIG_OWASP_MODE = "On"
+			cfg.GCONFIG_OWASP_MODE = "On"
 		default:
 			zlog.Warn("invalid owasp_mode value, fallback to On", value)
-			global.GCONFIG_OWASP_MODE = "On"
+			cfg.GCONFIG_OWASP_MODE = "On"
 		}
 		// 同步到 wafowasp 热路径，使 DetectionOnly "本该拦截" 的 INFO 日志能按当前模式生效
-		wafowasp.SetEngineMode(global.GCONFIG_OWASP_MODE)
+		*effects = append(*effects, func() { wafowasp.SetEngineMode(cfg.GCONFIG_OWASP_MODE) })
 		break
 	case "ai_mode":
 		switch value {
 		case "observe", "block":
-			global.GCONFIG_AI_MODE = value
+			cfg.GCONFIG_AI_MODE = value
 		default:
 			zlog.Warn("invalid ai_mode value, fallback to observe", value)
-			global.GCONFIG_AI_MODE = "observe"
+			cfg.GCONFIG_AI_MODE = "observe"
 		}
 		break
 	case "body_detect_mode":
 		switch value {
 		case "observe", "block", "off":
-			global.GCONFIG_BODY_DETECT_MODE = value
+			cfg.GCONFIG_BODY_DETECT_MODE = value
 		default:
 			zlog.Warn("invalid body_detect_mode value, fallback to observe", value)
-			global.GCONFIG_BODY_DETECT_MODE = "observe"
+			cfg.GCONFIG_BODY_DETECT_MODE = "observe"
 		}
 		break
 	case "body_detect_field_exclude":
-		global.GCONFIG_BODY_DETECT_FIELD_EXCLUDE = value
-		wafenginecore.SetBodyDetectFieldExclude(value) // 同步解析成 RCU 排除集
+		cfg.GCONFIG_BODY_DETECT_FIELD_EXCLUDE = value
+		// The derived field matcher is compiled into the same atomic settings snapshot.
 		break
 	case "kafka_url":
-		global.GCONFIG_RECORD_KAFKA_URL = value
+		cfg.GCONFIG_RECORD_KAFKA_URL = value
 		break
 	case "kafka_topic":
-		global.GCONFIG_RECORD_KAFKA_TOPIC = value
+		cfg.GCONFIG_RECORD_KAFKA_TOPIC = value
 		break
 	case "debug_pwd":
-		global.GCONFIG_RECORD_DEBUG_PWD = value
+		cfg.GCONFIG_RECORD_DEBUG_PWD = value
 		break
 	case "gpt_url":
-		global.GCONFIG_RECORD_GPT_URL = value
+		cfg.GCONFIG_RECORD_GPT_URL = value
 		break
 	case "gpt_token":
-		global.GCONFIG_RECORD_GPT_TOKEN = value
+		cfg.GCONFIG_RECORD_GPT_TOKEN = value
 		break
 	case "gpt_model":
-		global.GCONFIG_RECORD_GPT_MODEL = value
+		cfg.GCONFIG_RECORD_GPT_MODEL = value
 		break
 	case "ssl_min_version":
-		global.GCONFIG_RECORD_SSLMinVerson = value
+		cfg.GCONFIG_RECORD_SSLMinVerson = value
 		break
 	case "ssl_max_version":
-		global.GCONFIG_RECORD_SSLMaxVerson = value
+		cfg.GCONFIG_RECORD_SSLMaxVerson = value
 		break
 	case "ssl_ip_cert_ip":
-		global.GCONFIG_RECORD_SSL_IP_CERT_IP = value
+		cfg.GCONFIG_RECORD_SSL_IP_CERT_IP = value
 		break
 	case "ip_failure_status_codes":
-		global.GCONFIG_IP_FAILURE_STATUS_CODES = value
+		cfg.GCONFIG_IP_FAILURE_STATUS_CODES = value
 		// 重新加载状态码配置
-		wafipban.GetIPFailureManager().ReloadStatusCodes()
+		*effects = append(*effects, func() { wafipban.GetIPFailureManager().ReloadStatusCodes() })
 		break
 	case "host_guard_mode":
 		if value != "block" {
 			value = "observe"
 		}
-		global.GCONFIG_HOST_GUARD_MODE = value
+		cfg.GCONFIG_HOST_GUARD_MODE = value
 		break
 	case "host_guard_whitelist":
-		global.GCONFIG_HOST_GUARD_WHITELIST = value
+		cfg.GCONFIG_HOST_GUARD_WHITELIST = value
 		// 白名单是防误封的主力，改完必须立刻重建，不能等下一个刷新周期
-		wafhostguard.InvalidateWhitelist()
+		*effects = append(*effects, func() { wafhostguard.InvalidateWhitelist() })
 		// 同一份白名单也用来把"自己人"从威胁情报里剔出去，改完要重新落地
 		if change == 1 {
-			waf_service.WafThreatIPExcludeServiceApp.NotifySourceChanged()
+			*effects = append(*effects, func() { waf_service.WafThreatIPExcludeServiceApp.NotifySourceChanged() })
 		}
 		break
 	case "host_guard_log_paths":
-		global.GCONFIG_HOST_GUARD_LOG_PATHS = value
+		cfg.GCONFIG_HOST_GUARD_LOG_PATHS = value
 		// 日志路径变了要换事件源，重启采集
-		wafhostguard.Reload()
+		*effects = append(*effects, func() { wafhostguard.Reload() })
 		break
 	case "host_guard_ssh_ports":
-		global.GCONFIG_HOST_GUARD_SSH_PORTS = value
-		wafhostguard.InvalidatePorts()
+		cfg.GCONFIG_HOST_GUARD_SSH_PORTS = value
+		*effects = append(*effects, func() { wafhostguard.InvalidatePorts() })
 		// 端口变了，端口级封禁的规则也要跟着换
-		wafhostguard.GetBanExecutor().ApplyPortScope()
+		*effects = append(*effects, func() { wafhostguard.GetBanExecutor().ApplyPortScope() })
 		break
 	case "host_guard_rdp_ports":
-		global.GCONFIG_HOST_GUARD_RDP_PORTS = value
-		wafhostguard.InvalidatePorts()
-		wafhostguard.GetBanExecutor().ApplyPortScope()
+		cfg.GCONFIG_HOST_GUARD_RDP_PORTS = value
+		*effects = append(*effects, func() { wafhostguard.InvalidatePorts() })
+		*effects = append(*effects, func() { wafhostguard.GetBanExecutor().ApplyPortScope() })
 		break
 	case "host_guard_port_scope":
 		if value != "detected" {
 			value = "all"
 		}
-		global.GCONFIG_HOST_GUARD_PORT_SCOPE = value
+		cfg.GCONFIG_HOST_GUARD_PORT_SCOPE = value
 		// 封禁范围要立刻重建引用规则，否则要等下次重启才生效
-		wafhostguard.GetBanExecutor().ApplyPortScope()
+		*effects = append(*effects, func() { wafhostguard.GetBanExecutor().ApplyPortScope() })
 		break
 	case "host_guard_exec_mode":
 		if value != "ipset" && value != "rule" {
 			value = "auto"
 		}
-		global.GCONFIG_HOST_GUARD_EXEC_MODE = value
+		cfg.GCONFIG_HOST_GUARD_EXEC_MODE = value
 		break
 	case "zerossl_access_key":
-		global.GCONFIG_ZEROSSL_ACCESS_KEY = value
+		cfg.GCONFIG_ZEROSSL_ACCESS_KEY = value
 		break
 	case "zerossl_eab_kid":
-		global.GCONFIG_ZEROSSL_EAB_KID = value
+		cfg.GCONFIG_ZEROSSL_EAB_KID = value
 		break
 	case "zerossl_eab_hmac_key":
-		global.GCONFIG_ZEROSSL_EAB_HMAC_KEY = value
+		cfg.GCONFIG_ZEROSSL_EAB_HMAC_KEY = value
 		break
 	case "log_file_write_path":
-		global.GCONFIG_LOG_FILE_WRITE_PATH = value
-		syncLogFileWriterConfig()
+		cfg.GCONFIG_LOG_FILE_WRITE_PATH = value
+		*effects = append(*effects, func() { syncLogFileWriterConfig() })
 	case "log_file_write_format":
-		global.GCONFIG_LOG_FILE_WRITE_FORMAT = value
-		syncLogFileWriterConfig()
+		cfg.GCONFIG_LOG_FILE_WRITE_FORMAT = value
+		*effects = append(*effects, func() { syncLogFileWriterConfig() })
 	case "log_file_write_custom_tpl":
-		global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL = value
-		syncLogFileWriterConfig()
+		cfg.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL = value
+		*effects = append(*effects, func() { syncLogFileWriterConfig() })
 	case "ip_v4_source":
-		global.GCONFIG_IP_V4_SOURCE = value
+		cfg.GCONFIG_IP_V4_SOURCE = value
 		if change == 1 {
 			zlog.Info("IPv4 数据源配置已更改为: ", value)
 		}
 	case "ip_v6_source":
-		global.GCONFIG_IP_V6_SOURCE = value
+		cfg.GCONFIG_IP_V6_SOURCE = value
 		if change == 1 {
 			zlog.Info("IPv6 数据源配置已更改为: ", value)
 		}
 	case "ip_v4_format":
-		global.GCONFIG_IP_V4_FORMAT = value
+		cfg.GCONFIG_IP_V4_FORMAT = value
 		if change == 1 {
 			// 重新加载 IPv4 数据库
 			if global.GIPLOCATION_MANAGER != nil {
-				global.GIPLOCATION_MANAGER.SetV4Format(iplocation.DBFormat(value))
+				*effects = append(*effects, func() { global.GIPLOCATION_MANAGER.SetV4Format(iplocation.DBFormat(value)) })
 				zlog.Info("IPv4 数据格式配置已更改为: ", value)
 			}
 		}
 	case "ip_v6_format":
-		global.GCONFIG_IP_V6_FORMAT = value
+		cfg.GCONFIG_IP_V6_FORMAT = value
 		if change == 1 {
 			// 重新加载 IPv6 数据库
 			if global.GIPLOCATION_MANAGER != nil {
-				global.GIPLOCATION_MANAGER.SetV6Format(iplocation.DBFormat(value))
+				*effects = append(*effects, func() { global.GIPLOCATION_MANAGER.SetV6Format(iplocation.DBFormat(value)) })
 				zlog.Info("IPv6 数据格式配置已更改为: ", value)
 			}
 		}
@@ -609,15 +632,15 @@ func migrateLegacyIntConfig(itemName string, legacyValue int64, newValue int64, 
 	zlog.Info(fmt.Sprintf("配置项 %s 仍为旧默认值 %d，已自动升级为 %d（%s）", itemName, legacyValue, newValue, reason))
 }
 
-func updateConfigIntItem(initLoad bool, itemClass string, itemName string, defaultValue int64, remarks string, itemType string, options string, configMap map[string]model.SystemConfig) {
+func updateConfigIntItem(cfg *global.RuntimeSettings, effects *[]func(), initLoad bool, itemClass string, itemName string, defaultValue int64, remarks string, itemType string, options string, configMap map[string]model.SystemConfig) {
 	configItem, exists := configMap[itemName]
 	if exists && configItem.Id != "" {
 		syncConfigMeta(configItem, itemClass, itemType, options, remarks)
 		value, err := strconv.ParseInt(configItem.Value, 10, 0)
 		if err == nil && defaultValue != value {
-			setConfigIntValue(itemName, value, 1)
+			applyConfigIntValue(cfg, effects, itemName, value, 1)
 		} else if err == nil && initLoad == true {
-			setConfigIntValue(itemName, value, 0)
+			applyConfigIntValue(cfg, effects, itemName, value, 0)
 		}
 	} else {
 		wafSystemConfigAddReq := request.WafSystemConfigAddReq{
@@ -631,14 +654,14 @@ func updateConfigIntItem(initLoad bool, itemClass string, itemName string, defau
 		wafSystemConfigService.AddApi(wafSystemConfigAddReq)
 	}
 }
-func updateConfigStringItem(initLoad bool, itemClass string, itemName string, defaultValue string, remarks string, itemType string, options string, configMap map[string]model.SystemConfig) {
+func updateConfigStringItem(cfg *global.RuntimeSettings, effects *[]func(), initLoad bool, itemClass string, itemName string, defaultValue string, remarks string, itemType string, options string, configMap map[string]model.SystemConfig) {
 	configItem, exists := configMap[itemName]
 	if exists && configItem.Id != "" {
 		syncConfigMeta(configItem, itemClass, itemType, options, remarks)
 		if defaultValue != configItem.Value {
-			setConfigStringValue(itemName, configItem.Value, 1)
+			applyConfigStringValue(cfg, effects, itemName, configItem.Value, 1)
 		} else if initLoad == true {
-			setConfigStringValue(itemName, configItem.Value, 0)
+			applyConfigStringValue(cfg, effects, itemName, configItem.Value, 0)
 		}
 	} else {
 		wafSystemConfigAddReq := request.WafSystemConfigAddReq{
@@ -751,7 +774,14 @@ const maxVersionRecordItem = "max_run_version"
 // TaskLoadSetting 加载配置数据
 //
 //	initLoad true 是初始化加载，false不是初始化加载
+var settingsReloadMu sync.Mutex
+
 func TaskLoadSetting(initLoad bool) {
+	settingsReloadMu.Lock()
+	defer settingsReloadMu.Unlock()
+	before := global.CurrentSettings()
+	cfg := before
+	var effects []func()
 	zlog.Debug("TaskLoadSetting")
 
 	// 一次性批量查询所有配置项
@@ -766,177 +796,183 @@ func TaskLoadSetting(initLoad bool) {
 			"旧默认值5分钟过短，易造成反复登录", configMap)
 	})
 
-	updateConfigIntItem(initLoad, "system", "record_max_req_body_length", global.GCONFIG_RECORD_MAX_BODY_LENGTH, "记录请求最大报文", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "record_max_res_body_length", global.GCONFIG_RECORD_MAX_RES_BODY_LENGTH, "如果可以记录，满足最大响应报文大小才记录", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "record_resp", global.GCONFIG_RECORD_RESP, "是否记录响应报文", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "delete_history_log_day", global.GDATA_DELETE_INTERVAL, "删除多少天前的日志数据(单位:天)", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "log_db_size", global.GDATA_SHARE_DB_SIZE, "日志归档最大记录数量", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "db_file_size", global.GDATA_SHARE_DB_FILE_SIZE, "日志归档最大文件大小(MB)", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "auto_load_ssl_file", global.GCONFIG_RECORD_AUTO_LOAD_SSL, "是否每天凌晨3点自动加载ssl证书", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_max_req_body_length", cfg.GCONFIG_RECORD_MAX_BODY_LENGTH, "记录请求最大报文", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_max_res_body_length", cfg.GCONFIG_RECORD_MAX_RES_BODY_LENGTH, "如果可以记录，满足最大响应报文大小才记录", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_resp", cfg.GCONFIG_RECORD_RESP, "是否记录响应报文", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "delete_history_log_day", cfg.GDATA_DELETE_INTERVAL, "删除多少天前的日志数据(单位:天)", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "log_db_size", cfg.GDATA_SHARE_DB_SIZE, "日志归档最大记录数量", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "db_file_size", cfg.GDATA_SHARE_DB_FILE_SIZE, "日志归档最大文件大小(MB)", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "auto_load_ssl_file", cfg.GCONFIG_RECORD_AUTO_LOAD_SSL, "是否每天凌晨3点自动加载ssl证书", "int", "", configMap)
 
-	updateConfigStringItem(initLoad, "system", "dns_server", global.GWAF_RUNTIME_DNS_SERVER, "DNS服务器", "options", "119.29.29.29|腾讯DNS,8.8.8.8|谷歌DNS", configMap)
-	updateConfigIntItem(initLoad, "system", "dns_timeout", global.GWAF_RUNTIME_DNS_TIMEOUT, "DNS 查询超时时间 单位毫秒", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "dns_server", cfg.GWAF_RUNTIME_DNS_SERVER, "DNS服务器", "options", "119.29.29.29|腾讯DNS,8.8.8.8|谷歌DNS", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "dns_timeout", cfg.GWAF_RUNTIME_DNS_TIMEOUT, "DNS 查询超时时间 单位毫秒", "int", "", configMap)
 
-	updateConfigStringItem(initLoad, "system", "record_log_type", global.GWAF_RUNTIME_RECORD_LOG_TYPE, "日志记录类型", "options", "all|全部,abnormal|非正常", configMap)
-	updateConfigStringItem(initLoad, "system", "access_log_mode", global.GDATA_ACCESS_LOG_MODE, "访问日志窄行档位：db=全部请求入库(默认,保留期见下项)；sample=安全事件+采样入库；off=只留安全事件(高流量推荐，但会失去CC阈值推荐/AI训练负样本/异常IP的正常行为回溯)。db/sample 档均按站点每天采样 500 条正常请求报文供 AI 训练", "options", "db|全部入库,sample|采样入库,off|仅安全事件", configMap)
-	updateConfigIntItem(initLoad, "system", "access_log_retention_days", global.GDATA_ACCESS_LOG_RETENTION_DAYS, "访问日志窄行保留天数（默认30）。安全事件仍按「日志保留天数」走；本项直接决定CC阈值推荐能回看多少天", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "analysis_scan_path_threshold", global.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD, "来源分析：一天摸过多少个不同路径模板判为「疑似扫目录」（默认20）。只影响界面提示与筛选，不改拦截行为", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "analysis_ua_threshold", global.GDATA_ANALYSIS_UA_THRESHOLD, "来源分析：一天用过多少种UA指纹判为「疑似换UA试探」（默认5）。只影响界面提示与筛选，不改拦截行为", "int", "", configMap)
-	updateConfigStringItem(initLoad, "system", "gwaf_proxy_header", global.GCONFIG_RECORD_PROXY_HEADER, "获取访客IP头信息（按照顺序）比如:X-Forwarded-For,X-Real-IP ,留空则提取的是直接访客IP", "string", "", configMap)
-	updateConfigStringItem(initLoad, "system", "gwaf_manage_proxy_header", global.GCONFIG_MANAGE_PROXY_HEADER, "管理端获取客户端IP头信息（按优先级逗号分隔，如 X-Forwarded-For,X-Real-IP,CF-Connecting-IP），留空则直接取网络IP。安全起见需配合 conf/config.yml 的 security.manage_trusted_proxies：仅当直连来源属可信代理时才采信此头（容器/内网部署可直接填 private）", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "record_log_type", cfg.GWAF_RUNTIME_RECORD_LOG_TYPE, "日志记录类型", "options", "all|全部,abnormal|非正常", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "access_log_mode", cfg.GDATA_ACCESS_LOG_MODE, "访问日志窄行档位：db=全部请求入库(默认,保留期见下项)；sample=安全事件+采样入库；off=只留安全事件(高流量推荐，但会失去CC阈值推荐/AI训练负样本/异常IP的正常行为回溯)。db/sample 档均按站点每天采样 500 条正常请求报文供 AI 训练", "options", "db|全部入库,sample|采样入库,off|仅安全事件", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "access_log_retention_days", cfg.GDATA_ACCESS_LOG_RETENTION_DAYS, "访问日志窄行保留天数（默认30）。安全事件仍按「日志保留天数」走；本项直接决定CC阈值推荐能回看多少天", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "analysis_scan_path_threshold", cfg.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD, "来源分析：一天摸过多少个不同路径模板判为「疑似扫目录」（默认20）。只影响界面提示与筛选，不改拦截行为", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "analysis_ua_threshold", cfg.GDATA_ANALYSIS_UA_THRESHOLD, "来源分析：一天用过多少种UA指纹判为「疑似换UA试探」（默认5）。只影响界面提示与筛选，不改拦截行为", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "gwaf_proxy_header", cfg.GCONFIG_RECORD_PROXY_HEADER, "获取访客IP头信息（按照顺序）比如:X-Forwarded-For,X-Real-IP ,留空则提取的是直接访客IP", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "gwaf_manage_proxy_header", cfg.GCONFIG_MANAGE_PROXY_HEADER, "管理端获取客户端IP头信息（按优先级逗号分隔，如 X-Forwarded-For,X-Real-IP,CF-Connecting-IP），留空则直接取网络IP。安全起见需配合 conf/config.yml 的 security.manage_trusted_proxies：仅当直连来源属可信代理时才采信此头（容器/内网部署可直接填 private）", "string", "", configMap)
 
-	updateConfigIntItem(initLoad, "kafka", "kafka_enable", global.GCONFIG_RECORD_KAFKA_ENABLE, "kafka 是否激活", "int", "", configMap)
-	updateConfigStringItem(initLoad, "kafka", "kafka_url", global.GCONFIG_RECORD_KAFKA_URL, "kafka url地址", "string", "", configMap)
-	updateConfigStringItem(initLoad, "kafka", "kafka_topic", global.GCONFIG_RECORD_KAFKA_TOPIC, "kafka topic", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "kafka", "kafka_enable", cfg.GCONFIG_RECORD_KAFKA_ENABLE, "kafka 是否激活", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "kafka", "kafka_url", cfg.GCONFIG_RECORD_KAFKA_URL, "kafka url地址", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "kafka", "kafka_topic", cfg.GCONFIG_RECORD_KAFKA_TOPIC, "kafka topic", "string", "", configMap)
 
-	updateConfigIntItem(initLoad, "system", "redirect_https_code", global.GCONFIG_RECORD_REDIRECT_HTTPS_CODE, "80重定向https时候跳转代码", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "enable_https_redirect", global.GCONFIG_ENABLE_HTTPS_REDIRECT, "是否启用HTTPS重定向服务器（0关闭 1开启）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "proxy_loop_max_hop", global.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP, "反向代理最大跳数，请求经过SamWaf转发累计超过此值判定为环路并拦截（防后端回指WAF造成死循环），默认10，设为0关闭检测", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "redirect_https_code", cfg.GCONFIG_RECORD_REDIRECT_HTTPS_CODE, "80重定向https时候跳转代码", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "enable_https_redirect", cfg.GCONFIG_ENABLE_HTTPS_REDIRECT, "是否启用HTTPS重定向服务器（0关闭 1开启）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "proxy_loop_max_hop", cfg.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP, "反向代理最大跳数，请求经过SamWaf转发累计超过此值判定为环路并拦截（防后端回指WAF造成死循环），默认10，设为0关闭检测", "int", "", configMap)
 
-	updateConfigIntItem(initLoad, "system", "login_max_error_time", global.GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME, "登录周期里错误最大次数 请大于0 ", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "login_limit_mintutes", global.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES, "登录错误记录周期 单位分钟数，默认1分钟", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "enable_owasp", global.GCONFIG_RECORD_ENABLE_OWASP, "启动OWASP数据检测（1启动 0关闭）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "ipprobe_enable", global.GCONFIG_IPPROBE_ENABLE, "真实IP来源探针（1开启 0关闭，默认关闭）。开启后记录各站点最近到达的请求头(脱敏,仅内存,每站每秒最多1条)，供站点「真实IP来源」处排查CDN送来的是哪个头；排查完建议关闭", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "ai_enable", global.GCONFIG_AI_ENABLE, "启动AI智能检测总开关（1启动 0关闭，需先在AI模型管理上传模型包并在站点开启）", "int", "", configMap)
-	updateConfigStringItem(initLoad, "system", "ai_mode", global.GCONFIG_AI_MODE, "AI检测工作模式：observe(仅记录/观察) block(达拦截阈值则拦截)", "options", "observe|仅记录,block|拦截", configMap)
-	updateConfigStringItem(initLoad, "system", "body_detect_mode", global.GCONFIG_BODY_DETECT_MODE, "请求体深度检测模式(formValue/JSON 逐值 XSS/SQLi/RCE)：observe 观察(命中只记录不拦,默认) block 拦截(命中即拦) off 关闭。默认 observe 避免误伤正常 JSON/表单流量，观察日志确认无误后再切 block；查询串检测不受影响始终拦截", "options", "observe|观察(只记录),block|拦截,off|关闭", configMap)
-	updateConfigStringItem(initLoad, "system", "body_detect_field_exclude", global.GCONFIG_BODY_DETECT_FIELD_EXCLUDE, "请求体深检字段排除清单(逗号分隔字段名,不区分大小写)。这些字段名下的表单值/JSON值(匹配直接父键名)跳过 XSS/SQLi/RCE 深检，用于放行已知携带富文本/HTML/代码的合法字段(如 content,html,markdown)，压 block 模式误报。看观察日志里是哪些字段误报再填", "string", "", configMap)
-	updateConfigIntItem(initLoad, "system", "rule_chain_mode", global.GCONFIG_RULE_CHAIN_MODE, "自定义规则在检测链中的位置（0默认：排在CC之后；1规则优先：排在黑名单之后、Bot/SQLI/XSS等之前，此时规则的放行动作才能跳过这些检测）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "login_max_error_time", cfg.GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME, "登录周期里错误最大次数 请大于0 ", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "login_limit_mintutes", cfg.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES, "登录错误记录周期 单位分钟数，默认1分钟", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "enable_owasp", cfg.GCONFIG_RECORD_ENABLE_OWASP, "启动OWASP数据检测（1启动 0关闭）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "ipprobe_enable", cfg.GCONFIG_IPPROBE_ENABLE, "真实IP来源探针（1开启 0关闭，默认关闭）。开启后记录各站点最近到达的请求头(脱敏,仅内存,每站每秒最多1条)，供站点「真实IP来源」处排查CDN送来的是哪个头；排查完建议关闭", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "ai_enable", cfg.GCONFIG_AI_ENABLE, "启动AI智能检测总开关（1启动 0关闭，需先在AI模型管理上传模型包并在站点开启）", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "ai_mode", cfg.GCONFIG_AI_MODE, "AI检测工作模式：observe(仅记录/观察) block(达拦截阈值则拦截)", "options", "observe|仅记录,block|拦截", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "body_detect_mode", cfg.GCONFIG_BODY_DETECT_MODE, "请求体深度检测模式(formValue/JSON 逐值 XSS/SQLi/RCE)：observe 观察(命中只记录不拦,默认) block 拦截(命中即拦) off 关闭。默认 observe 避免误伤正常 JSON/表单流量，观察日志确认无误后再切 block；查询串检测不受影响始终拦截", "options", "observe|观察(只记录),block|拦截,off|关闭", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "body_detect_field_exclude", cfg.GCONFIG_BODY_DETECT_FIELD_EXCLUDE, "请求体深检字段排除清单(逗号分隔字段名,不区分大小写)。这些字段名下的表单值/JSON值(匹配直接父键名)跳过 XSS/SQLi/RCE 深检，用于放行已知携带富文本/HTML/代码的合法字段(如 content,html,markdown)，压 block 模式误报。看观察日志里是哪些字段误报再填", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "rule_chain_mode", cfg.GCONFIG_RULE_CHAIN_MODE, "自定义规则在检测链中的位置（0默认：排在CC之后；1规则优先：排在黑名单之后、Bot/SQLI/XSS等之前，此时规则的放行动作才能跳过这些检测）", "int", "", configMap)
 
-	updateConfigIntItem(initLoad, "access", "access_enable", global.GCONFIG_ACCESS_ENABLE, "统一访问认证总开关：开启后所有被WAF代理的站点默认都需先登录才能访问（可在站点里单独强制开/关，也可配置免认证路径与IP组）。请先在【统一访问认证-访问账号】里建好账号再开启", "options", "0|关闭,1|开启", configMap)
-	updateConfigIntItem(initLoad, "access", "access_audit_retain_days", global.GCONFIG_ACCESS_AUDIT_RETAIN_DAYS, "统一访问认证审计日志保留天数，默认90天", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "access", "access_enable", cfg.GCONFIG_ACCESS_ENABLE, "统一访问认证总开关：开启后所有被WAF代理的站点默认都需先登录才能访问（可在站点里单独强制开/关，也可配置免认证路径与IP组）。请先在【统一访问认证-访问账号】里建好账号再开启", "options", "0|关闭,1|开启", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "access", "access_audit_retain_days", cfg.GCONFIG_ACCESS_AUDIT_RETAIN_DAYS, "统一访问认证审计日志保留天数，默认90天", "int", "", configMap)
 
-	updateConfigIntItem(initLoad, "ssl", "enable_http_80", global.GCONFIG_RECORD_ENABLE_HTTP_80, "启动80端口服务（为自动申请证书使用 HTTP文件验证类型需要，DNS验证不需要）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "ssl", "sslorder_expire_day", global.GCONFIG_RECORD_SSLOrder_EXPIRE_DAY, "自动续期检测小于多少天开始发起自动申请 默认30天", "int", "", configMap)
-	updateConfigStringItem(initLoad, "ssl", "ssl_ip_cert_ip", global.GCONFIG_RECORD_SSL_IP_CERT_IP, "获取IP证书时的IP地址（为IP证书申请使用，留空则不使用）", "string", "", configMap)
-	updateConfigIntItem(initLoad, "ssl", "ssl_ip_expire_day", global.GCONFIG_RECORD_SSL_IP_EXPIRE_DAY, "IP证书自动续期检测小于多少天开始发起自动申请 默认3天", "int", "", configMap)
-	updateConfigIntItem(initLoad, "ssl", "ssl_expire_auto_sync_host", global.GCONFIG_SSL_EXPIRE_AUTO_SYNC_HOST, "SSL证书过期检测前是否自动同步已配置的SSL主机到检测列表（1同步 0不同步，默认1；关闭后过期检测只检测列表里已有的域名，手动点【同步主机】仍可用）", "options", "0|不同步,1|同步", configMap)
-	updateConfigIntItem(initLoad, "ssl", "sslhttp_check", global.GCONFIG_RECORD_SSLHTTP_CHECK, "证书文件验证：本地挑战文件始终优先使用；本项仅控制【本地无挑战文件】且后端对 .well-known 返回非404/301/302 时是否写告警日志（1告警 0不告警），不影响能否签发", "int", "", configMap)
-	updateConfigStringItem(initLoad, "ssl", "ssl_min_version", global.GCONFIG_RECORD_SSLMinVerson, "SSL最低版本(支持TLS 1.0,TLS 1.1,TLS 1.2,TLS 1.3)，修改后重启一下", "options", "TLS 1.0|TLS 1.0,TLS 1.1|TLS 1.1,TLS 1.2|TLS 1.2,TLS 1.3|TLS 1.3", configMap)
-	updateConfigStringItem(initLoad, "ssl", "ssl_max_version", global.GCONFIG_RECORD_SSLMaxVerson, "SSL最大版本(支持TLS 1.0,TLS 1.1,TLS 1.2,TLS 1.3)，修改后重启一下", "options", "TLS 1.0|TLS 1.0,TLS 1.1|TLS 1.1,TLS 1.2|TLS 1.2,TLS 1.3|TLS 1.3", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "ssl", "enable_http_80", cfg.GCONFIG_RECORD_ENABLE_HTTP_80, "启动80端口服务（为自动申请证书使用 HTTP文件验证类型需要，DNS验证不需要）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "ssl", "sslorder_expire_day", cfg.GCONFIG_RECORD_SSLOrder_EXPIRE_DAY, "自动续期检测小于多少天开始发起自动申请 默认30天", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "ssl", "ssl_ip_cert_ip", cfg.GCONFIG_RECORD_SSL_IP_CERT_IP, "获取IP证书时的IP地址（为IP证书申请使用，留空则不使用）", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "ssl", "ssl_ip_expire_day", cfg.GCONFIG_RECORD_SSL_IP_EXPIRE_DAY, "IP证书自动续期检测小于多少天开始发起自动申请 默认3天", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "ssl", "ssl_expire_auto_sync_host", cfg.GCONFIG_SSL_EXPIRE_AUTO_SYNC_HOST, "SSL证书过期检测前是否自动同步已配置的SSL主机到检测列表（1同步 0不同步，默认1；关闭后过期检测只检测列表里已有的域名，手动点【同步主机】仍可用）", "options", "0|不同步,1|同步", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "ssl", "sslhttp_check", cfg.GCONFIG_RECORD_SSLHTTP_CHECK, "证书文件验证：本地挑战文件始终优先使用；本项仅控制【本地无挑战文件】且后端对 .well-known 返回非404/301/302 时是否写告警日志（1告警 0不告警），不影响能否签发", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "ssl", "ssl_min_version", cfg.GCONFIG_RECORD_SSLMinVerson, "SSL最低版本(支持TLS 1.0,TLS 1.1,TLS 1.2,TLS 1.3)，修改后重启一下", "options", "TLS 1.0|TLS 1.0,TLS 1.1|TLS 1.1,TLS 1.2|TLS 1.2,TLS 1.3|TLS 1.3", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "ssl", "ssl_max_version", cfg.GCONFIG_RECORD_SSLMaxVerson, "SSL最大版本(支持TLS 1.0,TLS 1.1,TLS 1.2,TLS 1.3)，修改后重启一下", "options", "TLS 1.0|TLS 1.0,TLS 1.1|TLS 1.1,TLS 1.2|TLS 1.2,TLS 1.3|TLS 1.3", configMap)
 
-	updateConfigIntItem(initLoad, "network", "connect_time_out", global.GCONFIG_RECORD_CONNECT_TIME_OUT, "连接超时（默认30s）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "network", "keepalive_time_out", global.GCONFIG_RECORD_KEEPALIVE_TIME_OUT, "保持活动超时（默认30s）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "network", "http3", global.GCONFIG_ENABLE_HTTP3, "是否启用HTTP/3(QUIC)。生效前提：①站点必须开启SSL（HTTP/3 只跑在 TLS 上，非HTTPS端口不会监听UDP）；②必须在防火墙/安全组放行对应的【UDP】端口（如 443/udp）。开启后立即生效、无需重启；浏览器通过响应头 Alt-Svc 升级到 h3", "options", "0|关闭,1|开启", configMap)
-	updateConfigIntItem(initLoad, "network", "http3_bbr", global.GCONFIG_ENABLE_HTTP3_BBR, "HTTP/3 拥塞控制算法：0=NewReno(默认) 1=BBR。仅在已启用 HTTP/3 时有意义，修改后会自动重建 QUIC 监听", "options", "0|NewReno,1|BBR", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "network", "connect_time_out", cfg.GCONFIG_RECORD_CONNECT_TIME_OUT, "连接超时（默认30s）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "network", "keepalive_time_out", cfg.GCONFIG_RECORD_KEEPALIVE_TIME_OUT, "保持活动超时（默认30s）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "network", "http3", cfg.GCONFIG_ENABLE_HTTP3, "是否启用HTTP/3(QUIC)。生效前提：①站点必须开启SSL（HTTP/3 只跑在 TLS 上，非HTTPS端口不会监听UDP）；②必须在防火墙/安全组放行对应的【UDP】端口（如 443/udp）。开启后立即生效、无需重启；浏览器通过响应头 Alt-Svc 升级到 h3", "options", "0|关闭,1|开启", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "network", "http3_bbr", cfg.GCONFIG_ENABLE_HTTP3_BBR, "HTTP/3 拥塞控制算法：0=NewReno(默认) 1=BBR。仅在已启用 HTTP/3 时有意义，修改后会自动重建 QUIC 监听", "options", "0|NewReno,1|BBR", configMap)
 
-	updateConfigIntItem(initLoad, "system", "record_all_src_byte_info", global.GCONFIG_RECORD_ALL_SRC_BYTE_INFO, "启动记录原始请求BODY报文（1启动 0关闭）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "record_log_desensitize", global.GCONFIG_RECORD_LOG_DESENSITIZE, "请求记录是否进行脱敏处理（1开启脱敏 0关闭脱敏）", "options", "0|关闭脱敏,1|开启脱敏", configMap)
-	updateConfigIntItem(initLoad, "system", "token_expire_time", global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES, "管理平台令牌有效期（空闲多久未操作即失效，单位分钟；每次访问会自动续期。默认30分钟；填 0 或负数表示不限制有效期，实际按 1 年封顶。过短会导致频繁重新登录）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_all_src_byte_info", cfg.GCONFIG_RECORD_ALL_SRC_BYTE_INFO, "启动记录原始请求BODY报文（1启动 0关闭）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_log_desensitize", cfg.GCONFIG_RECORD_LOG_DESENSITIZE, "请求记录是否进行脱敏处理（1开启脱敏 0关闭脱敏）", "options", "0|关闭脱敏,1|开启脱敏", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "token_expire_time", cfg.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES, "管理平台令牌有效期（空闲多久未操作即失效，单位分钟；每次访问会自动续期。默认30分钟；填 0 或负数表示不限制有效期，实际按 1 年封顶。过短会导致频繁重新登录）", "int", "", configMap)
 
 	// 口令复杂度策略
-	updateConfigIntItem(initLoad, "password", "pwd_min_length", global.GCONFIG_PWD_MIN_LENGTH, "密码最小长度（默认8）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "password", "pwd_require_upper", global.GCONFIG_PWD_REQUIRE_UPPER, "是否要求包含大写字母", "options", "0|不要求,1|要求", configMap)
-	updateConfigIntItem(initLoad, "password", "pwd_require_lower", global.GCONFIG_PWD_REQUIRE_LOWER, "是否要求包含小写字母", "options", "0|不要求,1|要求", configMap)
-	updateConfigIntItem(initLoad, "password", "pwd_require_digit", global.GCONFIG_PWD_REQUIRE_DIGIT, "是否要求包含数字", "options", "0|不要求,1|要求", configMap)
-	updateConfigIntItem(initLoad, "password", "pwd_require_special", global.GCONFIG_PWD_REQUIRE_SPECIAL, "是否要求包含特殊字符", "options", "0|不要求,1|要求", configMap)
-	updateConfigIntItem(initLoad, "password", "pwd_expire_days", global.GCONFIG_PWD_EXPIRE_DAYS, "密码有效期天数（0=不限，到期登录时提示强制更换）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "password", "pwd_history_count", global.GCONFIG_PWD_HISTORY_COUNT, "历史密码防重用个数（0=不启用）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "password", "pwd_force_change_default", global.GCONFIG_PWD_FORCE_CHANGE_DEFAULT, "默认密码/被重置后是否强制改密", "options", "0|否,1|强制", configMap)
-	updateConfigIntItem(initLoad, "system", "spider_deny", global.GCONFIG_RECORD_SPIDER_DENY, "爬虫禁止访问开关 默认 0 只检测不阻止访问 1 检测并阻止访问）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "debug", "enable_debug", global.GCONFIG_RECORD_DEBUG_ENABLE, "调试开关 默认关闭", "int", "", configMap)
-	updateConfigStringItem(initLoad, "debug", "debug_pwd", global.GCONFIG_RECORD_DEBUG_PWD, "调试密码 如果未空则不需要密码", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "password", "pwd_min_length", cfg.GCONFIG_PWD_MIN_LENGTH, "密码最小长度（默认8）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "password", "pwd_require_upper", cfg.GCONFIG_PWD_REQUIRE_UPPER, "是否要求包含大写字母", "options", "0|不要求,1|要求", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "password", "pwd_require_lower", cfg.GCONFIG_PWD_REQUIRE_LOWER, "是否要求包含小写字母", "options", "0|不要求,1|要求", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "password", "pwd_require_digit", cfg.GCONFIG_PWD_REQUIRE_DIGIT, "是否要求包含数字", "options", "0|不要求,1|要求", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "password", "pwd_require_special", cfg.GCONFIG_PWD_REQUIRE_SPECIAL, "是否要求包含特殊字符", "options", "0|不要求,1|要求", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "password", "pwd_expire_days", cfg.GCONFIG_PWD_EXPIRE_DAYS, "密码有效期天数（0=不限，到期登录时提示强制更换）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "password", "pwd_history_count", cfg.GCONFIG_PWD_HISTORY_COUNT, "历史密码防重用个数（0=不启用）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "password", "pwd_force_change_default", cfg.GCONFIG_PWD_FORCE_CHANGE_DEFAULT, "默认密码/被重置后是否强制改密", "options", "0|否,1|强制", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "spider_deny", cfg.GCONFIG_RECORD_SPIDER_DENY, "爬虫禁止访问开关 默认 0 只检测不阻止访问 1 检测并阻止访问）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "debug", "enable_debug", cfg.GCONFIG_RECORD_DEBUG_ENABLE, "调试开关 默认关闭", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "debug", "debug_pwd", cfg.GCONFIG_RECORD_DEBUG_PWD, "调试密码 如果未空则不需要密码", "string", "", configMap)
 
-	updateConfigStringItem(initLoad, "gpt", "gpt_url", global.GCONFIG_RECORD_GPT_URL, "GPT远程地址 默认：DeepSeek ，符合ChatGpt或者使用one-api封装好的接口都可以", "string", "", configMap)
-	updateConfigStringItem(initLoad, "gpt", "gpt_token", global.GCONFIG_RECORD_GPT_TOKEN, "GPT远程授权密钥", "string", "", configMap)
-	updateConfigStringItem(initLoad, "gpt", "gpt_model", global.GCONFIG_RECORD_GPT_MODEL, "GPT模型名称", "string", "", configMap)
-	updateConfigIntItem(initLoad, "security", "hide_server_header", global.GCONFIG_RECORD_HIDE_SERVER_HEADER, "是否隐藏Server响应头(1隐藏 0不隐藏)", "int", "", configMap)
-	updateConfigIntItem(initLoad, "security", "force_bind_2fa", global.GCONFIG_RECORD_FORCE_BIND_2FA, "是否强制绑定双因素认证(1强制 0不强制)", "options", "0|不强制,1|强制", configMap)
-	updateConfigIntItem(initLoad, "system", "fake_spider_captcha", global.GCONFIG_RECORD_FAKE_SPIDER_CAPTCHA, "伪爬虫进行图形挑战开关 0 放过 1 显示图形验证码", "int", "", configMap)
-	updateConfigIntItem(initLoad, "system", "enable_proxy_protocol", global.GCONFIG_ENABLE_PROXY_PROTOCOL, "是否启用Proxy Protocol（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
-	updateConfigIntItem(initLoad, "system", "enable_system_stats_push", global.GCONFIG_ENABLE_SYSTEM_STATS_PUSH, "是否启用系统统计数据推送（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "gpt", "gpt_url", cfg.GCONFIG_RECORD_GPT_URL, "GPT远程地址 默认：DeepSeek ，符合ChatGpt或者使用one-api封装好的接口都可以", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "gpt", "gpt_token", cfg.GCONFIG_RECORD_GPT_TOKEN, "GPT远程授权密钥", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "gpt", "gpt_model", cfg.GCONFIG_RECORD_GPT_MODEL, "GPT模型名称", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "security", "hide_server_header", cfg.GCONFIG_RECORD_HIDE_SERVER_HEADER, "是否隐藏Server响应头(1隐藏 0不隐藏)", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "security", "force_bind_2fa", cfg.GCONFIG_RECORD_FORCE_BIND_2FA, "是否强制绑定双因素认证(1强制 0不强制)", "options", "0|不强制,1|强制", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "fake_spider_captcha", cfg.GCONFIG_RECORD_FAKE_SPIDER_CAPTCHA, "伪爬虫进行图形挑战开关 0 放过 1 显示图形验证码", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "enable_proxy_protocol", cfg.GCONFIG_ENABLE_PROXY_PROTOCOL, "是否启用Proxy Protocol（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "enable_system_stats_push", cfg.GCONFIG_ENABLE_SYSTEM_STATS_PUSH, "是否启用系统统计数据推送（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
 
 	// 指纹认证相关配置
-	updateConfigIntItem(initLoad, "system", "allow_container_selfupdate", global.GCONFIG_ALLOW_CONTAINER_SELFUPDATE, "容器(Docker等)环境是否允许应用内升级（0拦截 1允许，默认拦截）。容器里的程序文件在镜像可写层，应用内升级只在本次容器生命周期有效，容器重建后会回退成镜像自带的旧版本，而数据库已被新版本迁移且无法回退，会造成\"旧程序+新库\"的不一致。容器环境请改用更新镜像的方式升级；确实把程序文件挂到卷里的用户可置1自行放行", "options", "0|拦截,1|允许", configMap)
-	updateConfigIntItem(initLoad, "security", "enable_device_fingerprint", global.GCONFIG_ENABLE_DEVICE_FINGERPRINT, "是否启用设备指纹认证（1启用 0禁用，默认禁用）。指纹由浏览器 UA、Accept-Language、Accept-Encoding 计算；若管理端处于反向代理/CDN 之后，这些请求头可能被改写，开启后会被判为设备不匹配而频繁掉线，请确认链路稳定后再启用", "options", "0|禁用,1|启用", configMap)
-	updateConfigIntItem(initLoad, "security", "enable_strict_ip_binding", global.GCONFIG_ENABLE_STRICT_IP_BINDING, "是否启用严格IP绑定（1启用 0禁用；启用后令牌绑定登录时的真实IP，IP变化需重新登录；反向代理后请先配置可信代理网段，否则按代理IP判定）", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "allow_container_selfupdate", cfg.GCONFIG_ALLOW_CONTAINER_SELFUPDATE, "容器(Docker等)环境是否允许应用内升级（0拦截 1允许，默认拦截）。容器里的程序文件在镜像可写层，应用内升级只在本次容器生命周期有效，容器重建后会回退成镜像自带的旧版本，而数据库已被新版本迁移且无法回退，会造成\"旧程序+新库\"的不一致。容器环境请改用更新镜像的方式升级；确实把程序文件挂到卷里的用户可置1自行放行", "options", "0|拦截,1|允许", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "security", "enable_device_fingerprint", cfg.GCONFIG_ENABLE_DEVICE_FINGERPRINT, "是否启用设备指纹认证（1启用 0禁用，默认禁用）。指纹由浏览器 UA、Accept-Language、Accept-Encoding 计算；若管理端处于反向代理/CDN 之后，这些请求头可能被改写，开启后会被判为设备不匹配而频繁掉线，请确认链路稳定后再启用", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "security", "enable_strict_ip_binding", cfg.GCONFIG_ENABLE_STRICT_IP_BINDING, "是否启用严格IP绑定（1启用 0禁用；启用后令牌绑定登录时的真实IP，IP变化需重新登录；反向代理后请先配置可信代理网段，否则按代理IP判定）", "options", "0|禁用,1|启用", configMap)
 	//数据库相关
-	updateConfigIntItem(initLoad, "database", "batch_insert", global.GDATA_BATCH_INSERT, "数据库批量插入数量", "int", "", configMap)
-	updateConfigIntItem(initLoad, "database", "log_persist_enable", global.GCONFIG_LOG_PERSIST_ENABLED, "是否开启日志持久化（1开启 0关闭）", "options", "0|关闭,1|开启", configMap)
-	updateConfigIntItem(initLoad, "database", "ip_tag_db", global.GDATA_IP_TAG_DB, "IP Tag 存放位置 0 是主库  1是读取 stat库", "int", "", configMap)
-	updateConfigStringItem(initLoad, "system", "attack_tag_exclude", global.GCONFIG_ATTACK_TAG_EXCLUDE, "风险日志不算风险的标签(逗号分隔,如ACME证书校验)，这些标签不出现在规则筛选里也不计入阻止数量；正常 始终排除", "string", "", configMap)
-	updateConfigStringItem(initLoad, "system", "exclude_ip_log", global.GCONFIG_EXCLUDE_IP_LOG, "全局排除记录日志的IP（所有站点生效）：单IP/CIDR/通配符/区间，或 group:组短码 引用IP组；逗号或换行分隔，# 开头为注释。只静音正常请求，安全事件照常记录；站点级清单在网站编辑里", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "database", "batch_insert", cfg.GDATA_BATCH_INSERT, "数据库批量插入数量", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "database", "log_persist_enable", cfg.GCONFIG_LOG_PERSIST_ENABLED, "是否开启日志持久化（1开启 0关闭）", "options", "0|关闭,1|开启", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "database", "ip_tag_db", cfg.GDATA_IP_TAG_DB, "IP Tag 存放位置 0 是主库  1是读取 stat库", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "attack_tag_exclude", cfg.GCONFIG_ATTACK_TAG_EXCLUDE, "风险日志不算风险的标签(逗号分隔,如ACME证书校验)，这些标签不出现在规则筛选里也不计入阻止数量；正常 始终排除", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "exclude_ip_log", cfg.GCONFIG_EXCLUDE_IP_LOG, "全局排除记录日志的IP（所有站点生效）：单IP/CIDR/通配符/区间，或 group:组短码 引用IP组；逗号或换行分隔，# 开头为注释。只静音正常请求，安全事件照常记录；站点级清单在网站编辑里", "string", "", configMap)
 
 	// IP失败封禁相关配置
-	updateConfigStringItem(initLoad, "security", "ip_failure_status_codes", global.GCONFIG_IP_FAILURE_STATUS_CODES, "失败状态码配置，支持多个用|分隔，也支持正则表达式，例如：401|403|404|444|429|503 或 ^4[0-9]{2}$", "string", "", configMap)
-	updateConfigIntItem(initLoad, "security", "ip_failure_ban_enabled", global.GCONFIG_IP_FAILURE_BAN_ENABLED, "是否启用IP失败封禁（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
-	updateConfigIntItem(initLoad, "security", "ip_failure_ban_lock_time", global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME, "IP失败封禁锁定时间（单位：分钟，默认10分钟）", "int", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "security", "ip_failure_status_codes", cfg.GCONFIG_IP_FAILURE_STATUS_CODES, "失败状态码配置，支持多个用|分隔，也支持正则表达式，例如：401|403|404|444|429|503 或 ^4[0-9]{2}$", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "security", "ip_failure_ban_enabled", cfg.GCONFIG_IP_FAILURE_BAN_ENABLED, "是否启用IP失败封禁（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "security", "ip_failure_ban_lock_time", cfg.GCONFIG_IP_FAILURE_BAN_LOCK_TIME, "IP失败封禁锁定时间（单位：分钟，默认10分钟）", "int", "", configMap)
 
 	// 规则封禁相关配置（自定义规则 RF.Ban(分钟) 命中后临时封禁客户端IP）
-	updateConfigIntItem(initLoad, "security", "rule_ban_mode", global.GCONFIG_RULE_BAN_MODE, "规则封禁执行动作（0返回拦截页 1直接断开连接）", "options", "0|拦截页,1|直接断开", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "security", "rule_ban_mode", cfg.GCONFIG_RULE_BAN_MODE, "规则封禁执行动作（0返回拦截页 1直接断开连接）", "options", "0|拦截页,1|直接断开", configMap)
 
 	// 主机远程登录爆破防护(SSH/RDP)。封禁时长不在这里配，由「封禁阶梯」表接管(5分→15分→60分→1天→永久)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_enabled", global.GCONFIG_HOST_GUARD_ENABLED, "主机远程登录爆破防护总开关（保护SamWaf所在机器自身的SSH/RDP。启用前请先确认白名单已包含你的管理IP，否则可能把自己锁在门外）", "options", "0|禁用,1|启用", configMap)
-	updateConfigStringItem(initLoad, "hostguard", "host_guard_mode", global.GCONFIG_HOST_GUARD_MODE, "工作模式：observe=只记录不封禁（建议先跑一周确认无误封），block=达到阈值即调用系统防火墙封禁", "options", "observe|观察模式,block|封禁模式", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_find_time", global.GCONFIG_HOST_GUARD_FIND_TIME, "失败统计窗口（单位：分钟，默认10分钟）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_max_retry", global.GCONFIG_HOST_GUARD_MAX_RETRY, "统计窗口内失败次数达到该值即触发处置（默认8次）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_offender_reset_day", global.GCONFIG_HOST_GUARD_OFFENDER_RESET_DAY, "累犯记忆期（单位：天，默认7天）：超过这么久没再犯，下次封禁从第1级重新开始", "int", "", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_count_soft_fail", global.GCONFIG_HOST_GUARD_COUNT_SOFT_FAIL, "软失败是否计入阈值（preauth断连/用户名枚举/PAM失败行）。前者由端口扫描与健康探针大量产生，后两者会与密码失败行成对出现导致阈值腰斩，默认不计入", "options", "0|不计入,1|计入", configMap)
-	updateConfigStringItem(initLoad, "hostguard", "host_guard_whitelist", global.GCONFIG_HOST_GUARD_WHITELIST, "永不封禁的IP/网段白名单，逗号分隔，支持单IP/CIDR/通配符/区间（如 1.2.3.4,10.0.0.0/8,192.168.1.*）", "string", "", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_auto_lan", global.GCONFIG_HOST_GUARD_AUTO_LAN, "是否自动豁免本机所有网卡IP、环回地址与常见内网段（10/8、172.16/12、192.168/16、fc00::/7、100.64/10、169.254/16）", "options", "0|不豁免,1|自动豁免", configMap)
-	updateConfigStringItem(initLoad, "hostguard", "host_guard_log_paths", global.GCONFIG_HOST_GUARD_LOG_PATHS, "自定义系统认证日志路径（逗号分隔），留空则自动探测 /var/log/secure、/var/log/auth.log，都没有则用 journalctl。容器部署请把宿主机日志只读挂载进来并在此指定路径", "string", "", configMap)
-	updateConfigStringItem(initLoad, "hostguard", "host_guard_ssh_ports", global.GCONFIG_HOST_GUARD_SSH_PORTS, "SSH实际监听端口（逗号分隔），留空自动发现。注意：爆破检测本身不依赖端口，改过默认端口也能正常工作，此项仅用于端口级封禁与连接看板高亮", "string", "", configMap)
-	updateConfigStringItem(initLoad, "hostguard", "host_guard_rdp_ports", global.GCONFIG_HOST_GUARD_RDP_PORTS, "RDP实际监听端口（逗号分隔），留空自动发现", "string", "", configMap)
-	updateConfigStringItem(initLoad, "hostguard", "host_guard_port_scope", global.GCONFIG_HOST_GUARD_PORT_SCOPE, "封禁范围：all=封全端口（更安全），detected=只封SSH/RDP端口（误封时杀伤面更小）", "options", "all|全端口,detected|仅SSH/RDP端口", configMap)
-	updateConfigStringItem(initLoad, "hostguard", "host_guard_exec_mode", global.GCONFIG_HOST_GUARD_EXEC_MODE, "封禁执行方式：auto=平台自适应（推荐），ipset=强制走集合，rule=强制逐条防火墙规则（调试用）", "options", "auto|自动,ipset|集合,rule|逐条规则", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_debounce_sec", global.GCONFIG_HOST_GUARD_DEBOUNCE_SEC, "Windows封禁同步去抖窗口（单位：秒，默认5）。Windows无ipset只能全量重建规则，去抖可避免频繁封禁时反复重建；该值也是封禁生效的最大延迟；Linux/macOS走增量不受此影响", "int", "", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_max_ban_entries", global.GCONFIG_HOST_GUARD_MAX_BAN_ENTRIES, "封禁集合容量上限（默认10000）。超限时优先淘汰剩余时间最短的临时封禁，永久封禁不淘汰", "int", "", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_ban_rate_limit", global.GCONFIG_HOST_GUARD_BAN_RATE_LIMIT, "每分钟最多新增封禁数（默认200），防止分布式爆破把封禁集合瞬间打满", "int", "", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_subnet_aggregate", global.GCONFIG_HOST_GUARD_SUBNET_AGGREGATE, "网段聚合封禁：同一/24网段内被封IP数达到阈值时，升级为封禁整个网段。对僵尸网络有效但误伤面大（可能封掉整个机房/运营商段），默认关闭", "options", "0|禁用,1|启用", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_subnet_threshold", global.GCONFIG_HOST_GUARD_SUBNET_THRESHOLD, "网段聚合触发阈值（同一/24内被封IP数，默认10）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_guard_notify", global.GCONFIG_HOST_GUARD_NOTIFY, "触发封禁时是否发送通知（复用「IP封禁」消息类型，可在通知订阅里配置渠道与频控）", "options", "0|不通知,1|通知", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_enabled", cfg.GCONFIG_HOST_GUARD_ENABLED, "主机远程登录爆破防护总开关（保护SamWaf所在机器自身的SSH/RDP。启用前请先确认白名单已包含你的管理IP，否则可能把自己锁在门外）", "options", "0|禁用,1|启用", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "hostguard", "host_guard_mode", cfg.GCONFIG_HOST_GUARD_MODE, "工作模式：observe=只记录不封禁（建议先跑一周确认无误封），block=达到阈值即调用系统防火墙封禁", "options", "observe|观察模式,block|封禁模式", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_find_time", cfg.GCONFIG_HOST_GUARD_FIND_TIME, "失败统计窗口（单位：分钟，默认10分钟）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_max_retry", cfg.GCONFIG_HOST_GUARD_MAX_RETRY, "统计窗口内失败次数达到该值即触发处置（默认8次）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_offender_reset_day", cfg.GCONFIG_HOST_GUARD_OFFENDER_RESET_DAY, "累犯记忆期（单位：天，默认7天）：超过这么久没再犯，下次封禁从第1级重新开始", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_count_soft_fail", cfg.GCONFIG_HOST_GUARD_COUNT_SOFT_FAIL, "软失败是否计入阈值（preauth断连/用户名枚举/PAM失败行）。前者由端口扫描与健康探针大量产生，后两者会与密码失败行成对出现导致阈值腰斩，默认不计入", "options", "0|不计入,1|计入", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "hostguard", "host_guard_whitelist", cfg.GCONFIG_HOST_GUARD_WHITELIST, "永不封禁的IP/网段白名单，逗号分隔，支持单IP/CIDR/通配符/区间（如 1.2.3.4,10.0.0.0/8,192.168.1.*）", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_auto_lan", cfg.GCONFIG_HOST_GUARD_AUTO_LAN, "是否自动豁免本机所有网卡IP、环回地址与常见内网段（10/8、172.16/12、192.168/16、fc00::/7、100.64/10、169.254/16）", "options", "0|不豁免,1|自动豁免", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "hostguard", "host_guard_log_paths", cfg.GCONFIG_HOST_GUARD_LOG_PATHS, "自定义系统认证日志路径（逗号分隔），留空则自动探测 /var/log/secure、/var/log/auth.log，都没有则用 journalctl。容器部署请把宿主机日志只读挂载进来并在此指定路径", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "hostguard", "host_guard_ssh_ports", cfg.GCONFIG_HOST_GUARD_SSH_PORTS, "SSH实际监听端口（逗号分隔），留空自动发现。注意：爆破检测本身不依赖端口，改过默认端口也能正常工作，此项仅用于端口级封禁与连接看板高亮", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "hostguard", "host_guard_rdp_ports", cfg.GCONFIG_HOST_GUARD_RDP_PORTS, "RDP实际监听端口（逗号分隔），留空自动发现", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "hostguard", "host_guard_port_scope", cfg.GCONFIG_HOST_GUARD_PORT_SCOPE, "封禁范围：all=封全端口（更安全），detected=只封SSH/RDP端口（误封时杀伤面更小）", "options", "all|全端口,detected|仅SSH/RDP端口", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "hostguard", "host_guard_exec_mode", cfg.GCONFIG_HOST_GUARD_EXEC_MODE, "封禁执行方式：auto=平台自适应（推荐），ipset=强制走集合，rule=强制逐条防火墙规则（调试用）", "options", "auto|自动,ipset|集合,rule|逐条规则", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_debounce_sec", cfg.GCONFIG_HOST_GUARD_DEBOUNCE_SEC, "Windows封禁同步去抖窗口（单位：秒，默认5）。Windows无ipset只能全量重建规则，去抖可避免频繁封禁时反复重建；该值也是封禁生效的最大延迟；Linux/macOS走增量不受此影响", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_max_ban_entries", cfg.GCONFIG_HOST_GUARD_MAX_BAN_ENTRIES, "封禁集合容量上限（默认10000）。超限时优先淘汰剩余时间最短的临时封禁，永久封禁不淘汰", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_ban_rate_limit", cfg.GCONFIG_HOST_GUARD_BAN_RATE_LIMIT, "每分钟最多新增封禁数（默认200），防止分布式爆破把封禁集合瞬间打满", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_subnet_aggregate", cfg.GCONFIG_HOST_GUARD_SUBNET_AGGREGATE, "网段聚合封禁：同一/24网段内被封IP数达到阈值时，升级为封禁整个网段。对僵尸网络有效但误伤面大（可能封掉整个机房/运营商段），默认关闭", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_subnet_threshold", cfg.GCONFIG_HOST_GUARD_SUBNET_THRESHOLD, "网段聚合触发阈值（同一/24内被封IP数，默认10）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_notify", cfg.GCONFIG_HOST_GUARD_NOTIFY, "触发封禁时是否发送通知（复用「IP封禁」消息类型，可在通知订阅里配置渠道与频控）", "options", "0|不通知,1|通知", configMap)
 
 	// 远程连接看板
-	updateConfigIntItem(initLoad, "hostguard", "host_conn_enabled", global.GCONFIG_HOST_CONN_ENABLED, "远程连接看板开关（展示当前连接到本机的所有TCP连接）", "options", "0|禁用,1|启用", configMap)
-	updateConfigIntItem(initLoad, "hostguard", "host_conn_cache_sec", global.GCONFIG_HOST_CONN_CACHE_SEC, "连接快照缓存秒数（默认3秒）。Linux下采集需要遍历/proc建立inode到进程的映射，连接数上万时开销明显，建议不低于3秒", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_conn_enabled", cfg.GCONFIG_HOST_CONN_ENABLED, "远程连接看板开关（展示当前连接到本机的所有TCP连接）", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_conn_cache_sec", cfg.GCONFIG_HOST_CONN_CACHE_SEC, "连接快照缓存秒数（默认3秒）。Linux下采集需要遍历/proc建立inode到进程的映射，连接数上万时开销明显，建议不低于3秒", "int", "", configMap)
 
 	// 版本更新相关配置
-	updateConfigIntItem(initLoad, "system", "check_beta_version", global.GCONFIG_CHECK_BETA_VERSION, "是否检测beta版本更新（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "check_beta_version", cfg.GCONFIG_CHECK_BETA_VERSION, "是否检测beta版本更新（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
 
 	// ZeroSSL 相关配置
-	updateConfigStringItem(initLoad, "ssl", "zerossl_access_key", global.GCONFIG_ZEROSSL_ACCESS_KEY, "zerossl访问key", "string", "", configMap)
-	updateConfigStringItem(initLoad, "ssl", "zerossl_eab_kid", global.GCONFIG_ZEROSSL_EAB_KID, "zerossl eab_kid", "string", "", configMap)
-	updateConfigStringItem(initLoad, "ssl", "zerossl_eab_hmac_key", global.GCONFIG_ZEROSSL_EAB_HMAC_KEY, "zerossl eab_hmac_key", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "ssl", "zerossl_access_key", cfg.GCONFIG_ZEROSSL_ACCESS_KEY, "zerossl访问key", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "ssl", "zerossl_eab_kid", cfg.GCONFIG_ZEROSSL_EAB_KID, "zerossl eab_kid", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "ssl", "zerossl_eab_hmac_key", cfg.GCONFIG_ZEROSSL_EAB_HMAC_KEY, "zerossl eab_hmac_key", "string", "", configMap)
 
 	// IP数据库配置
-	updateConfigStringItem(initLoad, "ip_database", "ip_v4_source",
-		global.GCONFIG_IP_V4_SOURCE, "IPv4数据库来源",
+	updateConfigStringItem(&cfg, &effects, initLoad, "ip_database", "ip_v4_source",
+		cfg.GCONFIG_IP_V4_SOURCE, "IPv4数据库来源",
 		"options", "ip2region|ip2region,geolite2|GeoLite2", configMap)
-	updateConfigStringItem(initLoad, "ip_database", "ip_v6_source",
-		global.GCONFIG_IP_V6_SOURCE, "IPv6数据库来源",
+	updateConfigStringItem(&cfg, &effects, initLoad, "ip_database", "ip_v6_source",
+		cfg.GCONFIG_IP_V6_SOURCE, "IPv6数据库来源",
 		"options", "ip2region|ip2region,geolite2|GeoLite2", configMap)
-	updateConfigStringItem(initLoad, "ip_database", "ip_v4_format",
+	updateConfigStringItem(&cfg, &effects, initLoad, "ip_database", "ip_v4_format",
 		"opensource", "IPv4 xdb字段格式（默认开源版）",
 		"options", "opensource|开源版,legacy|老版本,full|满载版,standard|标准版,compact|精简版", configMap)
-	updateConfigStringItem(initLoad, "ip_database", "ip_v6_format",
+	updateConfigStringItem(&cfg, &effects, initLoad, "ip_database", "ip_v6_format",
 		"opensource", "IPv6 xdb字段格式(仅ip2region时有效，默认开源版)",
 		"options", "opensource|开源版,legacy|老版本,full|满载版,standard|标准版,compact|精简版", configMap)
 
 	// 日志文件写入相关配置
-	updateConfigIntItem(initLoad, "logfile", "log_file_write_enable", global.GCONFIG_LOG_FILE_WRITE_ENABLE, "日志文件写入开关（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)
-	updateConfigStringItem(initLoad, "logfile", "log_file_write_path", global.GCONFIG_LOG_FILE_WRITE_PATH, "日志文件输出路径", "string", "", configMap)
-	updateConfigStringItem(initLoad, "logfile", "log_file_write_format", global.GCONFIG_LOG_FILE_WRITE_FORMAT, "日志格式（nginx/apache/custom）", "options", "nginx|Nginx Combined,apache|Apache Combined,custom|自定义格式", configMap)
-	updateConfigStringItem(initLoad, "logfile", "log_file_write_custom_tpl", global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL, "自定义日志格式模板", "string", "", configMap)
-	updateConfigIntItem(initLoad, "logfile", "log_file_write_max_size", global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE, "单个日志文件最大大小（MB）", "int", "", configMap)
-	updateConfigIntItem(initLoad, "logfile", "log_file_write_max_backups", global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS, "保留的历史文件数量", "int", "", configMap)
-	updateConfigIntItem(initLoad, "logfile", "log_file_write_max_days", global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS, "保留天数", "int", "", configMap)
-	updateConfigIntItem(initLoad, "logfile", "log_file_write_compress", global.GCONFIG_LOG_FILE_WRITE_COMPRESS, "是否压缩历史文件（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "logfile", "log_file_write_enable", cfg.GCONFIG_LOG_FILE_WRITE_ENABLE, "日志文件写入开关（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "logfile", "log_file_write_path", cfg.GCONFIG_LOG_FILE_WRITE_PATH, "日志文件输出路径", "string", "", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "logfile", "log_file_write_format", cfg.GCONFIG_LOG_FILE_WRITE_FORMAT, "日志格式（nginx/apache/custom）", "options", "nginx|Nginx Combined,apache|Apache Combined,custom|自定义格式", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "logfile", "log_file_write_custom_tpl", cfg.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL, "自定义日志格式模板", "string", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "logfile", "log_file_write_max_size", cfg.GCONFIG_LOG_FILE_WRITE_MAX_SIZE, "单个日志文件最大大小（MB）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "logfile", "log_file_write_max_backups", cfg.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS, "保留的历史文件数量", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "logfile", "log_file_write_max_days", cfg.GCONFIG_LOG_FILE_WRITE_MAX_DAYS, "保留天数", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "logfile", "log_file_write_compress", cfg.GCONFIG_LOG_FILE_WRITE_COMPRESS, "是否压缩历史文件（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)
 
 	// 开放平台配置
-	updateConfigIntItem(initLoad, "openplatform", "open_platform_enabled", global.GCONFIG_OPEN_PLATFORM_ENABLED, "开放平台开关（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "openplatform", "open_platform_enabled", cfg.GCONFIG_OPEN_PLATFORM_ENABLED, "开放平台开关（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
 
 	// 任务日志配置
-	updateConfigIntItem(initLoad, "task", "task_log_retain_days", global.GCONFIG_TASK_LOG_RETAIN_DAYS, "任务日志保留天数（默认30天）", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "task", "task_log_retain_days", cfg.GCONFIG_TASK_LOG_RETAIN_DAYS, "任务日志保留天数（默认30天）", "int", "", configMap)
+
+	// Publish all changed values together, before notifying consumers.
+	global.CommitSettings(before, cfg)
+	for _, effect := range effects {
+		effect()
+	}
 
 	// 安全提示（升级感知）：配了管理端代理头但未设可信代理网段 → 代理头被忽略、客户端IP取网络层IP。
 	// 提醒反向代理后的部署在 conf/config.yml 配置 security.manage_trusted_proxies，
 	// 以免 IP白名单/登录锁定误按代理IP生效（该项放 config.yml 便于被白名单挡住时改文件+重启自救）。
-	if initLoad && global.GCONFIG_MANAGE_PROXY_HEADER != "" && global.GCONFIG_MANAGE_TRUSTED_PROXIES == "" {
+	if initLoad && cfg.GCONFIG_MANAGE_PROXY_HEADER != "" && cfg.GCONFIG_MANAGE_TRUSTED_PROXIES == "" {
 		zlog.Warn("管理端已配置代理头(gwaf_manage_proxy_header)但未设可信代理网段：出于安全，代理头将被忽略、按网络层IP识别客户端。若本机在反向代理之后，请在 conf/config.yml 填写 security.manage_trusted_proxies（如 10.0.0.0/8，容器部署可填 private）后重启")
 	}
 	// 可信代理网段过宽 → 无法据此判定代理头里哪个 IP 是客户端，代理头不予采信。
 	if initLoad {
-		if broad, entry := utils.ManageTrustedProxiesHasOverBroad(global.GCONFIG_MANAGE_TRUSTED_PROXIES); broad {
+		if broad, entry := utils.ManageTrustedProxiesHasOverBroad(cfg.GCONFIG_MANAGE_TRUSTED_PROXIES); broad {
 			zlog.Warn("管理端可信代理网段包含过宽条目(" + entry + ")：这种网段无法用来判定代理头里的哪个IP是客户端，代理头将不被采信、仍按网络层IP识别客户端(管理端IP白名单/登录失败锁定/令牌IP绑定也按它判定)。请在 conf/config.yml 把 security.manage_trusted_proxies 改成上游代理自身的地址，容器部署可填 private")
 		}
 	}
@@ -947,7 +983,7 @@ func TaskLoadSetting(initLoad bool) {
 	if initLoad {
 		go func() {
 			waf_service.CleanLegacyBenignIPTags()
-			waf_service.MergeIPTagsInto(global.GDATA_IP_TAG_DB)
+			waf_service.MergeIPTagsInto(cfg.GDATA_IP_TAG_DB)
 		}()
 	}
 }

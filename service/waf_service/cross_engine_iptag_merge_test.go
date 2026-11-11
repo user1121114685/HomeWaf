@@ -19,8 +19,8 @@ import (
 )
 
 func runIPTagMergeCases(t *testing.T, x *xdb) {
-	saved := global.GDATA_IP_TAG_DB
-	defer func() { global.GDATA_IP_TAG_DB = saved }()
+	saved := global.CurrentSettings().GDATA_IP_TAG_DB
+	defer func() { global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_IP_TAG_DB = saved }) }()
 
 	ip := "9.9." + sfx()
 	early := customtype.JsonTime(time.Now().Add(-48 * time.Hour))
@@ -48,7 +48,7 @@ func runIPTagMergeCases(t *testing.T, x *xdb) {
 	}
 	must(t, x.core.Create(onlyInCore).Error)
 
-	global.GDATA_IP_TAG_DB = 1
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_IP_TAG_DB = 1 })
 	MergeIPTagsInto(1)
 
 	var merged model.IPTag

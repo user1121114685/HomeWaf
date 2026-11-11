@@ -2,6 +2,22 @@ package wafbot
 
 import "testing"
 
+func TestForwardConfirmationCannotBeReplacedByCrawlerUAOrPTR(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		ptr        string
+		confirms   bool
+		wantStrong bool
+	}{{"genuine", "crawl.googlebot.com.", true, true}, {"PTR only", "crawl.googlebot.com.", false, false}, {"suffix spoof", "crawl.googlebot.com.evil.test.", true, false}, {"lookalike", "evilgooglebot.com.", true, false}} {
+		t.Run(tt.name, func(t *testing.T) {
+			result := verifyByDNSWithLookups("192.0.2.1", googleRules, func(string) ([]string, error) { return []string{tt.ptr}, nil }, func(string, string) bool { return tt.confirms })
+			if result.StrongVerified != tt.wantStrong {
+				t.Fatalf("identity=%+v", result)
+			}
+		})
+	}
+}
+
 // 后缀匹配是身份验证的第一道关，写错会把整家爬虫放过或误杀
 func TestMatchAnySuffix(t *testing.T) {
 	cases := []struct {
@@ -41,8 +57,10 @@ func TestIPRangeSpidersAreStronglyVerified(t *testing.T) {
 
 // 非爬虫 UA 一次 DNS 都不该发
 func TestNonSpiderUANoLookup(t *testing.T) {
-	r := DetermineNormalSearch("Mozilla/5.0 (Windows NT 10.0)", "1.2.3.4")
-	if r.IsBot || r.StrongVerified {
-		t.Fatalf("普通浏览器 UA 不应判为爬虫，实际 %+v", r)
+	for _, ua := range []string{"Mozilla/5.0 (Windows NT 10.0)", "Google Chrome browser", "SogouMobileBrowser", "Mozilla/5.0 msn.com reader"} {
+		r := DetermineNormalSearch(ua, "1.2.3.4")
+		if r.IsBot || r.StrongVerified {
+			t.Fatalf("ordinary UA %q was classified as crawler: %+v", ua, r)
+		}
 	}
 }

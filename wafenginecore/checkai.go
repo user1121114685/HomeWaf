@@ -67,7 +67,7 @@ func (waf *WafEngine) CheckAI(r *http.Request, weblogbean *innerbean.WebLog, for
 	weblogbean.AI_SCORE = pred.Score
 
 	// block 模式且达到拦截阈值 -> 拦截（由 handleBlock 走 EchoErrorInfo 记录为"阻止"）
-	if global.GCONFIG_AI_MODE == "block" && pred.Score >= pred.BlockThreshold {
+	if requestSettings(r).GCONFIG_AI_MODE == "block" && pred.Score >= pred.BlockThreshold {
 		result.IsBlock = true
 		result.Title = title
 		result.Content = "请正确访问"

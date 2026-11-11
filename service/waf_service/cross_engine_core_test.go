@@ -11,6 +11,7 @@ import (
 	"HomeWaf/customtype"
 	"HomeWaf/model"
 	"HomeWaf/model/request"
+	"HomeWaf/utils"
 	"testing"
 	"time"
 
@@ -147,12 +148,12 @@ func getHostCode(v interface{}) string {
 func runCoreCRUDCases(t *testing.T, db *gorm.DB) {
 	t.Run("HttpAuthBase", func(t *testing.T) {
 		un := "u_" + sfx()
-		fatalIf(t, WafHttpAuthBaseServiceApp.AddApi(request.WafHttpAuthBaseAddReq{HostCode: "h1", UserName: un, Password: "p1"}))
+		fatalIf(t, WafHttpAuthBaseServiceApp.AddApi(request.WafHttpAuthBaseAddReq{HostCode: "h1", UserName: un, Password: "strong-fixture-password-1"}))
 		var bean model.HttpAuthBase
 		firstBy(t, db, &bean, "user_name = ?", un)
-		fatalIf(t, WafHttpAuthBaseServiceApp.ModifyApi(request.WafHttpAuthBaseEditReq{Id: bean.Id, HostCode: "h2", UserName: un, Password: "p2"}))
+		fatalIf(t, WafHttpAuthBaseServiceApp.ModifyApi(request.WafHttpAuthBaseEditReq{Id: bean.Id, HostCode: "h2", UserName: un, Password: "strong-fixture-password-2"}))
 		got := WafHttpAuthBaseServiceApp.GetDetailByIdApi(bean.Id)
-		if got.HostCode != "h2" || got.Password != "p2" {
+		if got.HostCode != "h2" || !got.PasswordHashed || !utils.BcryptVerify(got.Password, "strong-fixture-password-2") {
 			t.Fatalf("HttpAuthBase 更新未落库: %+v", got)
 		}
 		fatalIf(t, WafHttpAuthBaseServiceApp.DelApi(request.WafHttpAuthBaseDelReq{Id: bean.Id}))

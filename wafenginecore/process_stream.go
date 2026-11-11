@@ -218,12 +218,13 @@ func (sp *StreamProcessor) processPrivacyProtection(data string) string {
 // 敏感词检测和替换
 func (sp *StreamProcessor) processSensitiveWords(data string) string {
 	// 检查是否启用敏感词检测
-	if !sp.wafEngine.CheckResponseSensitive() {
+	sensitiveState := sp.wafEngine.sensitive.Load()
+	if sensitiveState == nil || !sensitiveState.out {
 		return data
 	}
 
 	// 进行敏感词检测
-	matchResult := sp.wafEngine.SensitiveManager.MultiPatternSearch([]rune(data), false)
+	matchResult := sensitiveState.machine.MultiPatternSearch([]rune(data), false)
 	if len(matchResult) > 0 {
 		processedData := data
 		detectedWordsMap := make(map[string]bool) // 使用map去重

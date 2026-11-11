@@ -43,15 +43,17 @@ func TestCollectStatsIPTagCrossEngine(t *testing.T) {
 func runIPTagUpsertAssertions(t *testing.T, db *gorm.DB) {
 	t.Helper()
 
-	prevStats, prevCore, prevTagDB := global.GWAF_LOCAL_STATS_DB, global.GWAF_LOCAL_DB, global.GDATA_IP_TAG_DB
+	prevStats, prevCore, prevTagDB := global.GWAF_LOCAL_STATS_DB, global.GWAF_LOCAL_DB, global.CurrentSettings().GDATA_IP_TAG_DB
 	prevUser, prevTenant := global.GWAF_USER_CODE, global.GWAF_TENANT_ID
 	global.GWAF_LOCAL_STATS_DB = db
 	global.GWAF_LOCAL_DB = db // 只用于 CollectStatsFromLogs 的非空检查
-	global.GDATA_IP_TAG_DB = 1
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_IP_TAG_DB = 1 })
 	global.GWAF_USER_CODE = "xtest_user"
 	global.GWAF_TENANT_ID = "xtest_tenant"
 	defer func() {
-		global.GWAF_LOCAL_STATS_DB, global.GWAF_LOCAL_DB, global.GDATA_IP_TAG_DB = prevStats, prevCore, prevTagDB
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			global.GWAF_LOCAL_STATS_DB, global.GWAF_LOCAL_DB, cfg.GDATA_IP_TAG_DB = prevStats, prevCore, prevTagDB
+		})
 		global.GWAF_USER_CODE, global.GWAF_TENANT_ID = prevUser, prevTenant
 	}()
 

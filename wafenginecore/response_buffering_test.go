@@ -35,7 +35,6 @@ const (
 func newBufferingTestEngine(hostCode, hostKey string, buffering int) *WafEngine {
 	waf := &WafEngine{}
 	waf.InitRouting()
-	waf.SensitiveDirectionMap = map[string]bool{}
 	nt := waf.rt()
 	nt.HostCode[hostCode] = hostKey
 	nt.HostCode[global.GWAF_GLOBAL_HOST_CODE] = global.GWAF_GLOBAL_HOST_NAME

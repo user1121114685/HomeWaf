@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"runtime/debug"
 	"strings"
 )
 
@@ -30,11 +29,10 @@ type DescribeRulesResponse struct {
 // recoveryImplStatic implements recover if panic which is used for NewEngine API
 func recoveryImplStatic() {
 	if r := recover(); r != nil {
-		if isCriticalPanic(r.(error)) {
+		if err, ok := r.(error); ok && isCriticalPanic(err) {
 			panic(r)
 		} else {
-			fmt.Fprintf(os.Stderr, "%s, msg: %+v\n", errlist.ERR_PANIC.Error(), r)
-			debug.PrintStack()
+			fmt.Fprintln(os.Stderr, "DLP processing failed")
 		}
 	}
 }
@@ -42,11 +40,10 @@ func recoveryImplStatic() {
 // recoveryImpl implements recover if panic
 func (I *Engine) recoveryImpl() {
 	if r := recover(); r != nil {
-		if isCriticalPanic(r.(error)) {
+		if err, ok := r.(error); ok && isCriticalPanic(err) {
 			panic(r)
 		} else {
-			fmt.Fprintf(os.Stderr, "%s, msg: %+v\n", errlist.ERR_PANIC.Error(), r)
-			debug.PrintStack()
+			fmt.Fprintln(os.Stderr, "DLP processing failed")
 		}
 	}
 }
@@ -80,10 +77,10 @@ func (I *Engine) hasConfiged() bool {
 // postLoadConfig will load config object
 func (I *Engine) postLoadConfig() error {
 	if I.confObj.Global.MaxLogInput > 0 {
-		DEF_MAX_LOG_INPUT = I.confObj.Global.MaxLogInput
+		I.maxLogInput = I.confObj.Global.MaxLogInput
 	}
 	if I.confObj.Global.MaxRegexRuleID > 0 {
-		DEF_MAX_REGEX_RULE_ID = I.confObj.Global.MaxRegexRuleID
+		I.maxRegexRuleID = I.confObj.Global.MaxRegexRuleID
 	}
 	I.initLogger()
 	if err := I.loadDetector(); err != nil {
@@ -130,8 +127,8 @@ func (I *Engine) loadMaskWorker() error {
 	for _, rule := range maskRuleList {
 		if obj, err := mask.NewMaskWorker(rule, I); err == nil {
 			ruleName := obj.GetRuleName()
-			if old, ok := I.maskerMap[ruleName]; ok {
-				log.Errorf("ruleName: %s, error: %s", old.GetRuleName(), errlist.ERR_LOADMASK_NAME_CONFLICT.Error())
+			if _, ok := I.maskerMap[ruleName]; ok {
+				log.Errorf("DLP masker name conflicts")
 			} else {
 				I.maskerMap[ruleName] = obj
 			}
@@ -217,7 +214,7 @@ func (I *Engine) fillDetectorMap() error {
 			I.detectorMap[ruleID] = obj
 			fullSet[ruleID] = false
 		} else {
-			log.Errorf(err.Error())
+			log.Errorf("DLP detector initialization failed")
 		}
 	}
 	// if EnableRules is empty, all rules are loaded

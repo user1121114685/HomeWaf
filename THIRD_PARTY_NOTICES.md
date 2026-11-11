@@ -451,6 +451,7 @@ MapLibre GL JS and its added dependency license texts are retained in [LICENSES/
 | OWASP CRS 4.30.0 | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`crs-provenance`) |
 | ip2region IPv4 XDB | Apache-2.0 OR MIT; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`ip2region-provenance`) |
 | HomeWaf logos, CSS backgrounds and click challenge UI | Original HomeWaf additions; root LICENSE |
+| Short weak-password rejection list in wafenginecore/accessgate/password.go | Project-authored list of common trivial passwords; no external password corpus imported; root LICENSE. Shared by account creation and login/honeypot classification. Attempted passwords are not retained in plaintext. |
 | Monitoring screen country polygons, borders, country and city coordinates | Derived from Natural Earth 1:110m countries and 1:10m populated places, public domain; web/src/pages/dashboard/screen/README.md documents source and generation |
 
 DOMPurify is used under its Apache-2.0 alternative. Browser/system fonts are referenced by family name and are not redistributed.

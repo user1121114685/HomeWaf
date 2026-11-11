@@ -4,7 +4,27 @@ package wafenginecore
 
 import (
 	"HomeWaf/model/wafenginmodel"
+	"context"
+	"net/http"
 )
+
+type legacyRouteContextKey struct{}
+type legacyListenerContextKey struct{}
+
+// Bind the policy identity when constructing the actual listener, never from
+// the client-controlled Host port. Keep Host unchanged for upstream and CSRF.
+func (waf *WafEngine) boundPortHandler(port string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		waf.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), legacyListenerContextKey{}, port)))
+	})
+}
+
+func (waf *WafEngine) requestTable(r *http.Request) *routingTable {
+	if table, ok := r.Context().Value(legacyRouteContextKey{}).(*routingTable); ok {
+		return table
+	}
+	return waf.rt()
+}
 
 // routingTable 不可变路由快照（RCU）。
 //

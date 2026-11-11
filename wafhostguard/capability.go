@@ -77,7 +77,7 @@ func InvalidateCapability() {
 // globalLogPaths 读用户自定义的日志路径配置(逗号分隔)。
 // 单独包一层是为了让平台文件不用直接引 global 包，测试时也好替换。
 func globalLogPaths() string {
-	return global.GCONFIG_HOST_GUARD_LOG_PATHS
+	return global.CurrentSettings().GCONFIG_HOST_GUARD_LOG_PATHS
 }
 
 // checkLogCapability 由各平台文件实现(capability_linux.go / capability_windows.go /

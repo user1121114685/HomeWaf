@@ -199,8 +199,10 @@ rule Rsite001 "站点放行" salience 50 {
 
 // TestShouldRecordWebLog abnormal 模式下"命中了但没拦"的请求必须留痕
 func TestShouldRecordWebLog(t *testing.T) {
-	origin := global.GWAF_RUNTIME_RECORD_LOG_TYPE
-	defer func() { global.GWAF_RUNTIME_RECORD_LOG_TYPE = origin }()
+	origin := global.CurrentSettings().GWAF_RUNTIME_RECORD_LOG_TYPE
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = origin })
+	}()
 
 	cases := []struct {
 		name       string
@@ -231,7 +233,7 @@ func TestShouldRecordWebLog(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			global.GWAF_RUNTIME_RECORD_LOG_TYPE = tc.logType
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = tc.logType })
 			hostSafe := &wafenginmodel.HostSafe{Host: model.Hosts{EXCLUDE_URL_LOG: tc.excludeURL}}
 			if got := shouldRecordWebLog(tc.weblog, hostSafe); got != tc.want {
 				t.Errorf("期望 %v 实际 %v", tc.want, got)

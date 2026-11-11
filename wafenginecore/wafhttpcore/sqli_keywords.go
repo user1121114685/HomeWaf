@@ -32,7 +32,10 @@ func HasHighRiskSQLKeyword(raw string) bool {
 	if raw == "" {
 		return false
 	}
-	s := strings.ToLower(NormalizeForDetection(raw))
+	return HasDecodedHighRiskSQLKeyword(NormalizeForDetection(raw))
+}
+func HasDecodedHighRiskSQLKeyword(raw string) bool {
+	s := strings.ToLower(raw)
 	for _, kw := range sqlHighRiskKeywords {
 		if strings.Contains(s, kw) {
 			return true

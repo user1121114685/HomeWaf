@@ -429,6 +429,7 @@ export default {
     }
   },
   menu: {
+	  pipeline: { parent_title: '端口防护', ports: '端口总览与配置', templates: '防护模板' },
     dashboard: {
       parent_title: "仪表盘",
       dashboard_title: "概览仪表盘",

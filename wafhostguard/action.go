@@ -50,7 +50,7 @@ func ApplyBan(req BanRequest, now time.Time) BanResult {
 
 	// 硬开关：conf/config.yml 或环境变量强制关闭时，连手工封禁也不放行——
 	// 这个开关的使用场景就是"出事了，先让它彻底别动手"。
-	if global.GCONFIG_HOST_GUARD_FORCE_DISABLE {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_FORCE_DISABLE {
 		res.Skipped = "已被配置文件强制关闭主机防爆破"
 		return res
 	}
@@ -72,13 +72,13 @@ func ApplyBan(req BanRequest, now time.Time) BanResult {
 		if !allowBanRate() {
 			res.Skipped = "已达每分钟新增封禁上限，本次跳过"
 			zlog.Warn("[主机登录防护] 触发封禁限速，可能正在遭遇分布式爆破",
-				"ip", req.IP, "上限", global.GCONFIG_HOST_GUARD_BAN_RATE_LIMIT)
+				"ip", req.IP, "上限", global.CurrentSettings().GCONFIG_HOST_GUARD_BAN_RATE_LIMIT)
 			return res
 		}
 		if !ensureCapacity(now) {
 			res.Skipped = "封禁集合已达容量上限且无可淘汰的临时封禁"
 			zlog.Warn("[主机登录防护] 封禁集合已满，请在页面上清理永久封禁或调大容量上限",
-				"上限", global.GCONFIG_HOST_GUARD_MAX_BAN_ENTRIES)
+				"上限", global.CurrentSettings().GCONFIG_HOST_GUARD_MAX_BAN_ENTRIES)
 			return res
 		}
 	}
@@ -130,7 +130,7 @@ func ApplyBan(req BanRequest, now time.Time) BanResult {
 	// 观察模式：到此为止，只记录不动手。
 	// 这是整个功能的安全底线，必须保证一行防火墙规则都不写、一条通知都不发
 	//(发了通知用户会以为真封了)。
-	if !req.Manual && global.GCONFIG_HOST_GUARD_MODE != "block" {
+	if !req.Manual && global.CurrentSettings().GCONFIG_HOST_GUARD_MODE != "block" {
 		res.Observed = true
 		zlog.Info(fmt.Sprintf("[主机登录防护][观察模式] 本应封禁 %s 第%d级%s（%s），当前仅记录不处置",
 			target, level, humanDuration(banMinutes), reason))
@@ -200,7 +200,7 @@ func buildReason(req BanRequest, level int, banMinutes int64) string {
 	if req.Source == SourceRDP {
 		src = "RDP"
 	}
-	reason := fmt.Sprintf("%s登录爆破：%d分钟内失败%d次", src, global.GCONFIG_HOST_GUARD_FIND_TIME, req.HitCount)
+	reason := fmt.Sprintf("%s登录爆破：%d分钟内失败%d次", src, global.CurrentSettings().GCONFIG_HOST_GUARD_FIND_TIME, req.HitCount)
 	if req.FailKinds != "" {
 		reason += "（" + req.FailKinds + "）"
 	}
@@ -301,7 +301,7 @@ func markBanned(ip string, banMinutes int64) {
 // 分布式爆破一次能带来成百上千个源 IP，不限速的话集合瞬间被打满，
 // 后面真正该封的反而挤不进来。
 func allowBanRate() bool {
-	limit := global.GCONFIG_HOST_GUARD_BAN_RATE_LIMIT
+	limit := global.CurrentSettings().GCONFIG_HOST_GUARD_BAN_RATE_LIMIT
 	if limit <= 0 || global.GCACHE_WAFCACHE == nil {
 		return true
 	}
@@ -320,7 +320,7 @@ func allowBanRate() bool {
 // 它们本来也马上就要解封了，牺牲它们的代价最小；永久封禁一律不动，
 // 那是用户明确表达过"这个必须一直封着"的意思。
 func ensureCapacity(now time.Time) bool {
-	limit := global.GCONFIG_HOST_GUARD_MAX_BAN_ENTRIES
+	limit := global.CurrentSettings().GCONFIG_HOST_GUARD_MAX_BAN_ENTRIES
 	if limit <= 0 {
 		return true
 	}
@@ -365,7 +365,7 @@ func ensureCapacity(now time.Time) bool {
 
 // notifyBan 发封禁通知。复用已有的「IP封禁」消息类型，模板/频控/多渠道全都是现成的。
 func notifyBan(ip, reason string, banMinutes, expireTime int64, now time.Time) {
-	if global.GCONFIG_HOST_GUARD_NOTIFY != 1 || global.GQEQUE_MESSAGE_DB == nil {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_NOTIFY != 1 || global.GQEQUE_MESSAGE_DB == nil {
 		return
 	}
 	remaining := 0

@@ -20,17 +20,54 @@ const (
 	WindowMode
 )
 
+const (
+	defaultTrackedIPs   = 20000
+	defaultWindowEvents = 200000
+	maxEventsPerIP      = 4096
+)
+
+// Capacity exhaustion must not make unrelated visitors share a depleted bucket.
+// Existing identities keep their limits; only untracked work degrades to allow.
+var untrackedLimiter = rate.NewLimiter(rate.Inf, 1)
+
 // IPRateLimiter .
 type IPRateLimiter struct {
-	ips      map[string]*rate.Limiter
-	mu       *sync.RWMutex
-	r        rate.Limit
-	b        int
-	mode     LimitMode
-	window   int                    // 时间窗口大小(秒)
-	requests map[string][]time.Time // 用于滑动窗口模式记录请求时间
-	lastSeen map[string]time.Time   // 平均速率模式下每个IP的最后活跃时间，供清理判断空闲
-	Rule     *utils.RuleHelper
+	ips                       map[string]*rate.Limiter
+	mu                        *sync.RWMutex
+	r                         rate.Limit
+	b                         int
+	mode                      LimitMode
+	window                    int                    // 时间窗口大小(秒)
+	requests                  map[string][]time.Time // 用于滑动窗口模式记录请求时间
+	lastSeen                  map[string]time.Time   // 平均速率模式下每个IP的最后活跃时间，供清理判断空闲
+	Rule                      *utils.RuleHelper
+	maxIPs, maxEvents, events int
+	quotaBypasses             uint64
+	lastSweep                 time.Time
+	clock                     func() time.Time
+}
+
+func (i *IPRateLimiter) now() time.Time {
+	if i.clock != nil {
+		return i.clock()
+	}
+	return time.Now()
+}
+
+func (i *IPRateLimiter) limits() {
+	if i.maxIPs <= 0 {
+		i.maxIPs = defaultTrackedIPs
+	}
+	if i.maxEvents <= 0 {
+		i.maxEvents = defaultWindowEvents
+	}
+}
+
+func (i *IPRateLimiter) sweepIfFull(now time.Time) {
+	if now.Sub(i.lastSweep) >= time.Second {
+		i.cleanupLocked(now)
+		i.lastSweep = now
+	}
 }
 
 // NewIPRateLimiter 创建一个新的IP限流器
@@ -75,34 +112,31 @@ func NewWindowIPRateLimiter(window, maxRequests int) *IPRateLimiter {
 	return i
 }
 
-// AddIP creates a new rate limiter and adds it to the ips map,
-// using the IP address as the key
+// AddIP returns the existing bucket or creates it atomically. Repeated calls
+// must not replenish an active client's tokens.
 func (i *IPRateLimiter) AddIP(ip string) *rate.Limiter {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	limiter := rate.NewLimiter(i.r, i.b)
-
-	i.ips[ip] = limiter
-	i.requests[ip] = []time.Time{}
-	i.lastSeen[ip] = time.Now()
-
-	return limiter
+	return i.GetLimiter(ip)
 }
 
-// GetLimiter returns the rate limiter for the provided IP address if it exists.
-// Otherwise calls AddIP to add IP address to the map
+// GetLimiter resolves and creates a bucket while holding the same lock.
 func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
 	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.limits()
+	now := i.now()
 	limiter, exists := i.ips[ip]
-
 	if !exists {
-		i.mu.Unlock()
-		return i.AddIP(ip)
+		if len(i.ips) >= i.maxIPs {
+			i.sweepIfFull(now)
+		}
+		if len(ip) > 128 || len(i.ips) >= i.maxIPs {
+			i.quotaBypasses++
+			return untrackedLimiter
+		}
+		limiter = rate.NewLimiter(i.r, i.b)
+		i.ips[ip] = limiter
 	}
-	i.lastSeen[ip] = time.Now()
-	i.mu.Unlock()
-
+	i.lastSeen[ip] = now
 	return limiter
 }
 
@@ -123,31 +157,51 @@ func (i *IPRateLimiter) allowByWindow(ip string) bool {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
-	now := time.Now()
+	i.limits()
+	now := i.now()
 	windowStart := now.Add(-time.Duration(i.window) * time.Second)
-
-	// 如果IP不存在，初始化
-	if _, exists := i.requests[ip]; !exists {
-		i.requests[ip] = []time.Time{}
+	if _, exists := i.requests[ip]; !exists && len(i.requests) >= i.maxIPs {
+		i.sweepIfFull(now)
 	}
-
-	// 清理过期的请求记录
-	var validRequests []time.Time
-	for _, t := range i.requests[ip] {
-		if t.After(windowStart) { // 修改：添加Equal条件，确保边界值也被包含|| t.Equal(windowStart)
-			validRequests = append(validRequests, t)
-		}
+	_, exists := i.requests[ip]
+	if len(ip) > 128 || (!exists && len(i.requests) >= i.maxIPs) {
+		i.quotaBypasses++
+		return true
 	}
+	validRequests := i.trimWindow(ip, windowStart)
 
 	// 检查是否超过限制
 	if len(validRequests) >= i.b {
-		i.requests[ip] = validRequests
 		return false
 	}
-
-	// 记录新请求
+	if len(validRequests) >= maxEventsPerIP || i.events >= i.maxEvents {
+		i.sweepIfFull(now)
+		validRequests = i.trimWindow(ip, windowStart)
+		if len(validRequests) >= maxEventsPerIP || i.events >= i.maxEvents {
+			i.quotaBypasses++
+			return true
+		}
+	}
 	i.requests[ip] = append(validRequests, now)
+	i.events++
 	return true
+}
+
+func (i *IPRateLimiter) trimWindow(ip string, cutoff time.Time) []time.Time {
+	previous := i.requests[ip]
+	valid := previous[:0]
+	for _, at := range previous {
+		if at.After(cutoff) {
+			valid = append(valid, at)
+		}
+	}
+	i.events -= len(previous) - len(valid)
+	if len(valid) == 0 {
+		delete(i.requests, ip)
+		return nil
+	}
+	i.requests[ip] = valid
+	return valid
 }
 
 // CleanupOldRecords 清理过期的请求记录
@@ -155,7 +209,10 @@ func (i *IPRateLimiter) CleanupOldRecords() {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
-	now := time.Now()
+	i.cleanupLocked(i.now())
+}
+
+func (i *IPRateLimiter) cleanupLocked(now time.Time) {
 
 	if i.mode == RateMode {
 		// 平均速率模式下 requests 里没有时间戳，不能拿窗口去判过期——那样每次清理都会把
@@ -177,20 +234,14 @@ func (i *IPRateLimiter) CleanupOldRecords() {
 
 	windowStart := now.Add(-time.Duration(i.window) * time.Second)
 
-	for ip, times := range i.requests {
-		var validRequests []time.Time
-		for _, t := range times {
-			if t.After(windowStart) {
-				validRequests = append(validRequests, t)
-			}
-		}
-
-		if len(validRequests) == 0 {
-			delete(i.requests, ip)
+	i.events = 0
+	for _, times := range i.requests {
+		i.events += len(times)
+	}
+	for ip := range i.requests {
+		if len(i.trimWindow(ip, windowStart)) == 0 {
 			delete(i.ips, ip)
 			delete(i.lastSeen, ip)
-		} else {
-			i.requests[ip] = validRequests
 		}
 	}
 }
@@ -203,7 +254,8 @@ func (i *IPRateLimiter) ClearWindowForIP(ip string) {
 
 	// 清空滑动窗口记录
 	if _, exists := i.requests[ip]; exists {
-		i.requests[ip] = []time.Time{}
+		i.events -= len(i.requests[ip])
+		delete(i.requests, ip)
 	}
 
 	// 重置令牌桶（用于平均速率模式）
@@ -219,7 +271,7 @@ func (i *IPRateLimiter) GetRequestCount(ip string) int {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
-	now := time.Now()
+	now := i.now()
 	windowStart := now.Add(-time.Duration(i.window) * time.Second)
 
 	if _, exists := i.requests[ip]; !exists {
@@ -228,7 +280,7 @@ func (i *IPRateLimiter) GetRequestCount(ip string) int {
 
 	count := 0
 	for _, t := range i.requests[ip] {
-		if t.After(windowStart) || t.Equal(windowStart) {
+		if t.After(windowStart) {
 			count++
 		}
 	}
@@ -258,4 +310,14 @@ func (i *IPRateLimiter) TrackedIPCount() int {
 		return len(i.requests)
 	}
 	return len(i.ips)
+}
+
+func (i *IPRateLimiter) ResourceStats() (ips, events int, quotaBypasses uint64) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	ips = len(i.ips)
+	if i.mode == WindowMode {
+		ips = len(i.requests)
+	}
+	return ips, i.events, i.quotaBypasses
 }

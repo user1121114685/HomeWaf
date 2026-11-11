@@ -129,13 +129,13 @@ func TestHTTP3HandshakeIgnoresSSLMaxVersionConfig(t *testing.T) {
 		t.Run("ssl_max_version="+maxVer, func(t *testing.T) {
 			restore := setHTTP3Config(t, 1, 0)
 			defer restore()
-			oldMax := global.GCONFIG_RECORD_SSLMaxVerson
-			oldMin := global.GCONFIG_RECORD_SSLMinVerson
-			global.GCONFIG_RECORD_SSLMaxVerson = maxVer
-			global.GCONFIG_RECORD_SSLMinVerson = "TLS 1.2"
+			oldMax := global.CurrentSettings().GCONFIG_RECORD_SSLMaxVerson
+			oldMin := global.CurrentSettings().GCONFIG_RECORD_SSLMinVerson
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_SSLMaxVerson = maxVer })
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_SSLMinVerson = "TLS 1.2" })
 			defer func() {
-				global.GCONFIG_RECORD_SSLMaxVerson = oldMax
-				global.GCONFIG_RECORD_SSLMinVerson = oldMin
+				global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_SSLMaxVerson = oldMax })
+				global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_SSLMinVerson = oldMin })
 			}()
 
 			waf := newCertOnlyEngine(t)
@@ -219,7 +219,7 @@ func TestReconcileHTTP3StartsAndStops(t *testing.T) {
 		t.Error("reconcile 不幂等：同样配置下重建了 h3 实例")
 	}
 
-	global.GCONFIG_ENABLE_HTTP3 = 0
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_HTTP3 = 0 })
 	waf.ReconcileHTTP3()
 	if holder.Server() != nil {
 		t.Error("http3=0 时 reconcile 没有停止 QUIC 监听")
@@ -276,16 +276,16 @@ func TestAltSvcHandlerOnlyAdvertisesWhenH3Active(t *testing.T) {
 // setHTTP3Config 设置 http3/http3_bbr 全局开关，返回还原函数。
 func setHTTP3Config(t *testing.T, enable, bbr int64) func() {
 	t.Helper()
-	oldEnable := global.GCONFIG_ENABLE_HTTP3
-	oldBBR := global.GCONFIG_ENABLE_HTTP3_BBR
-	oldDrain := global.GCONFIG_RECORD_DRAIN_TIMEOUT
-	global.GCONFIG_ENABLE_HTTP3 = enable
-	global.GCONFIG_ENABLE_HTTP3_BBR = bbr
-	global.GCONFIG_RECORD_DRAIN_TIMEOUT = 2
+	oldEnable := global.CurrentSettings().GCONFIG_ENABLE_HTTP3
+	oldBBR := global.CurrentSettings().GCONFIG_ENABLE_HTTP3_BBR
+	oldDrain := global.CurrentSettings().GCONFIG_RECORD_DRAIN_TIMEOUT
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_HTTP3 = enable })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_HTTP3_BBR = bbr })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_DRAIN_TIMEOUT = 2 })
 	return func() {
-		global.GCONFIG_ENABLE_HTTP3 = oldEnable
-		global.GCONFIG_ENABLE_HTTP3_BBR = oldBBR
-		global.GCONFIG_RECORD_DRAIN_TIMEOUT = oldDrain
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_HTTP3 = oldEnable })
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_HTTP3_BBR = oldBBR })
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_DRAIN_TIMEOUT = oldDrain })
 	}
 }
 

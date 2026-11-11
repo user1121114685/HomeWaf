@@ -39,7 +39,7 @@ func (waf *WafEngine) CheckSql(r *http.Request, weblogbean *innerbean.WebLog, fo
 	}
 	if sqlFlag == false {
 		for key, value := range formValue {
-			if isBodyFieldExcluded(key) { // E：已知富文本字段整体跳过
+			if isBodyFieldExcluded(key, r) { // E：已知富文本字段整体跳过
 				continue
 			}
 			for _, v := range value {
@@ -66,10 +66,10 @@ func (waf *WafEngine) CheckSql(r *http.Request, weblogbean *innerbean.WebLog, fo
 		return result
 	}
 	// JSON 请求体逐值检测（S1 新增）：受 body_detect_mode 门控 + 字段排除(E) + 跳过结构化数据值
-	if bodyDetectEnabled() {
+	if bodyDetectEnabled(r) {
 		hit := false
 		for i, v := range weblogbean.BodyValues {
-			if isBodyFieldExcluded(fieldAt(weblogbean.BodyFields, i)) {
+			if isBodyFieldExcluded(fieldAt(weblogbean.BodyFields, i), r) {
 				continue
 			}
 			if wafhttpcore.HasHighRiskSQLKeyword(v) { // 高危关键字：不跳过结构化
@@ -88,7 +88,7 @@ func (waf *WafEngine) CheckSql(r *http.Request, weblogbean *innerbean.WebLog, fo
 			hit = headerSQLHit(r)
 		}
 		if hit {
-			if bodyDetectBlocking() {
+			if bodyDetectBlocking(r) {
 				weblogbean.RISK_LEVEL = 2
 				result.IsBlock = true
 				result.Title = "SQL注入"

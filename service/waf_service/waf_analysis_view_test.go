@@ -239,13 +239,15 @@ func TestAnalysisDetailPath(t *testing.T) {
 // 阈值来自系统配置，改了要跟着走；「疑似」计数按阈值现算。
 func TestAnalysisThresholdCounts(t *testing.T) {
 	setupAnalysisViewDB(t)
-	oldScan, oldUa := global.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD, global.GDATA_ANALYSIS_UA_THRESHOLD
+	oldScan, oldUa := global.CurrentSettings().GDATA_ANALYSIS_SCAN_PATH_THRESHOLD, global.CurrentSettings().GDATA_ANALYSIS_UA_THRESHOLD
 	t.Cleanup(func() {
-		global.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD, global.GDATA_ANALYSIS_UA_THRESHOLD = oldScan, oldUa
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD, cfg.GDATA_ANALYSIS_UA_THRESHOLD = oldScan, oldUa
+		})
 	})
 
-	global.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD = 5
-	global.GDATA_ANALYSIS_UA_THRESHOLD = 3
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD = 5 })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ANALYSIS_UA_THRESHOLD = 3 })
 	resp := WafAnalysisViewServiceApp.ActorListApi(request.WafAnalysisActorReq{Day: avDay})
 	if resp.ScanActor != 1 || resp.UaActor != 1 {
 		t.Fatalf("阈值 5/3 时各应命中 1 个，实际 scan=%d ua=%d", resp.ScanActor, resp.UaActor)
@@ -254,7 +256,7 @@ func TestAnalysisThresholdCounts(t *testing.T) {
 		t.Fatal("返回的阈值应是当前配置值，界面要拿它显示")
 	}
 
-	global.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD = 99
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD = 99 })
 	resp = WafAnalysisViewServiceApp.ActorListApi(request.WafAnalysisActorReq{Day: avDay})
 	if resp.ScanActor != 0 {
 		t.Fatalf("阈值调到 99 后不该有人命中，实际 %d", resp.ScanActor)

@@ -27,11 +27,11 @@ func withHTTP3Chan(t *testing.T) chan int {
 // withHTTP3Globals 保存/还原两个开关的全局值。
 func withHTTP3Globals(t *testing.T) {
 	t.Helper()
-	oldEnable := global.GCONFIG_ENABLE_HTTP3
-	oldBBR := global.GCONFIG_ENABLE_HTTP3_BBR
+	oldEnable := global.CurrentSettings().GCONFIG_ENABLE_HTTP3
+	oldBBR := global.CurrentSettings().GCONFIG_ENABLE_HTTP3_BBR
 	t.Cleanup(func() {
-		global.GCONFIG_ENABLE_HTTP3 = oldEnable
-		global.GCONFIG_ENABLE_HTTP3_BBR = oldBBR
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_HTTP3 = oldEnable })
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_HTTP3_BBR = oldBBR })
 	})
 }
 
@@ -45,8 +45,8 @@ func TestHTTP3ConfigChangeNotifiesEngine(t *testing.T) {
 
 	setConfigIntValue("http3", 1, 1)
 
-	if global.GCONFIG_ENABLE_HTTP3 != 1 {
-		t.Fatalf("GCONFIG_ENABLE_HTTP3 = %d, 期望 1", global.GCONFIG_ENABLE_HTTP3)
+	if global.CurrentSettings().GCONFIG_ENABLE_HTTP3 != 1 {
+		t.Fatalf("GCONFIG_ENABLE_HTTP3 = %d, 期望 1", global.CurrentSettings().GCONFIG_ENABLE_HTTP3)
 	}
 	if got := signalCount(ch); got != 1 {
 		t.Fatalf("期望投递 1 次引擎对齐信号，实际 %d 次。"+
@@ -61,8 +61,8 @@ func TestHTTP3InitLoadDoesNotNotify(t *testing.T) {
 
 	setConfigIntValue("http3", 1, 0)
 
-	if global.GCONFIG_ENABLE_HTTP3 != 1 {
-		t.Fatalf("GCONFIG_ENABLE_HTTP3 = %d, 期望 1", global.GCONFIG_ENABLE_HTTP3)
+	if global.CurrentSettings().GCONFIG_ENABLE_HTTP3 != 1 {
+		t.Fatalf("GCONFIG_ENABLE_HTTP3 = %d, 期望 1", global.CurrentSettings().GCONFIG_ENABLE_HTTP3)
 	}
 	if got := signalCount(ch); got != 0 {
 		t.Fatalf("初始化加载不应投递信号，实际投了 %d 次", got)
@@ -75,8 +75,8 @@ func TestHTTP3BBRChangeNotifiesEngine(t *testing.T) {
 
 	setConfigIntValue("http3_bbr", 1, 1)
 
-	if global.GCONFIG_ENABLE_HTTP3_BBR != 1 {
-		t.Fatalf("GCONFIG_ENABLE_HTTP3_BBR = %d, 期望 1", global.GCONFIG_ENABLE_HTTP3_BBR)
+	if global.CurrentSettings().GCONFIG_ENABLE_HTTP3_BBR != 1 {
+		t.Fatalf("GCONFIG_ENABLE_HTTP3_BBR = %d, 期望 1", global.CurrentSettings().GCONFIG_ENABLE_HTTP3_BBR)
 	}
 	if got := signalCount(ch); got != 1 {
 		t.Fatalf("拥塞算法变更也需要重建 QUIC 监听，期望投递 1 次信号，实际 %d 次", got)
@@ -88,11 +88,11 @@ func TestHTTP3GlobalAssignedBeforeNotify(t *testing.T) {
 	withHTTP3Globals(t)
 	ch := withHTTP3Chan(t)
 
-	global.GCONFIG_ENABLE_HTTP3 = 0
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_HTTP3 = 0 })
 	done := make(chan int64, 1)
 	go func() {
 		<-ch
-		done <- global.GCONFIG_ENABLE_HTTP3
+		done <- global.CurrentSettings().GCONFIG_ENABLE_HTTP3
 	}()
 
 	setConfigIntValue("http3", 1, 1)

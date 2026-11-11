@@ -1,6 +1,7 @@
 package loadbalance
 
 import (
+	"errors"
 	"strconv"
 )
 
@@ -68,20 +69,30 @@ func (r *WeightRoundRobinBalance) Get() (int, error) {
 
 // GetHealthy 获取健康的节点
 func (r *WeightRoundRobinBalance) GetHealthy(isHealthyFunc func(hostCode, backendID string) bool) (int, error) {
-	// 先尝试获取一个健康的节点
-	for i := 0; i < len(r.rss); i++ {
-		next := r.Next()
-		if next == -1 {
-			break
+	// Repeated Next() can choose one high-weight unhealthy node N times and
+	// never visit a healthy low-weight node. Select among healthy nodes in one
+	// weighted pass instead of treating the number of nodes as an attempt cap.
+	total := 0
+	var best *WeightNode
+	for _, node := range r.rss {
+		if !isHealthyFunc(r.hostCode, strconv.Itoa(node.addr)) {
+			continue
 		}
-
-		backendID := strconv.Itoa(next)
-		currentHealthy := isHealthyFunc(r.hostCode, backendID)
-		if currentHealthy {
-			return next, nil
+		total += node.effectiveWeight
+		node.currentWeight += node.effectiveWeight
+		if node.effectiveWeight < node.weight {
+			node.effectiveWeight++
+		}
+		if best == nil || node.currentWeight > best.currentWeight {
+			best = node
 		}
 	}
-	// 如果没有健康节点，返回第一个节点
+	if best != nil {
+		best.currentWeight -= total
+		return best.addr, nil
+	}
+	if len(r.rss) == 0 {
+		return -1, errors.New("no backends configured")
+	}
 	return r.rss[0].addr, nil
-
 }

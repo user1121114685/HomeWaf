@@ -23,7 +23,7 @@ func buildClientQuery() string {
 	parts := []string{
 		"v=" + url.QueryEscape(global.GWAF_RELEASE_VERSION),
 	}
-	if global.GCONFIG_UPDATE_ENV_REPORT {
+	if global.CurrentSettings().GCONFIG_UPDATE_ENV_REPORT {
 		parts = append(parts,
 			"os="+url.QueryEscape(runtime.GOOS),
 			"arch="+url.QueryEscape(runtime.GOARCH),

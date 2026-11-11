@@ -44,7 +44,7 @@ func shouldRecordWebLog(weblog *innerbean.WebLog, hostSafe *wafenginmodel.HostSa
 	if !weblog.IsSecurityEvent() && isIPLogExcluded(weblog.SRC_IP, hostSafe) {
 		return false
 	}
-	switch global.GWAF_RUNTIME_RECORD_LOG_TYPE {
+	switch global.CurrentSettings().GWAF_RUNTIME_RECORD_LOG_TYPE {
 	case "all":
 		return true
 	case "abnormal":

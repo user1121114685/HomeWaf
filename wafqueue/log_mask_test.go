@@ -33,9 +33,11 @@ func webdavLog() *innerbean.WebLog {
 }
 
 func TestExtractPayloadMasksCredentials(t *testing.T) {
-	old := global.GCONFIG_RECORD_LOG_DESENSITIZE
-	global.GCONFIG_RECORD_LOG_DESENSITIZE = 1
-	defer func() { global.GCONFIG_RECORD_LOG_DESENSITIZE = old }()
+	old := global.CurrentSettings().GCONFIG_RECORD_LOG_DESENSITIZE
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = 1 })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = old })
+	}()
 
 	lg := webdavLog()
 	rawHeader := lg.HEADER
@@ -59,12 +61,12 @@ func TestExtractPayloadMasksCredentials(t *testing.T) {
 		t.Fatalf("非敏感头不应被动过: %q", p.HEADER)
 	}
 
-	// Cookie：敏感名脱敏、普通名保留
+	// All cookie values are hidden: applications may use any cookie name for sessions.
 	if strings.Contains(p.COOKIES, "sessi0nvalue") || !strings.Contains(p.COOKIES, maskedMarker) {
 		t.Fatalf("敏感 Cookie 未脱敏: %q", p.COOKIES)
 	}
-	if !strings.Contains(p.COOKIES, "dark") {
-		t.Fatalf("普通 Cookie 不应被脱敏: %q", p.COOKIES)
+	if strings.Contains(p.COOKIES, "dark") {
+		t.Fatalf("all cookie values must be masked: %q", p.COOKIES)
 	}
 
 	// 表单：密码脱敏、其他字段保留
@@ -95,25 +97,29 @@ func TestExtractPayloadMasksCredentials(t *testing.T) {
 	}
 }
 
-func TestExtractPayloadMaskDisabledStoresRaw(t *testing.T) {
-	old := global.GCONFIG_RECORD_LOG_DESENSITIZE
-	global.GCONFIG_RECORD_LOG_DESENSITIZE = 0
-	defer func() { global.GCONFIG_RECORD_LOG_DESENSITIZE = old }()
+func TestExtractPayloadSecretsMandatoryEvenWhenDLPDisabled(t *testing.T) {
+	old := global.CurrentSettings().GCONFIG_RECORD_LOG_DESENSITIZE
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = 0 })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = old })
+	}()
 
 	p := extractPayload(webdavLog(), PayloadKindEvent)
 	if p == nil {
 		t.Fatal("报文不应为空")
 	}
-	if !strings.Contains(p.HEADER, "dXNlcjpwYXNzd29yZA0K") {
-		t.Fatalf("开关关闭时应原样落库: %q", p.HEADER)
+	if strings.Contains(p.HEADER, "dXNlcjpwYXNzd29yZA0K") || !strings.Contains(p.HEADER, maskedMarker) {
+		t.Fatalf("credentials must remain masked with DLP disabled: %q", p.HEADER)
 	}
 }
 
 // TestExtractPayloadMaskNotTruncated 脱敏缩短内容不得误标 Truncated。
 func TestExtractPayloadMaskNotTruncated(t *testing.T) {
-	old := global.GCONFIG_RECORD_LOG_DESENSITIZE
-	global.GCONFIG_RECORD_LOG_DESENSITIZE = 1
-	defer func() { global.GCONFIG_RECORD_LOG_DESENSITIZE = old }()
+	old := global.CurrentSettings().GCONFIG_RECORD_LOG_DESENSITIZE
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = 1 })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = old })
+	}()
 
 	p := extractPayload(webdavLog(), PayloadKindEvent)
 	if p.Truncated != 0 {
@@ -123,9 +129,11 @@ func TestExtractPayloadMaskNotTruncated(t *testing.T) {
 
 // TestNarrowMasksQueryCredentials 窄行 URL/RawQuery 的查询串凭证同样落库前抹掉。
 func TestNarrowMasksQueryCredentials(t *testing.T) {
-	old := global.GCONFIG_RECORD_LOG_DESENSITIZE
-	global.GCONFIG_RECORD_LOG_DESENSITIZE = 1
-	defer func() { global.GCONFIG_RECORD_LOG_DESENSITIZE = old }()
+	old := global.CurrentSettings().GCONFIG_RECORD_LOG_DESENSITIZE
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = 1 })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = old })
+	}()
 
 	ln := narrowFromLog(webdavLog())
 	if strings.Contains(ln.URL, "9n8kss") || !strings.Contains(ln.URL, "api_key="+maskedMarker) {
@@ -139,9 +147,9 @@ func TestNarrowMasksQueryCredentials(t *testing.T) {
 		t.Fatalf("脱敏不等于截断，Truncated 应为 0，实际 %d", ln.Truncated)
 	}
 
-	global.GCONFIG_RECORD_LOG_DESENSITIZE = 0
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = 0 })
 	ln = narrowFromLog(webdavLog())
-	if !strings.Contains(ln.URL, "9n8kss") {
-		t.Fatalf("开关关闭时窄行应原样落库: %q", ln.URL)
+	if strings.Contains(ln.URL, "9n8kss") || !strings.Contains(ln.URL, maskedMarker) {
+		t.Fatalf("query credentials must remain masked with DLP disabled: %q", ln.URL)
 	}
 }

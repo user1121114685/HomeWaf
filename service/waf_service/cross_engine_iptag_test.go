@@ -63,14 +63,14 @@ func findAttackIP(list []model.AttackIPTag, ip string) (model.AttackIPTag, bool)
 
 func runIPTagCases(t *testing.T, coredb *gorm.DB, statsdb *gorm.DB) {
 	svc := WafLogService{}
-	oldExclude := global.GCONFIG_ATTACK_TAG_EXCLUDE
+	oldExclude := global.CurrentSettings().GCONFIG_ATTACK_TAG_EXCLUDE
 	// 本用例直接往核心库塞数据，读取走 GetIPTagDB()，所以归属必须钉在核心库。
 	// 新装默认已经是统计库，不钉住的话读的是另一个库，查出来全是空。
-	oldTagDB := global.GDATA_IP_TAG_DB
-	global.GDATA_IP_TAG_DB = 0
+	oldTagDB := global.CurrentSettings().GDATA_IP_TAG_DB
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_IP_TAG_DB = 0 })
 	defer func() {
-		global.GCONFIG_ATTACK_TAG_EXCLUDE = oldExclude
-		global.GDATA_IP_TAG_DB = oldTagDB
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ATTACK_TAG_EXCLUDE = oldExclude })
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_IP_TAG_DB = oldTagDB })
 	}()
 
 	// 干净起步：本用例独占 ip_tags 与 stats_ip_days
@@ -89,7 +89,9 @@ func runIPTagCases(t *testing.T, coredb *gorm.DB, statsdb *gorm.DB) {
 	seedIPDay(t, statsdb, "1.1.1.1", "阻止", 3)
 	seedIPDay(t, statsdb, "2.2.2.2", "放行", 5)
 
-	global.GCONFIG_ATTACK_TAG_EXCLUDE = "ACME证书校验,静态文件访问成功"
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+		cfg.GCONFIG_ATTACK_TAG_EXCLUDE = "ACME证书校验,静态文件访问成功"
+	})
 
 	// —— 规则筛选列表：只剩真攻击标签，且 count 单独返回 ——
 	t.Run("tag_list_excludes_benign", func(t *testing.T) {
@@ -144,8 +146,12 @@ func runIPTagCases(t *testing.T, coredb *gorm.DB, statsdb *gorm.DB) {
 
 	// —— 清空排除配置：ACME 立刻回到风险口径（证明配置真的生效，不是写死的） ——
 	t.Run("empty_exclude_restores_acme", func(t *testing.T) {
-		global.GCONFIG_ATTACK_TAG_EXCLUDE = ""
-		defer func() { global.GCONFIG_ATTACK_TAG_EXCLUDE = "ACME证书校验,静态文件访问成功" }()
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ATTACK_TAG_EXCLUDE = "" })
+		defer func() {
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+				cfg.GCONFIG_ATTACK_TAG_EXCLUDE = "ACME证书校验,静态文件访问成功"
+			})
+		}()
 
 		tagList, err := svc.GetAllAttackIPTagListApi(false)
 		fatalIf(t, err)

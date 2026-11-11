@@ -1,0 +1,3278 @@
+{
+  "source": "HomeWaf-AI-Instructions.md",
+  "source_sha256": "c0638a9a3f5bf4cd0cef64e96e8fd2582694c88dbed18fb8103eaf9336b96df8",
+  "reviewed_at_commit": "ad11410625bc7e91dfafc912e0d577832ddd91ae",
+  "overall_status": "必需功能已实现，已执行验收通过；原文件所有条款并非无例外满足，保留可选项、未执行验证与历史流程偏差",
+  "requirements": [
+    {
+      "id": "L0008",
+      "line": 8,
+      "section": "1.1 必须遵守",
+      "requirement": "1. **以本仓库真实代码为准。** 仓库源自 SamWaf，但已经大幅偏离上游。不要凭对上游的记忆假设文件位置、函数名、表结构、行为。任何“现有代码是这样的”的结论，都必须给出证据（文件路径 + 行号）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/decisions.md:53；按实际代码/小步提交记录审计；不降低安全断言，不改原指令和LICENSE/NOTICE。最终verify已检查许可清单。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0009",
+      "line": 9,
+      "section": "1.1 必须遵守",
+      "requirement": "2. **复用优先，改善优先。** 先找现有实现；能改就不新写；发现重复实现就合并；发现缺陷先记录到 `docs/waf-pipeline/findings.md`，范围内且有测试覆盖的再修。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/decisions.md:53；按实际代码/小步提交记录审计；不降低安全断言，不改原指令和LICENSE/NOTICE。最终verify已检查许可清单。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0010",
+      "line": 10,
+      "section": "1.1 必须遵守",
+      "requirement": "3. **小步可回退。** 每个阶段拆成多个小提交；新行为由开关控制；不做一次性大重写。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/decisions.md:53；按实际代码/小步提交记录审计；不降低安全断言，不改原指令和LICENSE/NOTICE。最终verify已检查许可清单。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0011",
+      "line": 11,
+      "section": "1.1 必须遵守",
+      "requirement": "4. **不破坏已有用户。** v2.0.1 已发布，已有数据库和配置必须能平滑升级，不得要求用户重装或清库。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafdb/schema_core.go:115；service/waf_service/waf_pipeline_v201_test.go:19；scripts/verify-pipeline-migration.ps1:4；旧库复制升级与真实业务迁入；源库hash不变，无清库/自动启动。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0012",
+      "line": 12,
+      "section": "1.1 必须遵守",
+      "requirement": "5. **默认零新增出站请求。** 联网库、IP 库更新等功能必须显式开启，只访问用户配置的 HTTPS 地址，下载内容必须验签（见 6.2 / 5.2.4）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline_feed.go:104；iplocation/signature.go:1；waftask/threatip/signed_fetch.go:1；service/waf_service/waf_threat_ip_signed_test.go:27；默认不新增出站；旧未签名渠道零联网、缓存保留；签名下载必须显式HTTPS和信任库。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0013",
+      "line": 13,
+      "section": "1.1 必须遵守",
+      "requirement": "6. **安全默认值。** 新功能默认值应在“不误伤家人”和“不裸奔”之间取稳妥值，见第 3 节。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:291；wafpipeline/templates.go:20；wafpipeline/detectors_test.go:52；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0014",
+      "line": 14,
+      "section": "1.1 必须遵守",
+      "requirement": "7. **保护自身。** 新增敏感字段（令牌、密钥）沿用现有实例密钥加密机制（`.homewaf-keys/`）；日志中不得出现明文口令、令牌、Cookie。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline.go:210；service/waf_service/waf_pipeline_plugins_test.go:11；docs/waf-pipeline/RECOVERY-auth-report.md:1；账号/证书/插件/DLP/基线加密存储，模板投影排除敏感值。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0015",
+      "line": 15,
+      "section": "1.1 必须遵守",
+      "requirement": "8. **许可与依赖。** 不改 `LICENSE`、`NOTICE`；新增第三方依赖必须同步更新 `THIRD_PARTY_NOTICES.md` 与 `LICENSES/`，并通过 `node scripts/verify.mjs`。不引入 CGO（默认 `CGO_ENABLED=0`）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/decisions.md:53；按实际代码/小步提交记录审计；不降低安全断言，不改原指令和LICENSE/NOTICE。最终verify已检查许可清单。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0016",
+      "line": 16,
+      "section": "1.1 必须遵守",
+      "requirement": "9. **歧义处理。** 先按第 3 节默认决策执行，并把假设写入 `docs/waf-pipeline/decisions.md`。只有会造成不可逆后果（删数据、破坏兼容）时才停下来问我。",
+      "status": "按用户后续要求执行",
+      "evidence": "AGENTS.md:8；docs/waf-pipeline/WORKLOG.md:13；用户后续授权连续执行、合理默认决策，不再在阶段之间等待。",
+      "remaining": ""
+    },
+    {
+      "id": "L0017",
+      "line": 17,
+      "section": "1.1 必须遵守",
+      "requirement": "10. **多端口隔离。** 每个监听端口是独立的配置单元（见 2.3、9.6）。任何功能都按端口设计，不得引入跨端口的全局可变状态，共享项以 9.6.1 为准。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0021",
+      "line": 21,
+      "section": "1.2 禁止",
+      "requirement": "- 禁止删除现有功能而不在汇报中列出。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/decisions.md:53；按实际代码/小步提交记录审计；不降低安全断言，不改原指令和LICENSE/NOTICE。最终verify已检查许可清单。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0022",
+      "line": 22,
+      "section": "1.2 禁止",
+      "requirement": "- 禁止为了让测试通过而放宽或删除断言。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/decisions.md:53；按实际代码/小步提交记录审计；不降低安全断言，不改原指令和LICENSE/NOTICE。最终verify已检查许可清单。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0023",
+      "line": 23,
+      "section": "1.2 禁止",
+      "requirement": "- 禁止把“上游行为”当作事实写进文档。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/decisions.md:53；按实际代码/小步提交记录审计；不降低安全断言，不改原指令和LICENSE/NOTICE。最终verify已检查许可清单。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0024",
+      "line": 24,
+      "section": "1.2 禁止",
+      "requirement": "- 禁止在请求热路径上做阻塞式数据库写入（日志与统计走异步队列，见 9.3）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate_store.go:145；wafpipeline/punishment.go:117；service/waf_service/waf_pipeline_state.go:133；global/config.go:518；原生请求读内存快照、有界队列；旧活动写入已异步。旧认证缓存未命中/Redis仍可能读远端，未把该边界称为零IO。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0063",
+      "line": 63,
+      "section": "2.1 两个必须区分的概念",
+      "requirement": "- **规则动作**：作用于**本次请求**（放行、拒绝、挑战、仅观察）。由第 3 步规则决定。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:54；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:208；本次动作与改变后续请求的异步处罚分离。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0064",
+      "line": 64,
+      "section": "2.1 两个必须区分的概念",
+      "requirement": "- **命中限制（处罚）**：作用于该 IP 的**后续请求**（拉黑、蜜罐、全局锁定）。由第 4 步决定。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:54；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:208；本次动作与改变后续请求的异步处罚分离。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0097",
+      "line": 97,
+      "section": "2.3 配置单元：监听端口，每个端口独立配置",
+      "requirement": "- 一个监听端口（如 `:5000`、`:5001`）= 一个**防护单元**，拥有**自己的一整套**配置：访问开关、IP 组、规则集、命中限制、蜜罐、登录门（含账号密码）、上游地址、转发设置。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0098",
+      "line": 98,
+      "section": "2.3 配置单元：监听端口，每个端口独立配置",
+      "requirement": "- 用户可能同时监听很多个端口。端口之间**默认完全隔离**：配置、计数器、会话、锁定状态互不影响（少数共享项见 9.6.1）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0099",
+      "line": 99,
+      "section": "2.3 配置单元：监听端口，每个端口独立配置",
+      "requirement": "- 每个端口都可以**应用模板**作为起点（模板 = 一整套配置的预设，见 9.6.2），之后每个端口**单独调整**；修改一个端口不得影响其他端口。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0100",
+      "line": 100,
+      "section": "2.3 配置单元：监听端口，每个端口独立配置",
+      "requirement": "- 一个端口的全部设置集中在**同一个配置页**，按五步顺序排列。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0101",
+      "line": 101,
+      "section": "2.3 配置单元：监听端口，每个端口独立配置",
+      "requirement": "- 任何功能都必须以端口为单元设计；**禁止引入跨端口的全局可变状态**（9.6.1 列出的共享项除外）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0109",
+      "line": 109,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D1 / 第 1 步“允许访问开关”关闭的语义 / 关闭后**拒绝所有请求（含白名单）**；响应方式可配：503 页面 / 直接断开；**管理端口（默认 26666）永不受影响**；既有长连接按 `drain_time_out` 处理 / 开关是总闸，位于最前；管理端独立端口不会把自己锁死",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/runtime.go:101；wafpipeline/listeners.go:58；wafpipeline/ip_test.go:25；wafpipeline/listeners_test.go:82；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0110",
+      "line": 110,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D2 / 白名单语义 / 白名单条目带 `trust` 属性：手动添加的 IP/CIDR 默认 `trusted`（跳过第 3、4 步）；**区域白名单默认 `allow_only`（只表示允许通过第 2 步的门，仍要过第 3、4 步）** / 区域白名单如果“免检”，等于对整个国家/省份关闭 WAF，风险过大",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；web/src/pages/waf/pipeline/PortEditor.vue:37；wafpipeline/templates.go:26；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0111",
+      "line": 111,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D3 / “身份认证”的含义 / **WAF 前置登录门**：访问真实业务前，必须先在 WAF 上用**该端口自己的账号密码**登录；每个端口独立账号体系（不同端口可有不同账号、不同模式，也可关闭）。默认**表单登录页 + 会话 Cookie**；Basic 为可选模式；`trusted` 白名单默认免登录。业务自身登录接口的失败计数降为 7.3 的可选信号。详见 6.5 / 用户已明确：先输入本端口账号密码再进业务",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0112",
+      "line": 112,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D4 / “联网数据库（VIP）”的来源 / 实现为 **Provider 接口 + 一个“签名 HTTPS 订阅源”实现 + 用于测试的 mock 服务**；URL 不写死，由用户配置；条目必须验签；离线时沿用本地缓存 / 目前仓库的云授权/订单体系尚未定义，不要自己发明服务端",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/feed.go:56；wafpipeline/feed.go:295；service/waf_service/waf_pipeline_feed.go:34；wafpipeline/ip_test.go:113；wafpipeline/feed_http_test.go:11；新VIP增量Feed：ETag/退避/评分限额/授权/持久化；旧文本签名协议另见RECOVERY-subscriptions-report。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0113",
+      "line": 113,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D5 / 多 IP 同时命中 → “断网自保” / 触发：60 秒内，**≥5 个不同的非 trusted IP**各产生至少 1 次 `high` 及以上命中（观察模式命中、响应 4xx 类异常不计）。动作：锁定 10 分钟，仅 `trusted` 白名单可通过，其余返回 503 或断开；最后一次触发后无新触发才自动解除；可手动解除；触发时发通知 / 家庭规模下 5 个来源已远超正常；明确写出“攻击者可借此对非白名单用户造成拒绝服务”的取舍",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment_test.go:124；docs/waf-pipeline/USER-GUIDE.zh-CN.md:68；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0114",
+      "line": 114,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D6 / 蜜罐形态 / **进程内置**的仿真处理器（仿登录页、仿常见管理面板路径），不依赖外部容器，**永不接触真实上游** / 隔离、省资源、可测试",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/honeypot.go:41；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0115",
+      "line": 115,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D7 / 配置粒度 / **配置单元 = 监听端口**，每个端口一整套独立配置。模板采用**应用即复制**（不是实时继承）：端口上记录模板来源，可查看“与模板的差异”，可手动“从模板更新”。全局共享项仅限 9.6.1 所列 / 实时继承会让改一个模板悄悄改变所有端口，安全产品应避免这种意外变更",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/config_test.go:9；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0116",
+      "line": 116,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D8 / 新规则默认模式 / 每条规则有 `off / observe / block` 三态。**高置信度规则默认 `block`**（Java 反序列化魔数、已知扫描器 UA、CL+TE 冲突、敏感文件路径穿越）；**易误报规则默认 `observe`**（CSRF、SSRF、上传、命令注入、模板注入、弱特征 SQL/XSS） / 先观察再收紧，避免误伤家人",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:291；wafpipeline/detectors_protocol_test.go:12；wafpipeline/detectors_test.go:153；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0117",
+      "line": 117,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D9 / 单 IP 处罚默认值 / 见 7.1 表；重复违规按 ×4 递增，上限 7 天 / 可在界面调整",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:192；wafpipeline/detectors.go:182；wafpipeline/diagnostics_test.go:13；service/waf_service/waf_pipeline_diagnostics_test.go:16；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0118",
+      "line": 118,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D10 / 规则引擎出错时 / 检测器异常/超时 → **放行 + 记日志 + 告警**（fail-open）；IP 组/封禁库不可用 → 使用最近一次有效快照；无快照则按 `unlisted_action` / 避免因 WAF 自身故障让全家服务不可用",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment_test.go:53；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0119",
+      "line": 119,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D11 / 同一端口挂多个主机名 / 如果审计发现现有模型允许（虚拟主机），**仍以端口为配置单元**，同端口的主机名继承该端口配置；是否允许站点级覆盖，由审计列为问题交我决定 / 与“每个端口单独配置一次”保持一致",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline_migration.go:327；wafpipeline/proxy_routes_test.go:14；docs/waf-pipeline/decisions.md:33；按用户后续最佳方案授权采用端口统一策略，迁入显式选择来源并预览差异；保留各主机/路径业务目标。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0120",
+      "line": 120,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D12 / 自动封锁的作用域 / 默认 `global`：同一 IP 在任一端口被自动封锁，所有端口都拒绝；可按端口改为 `port`。**该端口的 `trusted` 白名单不受共享封锁影响**；手动自定义黑名单只作用于所属端口 / 攻击者通常会扫多个端口；但不能因别的端口误伤而锁住本端口的可信用户",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/punishment_test.go:53；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0121",
+      "line": 121,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D13 / 断网自保的作用域 / 只锁触发的那个端口，其他端口不受影响 / 避免一个端口被攻击导致全家服务一起断",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment_test.go:124；docs/waf-pipeline/USER-GUIDE.zh-CN.md:68；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0122",
+      "line": 122,
+      "section": "3. 默认决策（人工可改，AI 以此为准）",
+      "requirement": "D14 / 内置模板 / 提供 6 个内置只读模板（见 9.6.2）；内置模板随版本更新，但不改动已应用的端口 / 升级不应悄悄改变用户的防护行为",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/config_test.go:9；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0128",
+      "line": 128,
+      "section": "4. 阶段 0：代码审计（只读，不得修改代码）",
+      "requirement": "**产出：** `docs/waf-pipeline/00-audit.md`，写完后**停止并等待我确认**。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272；docs/waf-pipeline/00-evidence.md:7；阶段0文档提交e6b9313；后续实现由用户继续授权。",
+      "remaining": ""
+    },
+    {
+      "id": "L0132",
+      "line": 132,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "1. 程序入口与进程结构：入口在哪；Supervisor / Worker 的职责；管理端口与业务端口如何分离。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:17；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0133",
+      "line": 133,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "2. 一个业务请求从监听到转发的**完整调用链**，画成时序图或步骤列表。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:25；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0134",
+      "line": 134,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "3. 现有“监听端口 → 站点/主机 → 防护配置”的数据模型与加载方式；配置热加载是否存在、是否线程安全。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:52；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0135",
+      "line": 135,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "4. 请求处理中**现有的每一个检查点**及其执行顺序，逐一映射到本文的五步（见 4.2 表）。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:70；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0136",
+      "line": 136,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "5. 现有 IP 黑/白名单、自动封锁、蜜罐、断网自保是否已有实现；数据结构、持久化、过期机制、查询复杂度。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:102；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0137",
+      "line": 137,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "6. 现有 IP 归属地库（`iplocation`）的类型、查询 API、更新方式、缓存。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:119；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0138",
+      "line": 138,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "7. 现有 SQL 注入 / XSS（`libinjection-go`）、OWASP 规则（`wafowasp`）、BOT（`wafbot`）、CC、规则脚本引擎各自的能力与配置项。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:127；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0139",
+      "line": 139,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "8. 真实客户端 IP 的获取方式；是否信任 `X-Forwarded-For`；IPv6 处理。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:144；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0140",
+      "line": 140,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "9. 请求体读取方式：是否多次读取、大小限制、是否支持 gzip、multipart。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:156；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0141",
+      "line": 141,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "10. 日志写入路径：是否阻塞请求；队列（`wafqueue`）的背压与丢弃策略。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:165；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0142",
+      "line": 142,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "11. 响应侧能否观察状态码与响应头（40x/50x、登录结果）。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:175；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0143",
+      "line": 143,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "12. 数据库模型与迁移机制；已发布版本的升级路径。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:183；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0144",
+      "line": 144,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "13. 现有测试覆盖范围、可运行的命令、基线耗时与基准测试。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:193；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0145",
+      "line": 145,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "14. Go 标准库 `net/http` 在请求到达 handler 之前就拒绝的畸形请求，现有代码是否有连接层 hook 可统计。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:244；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0146",
+      "line": 146,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "15. 现有“站点 / 主机 / 监听端口”数据模型：一个端口能否对应多个主机名？每个端口的配置存放在哪？是否已有“模板”概念？各端口之间有哪些状态是共享的？",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:252；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0147",
+      "line": 147,
+      "section": "4.1 必须回答的问题（每条给出 文件:行号 证据）",
+      "requirement": "16. 现有认证相关代码：管理端登录、是否已有“访问站点前先认证”的机制、会话与 Cookie 实现、口令哈希算法。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:262；审计时源码位置与结论保留，不用最终源码行号冒充历史状态。",
+      "remaining": ""
+    },
+    {
+      "id": "L0153",
+      "line": 153,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[1] 允许访问开关 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0154",
+      "line": 154,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[2] 黑名单：自动封锁 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0155",
+      "line": 155,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[2] 黑名单：自定义 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0156",
+      "line": 156,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[2] 黑名单：联网库 VIP /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0157",
+      "line": 157,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[2] 白名单：手动 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0158",
+      "line": 158,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[2] 白名单：区域 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0159",
+      "line": 159,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[3] CC 防护 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0160",
+      "line": 160,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[3] BOT 防护 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0161",
+      "line": 161,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[3] 身份认证：WAF 前置登录门（每端口独立账号） /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0162",
+      "line": 162,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "多端口：每端口独立配置、独立快照、故障隔离 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0163",
+      "line": 163,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "模板：内置 / 自定义 / 应用 / 差异 / 导入导出 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0164",
+      "line": 164,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[3] SQL 注入 / XSS / 文件上传 / 文件包含 / 命令注入 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0165",
+      "line": 165,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[3] Java 代码注入 / Java 反序列化 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0166",
+      "line": 166,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[3] PHP 反序列化 / PHP 代码注入 / ASP 代码注入 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0167",
+      "line": 167,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[3] 模板注入 / CSRF / SSRF /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0168",
+      "line": 168,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[3] 畸形 HTTP / 扫描器特征 / QPS 限速 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0169",
+      "line": 169,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[4] 单 IP 命中拉黑 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0170",
+      "line": 170,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[4] 多 IP 同时命中 → 全局拒绝 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0171",
+      "line": 171,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[4] 蜜罐导入 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0172",
+      "line": 172,
+      "section": "4.2 需求缺口表（必须产出）",
+      "requirement": "[5] 反向代理与响应观察 /  /  /  / ",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272",
+      "remaining": ""
+    },
+    {
+      "id": "L0180",
+      "line": 180,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- 并发安全：map 无锁读写、锁粒度过大、热路径持锁做 IO。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0181",
+      "line": 181,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- 资源泄漏：goroutine 泄漏、无上限增长的 map/缓存（攻击者可用海量不同 IP/URL 撑爆内存）。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0182",
+      "line": 182,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- 热路径阻塞：数据库同步写、日志同步落盘。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0183",
+      "line": 183,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- 绕过风险：URL 多重编码、大小写、`/..;/`、反斜杠、双写、分块请求体、gzip 请求体、JSON/multipart 内的参数是否都被检测。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0184",
+      "line": 184,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- 顺序问题：昂贵检测排在廉价检测之前；黑名单检查晚于规则检查。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0185",
+      "line": 185,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- 重复实现：同一功能多处各写一份（封禁列表、IP 解析、计数器）。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0186",
+      "line": 186,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- 配置热加载：是否整体快照原子切换，还是边改边读。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0187",
+      "line": 187,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- XFF 欺骗：是否可被伪造头绕过黑名单或触发对他人的封禁。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0188",
+      "line": 188,
+      "section": "4.4 审计时必须检查的“改善机会”",
+      "requirement": "- 误封自己：内网/回环/管理员当前 IP 是否可能被自动封锁。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:301；docs/waf-pipeline/findings.md:23",
+      "remaining": ""
+    },
+    {
+      "id": "L0192",
+      "line": 192,
+      "section": "4.5 阶段 0 的结束动作",
+      "requirement": "1. 提交审计报告与缺口表。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:272；docs/waf-pipeline/00-evidence.md:7；阶段0文档提交e6b9313；后续实现由用户继续授权。",
+      "remaining": ""
+    },
+    {
+      "id": "L0193",
+      "line": 193,
+      "section": "4.5 阶段 0 的结束动作",
+      "requirement": "2. 在报告末尾给出**修订后的阶段计划**（可调整第 10 节顺序，并说明理由）。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:313；docs/waf-pipeline/decisions.md:53；后续用户授权最优方案自动执行，不再请求阶段批准。",
+      "remaining": ""
+    },
+    {
+      "id": "L0194",
+      "line": 194,
+      "section": "4.5 阶段 0 的结束动作",
+      "requirement": "3. 列出需要我决策的问题（最多 5 个，按重要性排序）。",
+      "status": "已核验（阶段0历史产物）",
+      "evidence": "docs/waf-pipeline/00-audit.md:313；docs/waf-pipeline/decisions.md:53；后续用户授权最优方案自动执行，不再请求阶段批准。",
+      "remaining": ""
+    },
+    {
+      "id": "L0195",
+      "line": 195,
+      "section": "4.5 阶段 0 的结束动作",
+      "requirement": "4. **停止，不写任何功能代码。**",
+      "status": "按用户后续要求执行",
+      "evidence": "AGENTS.md:8；docs/waf-pipeline/WORKLOG.md:13；用户后续授权连续执行、合理默认决策，不再在阶段之间等待。",
+      "remaining": ""
+    },
+    {
+      "id": "L0205",
+      "line": 205,
+      "section": "5.1 第 1 步：允许访问开关",
+      "requirement": "- 配置：`access.enabled`（全局默认 + 监听端口覆盖），热生效，无需重启。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/runtime.go:101；wafpipeline/listeners.go:58；wafpipeline/ip_test.go:25；wafpipeline/listeners_test.go:82；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0206",
+      "line": 206,
+      "section": "5.1 第 1 步：允许访问开关",
+      "requirement": "- 关闭时响应：`503 + 简短页面` 或 `断开连接`，可配；日志记录 `stage=1 reason=access_disabled`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/runtime.go:101；wafpipeline/listeners.go:58；wafpipeline/ip_test.go:25；wafpipeline/listeners_test.go:82；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0207",
+      "line": 207,
+      "section": "5.1 第 1 步：允许访问开关",
+      "requirement": "- 管理端口不受影响（D1）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/runtime.go:101；wafpipeline/listeners.go:58；wafpipeline/ip_test.go:25；wafpipeline/listeners_test.go:82；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0208",
+      "line": 208,
+      "section": "5.1 第 1 步：允许访问开关",
+      "requirement": "- 界面：状态醒目；切换需二次确认；显示最近一次切换时间与操作人。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline.go:463；web/src/pages/waf/pipeline/PortEditor.vue:164；wafpipeline/config.go:230；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0216",
+      "line": 216,
+      "section": "5.2.1 名单来源",
+      "requirement": "黑名单 / **自动封锁** / 由第 4 步写入；带 TTL、原因、触发规则、累计次数；到期自动解除；作用域见 D12（默认跨端口共享）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:254；wafpipeline/punishment_test.go:53；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0217",
+      "line": 217,
+      "section": "5.2.1 名单来源",
+      "requirement": "黑名单 / **自定义** / 用户手动添加：单 IP / CIDR / 范围；可选过期时间；备注",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:36；wafpipeline/ip.go:28；wafpipeline/ip_test.go:25；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0218",
+      "line": 218,
+      "section": "5.2.1 名单来源",
+      "requirement": "黑名单 / **联网库（VIP）** / 来自订阅源的增量数据，见 5.2.4",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/feed.go:295；wafpipeline/ip.go:174；wafpipeline/ip_test.go:113；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0219",
+      "line": 219,
+      "section": "5.2.1 名单来源",
+      "requirement": "白名单 / **手动** / 单 IP / CIDR / 范围；`trust` 默认 `trusted`",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:36；wafpipeline/ip.go:28；wafpipeline/ip_test.go:25；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0220",
+      "line": 220,
+      "section": "5.2.1 名单来源",
+      "requirement": "白名单 / **区域** / 用户从区域列表勾选国家/省份（数据来自 IP 归属地库）；`trust` 默认 `allow_only`",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/geo.go:37；wafpipeline/ip.go:190；wafpipeline/ip_test.go:70；web/src/pages/waf/pipeline/PortEditor.vue:47；api/waf_pipeline.go:323；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0238",
+      "line": 238,
+      "section": "5.2.2 判定顺序（黑名单优先）",
+      "requirement": "- `unlisted_action=deny` 就是“仅白名单可访问”的家庭模式，是 README 中“IP 限制”思路的落地，界面应提供一键预设。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；web/src/pages/waf/pipeline/PortEditor.vue:37；wafpipeline/templates.go:26；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0239",
+      "line": 239,
+      "section": "5.2.2 判定顺序（黑名单优先）",
+      "requirement": "- 手动把一个 `trusted` IP 加入黑名单时，界面必须警告冲突；按“黑名单优先”仍然生效。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；web/src/pages/waf/pipeline/PortEditor.vue:37；wafpipeline/templates.go:26；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0240",
+      "line": 240,
+      "section": "5.2.2 判定顺序（黑名单优先）",
+      "requirement": "- `trusted` 条目**永不被自动封锁/蜜罐/锁定**，只产生告警。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；web/src/pages/waf/pipeline/PortEditor.vue:37；wafpipeline/templates.go:26；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0241",
+      "line": 241,
+      "section": "5.2.2 判定顺序（黑名单优先）",
+      "requirement": "- 跨端口共享的自动封锁（D12）同样不对本端口的 `trusted` 条目生效；只有该端口自己的“自定义黑名单”才能压过 `trusted`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；web/src/pages/waf/pipeline/PortEditor.vue:37；wafpipeline/templates.go:26；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0245",
+      "line": 245,
+      "section": "5.2.3 数据结构与性能",
+      "requirement": "- 使用 CIDR 前缀树或有序区间，支持 IPv4/IPv6；IPv4-mapped IPv6（`::ffff:a.b.c.d`）统一转 IPv4。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:28；wafpipeline/punishment.go:137；wafpipeline/punishment_test.go:318；wafenginecore/ipset/timed.go:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0246",
+      "line": 246,
+      "section": "5.2.3 数据结构与性能",
+      "requirement": "- IPv6 自动封锁粒度默认 `/64`（可配）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:28；wafpipeline/punishment.go:137；wafpipeline/punishment_test.go:318；wafenginecore/ipset/timed.go:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0247",
+      "line": 247,
+      "section": "5.2.3 数据结构与性能",
+      "requirement": "- 名单整体做**不可变快照 + 原子指针切换**；更新时整份重建，读路径无锁。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:28；wafpipeline/punishment.go:137；wafpipeline/punishment_test.go:318；wafenginecore/ipset/timed.go:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0248",
+      "line": 248,
+      "section": "5.2.3 数据结构与性能",
+      "requirement": "- 基准：10 万条规则下单次查询耗时，在审计基线上给出实测值并写入报告；不得拖慢现有路径超过 5%。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/00-audit.md:215；docs/waf-pipeline/PHASE-9-report.md:85；artifacts/pipeline-microbenchmark-summary.json；10万IPv4/IPv6深查实测；最终同条件永久名单对照见docs/waf-pipeline/FINAL-ACCEPTANCE.md:92；TTL另列，深命中与邻接miss均测。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json；最终永久索引包装开销0.55%–4.72%，窄余量限制亦披露。",
+      "remaining": ""
+    },
+    {
+      "id": "L0249",
+      "line": 249,
+      "section": "5.2.3 数据结构与性能",
+      "requirement": "- 保护：私网、回环、链路本地、本机自身地址、管理员当前会话 IP —— 即使被自动封锁或联网库命中也**忽略并告警**。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:152；wafpipeline/diagnostics_test.go:13；service/waf_service/waf_pipeline_diagnostics_test.go:16；F62补齐忽略命中告警；按端口60秒限频，全部诊断不处罚。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0267",
+      "line": 267,
+      "section": "5.2.4 联网库（VIP）实现要求（D4）",
+      "requirement": "- 签名验证复用现有授权体系的 Ed25519 公钥信任库（审计确认）；**默认空信任库时拒绝一切数据**。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/feed.go:56；wafpipeline/feed.go:295；service/waf_service/waf_pipeline_feed.go:34；wafpipeline/ip_test.go:113；wafpipeline/feed_http_test.go:11；新VIP增量Feed：ETag/退避/评分限额/授权/持久化；旧文本签名协议另见RECOVERY-subscriptions-report。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0268",
+      "line": 268,
+      "section": "5.2.4 联网库（VIP）实现要求（D4）",
+      "requirement": "- 支持 ETag/版本号增量；失败重试带退避；本地持久化缓存；离线时沿用旧数据。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/feed.go:56；wafpipeline/feed.go:295；service/waf_service/waf_pipeline_feed.go:34；wafpipeline/ip_test.go:113；wafpipeline/feed_http_test.go:11；新VIP增量Feed：ETag/退避/评分限额/授权/持久化；旧文本签名协议另见RECOVERY-subscriptions-report。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0269",
+      "line": 269,
+      "section": "5.2.4 联网库（VIP）实现要求（D4）",
+      "requirement": "- 条目总量设上限（默认 50 万），超限时按评分截断并告警。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/feed.go:56；wafpipeline/feed.go:295；service/waf_service/waf_pipeline_feed.go:34；wafpipeline/ip_test.go:113；wafpipeline/feed_http_test.go:11；新VIP增量Feed：ETag/退避/评分限额/授权/持久化；旧文本签名协议另见RECOVERY-subscriptions-report。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0270",
+      "line": 270,
+      "section": "5.2.4 联网库（VIP）实现要求（D4）",
+      "requirement": "- 是否属于 VIP：复用现有授权校验接口，未授权时界面显示“需要授权”，功能不可启用。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/feed.go:56；wafpipeline/feed.go:295；service/waf_service/waf_pipeline_feed.go:34；wafpipeline/ip_test.go:113；wafpipeline/feed_http_test.go:11；新VIP增量Feed：ETag/退避/评分限额/授权/持久化；旧文本签名协议另见RECOVERY-subscriptions-report。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0271",
+      "line": 271,
+      "section": "5.2.4 联网库（VIP）实现要求（D4）",
+      "requirement": "- 提供 mock 订阅服务（仅测试用，不随发行包）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/feed.go:56；wafpipeline/feed.go:295；service/waf_service/waf_pipeline_feed.go:34；wafpipeline/ip_test.go:113；wafpipeline/feed_http_test.go:11；新VIP增量Feed：ETag/退避/评分限额/授权/持久化；旧文本签名协议另见RECOVERY-subscriptions-report。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0275",
+      "line": 275,
+      "section": "5.2.5 区域白名单与 IP 归属地库",
+      "requirement": "- 统一接口：`Lookup(ip) -> {country, province, city, isp, ok}`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/geo.go:37；wafpipeline/ip.go:190；wafpipeline/ip_test.go:70；web/src/pages/waf/pipeline/PortEditor.vue:47；api/waf_pipeline.go:323；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0276",
+      "line": 276,
+      "section": "5.2.5 区域白名单与 IP 归属地库",
+      "requirement": "- 请求热路径上使用 LRU 缓存（默认 1 万条，TTL 10 分钟），库更新后清缓存。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/geo.go:37；wafpipeline/ip.go:190；wafpipeline/ip_test.go:70；web/src/pages/waf/pipeline/PortEditor.vue:47；api/waf_pipeline.go:323；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0277",
+      "line": 277,
+      "section": "5.2.5 区域白名单与 IP 归属地库",
+      "requirement": "- 私网地址、查不到的地址：**不属于任何区域**，不能因“区域白名单”被放行。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/geo.go:37；wafpipeline/ip.go:190；wafpipeline/ip_test.go:70；web/src/pages/waf/pipeline/PortEditor.vue:47；api/waf_pipeline.go:323；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0278",
+      "line": 278,
+      "section": "5.2.5 区域白名单与 IP 归属地库",
+      "requirement": "- 界面要提示：归属地不精确；VPN 回家的流量来源是内网/VPN 网段，应以手动 `trusted` CIDR 放行。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/geo.go:37；wafpipeline/ip.go:190；wafpipeline/ip_test.go:70；web/src/pages/waf/pipeline/PortEditor.vue:47；api/waf_pipeline.go:323；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0279",
+      "line": 279,
+      "section": "5.2.5 区域白名单与 IP 归属地库",
+      "requirement": "- 区域列表数据与国家/省份选择器由前端按库中实际枚举值生成，不要硬编码。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/geo.go:37；wafpipeline/ip.go:190；wafpipeline/ip_test.go:70；web/src/pages/waf/pipeline/PortEditor.vue:47；api/waf_pipeline.go:323；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0287",
+      "line": 287,
+      "section": "6.1 规则集模型",
+      "requirement": "- 一个“规则集”包含多条规则；每条规则：`id、category、severity、mode(off/observe/block)、scope(host/path/method)、参数`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:61；wafpipeline/detectors.go:18；wafpipeline/detectors_protocol_test.go:83；wafpipeline/detectors_test.go:153；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0288",
+      "line": 288,
+      "section": "6.1 规则集模型",
+      "requirement": "- 规则集可绑定到站点/路径范围；支持全局默认 + 站点覆盖；支持白名单例外（按 路径/参数名/规则 ID）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:61；wafpipeline/detectors.go:18；wafpipeline/detectors_protocol_test.go:83；wafpipeline/detectors_test.go:153；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0289",
+      "line": 289,
+      "section": "6.1 规则集模型",
+      "requirement": "- 每次命中产生 `HitEvent`（见 2.2）；`observe` 命中只记录，不执行动作、不计入处罚。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:61；wafpipeline/detectors.go:18；wafpipeline/detectors_protocol_test.go:83；wafpipeline/detectors_test.go:153；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0290",
+      "line": 290,
+      "section": "6.1 规则集模型",
+      "requirement": "- 评估顺序：**协议畸形 → QPS → CC → 扫描器/BOT → 登录门（身份认证）→ 攻击检测**（先廉价后昂贵，先头部后正文）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:61；wafpipeline/detectors.go:18；wafpipeline/detectors_protocol_test.go:83；wafpipeline/detectors_test.go:153；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0296",
+      "line": 296,
+      "section": "6.2 统一归一化视图（必须先做，所有检测器共享）",
+      "requirement": "- 路径：多重百分号解码（最多 3 轮）、`\\` 转 `/`、合并 `//`、`/./`、处理 `;param`（如 `/..;/`）、去除 `%00`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/view.go:92；wafpipeline/view.go:172；wafpipeline/pipeline_test.go:85；wafpipeline/detectors_test.go:74；wafpipeline/pipeline_test.go:50；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0297",
+      "line": 297,
+      "section": "6.2 统一归一化视图（必须先做，所有检测器共享）",
+      "requirement": "- 查询/表单/JSON/Cookie：解码后得到“键-值”列表；JSON 递归展平（键与值都检测）；`+` 转空格。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/view.go:92；wafpipeline/view.go:172；wafpipeline/pipeline_test.go:85；wafpipeline/detectors_test.go:74；wafpipeline/pipeline_test.go:50；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0298",
+      "line": 298,
+      "section": "6.2 统一归一化视图（必须先做，所有检测器共享）",
+      "requirement": "- multipart：逐部分的 name、filename、Content-Type、头部 N 字节内容。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/view.go:92；wafpipeline/view.go:172；wafpipeline/pipeline_test.go:85；wafpipeline/detectors_test.go:74；wafpipeline/pipeline_test.go:50；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0299",
+      "line": 299,
+      "section": "6.2 统一归一化视图（必须先做，所有检测器共享）",
+      "requirement": "- 额外解码视图：HTML 实体、Unicode 规范化、SQL 注释折叠（`/**/`）、大小写折叠。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/view.go:92；wafpipeline/view.go:172；wafpipeline/pipeline_test.go:85；wafpipeline/detectors_test.go:74；wafpipeline/pipeline_test.go:50；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0300",
+      "line": 300,
+      "section": "6.2 统一归一化视图（必须先做，所有检测器共享）",
+      "requirement": "- 请求体：默认最多检测前 1 MB（可配）；超限只检测头部并标记 `body_truncated`；gzip/deflate 请求体解压须限制大小与膨胀比（防解压炸弹）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/view.go:92；wafpipeline/view.go:172；wafpipeline/pipeline_test.go:85；wafpipeline/detectors_test.go:74；wafpipeline/pipeline_test.go:50；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0301",
+      "line": 301,
+      "section": "6.2 统一归一化视图（必须先做，所有检测器共享）",
+      "requirement": "- 不得破坏大文件上传的流式转发：使用受限缓冲 + `io.MultiReader` 回放给上游。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/view.go:92；wafpipeline/view.go:172；wafpipeline/pipeline_test.go:85；wafpipeline/detectors_test.go:74；wafpipeline/pipeline_test.go:50；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0307",
+      "line": 307,
+      "section": "6.3 规则清单",
+      "requirement": "畸形 HTTP / `malformed` / CL 与 TE 同时存在；重复且不一致的 CL；`Transfer-Encoding` 混淆写法；换行折叠头；头名含非法字符；裸 LF；请求行/头部/头数量超限；多个 Host；非法百分号编码；空字节；未知 HTTP 版本。**WebDAV 方法（PROPFIND 等）必须可配置放行**。 / high / block（走私类）/ observe（其余）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_protocol.go:1；wafpipeline/detectors_protocol_test.go:12；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0308",
+      "line": 308,
+      "section": "6.3 规则清单",
+      "requirement": "QPS 限速 / `qps` / 每 IP、每站点、每路径的硬上限；令牌桶；静态资源可单独配额；可设突发值 / low→medium / block（429）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0309",
+      "line": 309,
+      "section": "6.3 规则清单",
+      "requirement": "CC 防护 / `cc` / 滑动窗口：同 IP 对同 URL/同 UA 的高频；区分静态与动态；动作：429 / 挑战 / 触发处罚；与 QPS 区别：QPS 是硬天花板，CC 识别“异常模式” / medium / observe→block",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0310",
+      "line": 310,
+      "section": "6.3 规则清单",
+      "requirement": "扫描器特征 / `scanner` / UA 特征（sqlmap、nikto、nmap、masscan、nuclei、acunetix、nessus、wpscan、gobuster、dirbuster、ffuf、zgrab 等）；探测路径（`/.env`、`/.git/`、`/phpmyadmin`、`/wp-login.php`、`/actuator`、`/server-status` 等，**仅当本站确实没有这些路径时**）；请求节奏 / high / block",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_protocol.go:1；wafpipeline/detectors_protocol_test.go:55；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0311",
+      "line": 311,
+      "section": "6.3 规则清单",
+      "requirement": "BOT 防护 / `bot` / UA/头一致性；已知坏 BOT 列表；已知好 BOT 需反向 DNS 校验；无头浏览器线索；轻量挑战（Cookie / JS / 简易工作量证明）；动作为挑战而非直接封锁 / medium / observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0312",
+      "line": 312,
+      "section": "6.3 规则清单",
+      "requirement": "身份认证（登录门） / `auth_gate` / 访问业务前必须先登录**本端口**的账号；详见 6.5 / medium / 按端口开关；默认值由模板决定",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0313",
+      "line": 313,
+      "section": "6.3 规则清单",
+      "requirement": "SQL 注入 / `sqli` / `libinjection` + 上下文规则；**“select your plan”这类自然语言不得误报** / high / block（libinjection 强命中）/ observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_injection.go:1；wafpipeline/detectors_test.go:52；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0314",
+      "line": 314,
+      "section": "6.3 规则清单",
+      "requirement": "XSS / `xss` / `libinjection` + 标签/事件处理器/`javascript:` 等；富文本与 Markdown 编辑场景需白名单参数 / high / observe→block",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_injection.go:1；wafpipeline/detectors_test.go:52；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0315",
+      "line": 315,
+      "section": "6.3 规则清单",
+      "requirement": "文件上传 / `upload` / 危险扩展（php/phtml/php5/jsp/jspx/asp/aspx/asa/cer/cgi/sh/exe/.htaccess）；双扩展、尾部点/空格/`::$DATA`；Content-Type 与魔数不符；内容含 `<?php`、`<%`。**NAS 上传是正常业务，必须支持按路径范围设置，默认仅观察** / high / observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_files.go:1；wafpipeline/detectors_files_test.go:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0316",
+      "line": 316,
+      "section": "6.3 规则清单",
+      "requirement": "文件包含/路径穿越 / `lfi` / `../` 及各种编码变体；`/etc/passwd`、`win.ini` 等敏感文件；`php://filter`、`file://`、`expect://`；远程包含（参数值为外部 URL 且参数名像 `file/path/page/include`） / high / block（敏感文件）/ observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_files.go:1；wafpipeline/detectors_files_test.go:14；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0317",
+      "line": 317,
+      "section": "6.3 规则清单",
+      "requirement": "命令注入 / `rce` / 分隔符（`;` `\\ / ` `&&` `` ` `` `$()` `${IFS}`）**加上**常见命令/解释器的上下文组合，降低误报 / critical / observe→block",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_files.go:1；wafpipeline/detectors_files_test.go:14；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0318",
+      "line": 318,
+      "section": "6.3 规则清单",
+      "requirement": "Java 代码注入 / `java_inject` / Log4Shell 式 JNDI 查找；OGNL（Struts2）；SpEL；Fastjson `@type`；`Runtime.exec` / `ProcessBuilder` 字样 / critical / block",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_language.go:1；wafpipeline/detectors_language_test.go:21；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0319",
+      "line": 319,
+      "section": "6.3 规则清单",
+      "requirement": "Java 反序列化 / `java_deser` / 魔数 `AC ED 00 05`、Base64 以 `rO0AB` 开头；常见 gadget 链类名；`Content-Type: application/x-java-serialized-object` / critical / block",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_language.go:1；wafpipeline/detectors_language_test.go:21；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0320",
+      "line": 320,
+      "section": "6.3 规则清单",
+      "requirement": "PHP 反序列化 / `php_deser` / `O:<n>:\"Class\":<n>:{`、`a:<n>:{` 结构；`phar://` 包装器 / high / observe→block",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_language.go:1；wafpipeline/detectors_language_test.go:21；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0321",
+      "line": 321,
+      "section": "6.3 规则清单",
+      "requirement": "PHP 代码注入 / `php_inject` / `php://input`、`data://`；`eval(`、`assert(`、`system(` 等函数调用组合；`<?php` / high / observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_language.go:1；wafpipeline/detectors_language_test.go:21；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0322",
+      "line": 322,
+      "section": "6.3 规则清单",
+      "requirement": "ASP 代码注入 / `asp_inject` / `<%`、`Execute(`、`Eval(`、`Server.CreateObject`、`WScript.Shell`；可选：不带 MAC 的 `__VIEWSTATE` / high / observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_language.go:1；wafpipeline/detectors_language_test.go:21；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0323",
+      "line": 323,
+      "section": "6.3 规则清单",
+      "requirement": "模板注入 / `ssti` / `{{7*7}}`、`${7*7}`、`#{…}`、`{{config}}`、`__class__`/`__globals__`；Freemarker `<#assign`、Velocity `#set`、Spring/Thymeleaf 表达式 / high / observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_language.go:1；wafpipeline/detectors_language_test.go:21；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0324",
+      "line": 324,
+      "section": "6.3 规则清单",
+      "requirement": "CSRF / `csrf` / 见下方说明 / medium / observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_origin.go:1；wafpipeline/detectors_origin_test.go:37；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0325",
+      "line": 325,
+      "section": "6.3 规则清单",
+      "requirement": "SSRF / `ssrf` / 参数值为 URL 且指向内网/回环/链路本地/云元数据（`169.254.169.254`）；`file://`、`gopher://`、`dict://`；十进制/十六进制/八进制 IP 写法；`@` 与 `#` 混淆。无法防御 DNS 重绑定，文档须写明 / high / observe",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_origin.go:1；wafpipeline/detectors_origin_test.go:12；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0333",
+      "line": 333,
+      "section": "6.4 实现路线",
+      "requirement": "- 优先复用并统一现有引擎（`libinjection-go`、`wafowasp` 里的 OWASP 规则、规则脚本引擎）。上表类别大致对应 OWASP CRS 的 913（扫描器）、920/921（协议）、930（LFI）、931（RFI）、932（RCE）、933（PHP）、934（通用/SSRF/SSTI 一类）、941（XSS）、942（SQLi）、944（Java）。**以仓库实际带的规则集版本为准核对**，缺的类别（ASP、部分 SSTI、CSRF）自写。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors.go:11；wafpipeline/crs.go:1；wafpipeline/crs_test.go:11；docs/waf-pipeline/decisions.md:69；复用libinjection/实际CRS及GRL；标准库regexp，准备时编译。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0334",
+      "line": 334,
+      "section": "6.4 实现路线",
+      "requirement": "- 正则只用 Go 标准库 RE2，预编译，避免回溯炸弹。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors.go:11；wafpipeline/crs.go:1；wafpipeline/crs_test.go:11；docs/waf-pipeline/decisions.md:69；复用libinjection/实际CRS及GRL；标准库regexp，准备时编译。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0335",
+      "line": 335,
+      "section": "6.4 实现路线",
+      "requirement": "- 每个检测器：`Name() / Category() / Inspect(*NormalizedView) []Match`；注册制，便于单测。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors.go:11；wafpipeline/crs.go:1；wafpipeline/crs_test.go:11；docs/waf-pipeline/decisions.md:69；复用libinjection/实际CRS及GRL；标准库regexp，准备时编译。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0336",
+      "line": 336,
+      "section": "6.4 实现路线",
+      "requirement": "- 单请求检测预算：超时（默认 20 ms，可配）则放行并记录（D10）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:192；wafpipeline/detectors.go:182；wafpipeline/diagnostics_test.go:13；service/waf_service/waf_pipeline_diagnostics_test.go:16；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0337",
+      "line": 337,
+      "section": "6.4 实现路线",
+      "requirement": "- 每个检测器附带**命中语料**和**误报语料**（见 12.2），不得只写命中用例。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:14；wafpipeline/detectors_language_test.go:21；wafpipeline/detectors_origin_test.go:12；wafpipeline/detectors_protocol_test.go:12；wafpipeline/detectors_test.go:153；docs/waf-pipeline/PHASE-9-report.md:85；每类别命中/家庭正常语料≥10，嵌套JSON/multipart/编码变体、预算与原流回放；基准已归档，保留首测和中间结果。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0341",
+      "line": 341,
+      "section": "6.5 身份认证：WAF 前置登录门（每端口独立）",
+      "requirement": "目标：用户访问某个端口上的真实业务**之前**，必须先通过本软件在该端口设置的账号密码登录。未登录的请求**不会到达上游**。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0345",
+      "line": 345,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- `gate.enabled`：是否启用（默认值由模板决定；“家庭”类内置模板默认开启）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:111；wafpipeline/gate.go:116；wafpipeline/gate_store.go:145；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；web/src/pages/waf/pipeline/PortEditor.vue:57；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0346",
+      "line": 346,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- `gate.mode`：",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:111；wafpipeline/gate.go:116；wafpipeline/gate_store.go:145；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；web/src/pages/waf/pipeline/PortEditor.vue:57；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0347",
+      "line": 347,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- `form`（默认）：WAF 自带登录页 + 会话 Cookie。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:111；wafpipeline/gate.go:116；wafpipeline/gate_store.go:145；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；web/src/pages/waf/pipeline/PortEditor.vue:57；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0348",
+      "line": 348,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- `basic`：浏览器原生弹窗。**会占用 `Authorization` 头，与业务自身的 Basic 认证冲突，界面必须警告。**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:111；wafpipeline/gate.go:116；wafpipeline/gate_store.go:145；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；web/src/pages/waf/pipeline/PortEditor.vue:57；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0349",
+      "line": 349,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- `gate.users[]`：用户名、口令哈希（argon2id，或沿用仓库现有的安全哈希，审计确认）、是否启用、可选过期时间、备注。**不同端口的账号相互独立。**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:111；wafpipeline/gate.go:116；wafpipeline/gate_store.go:145；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；web/src/pages/waf/pipeline/PortEditor.vue:57；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0350",
+      "line": 350,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- `gate.session`：空闲超时（默认 2 小时）、绝对超时（默认 24 小时）、“记住我”（默认关，开启后最长 30 天）、是否绑定 IP（默认关，手机网络 IP 会变）、同账号最大并发会话（默认不限）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:111；wafpipeline/gate.go:116；wafpipeline/gate_store.go:145；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；web/src/pages/waf/pipeline/PortEditor.vue:57；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0351",
+      "line": 351,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- `gate.exempt`：免登录范围：路径前缀 / 方法（如健康检查、Webhook、公开分享链接、给 App 用的 API 路径）；`OPTIONS` 预检是否免登录可配。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:111；wafpipeline/gate.go:116；wafpipeline/gate_store.go:145；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；web/src/pages/waf/pipeline/PortEditor.vue:57；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0352",
+      "line": 352,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- `gate.bypass_trusted`：`trusted` 白名单是否免登录，默认**是**（trusted 本来就跳过第 3 步）；可改为否，要求所有人登录。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:111；wafpipeline/gate.go:116；wafpipeline/gate_store.go:145；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；web/src/pages/waf/pipeline/PortEditor.vue:57；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0353",
+      "line": 353,
+      "section": "6.5.1 配置（每端口一份）",
+      "requirement": "- 登录页外观：标题、提示文案、可选 Logo。**页面不得回显任何上游信息。**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate_logo.go:1；wafpipeline/gate_logo_test.go:16；web/src/pages/waf/pipeline/PortEditor.vue:56；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0357",
+      "line": 357,
+      "section": "6.5.2 行为",
+      "requirement": "1. **未登录请求**：浏览器导航类（`GET` 且 `Accept` 含 `text/html`）→ `302` 到登录页并带 `next`；`next` 只允许站内相对路径，防开放重定向。XHR / API / WebSocket / SSE 等 → 返回 `401`（JSON，不重定向）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0358",
+      "line": 358,
+      "section": "6.5.2 行为",
+      "requirement": "2. 登录页与登录提交路径使用**保留前缀**（如 `/__homewaf/gate/*`，实现时选不易与业务冲突的前缀，且可配置）。登录成功 → 设置会话 Cookie → 跳回 `next`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0359",
+      "line": 359,
+      "section": "6.5.2 行为",
+      "requirement": "3. **会话 Cookie 的端口隔离**：Cookie 不按端口隔离（同一主机的不同端口共享 Cookie 空间），所以：",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0360",
+      "line": 360,
+      "section": "6.5.2 行为",
+      "requirement": "- Cookie 名带端口标识（如 `hw_gate_5000`）；",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0361",
+      "line": 361,
+      "section": "6.5.2 行为",
+      "requirement": "- 令牌由服务端签名（HMAC，**每端口独立密钥**，存入实例密钥库），**载荷包含端口 ID 与用户**，A 端口的会话在 B 端口无效；",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0362",
+      "line": 362,
+      "section": "6.5.2 行为",
+      "requirement": "- `HttpOnly`、`SameSite=Lax`；HTTPS 下加 `Secure`；",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0363",
+      "line": 363,
+      "section": "6.5.2 行为",
+      "requirement": "- 支持服务端撤销：改口令、删用户、管理员踢出，立即失效。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0364",
+      "line": 364,
+      "section": "6.5.2 行为",
+      "requirement": "4. **转发上游前剥离**：WAF 的会话 Cookie，以及 `basic` 模式下 WAF 的凭据 `Authorization`，不得转发给上游；业务自己的 Cookie 原样保留。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0365",
+      "line": 365,
+      "section": "6.5.2 行为",
+      "requirement": "5. 注销路径：保留前缀下的 `/logout`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0366",
+      "line": 366,
+      "section": "6.5.2 行为",
+      "requirement": "6. **登录不等于免检**：登录后的请求继续走后续的攻击检测。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:67；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_test.go:378；wafpipeline/extensions_test.go:13；Cookie名/签名/会话均绑定端口；Basic与保留前缀行为、站内next、撤销和凭据剥离有真实HTTP断言。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0370",
+      "line": 370,
+      "section": "6.5.3 安全要求",
+      "requirement": "- 口令校验使用常数时间比较；用户名不存在时也做等价耗时的哈希（防用户枚举）；错误提示统一，不区分“用户不存在 / 口令错误”。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:179；wafpipeline/gate_security_test.go:11；等价bcrypt成本与统一401；配对时序样本仅证明本机用例，不承诺任意环境不可统计区分。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0371",
+      "line": 371,
+      "section": "6.5.3 安全要求",
+      "requirement": "- 登录表单带防 CSRF 令牌；登录提交有**独立的严格限速**（独立于 CC/QPS，默认每 IP 每分钟 ≤10 次，可配）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:230；wafpipeline/gate.go:211；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:378；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0372",
+      "line": 372,
+      "section": "6.5.3 安全要求",
+      "requirement": "- 账号级防护只用**递增延迟 / 软锁**，不做永久硬锁，否则攻击者可以把主人锁在门外。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:230；wafpipeline/gate.go:211；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:378；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0373",
+      "line": 373,
+      "section": "6.5.3 安全要求",
+      "requirement": "- 创建/修改口令时强制强度检查：长度 ≥10；拒绝内置弱口令表中的口令；拒绝与用户名相同。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafenginecore/accessgate/password.go:32；wafpipeline/gate_test.go:209；THIRD_PARTY_NOTICES.md:454；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0374",
+      "line": 374,
+      "section": "6.5.3 安全要求",
+      "requirement": "- 成功/失败事件写审计日志：IP、用户名（截断）、结果。**不记录口令。**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:204；wafpipeline/gate_store.go:228；wafpipeline/gate_test.go:209；wafpipeline/punishment_test.go:208；失败/未知用户/弱口令分类与探测只观察；普通登录不存尝试口令，蜜罐仅长度和密钥摘要。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0375",
+      "line": 375,
+      "section": "6.5.3 安全要求",
+      "requirement": "- 启用登录门但没有任何账号时，**启用必须失败**；新建端口向导里必须设置账号（见 9.6.3）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline.go:210；service/waf_service/waf_pipeline_test.go:20；service/waf_service/waf_pipeline_access_migration_test.go:209；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0376",
+      "line": 376,
+      "section": "6.5.3 安全要求",
+      "requirement": "- 登录页是纯静态内嵌资源：不加载任何外部 CDN/字体/脚本，可离线，适配手机，支持深色模式。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:486；wafpipeline/gate_logo_test.go:16；web/scripts/verify-pipeline-browser.mjs:85；纯内嵌页面、系统字体、相对form action、移动viewport、light/dark；截图/最终浏览器收尾。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0382",
+      "line": 382,
+      "section": "6.5.4 与第 4 步的衔接（“多次登录错误 / 弱口令 → 蜜罐”的主要来源）",
+      "requirement": "登录失败 / `auth_fail` / 每次失败一条",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:204；wafpipeline/gate_store.go:228；wafpipeline/gate_test.go:209；wafpipeline/punishment_test.go:208；失败/未知用户/弱口令分类与探测只观察；普通登录不存尝试口令，蜜罐仅长度和密钥摘要。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0383",
+      "line": 383,
+      "section": "6.5.4 与第 4 步的衔接（“多次登录错误 / 弱口令 → 蜜罐”的主要来源）",
+      "requirement": "尝试内置弱口令（如 admin / 123456 这类） / `weak_pwd` / 只记命中与否、长度、哈希，不存明文",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:204；wafpipeline/gate_store.go:228；wafpipeline/gate_test.go:209；wafpipeline/punishment_test.go:208；失败/未知用户/弱口令分类与探测只观察；普通登录不存尝试口令，蜜罐仅长度和密钥摘要。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0384",
+      "line": 384,
+      "section": "6.5.4 与第 4 步的衔接（“多次登录错误 / 弱口令 → 蜜罐”的主要来源）",
+      "requirement": "用户名不存在 / `auth_unknown_user` / 权重高于口令错误",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:204；wafpipeline/gate_store.go:228；wafpipeline/gate_test.go:209；wafpipeline/punishment_test.go:208；失败/未知用户/弱口令分类与探测只观察；普通登录不存尝试口令，蜜罐仅长度和密钥摘要。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0385",
+      "line": 385,
+      "section": "6.5.4 与第 4 步的衔接（“多次登录错误 / 弱口令 → 蜜罐”的主要来源）",
+      "requirement": "未登录探测 / `gate_probe` / 未登录请求都只会得到登录页/401，业务 404 无从统计，所以单独统计“同一 IP 窗口内未登录访问的不同路径数”；默认 1 分钟内 ≥20 个不同路径 → low 级命中，默认仅观察",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:204；wafpipeline/gate_store.go:228；wafpipeline/gate_test.go:209；wafpipeline/punishment_test.go:208；失败/未知用户/弱口令分类与探测只观察；普通登录不存尝试口令，蜜罐仅长度和密钥摘要。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0391",
+      "line": 391,
+      "section": "6.5.5 例外与兼容",
+      "requirement": "- 不能做表单登录的客户端（手机 App、WebDAV 客户端、摄像头推流、curl 脚本），按优先级处理：① 用 `trusted` IP/CIDR 放行；② 用 `gate.exempt` 路径；③ 用 `basic` 模式；④ **可选**预共享令牌头（`X-HomeWaf-Token`，每端口独立，哈希存储）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:116；wafpipeline/gate_token_test.go:8；wafpipeline/gate_test.go:154；wafpipeline/detectors_protocol_test.go:83；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0392",
+      "line": 392,
+      "section": "6.5.5 例外与兼容",
+      "requirement": "- WebSocket / SSE：握手请求必须带有效会话，否则 `401`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:116；wafpipeline/gate_token_test.go:8；wafpipeline/gate_test.go:154；wafpipeline/detectors_protocol_test.go:83；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0393",
+      "line": 393,
+      "section": "6.5.5 例外与兼容",
+      "requirement": "- 登录门位于**协议畸形 / QPS / CC / 扫描器检测之后、攻击检测之前**：未登录请求不进入昂贵的体检测，也不会触达业务。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:116；wafpipeline/gate_token_test.go:8；wafpipeline/gate_test.go:154；wafpipeline/detectors_protocol_test.go:83；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0395",
+      "line": 395,
+      "section": "6.5.5 例外与兼容",
+      "requirement": "可选（后续再做）：TOTP 二步验证。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate_totp.go:1；wafpipeline/gate_totp_test.go:14；service/waf_service/waf_pipeline_access_migration_test.go:14；原文可选项已实现，并用于保持迁入账号原有MFA约束。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0407",
+      "line": 407,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "critical / — / 1 次 / 拉黑 / 60 分钟",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0408",
+      "line": 408,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "high / 10 分钟 / 3 次 / 拉黑 / 30 分钟",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0409",
+      "line": 409,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "medium / 10 分钟 / 10 次 / 拉黑 / 10 分钟",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0410",
+      "line": 410,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "low / 响应类异常 / 见 7.3 / — / 导入蜜罐 / 60 分钟",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0412",
+      "line": 412,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "- 重复违规：按 ×4 递增，上限 7 天；违规计数独立于窗口，保留 30 天。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0413",
+      "line": 413,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "- 被封期间，第 2 步直接拒绝，**不再进入第 3 步**，节省开销。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0414",
+      "line": 414,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "- 写入“自动封锁名单”时记录：IP、原因、触发规则、命中次数、创建与到期时间。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/config.go:311；wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0415",
+      "line": 415,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "- 界面：自动封锁列表可查看、解封、转为永久、转入白名单。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline_state.go:183；service/waf_service/waf_pipeline_state_test.go:18；web/src/pages/waf/pipeline/index.vue:40；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0416",
+      "line": 416,
+      "section": "7.1 单 IP 处罚（命中 1 次 / 多次 → 拉黑 N 分钟）",
+      "requirement": "- 可选（默认关闭）：把长时间封禁推送到系统防火墙（沿用现有 `firewall` 模块，审计后确认）。",
+      "status": "明确可选，默认关闭",
+      "evidence": "docs/waf-pipeline/decisions.md:87；原文明确可选/默认关闭；未把系统防火墙自动推送当已实现。",
+      "remaining": ""
+    },
+    {
+      "id": "L0422",
+      "line": 422,
+      "section": "7.2 多 IP 同时命中 → 全局拒绝（“断网自保”）",
+      "requirement": "- 统计对象：窗口内产生 `high` 及以上、且非观察模式命中的**不同非 trusted IP** 数。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:341；service/waf_service/waf_pipeline_state.go:122；wafpipeline/punishment_test.go:124；docs/waf-pipeline/USER-GUIDE.zh-CN.md:68；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0423",
+      "line": 423,
+      "section": "7.2 多 IP 同时命中 → 全局拒绝（“断网自保”）",
+      "requirement": "- 锁定期间：仅 `trusted` 白名单通过；其余按配置返回 503 或断开；管理端口不受影响。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:341；service/waf_service/waf_pipeline_state.go:122；wafpipeline/punishment_test.go:124；docs/waf-pipeline/USER-GUIDE.zh-CN.md:68；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0424",
+      "line": 424,
+      "section": "7.2 多 IP 同时命中 → 全局拒绝（“断网自保”）",
+      "requirement": "- 解除：最后一次触发后 N 分钟无新触发自动解除；支持手动解除；解除后短时间冷却不重复触发。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:341；service/waf_service/waf_pipeline_state.go:122；wafpipeline/punishment_test.go:124；docs/waf-pipeline/USER-GUIDE.zh-CN.md:68；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0425",
+      "line": 425,
+      "section": "7.2 多 IP 同时命中 → 全局拒绝（“断网自保”）",
+      "requirement": "- 触发和解除都发通知（沿用 `wafnotify`），并写入审计日志。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:341；service/waf_service/waf_pipeline_state.go:122；wafpipeline/punishment_test.go:124；docs/waf-pipeline/USER-GUIDE.zh-CN.md:68；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0426",
+      "line": 426,
+      "section": "7.2 多 IP 同时命中 → 全局拒绝（“断网自保”）",
+      "requirement": "- 文档必须写明取舍：攻击者可以用多来源触发锁定，让非白名单用户无法访问。这就是该功能的代价，因此默认阈值要高于家庭正常波动，且 `trusted` 永远可用。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:341；service/waf_service/waf_pipeline_state.go:122；wafpipeline/punishment_test.go:124；docs/waf-pipeline/USER-GUIDE.zh-CN.md:68；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0434",
+      "line": 434,
+      "section": "7.3 响应观察与蜜罐触发",
+      "requirement": "登录门失败 / 5 分钟内 ≥5 次 / 来自 6.5，事件精确，无需额外配置",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:361；wafpipeline/punishment_test.go:208；THIRD_PARTY_NOTICES.md:454；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0435",
+      "line": 435,
+      "section": "7.3 响应观察与蜜罐触发",
+      "requirement": "业务自身登录失败（可选） / 5 分钟内 ≥5 次 / 需配置业务登录接口：路径、方法、字段、成功判定（状态码 / 重定向 / 响应标记）；未配置则不启用",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:676；wafpipeline/proxy_test.go:212；wafpipeline/punishment.go:386；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0436",
+      "line": 436,
+      "section": "7.3 响应观察与蜜罐触发",
+      "requirement": "弱口令尝试 / ≥3 次 / 来自登录门（以及已配置的业务登录接口）。内置常见弱口令表（来源许可必须兼容，记录在第三方声明中）。**只记录命中与否、长度和哈希，不存明文**，因为可能是被误导入的真实用户",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:361；wafpipeline/punishment_test.go:208；THIRD_PARTY_NOTICES.md:454；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0437",
+      "line": 437,
+      "section": "7.3 响应观察与蜜罐触发",
+      "requirement": "404 扫描 / 1 分钟内 ≥20 个不同路径的 404 / 忽略 `favicon.ico`、`robots.txt`、`.map` 等可配置忽略列表",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:676；wafpipeline/proxy_test.go:212；wafpipeline/punishment.go:386；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0438",
+      "line": 438,
+      "section": "7.3 响应观察与蜜罐触发",
+      "requirement": "401/403 异常 / 5 分钟内 ≥10 次 / **首次未带凭据的 401 是正常握手，不计数**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:676；wafpipeline/proxy_test.go:212；wafpipeline/punishment.go:386；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0439",
+      "line": 439,
+      "section": "7.3 响应观察与蜜罐触发",
+      "requirement": "5xx 异常 / 5 分钟内 ≥5 次，且可归因于该 IP / **上游整体故障保护**：同窗口全站 5xx 占比异常高，则不计入个人处罚",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:676；wafpipeline/proxy_test.go:212；wafpipeline/punishment.go:386；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0440",
+      "line": 440,
+      "section": "7.3 响应观察与蜜罐触发",
+      "requirement": "陷阱路径 / 1 次 / 用户配置“本站不存在但扫描器爱访问”的路径（如 `/wp-login.php`）；触发即蜜罐或拉黑",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/honeypot.go:21；wafpipeline/punishment_test.go:208；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0444",
+      "line": 444,
+      "section": "7.4 蜜罐（D6）",
+      "requirement": "- 进程内置处理器：仿登录页、仿常见管理面板路径；响应带随机延迟（受并发上限约束，防止被拖垮 goroutine）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/honeypot.go:41；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；内嵌仿登录/面板路径，密钥摘要，无上游依赖；并发/延迟有界，TTL及释放恢复。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0445",
+      "line": 445,
+      "section": "7.4 蜜罐（D6）",
+      "requirement": "- **绝不转发到真实上游**；测试必须断言上游收到 0 个请求。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/honeypot.go:41；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；内嵌仿登录/面板路径，密钥摘要，无上游依赖；并发/延迟有界，TTL及释放恢复。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0446",
+      "line": 446,
+      "section": "7.4 蜜罐（D6）",
+      "requirement": "- 蜜罐交互记录：路径、UA、尝试的账号名；口令只存哈希和长度。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/honeypot.go:41；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；内嵌仿登录/面板路径，密钥摘要，无上游依赖；并发/延迟有界，TTL及释放恢复。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0447",
+      "line": 447,
+      "section": "7.4 蜜罐（D6）",
+      "requirement": "- 蜜罐内触碰陷阱路径 / 提交登录 → 升级为拉黑。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/honeypot.go:41；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；内嵌仿登录/面板路径，密钥摘要，无上游依赖；并发/延迟有界，TTL及释放恢复。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0448",
+      "line": 448,
+      "section": "7.4 蜜罐（D6）",
+      "requirement": "- 导入蜜罐有 TTL（默认 60 分钟），到期自动恢复正常；界面可一键释放，因为合法用户可能被误导入。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/honeypot.go:41；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；内嵌仿登录/面板路径，密钥摘要，无上游依赖；并发/延迟有界，TTL及释放恢复。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0449",
+      "line": 449,
+      "section": "7.4 蜜罐（D6）",
+      "requirement": "- 流量导入蜜罐的 IP 在第 2 步第 4 条命中；`trusted` 永不被导入。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/honeypot.go:41；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；内嵌仿登录/面板路径，密钥摘要，无上游依赖；并发/延迟有界，TTL及释放恢复。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0453",
+      "line": 453,
+      "section": "7.5 状态存储与资源保护",
+      "requirement": "- 计数器：滑动窗口，内存存储；键为 `(port_id, ip, category)`；**设总条目上限 + LRU 淘汰**，100 万不同 IP 的洪泛下内存必须有界。IPv6 按 `/64` 聚合。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:186；wafpipeline/punishment_test.go:277；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0454",
+      "line": 454,
+      "section": "7.5 状态存储与资源保护",
+      "requirement": "- 封禁/蜜罐/锁定状态持久化（SQLite），重启后恢复；写入走异步批量。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline_state.go:68；service/waf_service/waf_pipeline_state_test.go:18；service/waf_service/waf_pipeline_state_test.go:122；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0455",
+      "line": 455,
+      "section": "7.5 状态存储与资源保护",
+      "requirement": "- 窗口计时用单调时钟，持久化 TTL 用墙上时钟。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:186；wafpipeline/punishment_test.go:277；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0456",
+      "line": 456,
+      "section": "7.5 状态存储与资源保护",
+      "requirement": "- 事件处理器与请求路径解耦：通过有界通道，通道满时丢弃低优先级事件（`low` 先丢），**不得阻塞请求**；丢弃次数要有指标。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "common/queue/queue.go:77；wafpipeline/punishment.go:117；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0462",
+      "line": 462,
+      "section": "8. 第 5 步：真实业务（反向代理）",
+      "requirement": "- 沿用现有代理实现，增加**响应观察钩子**：状态码、响应头、可选 Body 前 N 字节（仅登录判定用）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:676；wafpipeline/proxy_test.go:212；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0463",
+      "line": 463,
+      "section": "8. 第 5 步：真实业务（反向代理）",
+      "requirement": "- 转发头：正确维护 `X-Forwarded-For` / `X-Real-IP` / `X-Forwarded-Proto`；剥离 hop-by-hop 头。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:510；wafpipeline/proxy_test.go:117；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0464",
+      "line": 464,
+      "section": "8. 第 5 步：真实业务（反向代理）",
+      "requirement": "- WebSocket、SSE、Range 请求、大文件流式传输必须保持可用（NAS 场景）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:510；wafpipeline/proxy_test.go:117；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0465",
+      "line": 465,
+      "section": "8. 第 5 步：真实业务（反向代理）",
+      "requirement": "- 超时、最大请求体、最大头部大小可配；与第 3 步的体检测上限协同。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:510；wafpipeline/proxy_test.go:117；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0466",
+      "line": 466,
+      "section": "8. 第 5 步：真实业务（反向代理）",
+      "requirement": "- 上游健康状态暴露给 7.3 的“上游整体故障保护”。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:676；wafpipeline/proxy_test.go:212；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0467",
+      "line": 467,
+      "section": "8. 第 5 步：真实业务（反向代理）",
+      "requirement": "- **连接层畸形请求统计**：Go 的 `net/http` 在调用 handler 之前就会拒绝部分畸形请求。审计后确认是否有包装 `net.Listener`/`ConnState`/`ErrorLog` 的位置，将这类连接计为 `malformed` 的 `HitEvent` 来源。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/listener_audit.go:1；wafpipeline/listener_audit_test.go:15；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0475",
+      "line": 475,
+      "section": "9.1 真实客户端 IP",
+      "requirement": "- 只信任配置的“可信代理 CIDR”所带的 `X-Forwarded-For`，取**最右侧第一个不可信地址**；未配置可信代理时一律使用 TCP 对端地址。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:72；wafpipeline/ip_test.go:70；wafpipeline/proxy_test.go:117；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0476",
+      "line": 476,
+      "section": "9.1 真实客户端 IP",
+      "requirement": "- 任何封禁都不得基于可被伪造的头。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:72；wafpipeline/ip_test.go:70；wafpipeline/proxy_test.go:117；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0477",
+      "line": 477,
+      "section": "9.1 真实客户端 IP",
+      "requirement": "- 归一化：IPv4-mapped IPv6 转 IPv4；IPv6 封禁粒度见 5.2.3。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:72；wafpipeline/ip_test.go:70；wafpipeline/proxy_test.go:117；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0481",
+      "line": 481,
+      "section": "9.2 性能",
+      "requirement": "- 不得做“每请求读数据库”；配置整体快照，原子指针切换。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate_store.go:145；wafpipeline/punishment.go:117；service/waf_service/waf_pipeline_state.go:133；global/config.go:518；原生请求读内存快照、有界队列；旧活动写入已异步。旧认证缓存未命中/Redis仍可能读远端，未把该边界称为零IO。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0482",
+      "line": 482,
+      "section": "9.2 性能",
+      "requirement": "- 先做基线：审计阶段在代表性机器上给出现有路径的 QPS 与 P99；以后每个阶段对比，退化超过 10% 必须说明并优化。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/00-audit.md:231；docs/waf-pipeline/PHASE-9-report.md:68；wafpipeline/resource_test.go:15；桌面同机基线与ARM64交叉编译；不冒充NAS/ARM64实机性能。最终构建/当前基准待归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json；全链路有限样本与10%关注线：docs/waf-pipeline/FINAL-ACCEPTANCE.md:72",
+      "remaining": ""
+    },
+    {
+      "id": "L0483",
+      "line": 483,
+      "section": "9.2 性能",
+      "requirement": "- 目标硬件包含低功耗 NAS / ARM64，注意内存占用。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/00-audit.md:231；docs/waf-pipeline/PHASE-9-report.md:68；wafpipeline/resource_test.go:15；桌面同机基线与ARM64交叉编译；不冒充NAS/ARM64实机性能。最终构建/当前基准待归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0487",
+      "line": 487,
+      "section": "9.3 日志与可观测",
+      "requirement": "- 日志异步、批量，队列满时按优先级丢弃，并有计数指标。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "common/queue/queue.go:77；wafpipeline/punishment.go:117；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0488",
+      "line": 488,
+      "section": "9.3 日志与可观测",
+      "requirement": "- 日志字段：`req_id、site、client_ip、stage、verdict、rule_id、category、severity、observe、reason、耗时`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "model/pipeline_state.go:24；service/waf_service/waf_pipeline_state.go:133；wafpipeline/pipeline.go:151；wafpipeline/diagnostics_test.go:13；docs/waf-pipeline/RECOVERY-auth-report.md:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0489",
+      "line": 489,
+      "section": "9.3 日志与可观测",
+      "requirement": "- 敏感信息脱敏：Cookie、Authorization、口令字段、令牌。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "model/pipeline_state.go:24；service/waf_service/waf_pipeline_state.go:133；wafpipeline/pipeline.go:151；wafpipeline/diagnostics_test.go:13；docs/waf-pipeline/RECOVERY-auth-report.md:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0490",
+      "line": 490,
+      "section": "9.3 日志与可观测",
+      "requirement": "- **管理端 dry-run**：`explain(ip, 请求样例)` 返回完整 `DecisionTrace` 与“命中了哪份名单/哪条规则/为什么”，不产生真实处罚。用于排查误封。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/runtime.go:145；wafpipeline/pipeline_test.go:20；wafpipeline/gate_test.go:262；web/src/pages/waf/pipeline/PortEditor.vue:37；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0494",
+      "line": 494,
+      "section": "9.4 配置与数据迁移",
+      "requirement": "- 新增表（建议，需按现有 ORM 与命名习惯调整；**凡属端口级配置的表都带 `port_id`**）：`port_config`（端口、上游、各分区配置、模板来源）、`config_template`、`gate_user`、`gate_session`、`access_switch`、`ip_group_entry(source,type,value,trust,expire_at,remark)`、`ban_record`、`honeypot_record`、`feed_state`、`hit_policy`、`rule_override`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafdb/schema_core.go:115；service/waf_service/waf_pipeline_v201_test.go:19；scripts/verify-pipeline-migration.ps1:4；旧库复制升级与真实业务迁入；源库hash不变，无清库/自动启动。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0495",
+      "line": 495,
+      "section": "9.4 配置与数据迁移",
+      "requirement": "- 必须为 v2.0.1 已有数据写迁移，并附迁移测试（旧库 → 新库）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafdb/schema_core.go:115；service/waf_service/waf_pipeline_v201_test.go:19；scripts/verify-pipeline-migration.ps1:4；旧库复制升级与真实业务迁入；源库hash不变，无清库/自动启动。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0496",
+      "line": 496,
+      "section": "9.4 配置与数据迁移",
+      "requirement": "- 配置变更写审计日志（谁、何时、改了什么）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline_audit.go:11；service/waf_service/waf_pipeline_audit_test.go:11；F63补revision、变化分区/字段、凭据变化标记与模板身份，日志无配置值。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0497",
+      "line": 497,
+      "section": "9.4 配置与数据迁移",
+      "requirement": "- “家庭模式”等预设以**内置模板**形式提供，见 9.6.2。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0501",
+      "line": 501,
+      "section": "9.5 WAF 自身安全",
+      "requirement": "- 管理接口鉴权、防暴力、防 CSRF；不得出现默认口令（现有为随机初始密码，保持）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "router/waf_pipeline.go:1；api/waf_pipeline.go:22；scripts/verify-pipeline-openapi.mjs:5；wafpipeline/diagnostics_test.go:13；docs/waf-pipeline/PHASE-8-report.md:1；沿用管理鉴权/角色/加密重放链，随机初始密码；新增接口加入现有Swagger流程；最终Swagger已真实生成，32条流水线与6条渠道操作/签名字段检查通过。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0502",
+      "line": 502,
+      "section": "9.5 WAF 自身安全",
+      "requirement": "- 新增接口全部登记到现有 Swagger 生成流程（`gen_swagger.bat` 对应的流程）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "router/waf_pipeline.go:1；api/waf_pipeline.go:22；scripts/verify-pipeline-openapi.mjs:5；wafpipeline/diagnostics_test.go:13；docs/waf-pipeline/PHASE-8-report.md:1；沿用管理鉴权/角色/加密重放链，随机初始密码；新增接口加入现有Swagger流程；最终Swagger已真实生成，32条流水线与6条渠道操作/签名字段检查通过。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0503",
+      "line": 503,
+      "section": "9.5 WAF 自身安全",
+      "requirement": "- 不得向日志、错误页回显内部路径、堆栈、上游地址。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "router/waf_pipeline.go:1；api/waf_pipeline.go:22；scripts/verify-pipeline-openapi.mjs:5；wafpipeline/diagnostics_test.go:13；docs/waf-pipeline/PHASE-8-report.md:1；沿用管理鉴权/角色/加密重放链，随机初始密码；新增接口加入现有Swagger流程；最终Swagger已真实生成，32条流水线与6条渠道操作/签名字段检查通过。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0509",
+      "line": 509,
+      "section": "9.6.1 端口配置单元",
+      "requirement": "- 数据：`port_config` 一个端口一条，包含：监听端口、协议（沿用现有 HTTP/HTTPS 机制）、上游地址、**五步各自的配置分区**（`access / ip_group / ruleset / hit_policy / honeypot / gate`）、模板来源（模板 ID + 版本 + 应用时间）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0510",
+      "line": 510,
+      "section": "9.6.1 端口配置单元",
+      "requirement": "- 每端口一个**独立的流水线实例**和**独立的配置快照**（原子切换）；修改端口 A 只重建 A 的快照。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0511",
+      "line": 511,
+      "section": "9.6.1 端口配置单元",
+      "requirement": "- **故障隔离**：某端口配置错误或检测器 panic 不得影响其他端口；每端口独立 `recover`，错误记入该端口日志；配置校验失败时保留旧快照，并在界面提示。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/listeners.go:97；wafpipeline/registry.go:38；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；wafpipeline/resource_test.go:15；容器外部映射只能检测配置中已知占用和本地socket，不声称探测宿主未知映射。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0512",
+      "line": 512,
+      "section": "9.6.1 端口配置单元",
+      "requirement": "- **监听管理**：运行时可增删、启停单个端口的监听，不影响其他端口；做端口冲突检测（管理端口、已占用端口、容器映射端口）；失败要给出可读原因。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/listeners.go:97；wafpipeline/registry.go:38；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；wafpipeline/resource_test.go:15；容器外部映射只能检测配置中已知占用和本地socket，不声称探测宿主未知映射。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0513",
+      "line": 513,
+      "section": "9.6.1 端口配置单元",
+      "requirement": "- **资源配额**：计数器、LRU、事件队列有**全局总上限**，并按端口分配配额，防止单个端口被洪泛拖垮其他端口；端口数量上限默认 200，可配。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/listeners.go:97；wafpipeline/registry.go:38；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；wafpipeline/resource_test.go:15；容器外部映射只能检测配置中已知占用和本地socket，不声称探测宿主未知映射。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0514",
+      "line": 514,
+      "section": "9.6.1 端口配置单元",
+      "requirement": "- **跨端口共享项（仅限以下）**：IP 归属地库及缓存、联网库（VIP）订阅与本地缓存、自动封锁名单（D12）、弱口令表、通知渠道、系统级日志队列。其余一律按端口。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/runtime.go:44；wafpipeline/config_test.go:9；wafpipeline/proxy_routes_test.go:14；web/src/pages/waf/pipeline/PortEditor.vue:51；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0518",
+      "line": 518,
+      "section": "9.6.2 模板",
+      "requirement": "- **模板 = 一整套端口配置的预设**，**不含凭据**，也不含用户手动录入的 IP 条目（用户复制端口配置时可勾选带上）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0519",
+      "line": 519,
+      "section": "9.6.2 模板",
+      "requirement": "- 既可**整体应用**，也可**只应用某一步 / 某一分区**（例如只把该端口的“规则集”换成某模板）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0520",
+      "line": 520,
+      "section": "9.6.2 模板",
+      "requirement": "- **应用即复制**（D7）：应用后端口配置与模板脱钩。端口上记录“模板来源”，界面可查看“与模板的差异”，并提供“从模板更新”：先显示差异，用户确认后只覆盖选定分区。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0521",
+      "line": 521,
+      "section": "9.6.2 模板",
+      "requirement": "- **内置模板**（只读，随版本更新；更新不会改动已应用的端口），初始提供：",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0525",
+      "line": 525,
+      "section": "9.6.2 模板",
+      "requirement": "家庭·仅白名单 / 只给家人用的服务 / `unlisted_action=deny`、登录门开启、蜜罐开启、断网自保开启、高置信度规则 block",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0526",
+      "line": 526,
+      "section": "9.6.2 模板",
+      "requirement": "家庭·NAS / 文件/相册/WebDAV / 上传规则仅观察并按路径限定；放行 WebDAV 方法；大文件与 Range；登录门表单模式",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0527",
+      "line": 527,
+      "section": "9.6.2 模板",
+      "requirement": "家庭·摄像头/智能家居 / 面板与设备接口 / QPS 偏低；登录门必开；对 App 路径用 `trusted` / 令牌例外；WebSocket/SSE",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0528",
+      "line": 528,
+      "section": "9.6.2 模板",
+      "requirement": "公开小站点 / 博客/个人主页 / 不开登录门；区域白名单（allow_only）+ 全规则集；CC/BOT 偏严",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0529",
+      "line": 529,
+      "section": "9.6.2 模板",
+      "requirement": "API/Webhook / 机器调用 / 不开登录门；CSRF 关闭；令牌头；QPS 按路径",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0530",
+      "line": 530,
+      "section": "9.6.2 模板",
+      "requirement": "仅观察（学习模式） / 新端口试运行 / 所有规则 `observe`；不处罚、不锁定，只记录；配套“观察→拦截”向导",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0532",
+      "line": 532,
+      "section": "9.6.2 模板",
+      "requirement": "- **用户模板**：另存为、重命名、删除；**导出 / 导入 JSON**。导入必须严格校验结构与取值范围，**不得携带或导入口令哈希 / 密钥 / 令牌**；导入后先预览，用户确认才应用。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0533",
+      "line": 533,
+      "section": "9.6.2 模板",
+      "requirement": "- 模板带版本号与 schema 版本；旧模板应用到新版本程序时必须能迁移，或明确报错。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:20；wafpipeline/templates.go:84；wafpipeline/config_test.go:9；wafpipeline/gate_token_test.go:8；web/src/pages/waf/pipeline/index.vue:54；web/src/pages/waf/pipeline/PortEditor.vue:98；六模板与独立复制/分区差异、只读内置、严格导入；公开模板地区由用户选择，不能硬编码。API模板令牌要求已补。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0537",
+      "line": 537,
+      "section": "9.6.3 新建端口向导（强制流程）",
+      "requirement": "1. 填监听端口与上游地址：冲突检测，上游连通性测试。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/PortEditor.vue:28；service/waf_service/waf_pipeline.go:210；service/waf_service/waf_pipeline_test.go:20；web/scripts/verify-pipeline-browser.mjs:52；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0538",
+      "line": 538,
+      "section": "9.6.3 新建端口向导（强制流程）",
+      "requirement": "2. 选择模板。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/PortEditor.vue:28；service/waf_service/waf_pipeline.go:210；service/waf_service/waf_pipeline_test.go:20；web/scripts/verify-pipeline-browser.mjs:52；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0539",
+      "line": 539,
+      "section": "9.6.3 新建端口向导（强制流程）",
+      "requirement": "3. 若模板开启了登录门：**必须设置至少一个账号**（口令强度检查），否则不能继续。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/PortEditor.vue:28；service/waf_service/waf_pipeline.go:210；service/waf_service/waf_pipeline_test.go:20；web/scripts/verify-pipeline-browser.mjs:52；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0540",
+      "line": 540,
+      "section": "9.6.3 新建端口向导（强制流程）",
+      "requirement": "4. 预览“一个来自陌生 IP 的请求会被如何处理”（调用 dry-run `explain`）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/PortEditor.vue:28；service/waf_service/waf_pipeline.go:210；service/waf_service/waf_pipeline_test.go:20；web/scripts/verify-pipeline-browser.mjs:52；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0541",
+      "line": 541,
+      "section": "9.6.3 新建端口向导（强制流程）",
+      "requirement": "5. 创建后端口处于“未启用”状态（监听不启动）；用户确认预览后点击“启用”，或选择“以观察模式启动”。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/PortEditor.vue:28；service/waf_service/waf_pipeline.go:210；service/waf_service/waf_pipeline_test.go:20；web/scripts/verify-pipeline-browser.mjs:52；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0545",
+      "line": 545,
+      "section": "9.6.4 总览与批量",
+      "requirement": "- “端口总览”页：每端口一行：端口、上游、模板来源、访问开关、登录门状态、今日命中/拦截数、当前封锁数、是否锁定。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/index.vue:3；web/src/pages/waf/pipeline/index.vue:46；web/src/pages/waf/pipeline/index.vue:44；wafpipeline/config_test.go:9；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0546",
+      "line": 546,
+      "section": "9.6.4 总览与批量",
+      "requirement": "- 批量操作：对选中的多个端口应用模板（逐端口显示差异，确认后执行）、批量启停、批量导出。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/index.vue:3；web/src/pages/waf/pipeline/index.vue:46；web/src/pages/waf/pipeline/index.vue:44；wafpipeline/config_test.go:9；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0547",
+      "line": 547,
+      "section": "9.6.4 总览与批量",
+      "requirement": "- “复制端口配置”：复制到新端口；默认不复制凭据与手动 IP 条目。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/index.vue:3；web/src/pages/waf/pipeline/index.vue:46；web/src/pages/waf/pipeline/index.vue:44；wafpipeline/config_test.go:9；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0554",
+      "line": 554,
+      "section": "10. 阶段计划",
+      "requirement": "> 依赖关系：1 → 2 → 3 → 4 / 5 → 6 → 7 → 8 → 9。**阶段 2（多端口与模板）是后续所有阶段的地基，不得跳过。**",
+      "status": "未完全遵守：历史阶段顺序偏差，基础功能已补齐",
+      "evidence": "HomeWaf-AI-Instructions.md:554；AGENTS.md:5；docs/waf-pipeline/WORKLOG.md:47；docs/waf-pipeline/findings.md:375；用户仅取消逐阶段等待，没有取消阶段依赖。此前基础迁入功能未闭环即推进阶段，后续已补齐；历史顺序不能追溯改成符合要求。",
+      "remaining": ""
+    },
+    {
+      "id": "L0560",
+      "line": 560,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "**任务**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:177；wafpipeline/runtime.go:44；wafpipeline/pipeline_test.go:20；wafpipeline/host_trace_test.go:11；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0561",
+      "line": 561,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "1. 引入统一的 `Pipeline / Stage / Verdict / HitEvent / DecisionTrace`；**流水线实例以端口为单位创建**。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:177；wafpipeline/runtime.go:44；wafpipeline/pipeline_test.go:20；wafpipeline/host_trace_test.go:11；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0562",
+      "line": 562,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "2. 把现有检查点按五步归位，**不改变现有行为**。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:5；service/waf_service/waf_pipeline_migration.go:160；service/waf_service/waf_pipeline_migration_test.go:64；cmd/homewaf/pipeline.go:67；web/src/pages/waf/pipeline/LegacyMigration.vue:1；22个顺序点+旁路均有真实接线与管理入口；原文完全行为等价按用户后续不考虑兼容性更新，迁入/功能整合不豁免。原始数据保留。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0563",
+      "line": 563,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "3. 配置快照 + 原子切换；惰性归一化视图（6.2 的骨架）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:177；wafpipeline/runtime.go:44；wafpipeline/pipeline_test.go:20；wafpipeline/host_trace_test.go:11；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0564",
+      "line": 564,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "4. 管理端 dry-run `explain`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:177；wafpipeline/runtime.go:44；wafpipeline/pipeline_test.go:20；wafpipeline/host_trace_test.go:11；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0566",
+      "line": 566,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "**验收**",
+      "status": "按用户后续要求调整行为等价标准",
+      "evidence": "docs/waf-pipeline/00-evidence.md:53；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:31；docs/waf-pipeline/decisions.md:33；特征化基线与行为差异明确保留；用户后续不要求兼容，不为了等价保留旧绕过或共享账号。",
+      "remaining": ""
+    },
+    {
+      "id": "L0567",
+      "line": 567,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "- 先补“特征化测试”，锁定重构前行为；重构前后对同一批请求的 verdict 完全一致，附对比报告。",
+      "status": "按用户后续要求调整行为等价标准",
+      "evidence": "docs/waf-pipeline/00-evidence.md:53；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:31；docs/waf-pipeline/decisions.md:33；特征化基线与行为差异明确保留；用户后续不要求兼容，不为了等价保留旧绕过或共享账号。",
+      "remaining": ""
+    },
+    {
+      "id": "L0568",
+      "line": 568,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "- 现有全部测试通过；基准无明显退化。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/WORKLOG.md:112；docs/waf-pipeline/PHASE-9-report.md:68；scripts/verify.mjs:1；完整测试/构建已执行，最后热路径变更另做必要补验；历史结果不冒充当前重测。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json；全链路有限样本与10%关注线：docs/waf-pipeline/FINAL-ACCEPTANCE.md:72",
+      "remaining": ""
+    },
+    {
+      "id": "L0569",
+      "line": 569,
+      "section": "阶段 1：流水线骨架与裁决模型（行为保持重构）",
+      "requirement": "- 每个请求能输出 `DecisionTrace`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/pipeline.go:177；wafpipeline/runtime.go:44；wafpipeline/pipeline_test.go:20；wafpipeline/host_trace_test.go:11；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0573",
+      "line": 573,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "**任务**：第 9.6 全部（界面留到阶段 8）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/listeners.go:97；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；service/waf_service/waf_pipeline_migration_test.go:206；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0574",
+      "line": 574,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "1. `port_config` 数据模型与迁移：把现有站点/端口配置迁入，**行为保持不变**。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:5；service/waf_service/waf_pipeline_migration.go:160；service/waf_service/waf_pipeline_migration_test.go:64；cmd/homewaf/pipeline.go:67；web/src/pages/waf/pipeline/LegacyMigration.vue:1；22个顺序点+旁路均有真实接线与管理入口；原文完全行为等价按用户后续不考虑兼容性更新，迁入/功能整合不豁免。原始数据保留。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0575",
+      "line": 575,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "2. 每端口独立流水线实例、独立配置快照、故障隔离、运行时增删启停监听、端口冲突检测。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/listeners.go:97；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；service/waf_service/waf_pipeline_migration_test.go:206；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0576",
+      "line": 576,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "3. 资源配额：全局总上限 + 每端口配额。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/listeners.go:97；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；service/waf_service/waf_pipeline_migration_test.go:206；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0577",
+      "line": 577,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "4. 模板：6 个内置模板、用户模板、整体/分区应用、差异、从模板更新、导出/导入（严格校验，不含凭据）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:84；wafpipeline/config_test.go:9；web/src/pages/waf/pipeline/PortEditor.vue:28；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0578",
+      "line": 578,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "5. 新建端口向导的后端接口（含 dry-run 预览）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:84；wafpipeline/config_test.go:9；web/src/pages/waf/pipeline/PortEditor.vue:28；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0580",
+      "line": 580,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "**验收**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/listeners.go:97；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；service/waf_service/waf_pipeline_migration_test.go:206；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0581",
+      "line": 581,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "- 端口 A、B：修改 A 的任意设置，B 的配置快照与行为不变（测试断言）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/listeners.go:97；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；service/waf_service/waf_pipeline_migration_test.go:206；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0582",
+      "line": 582,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "- A 的配置非法或检测器 panic，B 照常服务；错误只记入 A 的日志。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/listeners.go:97；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；service/waf_service/waf_pipeline_migration_test.go:206；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0583",
+      "line": 583,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "- 应用模板后与模板脱钩；差异视图准确；“从模板更新”只覆盖选定分区；导入的模板不含口令哈希/密钥/令牌；非法模板被拒绝并说明原因。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/templates.go:84；wafpipeline/config_test.go:9；web/src/pages/waf/pipeline/PortEditor.vue:28；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0584",
+      "line": 584,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "- 运行时新增/删除/启停端口不影响其他端口；端口冲突被检测并给出可读原因。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/registry.go:38；wafpipeline/listeners.go:97；wafpipeline/pipeline_test.go:103；wafpipeline/listeners_test.go:82；service/waf_service/waf_pipeline_migration_test.go:206；wafpipeline/punishment_test.go:353；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0585",
+      "line": 585,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "- 100 个端口下的启动时间与内存占用写入报告；单端口洪泛不拖垮其他端口（配额生效）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/resource_test.go:15；wafpipeline/punishment_test.go:277；docs/waf-pipeline/PHASE-9-report.md:116；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0586",
+      "line": 586,
+      "section": "阶段 2：多端口配置单元与模板系统（后端与数据层）",
+      "requirement": "- v2.0.1 旧数据迁移测试通过。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "service/waf_service/waf_pipeline_v201_test.go:19；scripts/verify-pipeline-migration.ps1:4；必须带实际v2.0.1夹具执行；默认go test里的skip不算这项通过。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0590",
+      "line": 590,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "**任务**：5.1、5.2 全部；联网库 Provider + mock；区域白名单；前缀树快照；保护规则；自动封锁跨端口共享（D12）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；wafpipeline/ip_test.go:70；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0592",
+      "line": 592,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "**验收**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；wafpipeline/ip_test.go:70；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0593",
+      "line": 593,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "- 黑名单优先、trusted 跳过、allow_only 继续、`unlisted_action` 三种行为各有表驱动测试。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；wafpipeline/ip_test.go:70；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0594",
+      "line": 594,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "- 开关按端口独立：关闭 A 不影响 B。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；wafpipeline/ip_test.go:70；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0595",
+      "line": 595,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "- 自动封锁共享：A 封的 IP 在 B 也被拒，但 B 的 `trusted` 不受影响；自定义黑名单只作用于所属端口。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；wafpipeline/ip_test.go:70；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0596",
+      "line": 596,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "- 区域白名单：私网与查不到的 IP 不被放行；库更新后缓存失效。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；wafpipeline/ip_test.go:70；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0597",
+      "line": 597,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "- 联网库：验签失败拒收；离线沿用缓存；与私网/trusted 重叠的条目被忽略并告警。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:152；wafpipeline/diagnostics_test.go:13；service/waf_service/waf_pipeline_diagnostics_test.go:16；F62补齐忽略命中告警；按端口60秒限频，全部诊断不处罚。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0598",
+      "line": 598,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "- IPv4-mapped IPv6、IPv6 /64 的用例。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/ip.go:128；wafpipeline/ip_test.go:25；wafpipeline/ip_test.go:70；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:318；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0599",
+      "line": 599,
+      "section": "阶段 3：第 1～2 步（开关 + IP 组，均按端口）",
+      "requirement": "- 10 万条规则查询基准与报告。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/00-audit.md:215；docs/waf-pipeline/PHASE-9-report.md:85；artifacts/pipeline-microbenchmark-summary.json；10万IPv4/IPv6深查实测；最终同条件永久名单对照见docs/waf-pipeline/FINAL-ACCEPTANCE.md:92；TTL另列，深命中与邻接miss均测。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json；最终永久索引包装开销0.55%–4.72%，窄余量限制亦披露。",
+      "remaining": ""
+    },
+    {
+      "id": "L0603",
+      "line": 603,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "**任务**：6.1 规则集模型与三态；QPS；CC；BOT 与轻量挑战；**6.5 登录门全部**（form 模式、basic 模式、账号与会话、Cookie 端口隔离、上游剥离、免登录范围、登录限速、第 4 步事件衔接、可选令牌头）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0605",
+      "line": 605,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "**验收**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0606",
+      "line": 606,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- 观察模式命中不执行动作、不计入处罚。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0607",
+      "line": 607,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- 正常浏览器突发加载（页面 + 静态资源）不触发 CC/QPS。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0608",
+      "line": 608,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- 好 BOT 反向 DNS 校验用例；伪造 UA 的用例。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0609",
+      "line": 609,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- **端口 5000 与 5001 账号独立**；5000 的会话 Cookie 拿到 5001 无效，含手工篡改端口 ID 的用例。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0610",
+      "line": 610,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- 未登录：浏览器导航 → `302` + `next`（`next` 为外部 URL 时被拒）；XHR / WebSocket → `401`；**上游收到 0 个请求**。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0611",
+      "line": 611,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- 登录后请求转发给上游，且上游收不到 WAF 会话 Cookie / 凭据头。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate_security_test.go:11；wafpipeline/gate.go:179；配对测时+统一错误响应；成本不同的旧哈希要求重设，不能丢MFA。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0612",
+      "line": 612,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- 用户名不存在与口令错误的响应内容一致，耗时无统计上可观察的差异。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0613",
+      "line": 613,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- 登录限速生效；不存在永久硬锁；弱口令被拒绝创建；启用登录门但无账号时启用失败。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0614",
+      "line": 614,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- `trusted` 免登录（可关闭）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0615",
+      "line": 615,
+      "section": "阶段 4：规则集 A —— QPS、CC、BOT、登录门",
+      "requirement": "- 登录失败事件进入第 4 步（可用 stub 验证）；日志里没有明文口令。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/rules_a.go:34；wafpipeline/gate.go:116；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:209；wafpipeline/gate_test.go:295；wafpipeline/gate_test.go:348；service/waf_service/waf_pipeline_test.go:20；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0619",
+      "line": 619,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- 5a：SQLi、XSS（整合 `libinjection-go`）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；docs/waf-pipeline/PHASE-5a-report.md:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0620",
+      "line": 620,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- 5b：文件上传、文件包含、命令注入",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_files_test.go:14；docs/waf-pipeline/PHASE-5b-report.md:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0621",
+      "line": 621,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- 5c：Java 代码注入、Java 反序列化、PHP 反序列化、PHP 代码注入、ASP 代码注入、模板注入",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_language_test.go:21；docs/waf-pipeline/PHASE-5c-report.md:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0622",
+      "line": 622,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- 5d：CSRF、SSRF",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_origin_test.go:12；docs/waf-pipeline/PHASE-5d-report.md:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0623",
+      "line": 623,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- 5e：畸形 HTTP（含连接层统计）、扫描器特征",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_protocol_test.go:12；docs/waf-pipeline/PHASE-5e-report.md:1；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0626",
+      "line": 626,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- 命中语料 ≥ 10 条（含编码变体、大小写变体、JSON/multipart 内嵌）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:14；wafpipeline/detectors_language_test.go:21；wafpipeline/detectors_origin_test.go:12；wafpipeline/detectors_protocol_test.go:12；wafpipeline/detectors_test.go:153；docs/waf-pipeline/PHASE-9-report.md:85；每类别命中/家庭正常语料≥10，嵌套JSON/multipart/编码变体、预算与原流回放；基准已归档，保留首测和中间结果。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0627",
+      "line": 627,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- **误报语料 ≥ 10 条**（见 12.2）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:14；wafpipeline/detectors_language_test.go:21；wafpipeline/detectors_origin_test.go:12；wafpipeline/detectors_protocol_test.go:12；wafpipeline/detectors_test.go:153；docs/waf-pipeline/PHASE-9-report.md:85；每类别命中/家庭正常语料≥10，嵌套JSON/multipart/编码变体、预算与原流回放；基准已归档，保留首测和中间结果。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0628",
+      "line": 628,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- 绕过用例：多重编码、`/..;/`、分块请求体、gzip 请求体。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:14；wafpipeline/detectors_language_test.go:21；wafpipeline/detectors_origin_test.go:12；wafpipeline/detectors_protocol_test.go:12；wafpipeline/detectors_test.go:153；docs/waf-pipeline/PHASE-9-report.md:85；每类别命中/家庭正常语料≥10，嵌套JSON/multipart/编码变体、预算与原流回放；基准已归档，保留首测和中间结果。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0629",
+      "line": 629,
+      "section": "阶段 5：规则集 B —— 攻击检测（分 5 个子批次，每批独立提交并汇报）",
+      "requirement": "- 单检测器基准；总预算超时行为（D10）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:14；wafpipeline/detectors_language_test.go:21；wafpipeline/detectors_origin_test.go:12；wafpipeline/detectors_protocol_test.go:12；wafpipeline/detectors_test.go:153；docs/waf-pipeline/PHASE-9-report.md:85；每类别命中/家庭正常语料≥10，嵌套JSON/multipart/编码变体、预算与原流回放；基准已归档，保留首测和中间结果。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0633",
+      "line": 633,
+      "section": "阶段 6：第 5 步 —— 业务代理与响应观察",
+      "requirement": "**任务**：第 8 节全部；上游健康度；可选的业务登录接口判定；连接层畸形统计；WebSocket / SSE / Range / 大文件回归。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:104；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；wafpipeline/proxy_test.go:212；wafpipeline/listener_audit_test.go:15；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0635",
+      "line": 635,
+      "section": "阶段 6：第 5 步 —— 业务代理与响应观察",
+      "requirement": "**验收**：端到端场景覆盖 WebSocket、SSE、1 GB 流式上传下载不爆内存；响应观察事件能进入第 4 步。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy.go:104；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；wafpipeline/proxy_test.go:212；wafpipeline/listener_audit_test.go:15；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0639",
+      "line": 639,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "**任务**：第 7 节全部。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0642",
+      "line": 642,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "1. 单 IP 一次 critical 命中 → 被封 60 分钟 → 期间第 2 步直接拒绝且不进入第 3 步 → 到期自动解封 → 再犯时长 ×4。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0643",
+      "line": 643,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "2. `trusted` IP 做同样的事 → 不被封，仅告警。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0644",
+      "line": 644,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "3. 60 秒内 5 个不同 IP 各触发 high 命中 → **该端口**全局锁定；trusted 仍可访问；**其他端口不受影响**；超时/手动解除后恢复；观察模式命中不触发。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0645",
+      "line": 645,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "4. 同一 IP 在登录门连续失败 5 次 → 导入蜜罐；**真实上游收到 0 个请求**；蜜罐内触碰陷阱路径 → 升级拉黑；释放后恢复正常。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0646",
+      "line": 646,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "5. 同一 IP 提交 3 次内置弱口令 → 导入蜜罐。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0647",
+      "line": 647,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "6. 上游整体 5xx 激增 → 不惩罚个人。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0648",
+      "line": 648,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "7. 重启后封禁、蜜罐、锁定状态恢复。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0649",
+      "line": 649,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "8. 100 万不同 IP 洪泛 → 内存有界，请求延迟无明显恶化，丢弃计数可见；单端口洪泛不影响其他端口。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0650",
+      "line": 650,
+      "section": "阶段 7：第 4 步 —— 命中限制、蜜罐、断网自保",
+      "requirement": "9. 自动封锁共享（D12）：A 端口封锁的 IP 在 B 端口被拒，B 的 trusted 不受影响。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/punishment.go:343；wafpipeline/punishment_test.go:53；wafpipeline/punishment_test.go:124；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:277；wafpipeline/proxy_test.go:212；service/waf_service/waf_pipeline_state_test.go:18；实际HTTP状态与回源次数，100万来源/异端口资源场景；计时钟测试加速TTL，不等待墙钟小时。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0654",
+      "line": 654,
+      "section": "阶段 8：管理界面、模板界面、文档",
+      "requirement": "**任务**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/index.vue:3；web/src/pages/waf/pipeline/PortEditor.vue:1；web/src/pages/waf/pipeline/Trace.vue:1；docs/waf-pipeline/USER-GUIDE.zh-CN.md:1；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0655",
+      "line": 655,
+      "section": "阶段 8：管理界面、模板界面、文档",
+      "requirement": "- 前端（`web/`）按五步重排。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:5；service/waf_service/waf_pipeline_migration.go:160；service/waf_service/waf_pipeline_migration_test.go:64；cmd/homewaf/pipeline.go:67；web/src/pages/waf/pipeline/LegacyMigration.vue:1；22个顺序点+旁路均有真实接线与管理入口；原文完全行为等价按用户后续不考虑兼容性更新，迁入/功能整合不豁免。原始数据保留。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0656",
+      "line": 656,
+      "section": "阶段 8：管理界面、模板界面、文档",
+      "requirement": "- **端口总览页**、**端口配置页**（五步顺序 + 登录门配置 + 账号管理）、**模板管理页**（应用 / 差异 / 从模板更新 / 导入导出）、**新建端口向导**、批量应用模板、“复制端口配置”。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/index.vue:3；web/src/pages/waf/pipeline/PortEditor.vue:1；web/src/pages/waf/pipeline/Trace.vue:1；docs/waf-pipeline/USER-GUIDE.zh-CN.md:1；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0657",
+      "line": 657,
+      "section": "阶段 8：管理界面、模板界面、文档",
+      "requirement": "- 每项设置带说明文字；命中原因可点开 `DecisionTrace`；dry-run 入口；“观察→拦截”渐进收紧向导。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/index.vue:3；web/src/pages/waf/pipeline/PortEditor.vue:1；web/src/pages/waf/pipeline/Trace.vue:1；docs/waf-pipeline/USER-GUIDE.zh-CN.md:1；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0658",
+      "line": 658,
+      "section": "阶段 8：管理界面、模板界面、文档",
+      "requirement": "- WAF 自带登录页的前端：纯内嵌静态资源、无外部依赖、适配手机、深色模式。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:486；wafpipeline/gate_logo_test.go:16；web/scripts/verify-pipeline-browser.mjs:85；纯内嵌页面、系统字体、相对form action、移动viewport、light/dark；截图/最终浏览器收尾。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0659",
+      "line": 659,
+      "section": "阶段 8：管理界面、模板界面、文档",
+      "requirement": "- 中文文档：每个规则的作用、误报处理、取舍说明（CSRF 边界、断网自保代价、区域白名单不等于免检、登录门与业务自身认证的冲突）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "web/src/pages/waf/pipeline/index.vue:3；web/src/pages/waf/pipeline/PortEditor.vue:1；web/src/pages/waf/pipeline/Trace.vue:1；docs/waf-pipeline/USER-GUIDE.zh-CN.md:1；web/scripts/verify-pipeline-browser.mjs:85；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0660",
+      "line": 660,
+      "section": "阶段 8：管理界面、模板界面、文档",
+      "requirement": "- 通过 `node scripts/build.mjs` 与 `node scripts/verify.mjs`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "scripts/build.mjs:1；scripts/verify.mjs:1；web/scripts/typecheck.mjs:4；最终真实构建/verify均通过，typecheck不是完整构建的替代。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0664",
+      "line": 664,
+      "section": "阶段 9：加固",
+      "requirement": "**任务**：模糊测试（请求解析与归一化、模板导入）；浸泡测试（≥24 小时，多端口并发，监控内存/goroutine）；全链路基准；升级迁移演练；安全自查（9.5 + 登录门专项：会话固定、Cookie 串扰、开放重定向、用户枚举、时序差异）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/fuzz_test.go:1；scripts/pipeline-soak/main.go:58；docs/waf-pipeline/PHASE-9-report.md:123；AGENTS.md:3；24小时条件由用户2026-11-11新要求取消；使用已完成75秒短测证据，不新增长压测/连续循环、不外推长期无泄漏。当前功能改动另做重要回归、基准和迁移。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json；历史75秒仅代表当时版本；用户取消24小时，未声称当前版本长期无泄漏。",
+      "remaining": ""
+    },
+    {
+      "id": "L0666",
+      "line": 666,
+      "section": "阶段 9：加固",
+      "requirement": "**验收**：无 goroutine/内存增长趋势；基准与阶段 0 基线对比报告；所有已知问题入 `findings.md` 并标注处理状态。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/fuzz_test.go:1；scripts/pipeline-soak/main.go:58；docs/waf-pipeline/PHASE-9-report.md:123；AGENTS.md:3；24小时条件由用户2026-11-11新要求取消；使用已完成75秒短测证据，不新增长压测/连续循环、不外推长期无泄漏。当前功能改动另做重要回归、基准和迁移。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json；历史75秒仅代表当时版本；用户取消24小时，未声称当前版本长期无泄漏。",
+      "remaining": ""
+    },
+    {
+      "id": "L0674",
+      "line": 674,
+      "section": "11.1 提交与分支",
+      "requirement": "- 每阶段一个分支：`feat/waf-pipeline-pN`；小步提交，提交信息格式：`[pN] 范围: 做了什么`。",
+      "status": "已核验，历史提交格式偏差已披露",
+      "evidence": "docs/waf-pipeline/WORKLOG.md:112；git branch: feat/waf-pipeline-p0 至 p9；当前恢复工作保留在p9；阶段分支存在；恢复提交中部分历史消息未使用[pN]格式，已如实披露，不重写用户提交历史。",
+      "remaining": ""
+    },
+    {
+      "id": "L0675",
+      "line": 675,
+      "section": "11.1 提交与分支",
+      "requirement": "- 每个提交保持可编译、测试通过。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/WORKLOG.md:112；docs/waf-pipeline/PHASE-9-report.md:68；scripts/verify.mjs:1；完整测试/构建已执行，最后热路径变更另做必要补验；历史结果不冒充当前重测。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json；全链路有限样本与10%关注线：docs/waf-pipeline/FINAL-ACCEPTANCE.md:72",
+      "remaining": ""
+    },
+    {
+      "id": "L0679",
+      "line": 679,
+      "section": "11.2 每阶段必须更新的文件",
+      "requirement": "- `docs/waf-pipeline/decisions.md`：新增决策与假设（含 D1–D10 的最终值）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/decisions.md:33；docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；16份PHASE报告已追加最终复核与证据，保留历史结论及撤回记录。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0680",
+      "line": 680,
+      "section": "11.2 每阶段必须更新的文件",
+      "requirement": "- `docs/waf-pipeline/findings.md`：发现的现有缺陷、改善项、处理状态。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/decisions.md:33；docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；16份PHASE报告已追加最终复核与证据，保留历史结论及撤回记录。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0681",
+      "line": 681,
+      "section": "11.2 每阶段必须更新的文件",
+      "requirement": "- `docs/waf-pipeline/PHASE-N-report.md`：阶段汇报（格式见第 13 节）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/decisions.md:33；docs/waf-pipeline/findings.md:23；docs/waf-pipeline/WORKLOG.md:15；16份PHASE报告已追加最终复核与证据，保留历史结论及撤回记录。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0685",
+      "line": 685,
+      "section": "11.3 遇到问题时",
+      "requirement": "- 两种方案都可行：选**可回退**的那种，并写入 `decisions.md`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/decisions.md:33；docs/waf-pipeline/findings.md:375；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:31；按用户连续执行授权处理可回退选择，冲突/变化写决策及迁入预览；未把功能缺口自行改称豁免。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0686",
+      "line": 686,
+      "section": "11.3 遇到问题时",
+      "requirement": "- 发现需求自相矛盾或与现有行为冲突：在汇报中提出，不要自行拍板改需求。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/decisions.md:33；docs/waf-pipeline/findings.md:375；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:31；按用户连续执行授权处理可回退选择，冲突/变化写决策及迁入预览；未把功能缺口自行改称豁免。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0687",
+      "line": 687,
+      "section": "11.3 遇到问题时",
+      "requirement": "- 现有代码有明显缺陷但超出本阶段范围：记录到 `findings.md`，不顺手大改。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/decisions.md:33；docs/waf-pipeline/findings.md:375；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:31；按用户连续执行授权处理可回退选择，冲突/变化写决策及迁入预览；未把功能缺口自行改称豁免。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0705",
+      "line": 705,
+      "section": "12.2 误报语料（家庭场景，必须覆盖）",
+      "requirement": "- 搜索框输入：`select your plan`、`union station`、`drop table 咖啡`、`1=1 是什么意思`。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:51；wafpipeline/detectors_language_test.go:21；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0706",
+      "line": 706,
+      "section": "12.2 误报语料（家庭场景，必须覆盖）",
+      "requirement": "- Markdown/代码片段上传到笔记类应用；包含 `<script>` 示例的技术文章编辑。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:51；wafpipeline/detectors_language_test.go:21；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0707",
+      "line": 707,
+      "section": "12.2 误报语料（家庭场景，必须覆盖）",
+      "requirement": "- NAS：文件名含中文、空格、括号、`#`、`%`、`&`；上传 `.sh`、`.exe`、`.php` 文件的正常业务；WebDAV 的 `PROPFIND` / `MKCOL` / `MOVE`；Range 请求；大文件分块。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:51；wafpipeline/detectors_language_test.go:21；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0708",
+      "line": 708,
+      "section": "12.2 误报语料（家庭场景，必须覆盖）",
+      "requirement": "- 相册/摄像头面板：长 URL、Base64 图片参数、WebSocket、SSE。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:51；wafpipeline/detectors_language_test.go:21；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0709",
+      "line": 709,
+      "section": "12.2 误报语料（家庭场景，必须覆盖）",
+      "requirement": "- 路由器/NAS 管理页：带 `;` 的路径参数、Cookie 很长。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:51；wafpipeline/detectors_language_test.go:21；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0710",
+      "line": 710,
+      "section": "12.2 误报语料（家庭场景，必须覆盖）",
+      "requirement": "- 合法的 JSON 请求体包含 `{{`、`${`、`<%` 字样的文案。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/detectors_test.go:52；wafpipeline/detectors_files_test.go:51；wafpipeline/detectors_language_test.go:21；wafpipeline/proxy_test.go:150；wafpipeline/proxy_test.go:293；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0711",
+      "line": 711,
+      "section": "12.2 误报语料（家庭场景，必须覆盖）",
+      "requirement": "- 登录门：带 `next` 参数的合法站内跳转；密码管理器自动填充；多标签页同时失效的会话；同主机不同端口的 Cookie 串扰；手机 App / WebDAV 客户端无法表单登录时的例外路径。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/gate.go:486；wafpipeline/gate_test.go:154；wafpipeline/gate_test.go:262；wafpipeline/gate_security_test.go:80；相对next、同主机跨端口Cookie、会话撤销/过期及App例外；内嵌表单提供密码管理器autocomplete属性。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0715",
+      "line": 715,
+      "section": "12.3 端到端环境",
+      "requirement": "- 用 `httptest` 起一个“假上游”；WAF 监听 `:5000`（测试用随机端口）；用脚本化场景驱动。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy_test.go:117；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；隔离httptest上游/随机监听端口；关键动作同时断言客户端结果和上游次数。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0716",
+      "line": 716,
+      "section": "12.3 端到端环境",
+      "requirement": "- 场景必须覆盖第 10 节阶段 7 的全部场景（含多端口隔离场景）。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy_test.go:117；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；隔离httptest上游/随机监听端口；关键动作同时断言客户端结果和上游次数。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0717",
+      "line": 717,
+      "section": "12.3 端到端环境",
+      "requirement": "- 对每个关键裁决断言**两件事**：返回给客户端的结果 + 上游是否收到请求。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "wafpipeline/proxy_test.go:117；wafpipeline/punishment_test.go:208；wafpipeline/punishment_test.go:53；隔离httptest上游/随机监听端口；关键动作同时断言客户端结果和上游次数。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0721",
+      "line": 721,
+      "section": "12.4 定义“完成”",
+      "requirement": "一个阶段完成，当且仅当：验收条目逐条有证据；测试全绿；基准无未解释的退化；文档与决策文件已更新；汇报已提交。",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/REQUIREMENTS.md:1；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:1；最终验收报告按七项汇报格式归档；全量和最后定向验证证据已核对，七项最终报告已归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0729",
+      "line": 729,
+      "section": "13. 阶段汇报格式",
+      "requirement": "1. **变更摘要**（一段话 + 关键文件清单）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/REQUIREMENTS.md:1；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:1；最终验收报告按七项汇报格式归档；全量和最后定向验证证据已核对，七项最终报告已归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0730",
+      "line": 730,
+      "section": "13. 阶段汇报格式",
+      "requirement": "2. **验收对照表**（验收条目 → 证据：测试名/命令输出/文件行号）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/REQUIREMENTS.md:1；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:1；最终验收报告按七项汇报格式归档；全量和最后定向验证证据已核对，七项最终报告已归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0731",
+      "line": 731,
+      "section": "13. 阶段汇报格式",
+      "requirement": "3. **测试与基准结果**（命令 + 结果摘要；与基线对比）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/REQUIREMENTS.md:1；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:1；最终验收报告按七项汇报格式归档；全量和最后定向验证证据已核对，七项最终报告已归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0732",
+      "line": 732,
+      "section": "13. 阶段汇报格式",
+      "requirement": "4. **未完成与已知限制**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/REQUIREMENTS.md:1；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:1；最终验收报告按七项汇报格式归档；全量和最后定向验证证据已核对，七项最终报告已归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0733",
+      "line": 733,
+      "section": "13. 阶段汇报格式",
+      "requirement": "5. **新发现的问题**（指向 `findings.md` 的条目）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/REQUIREMENTS.md:1；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:1；最终验收报告按七项汇报格式归档；全量和最后定向验证证据已核对，七项最终报告已归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0734",
+      "line": 734,
+      "section": "13. 阶段汇报格式",
+      "requirement": "6. **需要我决策的事**（最多 5 条，每条给出你推荐的选项）",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/REQUIREMENTS.md:1；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:1；最终验收报告按七项汇报格式归档；全量和最后定向验证证据已核对，七项最终报告已归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    },
+    {
+      "id": "L0735",
+      "line": 735,
+      "section": "13. 阶段汇报格式",
+      "requirement": "7. **下一阶段的预估范围**",
+      "status": "已核验：实现、场景与最终证据",
+      "evidence": "docs/waf-pipeline/REQUIREMENTS.md:1；docs/waf-pipeline/WORKLOG.md:15；docs/waf-pipeline/RECOVERY-CHECKPOINTS.md:1；最终验收报告按七项汇报格式归档；全量和最后定向验证证据已核对，七项最终报告已归档。；最终结果：docs/waf-pipeline/FINAL-ACCEPTANCE.md:36、docs/waf-pipeline/FINAL-EVIDENCE.json",
+      "remaining": ""
+    }
+  ],
+  "final_report": "docs/waf-pipeline/FINAL-ACCEPTANCE.md",
+  "final_evidence": "docs/waf-pipeline/FINAL-EVIDENCE.json",
+  "status_counts": {
+    "已核验：实现、场景与最终证据": 306,
+    "按用户后续要求执行": 2,
+    "已核验（阶段0历史产物）": 49,
+    "明确可选，默认关闭": 1,
+    "未完全遵守：历史阶段顺序偏差，基础功能已补齐": 1,
+    "按用户后续要求调整行为等价标准": 2,
+    "已核验，历史提交格式偏差已披露": 1
+  },
+  "literal_all_requirements_satisfied": false
+}

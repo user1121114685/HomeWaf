@@ -150,7 +150,8 @@ func logExportTransportLimit() gin.HandlerFunc {
 	}
 }
 
-func (web *WafWebManager) initRouter(r *gin.Engine) {
+// RegisterRoutes mounts production handlers without opening a listening socket.
+func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 
 	PublicRouterGroup := r.Group("")
 	PublicRouterGroup.Use(middleware.SecApi(), middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.ReplayProtect())
@@ -165,6 +166,7 @@ func (web *WafWebManager) initRouter(r *gin.Engine) {
 	{
 		// 共享/运维类接口：任意已登录角色可访问
 		router.ApiGroupApp.InitHostRouter(RouterGroup)
+		router.InitPipelineRouter(RouterGroup)
 		router.ApiGroupApp.InitHostGroupRouter(RouterGroup)
 		router.ApiGroupApp.InitLogRouter(RouterGroup)
 		router.ApiGroupApp.InitEngineRouter(RouterGroup)
@@ -325,16 +327,16 @@ func (web *WafWebManager) initRouter(r *gin.Engine) {
 	}
 
 	//性能检测部分
-	if global.GCONFIG_RECORD_DEBUG_ENABLE == 1 {
+	if global.CurrentSettings().GCONFIG_RECORD_DEBUG_ENABLE == 1 {
 		zlog.Info(web.LogName, "Debug On")
 		// N8：加固
 		debugGroup := r.Group("/debug", middleware.IPWhitelist(), middleware.TokenOnlyAuth(), middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), func(c *gin.Context) {
-			if global.GCONFIG_RECORD_DEBUG_ENABLE == 0 {
+			if global.CurrentSettings().GCONFIG_RECORD_DEBUG_ENABLE == 0 {
 				c.AbortWithStatus(http.StatusForbidden)
 				return
 			}
-			if global.GCONFIG_RECORD_DEBUG_PWD != "" {
-				if subtle.ConstantTimeCompare([]byte(c.Request.Header.Get("Authorization")), []byte(global.GCONFIG_RECORD_DEBUG_PWD)) != 1 {
+			if global.CurrentSettings().GCONFIG_RECORD_DEBUG_PWD != "" {
+				if subtle.ConstantTimeCompare([]byte(c.Request.Header.Get("Authorization")), []byte(global.CurrentSettings().GCONFIG_RECORD_DEBUG_PWD)) != 1 {
 					c.AbortWithStatus(http.StatusForbidden)
 					return
 				}
@@ -374,7 +376,7 @@ func isCorsOriginAllowed(origin string) bool {
 	if isLoopbackOrigin(origin) {
 		return true
 	}
-	allow := strings.TrimSpace(global.GCONFIG_CORS_ALLOW_ORIGINS)
+	allow := strings.TrimSpace(global.CurrentSettings().GCONFIG_CORS_ALLOW_ORIGINS)
 	if allow == "" {
 		return false
 	}
@@ -421,7 +423,7 @@ func (web *WafWebManager) StartLocalServer() error {
 	// 需按可信代理识别真实客户端的地方统一走 utils.GetManageClientIP（读 GCONFIG_MANAGE_TRUSTED_PROXIES）。
 	_ = r.SetTrustedProxies(nil)
 	r.Use(web.cors()) //解决跨域
-	web.initRouter(r)
+	web.RegisterRoutes(r)
 
 	web.R = r
 

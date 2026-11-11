@@ -664,8 +664,10 @@ func (w *WafOwaspApi) TuningSetApi(c *gin.Context) {
 		response.FailWithMessage("应用失败: "+err.Error(), c)
 		return
 	}
-	global.GCONFIG_OWASP_MODE = req.RuleEngine
-	global.GCONFIG_OWASP_BLOCK_THRESHOLD = int64(req.InboundThreshold)
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+		cfg.GCONFIG_OWASP_MODE = req.RuleEngine
+		cfg.GCONFIG_OWASP_BLOCK_THRESHOLD = int64(req.InboundThreshold)
+	})
 	response.OkWithMessage("已生效（已热重载）", c)
 }
 

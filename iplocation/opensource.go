@@ -39,6 +39,9 @@ func clearOpenSourceCache() {
 }
 
 func resolveManifest(ctx context.Context) (*remoteManifest, error) {
+	if cfg := currentUpgradeCfg(); cfg.RequireSignature {
+		return fetchManifest(ctx, manifestURL(cfg))
+	}
 	if !UsesOpenSourceUpdates() {
 		return fetchManifest(ctx, manifestURL(currentUpgradeCfg()))
 	}

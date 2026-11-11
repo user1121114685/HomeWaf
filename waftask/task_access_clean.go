@@ -28,7 +28,7 @@ func TaskAccessClean() {
 
 	expiredSession, expiredToken, delTicket, delOld :=
 		wafAccessSessionService.CleanExpired(7)
-	delAudit := wafAccessAuditService.CleanExpired(int(global.GCONFIG_ACCESS_AUDIT_RETAIN_DAYS))
+	delAudit := wafAccessAuditService.CleanExpired(int(global.CurrentSettings().GCONFIG_ACCESS_AUDIT_RETAIN_DAYS))
 
 	if expiredSession+expiredToken+delTicket+delOld+delAudit > 0 {
 		zlog.Info(innerLogName, "统一访问认证数据清理完成",

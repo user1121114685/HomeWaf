@@ -19,7 +19,9 @@ func normalizeTraversalPath(raw string) string {
 	if raw == "" {
 		return ""
 	}
-	s := NormalizeForDetection(raw)      // 多轮 URL 解码(含双重编码 %252e)
+	return normalizeDecodedTraversalPath(NormalizeForDetection(raw))
+}
+func normalizeDecodedTraversalPath(s string) string {
 	s = traversalOverlong.Replace(s)     // overlong UTF-8 → / .
 	s = strings.ReplaceAll(s, "\\", "/") // 反斜杠 → 正斜杠
 	for strings.Contains(s, "....//") {  // 折叠 ....// → ../("删一次 ../"式绕过)
@@ -113,4 +115,9 @@ func HasTraversalOrLFI(raw string) bool {
 		return true
 	}
 	return hitSensitiveFile(n)
+}
+
+func HasDecodedTraversalOrLFI(raw string) bool {
+	n := normalizeDecodedTraversalPath(raw)
+	return escapesRoot(n) || hitSensitiveFile(n)
 }

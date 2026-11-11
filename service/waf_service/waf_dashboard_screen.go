@@ -110,7 +110,7 @@ func GetScreenSnapshot(ctx context.Context) (*response.ScreenSnapshot, error) {
 		return nil, err
 	}
 	result.Issues = append(result.Issues, issues...)
-	result.LogMode = global.GDATA_ACCESS_LOG_MODE
+	result.LogMode = global.CurrentSettings().GDATA_ACCESS_LOG_MODE
 	if result.LogMode != "db" {
 		result.Issues = append(result.Issues, "访问日志并非全量记录，统计仅包含已记录的请求")
 	}

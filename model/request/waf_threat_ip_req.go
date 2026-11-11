@@ -6,28 +6,36 @@ import "HomeWaf/model/common/request"
 
 // WafThreatIPChannelAddReq 新增威胁情报订阅渠道请求
 type WafThreatIPChannelAddReq struct {
-	Code         string `json:"code" binding:"required"` // 渠道短码(小写字母/数字/下划线，≤13)
-	Name         string `json:"name" binding:"required"` // 显示名
-	URL          string `json:"url" binding:"required"`  // 拉取地址
-	ParserType   string `json:"parser_type"`             // plain_mixed | ipsum | cidr_only
-	Threshold    int    `json:"threshold"`               // ipsum 命中数阈值
-	LandTarget   string `json:"land_target"`             // waf | system | both
-	Enable       int    `json:"enable"`                  // 0/1
-	IntervalHour int    `json:"interval_hour"`           // 拉取周期(小时)
-	Remarks      string `json:"remarks"`                 // 备注
+	Code             string `json:"code" binding:"required"` // 渠道短码(小写字母/数字/下划线，≤13)
+	Name             string `json:"name" binding:"required"` // 显示名
+	URL              string `json:"url" binding:"required"`  // 拉取地址
+	ParserType       string `json:"parser_type"`             // plain_mixed | ipsum | cidr_only
+	Threshold        int    `json:"threshold"`               // ipsum 命中数阈值
+	LandTarget       string `json:"land_target"`             // waf | system | both
+	Enable           int    `json:"enable"`                  // 0/1
+	IntervalHour     int    `json:"interval_hour"`           // 拉取周期(小时)
+	Remarks          string `json:"remarks"`                 // 备注
+	SignatureURL     string `json:"signature_url"`
+	FeedID           string `json:"feed_id"`
+	SigningKeyID     string `json:"signing_key_id"`
+	SigningPublicKey string `json:"signing_public_key"`
 }
 
 // WafThreatIPChannelEditReq 修改威胁情报订阅渠道请求(不允许改 Code)
 type WafThreatIPChannelEditReq struct {
-	Id           string `json:"id" binding:"required"`
-	Name         string `json:"name" binding:"required"`
-	URL          string `json:"url" binding:"required"`
-	ParserType   string `json:"parser_type"`
-	Threshold    int    `json:"threshold"`
-	LandTarget   string `json:"land_target"`
-	Enable       int    `json:"enable"`
-	IntervalHour int    `json:"interval_hour"`
-	Remarks      string `json:"remarks"`
+	Id               string `json:"id" binding:"required"`
+	Name             string `json:"name" binding:"required"`
+	URL              string `json:"url" binding:"required"`
+	ParserType       string `json:"parser_type"`
+	Threshold        int    `json:"threshold"`
+	LandTarget       string `json:"land_target"`
+	Enable           int    `json:"enable"`
+	IntervalHour     int    `json:"interval_hour"`
+	Remarks          string `json:"remarks"`
+	SignatureURL     string `json:"signature_url"`
+	FeedID           string `json:"feed_id"`
+	SigningKeyID     string `json:"signing_key_id"`
+	SigningPublicKey string `json:"signing_public_key"`
 }
 
 // WafThreatIPChannelDelReq 删除请求

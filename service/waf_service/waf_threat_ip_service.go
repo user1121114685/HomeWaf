@@ -11,14 +11,17 @@ import (
 	"HomeWaf/firewall"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
+	"HomeWaf/internal/licensing"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
-	"HomeWaf/utils"
 	"HomeWaf/wafenginecore/ipset"
 	"HomeWaf/waftask/threatip"
+	"context"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
+	"net/http"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -28,8 +31,9 @@ import (
 
 // WafThreatIPService 威胁情报 IP 订阅服务：渠道 CRUD + 拉取同步 + 落地(WAF 应用层 / 系统防火墙)。
 type WafThreatIPService struct {
-	fw     firewall.FireWallEngine
-	syncMu sync.Mutex // 串行化同步，避免多渠道并发拉取造成内核/内存压力
+	fw           firewall.FireWallEngine
+	signedClient *http.Client // optional local-test transport; production uses safe outbound client
+	syncMu       sync.Mutex   // 串行化同步，避免多渠道并发拉取造成内核/内存压力
 
 	// inflight 记录"当前正在处理(含排队等锁)的渠道 Code -> 开始时间戳(秒)"。
 	// 纯内存态(重启即清空)，只用于列表接口回显"同步中"，让前端能轮询到结果。
@@ -123,6 +127,11 @@ func (r *WafThreatIPService) AddApi(req request.WafThreatIPChannelAddReq) error 
 	if err := validateChannelURL(req.URL); err != nil {
 		return err
 	}
+	if req.Enable != 0 {
+		if err := (threatip.SignatureConfig{URL: req.URL, ManifestURL: req.SignatureURL, FeedID: req.FeedID, KeyID: req.SigningKeyID, PublicKey: req.SigningPublicKey}).Validate(); err != nil {
+			return err
+		}
+	}
 	var cnt int64
 	global.GWAF_LOCAL_DB.Model(&model.ThreatIPChannel{}).Where("code = ?", req.Code).Count(&cnt)
 	if cnt > 0 {
@@ -145,6 +154,7 @@ func (r *WafThreatIPService) AddApi(req request.WafThreatIPChannelAddReq) error 
 		Enable:       req.Enable,
 		IntervalHour: defaultInt(req.IntervalHour, 24),
 		Remarks:      req.Remarks,
+		SignatureURL: req.SignatureURL, FeedID: req.FeedID, SigningKeyID: req.SigningKeyID, SigningPublicKey: req.SigningPublicKey,
 	}
 	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
@@ -157,8 +167,16 @@ func (r *WafThreatIPService) ModifyApi(req request.WafThreatIPChannelEditReq) er
 	if err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&bean).Error; err != nil {
 		return errors.New("记录不存在")
 	}
-	if err := validateChannelURL(req.URL); err != nil {
-		return err
+	// Existing invalid/unsigned sources can always be disabled without deleting their cache.
+	if req.Enable != 0 || req.URL != bean.URL {
+		if err := validateChannelURL(req.URL); err != nil {
+			return err
+		}
+	}
+	if req.Enable != 0 {
+		if err := (threatip.SignatureConfig{URL: req.URL, ManifestURL: req.SignatureURL, FeedID: req.FeedID, KeyID: req.SigningKeyID, PublicKey: req.SigningPublicKey}).Validate(); err != nil {
+			return err
+		}
 	}
 	landTarget := defaultStr(req.LandTarget, model.ThreatLandWAF)
 	updates := map[string]interface{}{
@@ -170,7 +188,8 @@ func (r *WafThreatIPService) ModifyApi(req request.WafThreatIPChannelEditReq) er
 		"Enable":       req.Enable,
 		"IntervalHour": defaultInt(req.IntervalHour, 24),
 		"Remarks":      req.Remarks,
-		"UPDATE_TIME":  customtype.JsonTime(time.Now()),
+		"SignatureURL": req.SignatureURL, "FeedID": req.FeedID, "SigningKeyID": req.SigningKeyID, "SigningPublicKey": req.SigningPublicKey,
+		"UPDATE_TIME": customtype.JsonTime(time.Now()),
 	}
 	if err := global.GWAF_LOCAL_DB.Model(&model.ThreatIPChannel{}).Where("id = ?", req.Id).Updates(updates).Error; err != nil {
 		return err
@@ -569,8 +588,14 @@ func (r *WafThreatIPService) SyncByIdApi(id string) error {
 	if err := global.GWAF_LOCAL_DB.Where("id = ?", id).First(&bean).Error; err != nil {
 		return errors.New("记录不存在")
 	}
+	if bean.Enable != 1 {
+		return errors.New("渠道未启用，未发起网络请求")
+	}
+	if err := channelSignature(bean).Validate(); err != nil {
+		return err
+	}
 	zlog.Info("威胁情报订阅收到手动同步请求", "channel", bean.Code, "name", bean.Name,
-		"url", bean.URL, "parser", bean.ParserType, "land", bean.LandTarget)
+		"parser", bean.ParserType, "land", bean.LandTarget)
 	safeGo("手动同步:"+bean.Code, func() {
 		err := r.syncChannelWithTrigger(bean, syncTriggerManual)
 		r.notifyOpResult("威胁情报订阅同步", bean.Name, err)
@@ -612,10 +637,19 @@ func (r *WafThreatIPService) syncChannelWithTrigger(ch model.ThreatIPChannel, tr
 	}
 	defer r.unlockSync()
 
-	zlog.Info("威胁情报订阅同步开始", "channel", ch.Code, "trigger", trigger, "url", ch.URL, "parser", ch.ParserType,
+	// The queued request may predate a disable or a trust-key change.
+	var current model.ThreatIPChannel
+	if err := global.GWAF_LOCAL_DB.Where("id = ?", ch.Id).First(&current).Error; err != nil {
+		return errors.New("订阅渠道已不存在")
+	}
+	ch = current
+	if ch.Enable != 1 {
+		return errors.New("渠道未启用，未发起网络请求")
+	}
+	zlog.Info("威胁情报订阅同步开始", "channel", ch.Code, "trigger", trigger, "parser", ch.ParserType,
 		"waited", time.Since(start).Round(time.Millisecond).String())
 
-	raw, stat, err := threatip.FetchWithStat(ch.URL)
+	raw, manifest, stat, err := threatip.FetchSignedSnapshot(context.Background(), channelSignature(ch), ch.SignedSequence, ch.SignedDigest, r.signedClient)
 	if err != nil {
 		zlog.Error(fmt.Sprintf("威胁情报订阅拉取失败 channel=%s trigger=%s error=%s", ch.Code, trigger, err.Error()))
 		r.markSyncFail(ch.Id, "拉取失败: "+err.Error())
@@ -668,6 +702,12 @@ func (r *WafThreatIPService) syncChannelWithTrigger(ch model.ThreatIPChannel, tr
 	}
 
 	contentSame := sameContent(sha, oldSha)
+	// Persist authenticated version and payload atomically, including unchanged
+	// content. Never advance the replay watermark if cache replacement fails.
+	if err := r.saveSignedSnapshot(ch, manifest, payload, sha, count, !contentSame); err != nil {
+		r.markSyncFail(ch.Id, "签名缓存保存失败: "+err.Error())
+		return err
+	}
 	if landingUpToDate(sha, oldSha, ch.LandedSha, effSha) {
 		// 内容与落地态都没变，才真的可以什么都不做
 		zlog.Info("威胁情报订阅内容无变化且落地态一致，跳过落地", "channel", ch.Code, "count", count,
@@ -683,17 +723,6 @@ func (r *WafThreatIPService) syncChannelWithTrigger(ch model.ThreatIPChannel, tr
 	}
 
 	added, removed := threatip.Diff(oldIPs, newIPs)
-
-	// 保存新快照(替换该渠道旧快照)。快照存的是**内容集原文**，不是有效集——
-	// 排除名单随时可能改回去，把过滤结果落库就再也还原不出源到底给了什么。
-	// 内容没变时无需重写，省一次大 blob 读写。
-	if !contentSame {
-		if err := r.saveSnapshot(ch.Code, payload, sha, count); err != nil {
-			zlog.Error(fmt.Sprintf("威胁情报订阅保存快照失败 channel=%s error=%s", ch.Code, err.Error()))
-			r.markSyncFail(ch.Id, "保存快照失败: "+err.Error())
-			return err
-		}
-	}
 
 	// 落地系统防火墙(该渠道私有集合，全量重建)
 	landErr := r.landSystemLayer(ch, effIPs, len(effIPs))
@@ -1003,9 +1032,12 @@ func (r *WafThreatIPService) loadSnapshot(code string) ([]string, string) {
 	return ips, snap.Sha256
 }
 
-// saveSnapshot 替换某渠道的快照(删旧插新，一行一渠道)
-func (r *WafThreatIPService) saveSnapshot(code string, payload []byte, sha string, count int) error {
-	global.GWAF_LOCAL_DB.Where("channel_code = ?", code).Delete(&model.ThreatIPSnapshot{})
+func channelSignature(ch model.ThreatIPChannel) threatip.SignatureConfig {
+	return threatip.SignatureConfig{URL: ch.URL, ManifestURL: ch.SignatureURL, FeedID: ch.FeedID, KeyID: ch.SigningKeyID, PublicKey: ch.SigningPublicKey}
+}
+
+// Keep the previous cache and replay watermark together on every failure.
+func (r *WafThreatIPService) saveSignedSnapshot(ch model.ThreatIPChannel, auth licensing.ThreatSnapshotManifest, payload []byte, sha string, count int, replace bool) error {
 	snap := &model.ThreatIPSnapshot{
 		BaseOrm: baseorm.BaseOrm{
 			Id:          uuid.GenUUID(),
@@ -1014,13 +1046,28 @@ func (r *WafThreatIPService) saveSnapshot(code string, payload []byte, sha strin
 			CREATE_TIME: customtype.JsonTime(time.Now()),
 			UPDATE_TIME: customtype.JsonTime(time.Now()),
 		},
-		ChannelCode: code,
+		ChannelCode: ch.Code,
 		IPVersion:   0, // 0 表示 v4/v6 合并存放
 		Count:       count,
 		Payload:     payload,
 		Sha256:      sha,
 	}
-	return global.GWAF_LOCAL_DB.Create(snap).Error
+	return global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&model.ThreatIPChannel{}).Where("id = ? AND enable = 1 AND url = ? AND signature_url = ? AND feed_id = ? AND signing_key_id = ? AND signing_public_key = ? AND parser_type = ? AND threshold = ? AND land_target = ? AND COALESCE(signed_sequence, 0) = ? AND COALESCE(signed_digest, '') = ?", ch.Id, ch.URL, ch.SignatureURL, ch.FeedID, ch.SigningKeyID, ch.SigningPublicKey, ch.ParserType, ch.Threshold, ch.LandTarget, ch.SignedSequence, ch.SignedDigest).Updates(map[string]any{"SignedSequence": auth.Sequence, "SignedDigest": strings.ToLower(auth.SHA256), "SignatureExpiresAt": auth.ExpiresAt})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return errors.New("订阅配置在拉取期间已变化，请重新同步")
+		}
+		if !replace {
+			return nil
+		}
+		if err := tx.Where("channel_code = ?", ch.Code).Delete(&model.ThreatIPSnapshot{}).Error; err != nil {
+			return err
+		}
+		return tx.Create(snap).Error
+	})
 }
 
 // markSyncOK 同步成功后回写：刷新同步时间、收录条数、状态，以及**已确认落地**的有效集 sha。
@@ -1096,16 +1143,10 @@ func defaultInt(v, def int) int {
 }
 
 // validateChannelURL 保存订阅渠道时的地址预检。
-// 真正的边界在拉取前(threatip.FetchWithStat 里的 IsAllowedOutboundURL + 带 SSRF 防护的客户端)，
+// 真正的边界在拉取前(签名验证 + IsAllowedOutboundURL + 带 SSRF 防护的客户端)，
 // 这里只是把明显不合法的地址在保存阶段就顶回去，省得用户配完等一轮定时任务才知道不行。
 func validateChannelURL(rawURL string) error {
-	if strings.TrimSpace(rawURL) == "" {
-		return errors.New("订阅地址不能为空")
-	}
-	if ok, reason := utils.PrecheckOutboundURL(rawURL); !ok {
-		return errors.New("订阅地址不被允许: " + reason)
-	}
-	return nil
+	return threatip.ValidateHTTPS(rawURL)
 }
 
 // validateChannelCode 校验渠道短码：小写字母/数字/下划线，长度 1-13(为 ipset 名 samwaf_sub_<code> ≤24 预留)

@@ -3,27 +3,24 @@
 package wafenginecore
 
 import (
-	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/model"
-	"HomeWaf/model/spec"
+	"HomeWaf/model/wafenginmodel"
 	"HomeWaf/utils"
+	"HomeWaf/wafpipeline"
 	"bytes"
-	"compress/flate"
-	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/andybalholm/brotli"
-	"github.com/klauspost/compress/zstd"
 	"gorm.io/gorm"
 )
 
@@ -97,37 +94,19 @@ func evaluateTamper(liveHash string, rule model.TamperRule) tamperDecision {
 // 同时把 resp.Body 复位为原始字节，供后续常规处理再次读取。
 // 以“解压后内容”为哈希基准，避免同一文件因 Accept-Encoding 不同(压/不压)导致哈希不一致。
 func readDecompressedBody(resp *http.Response) ([]byte, error) {
-	raw, err := io.ReadAll(resp.Body)
+	request := &http.Request{URL: &url.URL{Path: "/"}, Header: http.Header{"Content-Encoding": resp.Header.Values("Content-Encoding")}, Body: resp.Body}
+	limits := wafpipeline.DefaultViewLimits()
+	limits.ExpansionRatio = 100
+	view := wafpipeline.NewNormalizedView(request, limits)
+	err := view.ReadBody()
+	resp.Body = request.Body
 	if err != nil {
 		return nil, err
 	}
-	// 复位原始 body 供下游再次读取
-	resp.Body = io.NopCloser(bytes.NewReader(raw))
-
-	switch strings.ToLower(resp.Header.Get("Content-Encoding")) {
-	case "gzip":
-		zr, e := gzip.NewReader(bytes.NewReader(raw))
-		if e != nil {
-			return nil, e
-		}
-		defer zr.Close()
-		return io.ReadAll(zr)
-	case "deflate":
-		fr := flate.NewReader(bytes.NewReader(raw))
-		defer fr.Close()
-		return io.ReadAll(fr)
-	case "br":
-		return io.ReadAll(brotli.NewReader(bytes.NewReader(raw)))
-	case "zstd":
-		zr, e := zstd.NewReader(bytes.NewReader(raw))
-		if e != nil {
-			return nil, e
-		}
-		defer zr.Close()
-		return io.ReadAll(zr)
-	default:
-		return raw, nil
+	if view.BodyTruncated || view.ParseError != "" {
+		return nil, errResponseTransformLimit
 	}
+	return view.Body, nil
 }
 
 // checkAndHandleTamper 网页防篡改主流程。返回 true 表示已完整处理（回吐基线并记日志），
@@ -145,7 +124,7 @@ func (waf *WafEngine) checkAndHandleTamper(resp *http.Response, r *http.Request,
 		return false
 	}
 	// 仅对正常 200 响应学习/比对，避免把 404/500/302 学成基线
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK || resp.ContentLength < 0 || resp.ContentLength > 1<<20 || strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "stream") || !wafpipeline.TamperPublicResponse(r, resp) {
 		return false
 	}
 	rule := matchTamperRule(hostTarget.TamperRules, r.URL.Path)
@@ -196,6 +175,9 @@ func (waf *WafEngine) checkAndHandleTamper(resp *http.Response, r *http.Request,
 // serveTamperBaseline 用基线正文替换响应体（基线为解压后原文，未压缩直出）
 func (waf *WafEngine) serveTamperBaseline(resp *http.Response, rule *model.TamperRule) {
 	content := rule.BaselineContent
+	if resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 	resp.Body = io.NopCloser(bytes.NewReader(content))
 	resp.Header.Del("Content-Encoding")
 	if rule.ContentType != "" {
@@ -214,30 +196,32 @@ func (waf *WafEngine) captureTamperBaseline(rule *model.TamperRule, body []byte,
 	}
 	ruleId := rule.Id
 	hostCode := rule.HostCode
-	contentCopy := make([]byte, len(body))
-	copy(contentCopy, body)
-
-	go func() {
-		defer tamperLearning.Delete(ruleId)
-		now := time.Now().Format("2006-01-02 15:04:05")
-		upd := map[string]interface{}{
-			"LastLearnTime": now,
-			"ContentSize":   len(contentCopy),
+	if !legacyTamperTasks.submit(func() func() {
+		contentCopy := append([]byte{}, body...)
+		return func() {
+			defer tamperLearning.Delete(ruleId)
+			now := time.Now().Format("2006-01-02 15:04:05")
+			upd := map[string]interface{}{
+				"LastLearnTime": now,
+				"ContentSize":   len(contentCopy),
+			}
+			if overBaselineCap(len(contentCopy), cfg.MaxSizeKB) {
+				upd["BaselineStatus"] = 2
+				upd["BaselineMsg"] = fmt.Sprintf("正文 %d 字节超过上限 %d KB，未学习", len(contentCopy), cfg.MaxSizeKB)
+			} else {
+				upd["BaselineHash"] = sha256Hex(contentCopy)
+				upd["BaselineContent"] = contentCopy
+				upd["ContentType"] = contentType
+				upd["StatusCode"] = statusCode
+				upd["BaselineStatus"] = 1
+				upd["BaselineMsg"] = ""
+			}
+			global.GWAF_LOCAL_DB.Model(&model.TamperRule{}).Where("id=?", ruleId).Updates(upd)
+			waf.notifyTamperReload(hostCode)
 		}
-		if overBaselineCap(len(contentCopy), cfg.MaxSizeKB) {
-			upd["BaselineStatus"] = 2
-			upd["BaselineMsg"] = fmt.Sprintf("正文 %d 字节超过上限 %d KB，未学习", len(contentCopy), cfg.MaxSizeKB)
-		} else {
-			upd["BaselineHash"] = sha256Hex(contentCopy)
-			upd["BaselineContent"] = contentCopy
-			upd["ContentType"] = contentType
-			upd["StatusCode"] = statusCode
-			upd["BaselineStatus"] = 1
-			upd["BaselineMsg"] = ""
-		}
-		global.GWAF_LOCAL_DB.Model(&model.TamperRule{}).Where("id=?", ruleId).Updates(upd)
-		waf.notifyTamperReload(hostCode)
-	}()
+	}) {
+		tamperLearning.Delete(ruleId)
+	}
 }
 
 // onTamperDetected 命中篡改后异步累计次数并发告警；replaced 区分是否已回吐正确副本
@@ -246,34 +230,32 @@ func (waf *WafEngine) onTamperDetected(rule *model.TamperRule, weblog *innerbean
 	domain := weblog.HOST
 	srcIp := weblog.SRC_IP
 	url := weblog.URL
-	go func() {
-		now := time.Now().Format("2006-01-02 15:04:05")
-		global.GWAF_LOCAL_DB.Model(&model.TamperRule{}).Where("id=?", ruleId).Updates(map[string]interface{}{
-			"TamperCount":    gorm.Expr("tamper_count + 1"),
-			"LastTamperTime": now,
-		})
-		ruleInfo := "检测到网页被篡改（仅告警，未替换）：" + url
-		if replaced {
-			ruleInfo = "检测到网页被篡改，已回吐正确副本：" + url
+	legacyTamperTasks.submit(func() func() {
+		return func() {
+			now := time.Now().Format("2006-01-02 15:04:05")
+			global.GWAF_LOCAL_DB.Model(&model.TamperRule{}).Where("id=?", ruleId).Updates(map[string]interface{}{
+				"TamperCount":    gorm.Expr("tamper_count + 1"),
+				"LastTamperTime": now,
+			})
+			ruleInfo := "检测到网页被篡改（仅告警，未替换）：" + url
+			if replaced {
+				ruleInfo = "检测到网页被篡改，已回吐正确副本：" + url
+			}
+			global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.RuleMessageInfo{
+				BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "网页防篡改", Server: global.GWAF_CUSTOM_SERVER_NAME},
+				Domain:          domain,
+				RuleInfo:        ruleInfo,
+				Ip:              fmt.Sprintf("%s (%s)", srcIp, utils.GetCountry(srcIp)),
+			})
 		}
-		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.RuleMessageInfo{
-			BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "网页防篡改", Server: global.GWAF_CUSTOM_SERVER_NAME},
-			Domain:          domain,
-			RuleInfo:        ruleInfo,
-			Ip:              fmt.Sprintf("%s (%s)", srcIp, utils.GetCountry(srcIp)),
-		})
-	}()
+	})
 }
 
 // notifyTamperReload 重新读取该站点防篡改规则并推送到引擎热更新
 func (waf *WafEngine) notifyTamperReload(hostCode string) {
 	var list []model.TamperRule
 	global.GWAF_LOCAL_DB.Where("host_code=?", hostCode).Find(&list)
-	global.GWAF_CHAN_MSG <- spec.ChanCommonHost{
-		HostCode: hostCode,
-		Type:     enums.ChanTypeTamperRule,
-		Content:  list,
-	}
+	waf.UpdateHost(hostCode, func(host *wafenginmodel.HostSafe) { host.TamperRules = list })
 }
 
 // enqueueTamperLog 防篡改替换短路时记录访问日志（复用 all/abnormal + EXCLUDE_URL_LOG 规则）。

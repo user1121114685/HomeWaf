@@ -1,0 +1,26 @@
+package wafdb
+
+import (
+ "HomeWaf/model"
+ "HomeWaf/model/baseorm"
+ sqlite "HomeWaf/internal/sqlitedialect"
+ "gorm.io/gorm"
+ "gorm.io/gorm/logger"
+ "os"
+ "testing"
+)
+
+// Compiled against the actual audited v2.0.1 source via go -overlay.
+func TestExportV201Fixture(t *testing.T) {
+ path:=os.Getenv("HOMEWAF_V201_DB");if path==""{t.Fatal("fixture output path required")}
+ if _,err:=os.Stat(path);!os.IsNotExist(err){t.Fatal("refusing to overwrite fixture output")}
+ db,err:=gorm.Open(sqlite.Open(sqlite.FileDSN(path)),&gorm.Config{Logger:logger.Default.LogMode(logger.Silent)});if err!=nil{t.Fatal(err)}
+ conn,err:=db.DB();if err!=nil{t.Fatal(err)};defer conn.Close()
+ if err=InitializeCoreSchema(db);err!=nil{t.Fatal(err)}
+ host:=model.Hosts{BaseOrm:baseorm.BaseOrm{Id:"rehearsal-host",USER_CODE:"rehearsal-user",Tenant_ID:"rehearsal-tenant"},Code:"legacy-port",Host:"family.test",Port:48080,GUARD_STATUS:1,BindMoreHost:"album.test",START_STATUS:0,Remote_ip:"127.0.0.1",Remote_port:8080}
+ if err=db.Create(&host).Error;err!=nil{t.Fatal(err)}
+ ip:=model.IPAllowList{BaseOrm:baseorm.BaseOrm{Id:"rehearsal-allow",USER_CODE:"rehearsal-user",Tenant_ID:"rehearsal-tenant"},HostCode:"legacy-port",Ip:"192.168.20.0/24",IsEnable:1,Remarks:"synthetic preserved rule"}
+ if err=db.Create(&ip).Error;err!=nil{t.Fatal(err)}
+ if db.Migrator().HasTable("port_config"){t.Fatal("fixture unexpectedly contains new pipeline tables")}
+ t.Log("v2.0.1 schema fixture created with synthetic host and IP policy")
+}

@@ -9,7 +9,7 @@ import (
 // ================== 基础功能测试 ==================
 
 func TestFireWallEngine_AddRule(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	// Add a new firewall rule
 	ruleName := "testwaf1"
 	ipToAdd := "192.168.1.12"
@@ -24,7 +24,7 @@ func TestFireWallEngine_AddRule(t *testing.T) {
 }
 
 func TestFireWallEngine_DeleteRule(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	ruleName := "testwaf1"
 
 	exists, err := fw.IsRuleExists(ruleName)
@@ -48,7 +48,7 @@ func TestFireWallEngine_DeleteRule(t *testing.T) {
 }
 
 func TestFireWallEngine_EditRule(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	// Edit an existing firewall rule (not supported)
 	ruleNum := 1
 	newRule := "-p tcp --dport 8080 -j DROP"
@@ -60,7 +60,7 @@ func TestFireWallEngine_EditRule(t *testing.T) {
 }
 
 func TestFireWallEngine_IsFirewallEnabled(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 
 	// Check if the firewall is enabled
 	if fw.IsFirewallEnabled() {
@@ -71,7 +71,7 @@ func TestFireWallEngine_IsFirewallEnabled(t *testing.T) {
 }
 
 func TestFireWallEngine_IsRuleExists(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 
 	// Check if the rule exists
 	ruleName := "testwaf"
@@ -91,7 +91,7 @@ func TestFireWallEngine_IsRuleExists(t *testing.T) {
 
 // TestBlockIP 测试单个IP封禁
 func TestBlockIP(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	testIP := "192.168.100.100"
 
 	t.Logf("开始测试封禁IP: %s", testIP)
@@ -145,7 +145,7 @@ func TestBlockIP(t *testing.T) {
 
 // TestUnblockIP 测试解除IP封禁
 func TestUnblockIP(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	testIP := "192.168.100.101"
 
 	t.Logf("开始测试解除封禁IP: %s", testIP)
@@ -170,7 +170,7 @@ func TestUnblockIP(t *testing.T) {
 
 // TestIsIPBlocked 测试检查IP封禁状态
 func TestIsIPBlocked(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	testIP := "192.168.100.102"
 
 	t.Logf("开始测试检查IP封禁状态: %s", testIP)
@@ -209,7 +209,7 @@ func TestIsIPBlocked(t *testing.T) {
 
 // TestBlockIPList 测试批量封禁IP
 func TestBlockIPList(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	testIPs := []string{
 		"192.168.100.110",
 		"192.168.100.111",
@@ -261,7 +261,7 @@ func TestBlockIPList(t *testing.T) {
 
 // TestUnblockIPList 测试批量解除封禁
 func TestUnblockIPList(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	testIPs := []string{
 		"192.168.100.120",
 		"192.168.100.121",
@@ -287,7 +287,7 @@ func TestUnblockIPList(t *testing.T) {
 
 // TestGetBlockedIPList 测试获取已封禁IP列表
 func TestGetBlockedIPList(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	testIPs := []string{
 		"192.168.100.130",
 		"192.168.100.131",
@@ -335,7 +335,7 @@ func TestGetBlockedIPList(t *testing.T) {
 
 // TestClearAllBlockedIPs 测试清除所有封禁
 func TestClearAllBlockedIPs(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	testIPs := []string{
 		"192.168.100.140",
 		"192.168.100.141",
@@ -365,7 +365,7 @@ func TestClearAllBlockedIPs(t *testing.T) {
 
 // TestCIDRNotation 测试CIDR格式的IP封禁
 func TestCIDRNotation(t *testing.T) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(t)
 	testCIDR := "192.168.100.0/24"
 
 	t.Logf("开始测试CIDR格式封禁: %s", testCIDR)
@@ -405,7 +405,7 @@ func TestCIDRNotation(t *testing.T) {
 
 // BenchmarkBlockIP 性能测试：封禁单个IP
 func BenchmarkBlockIP(b *testing.B) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(b)
 	baseIP := "10.0.0."
 
 	b.ResetTimer()
@@ -424,7 +424,7 @@ func BenchmarkBlockIP(b *testing.B) {
 
 // BenchmarkIsIPBlocked 性能测试：检查IP封禁状态
 func BenchmarkIsIPBlocked(b *testing.B) {
-	fw := FireWallEngine{}
+	fw := newTestFirewall(b)
 	testIP := "10.0.0.100"
 
 	// 准备：先封禁一个IP

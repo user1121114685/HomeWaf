@@ -4,6 +4,7 @@ package wafenginecore
 
 import (
 	"HomeWaf/global"
+	"HomeWaf/internal/logsanitize"
 	"HomeWaf/model"
 	"HomeWaf/utils"
 	"HomeWaf/wafenginecore/clientip"
@@ -104,7 +105,7 @@ var (
 // recordIPProbe 记录一次IP来源采样。调用点在业务请求主流程，必须保持"未采样时几乎零成本"。
 func recordIPProbe(host model.Hosts, r *http.Request, resolvedIP string) {
 	// 默认关闭：不开探针时这里只花一次整型比较，业务请求不受任何影响
-	if global.GCONFIG_IPPROBE_ENABLE != 1 {
+	if requestSettings(r).GCONFIG_IPPROBE_ENABLE != 1 {
 		return
 	}
 	if host.Code == "" || r == nil {
@@ -141,7 +142,7 @@ func recordIPProbe(host model.Hosts, r *http.Request, resolvedIP string) {
 		Time:       now.Format("2006-01-02 15:04:05"),
 		UnixTime:   now.Unix(),
 		Host:       r.Host,
-		URL:        utils.TruncateString(r.RequestURI, 200),
+		URL:        utils.TruncateString(logsanitize.URI(r.RequestURI), 200),
 		Method:     r.Method,
 		Proto:      r.Proto,
 		NetIP:      netIP,
@@ -221,7 +222,7 @@ func ClearAllIPProbeSamples() {
 
 // IPProbeEnabled 探针是否开启(管理端展示用)
 func IPProbeEnabled() bool {
-	return global.GCONFIG_IPPROBE_ENABLE == 1
+	return global.CurrentSettings().GCONFIG_IPPROBE_ENABLE == 1
 }
 
 // IPProbeMaxSamples 每站保留的样本条数上限(管理端展示用，避免前后端各写一份)

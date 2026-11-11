@@ -3,6 +3,7 @@
 package api
 
 import (
+	"HomeWaf/model"
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
 
@@ -13,6 +14,15 @@ type WafThreatIPApi struct {
 }
 
 // AddApi 新增威胁情报订阅渠道
+// @Summary Create a signed threat subscription channel
+// @Tags ThreatSubscriptions
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Description Authenticated management transport; schemas describe decrypted payloads. Enable requires configured HTTPS data/manifest URLs, feed identity and trusted Ed25519 public key. Never submit a private key. Disabled drafts may omit trust settings.
+// @Param request body request.WafThreatIPChannelAddReq true "Channel and signature configuration"
+// @Success 200 {object} response.Response "Check code=0; nonzero means validation failure"
+// @Router /api/v1/threatip/channel/add [post]
 func (w *WafThreatIPApi) AddApi(c *gin.Context) {
 	var req request.WafThreatIPChannelAddReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -27,6 +37,15 @@ func (w *WafThreatIPApi) AddApi(c *gin.Context) {
 }
 
 // ModifyApi 修改威胁情报订阅渠道
+// @Summary Update a signed threat subscription channel
+// @Tags ThreatSubscriptions
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Description Uses existing encrypted management transport. Existing unsigned channels can be disabled without deleting cached data. Replay sequence is server-owned and cannot be reset by this request.
+// @Param request body request.WafThreatIPChannelEditReq true "Channel and signature configuration"
+// @Success 200 {object} response.Response "Check code=0; nonzero means validation failure"
+// @Router /api/v1/threatip/channel/edit [post]
 func (w *WafThreatIPApi) ModifyApi(c *gin.Context) {
 	var req request.WafThreatIPChannelEditReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -41,6 +60,13 @@ func (w *WafThreatIPApi) ModifyApi(c *gin.Context) {
 }
 
 // DelApi 删除威胁情报订阅渠道
+// @Summary Delete a threat subscription channel
+// @Tags ThreatSubscriptions
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id query string true "Channel record ID"
+// @Success 200 {object} response.Response
+// @Router /api/v1/threatip/channel/del [get]
 func (w *WafThreatIPApi) DelApi(c *gin.Context) {
 	var req request.WafThreatIPChannelDelReq
 	if err := c.ShouldBind(&req); err != nil {
@@ -55,6 +81,15 @@ func (w *WafThreatIPApi) DelApi(c *gin.Context) {
 }
 
 // GetListApi 分页获取渠道列表
+// @Summary List threat subscription channels
+// @Tags ThreatSubscriptions
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Description Data contains a PageResult; list items have the ThreatIPChannel schema, including verified sequence and signature expiry. Sequence zero denotes legacy unverified cache.
+// @Param request body request.WafThreatIPChannelSearchReq true "Pagination and name filter"
+// @Success 200 {object} response.Response{data=response.PageResult}
+// @Router /api/v1/threatip/channel/list [post]
 func (w *WafThreatIPApi) GetListApi(c *gin.Context) {
 	var req request.WafThreatIPChannelSearchReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -75,17 +110,33 @@ func (w *WafThreatIPApi) GetListApi(c *gin.Context) {
 }
 
 // GetDetailApi 获取渠道详情
+// @Summary Read a threat channel and signature status
+// @Tags ThreatSubscriptions
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id query string true "Channel record ID"
+// @Success 200 {object} response.Response{data=model.ThreatIPChannel}
+// @Router /api/v1/threatip/channel/detail [get]
 func (w *WafThreatIPApi) GetDetailApi(c *gin.Context) {
 	var req request.WafThreatIPChannelDetailReq
 	if err := c.ShouldBind(&req); err != nil {
 		response.FailWithMessage("解析失败", c)
 		return
 	}
-	bean := wafThreatIPService.GetDetailByIdApi(req.Id)
+	var bean model.ThreatIPChannel = wafThreatIPService.GetDetailByIdApi(req.Id)
 	response.OkWithDetailed(bean, "获取成功", c)
 }
 
 // SyncApi 手动触发某渠道立即同步
+// @Summary Start an authenticated threat snapshot synchronization
+// @Tags ThreatSubscriptions
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Description Requires enabled channel and complete signature configuration before network access. Runs asynchronously; inspect channel last_status and signed_sequence for completion. Failed verification or persistence retains the previous cache.
+// @Param request body request.WafThreatIPChannelSyncReq true "Channel record ID"
+// @Success 200 {object} response.Response "Accepted background operation, not proof of successful synchronization"
+// @Router /api/v1/threatip/channel/sync [post]
 func (w *WafThreatIPApi) SyncApi(c *gin.Context) {
 	var req request.WafThreatIPChannelSyncReq
 	if err := c.ShouldBindJSON(&req); err != nil {

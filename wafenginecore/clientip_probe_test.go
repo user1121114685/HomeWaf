@@ -27,9 +27,9 @@ func newProbeRequest(remoteAddr string) *http.Request {
 // enableProbe 打开探针开关(默认关)，测试结束自动还原
 func enableProbe(t *testing.T) {
 	t.Helper()
-	old := global.GCONFIG_IPPROBE_ENABLE
-	global.GCONFIG_IPPROBE_ENABLE = 1
-	t.Cleanup(func() { global.GCONFIG_IPPROBE_ENABLE = old })
+	old := global.CurrentSettings().GCONFIG_IPPROBE_ENABLE
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IPPROBE_ENABLE = 1 })
+	t.Cleanup(func() { global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IPPROBE_ENABLE = old }) })
 }
 
 // forceProbeSample 允许下一次立刻采样(绕开每秒限频，避免测试里 sleep)
@@ -99,9 +99,9 @@ func TestRecordIPProbeThrottleAndRing(t *testing.T) {
 
 // TestRecordIPProbeDisabledByDefault 开关默认关闭时一条都不能采(用户关心的流量/开销问题)
 func TestRecordIPProbeDisabledByDefault(t *testing.T) {
-	old := global.GCONFIG_IPPROBE_ENABLE
-	global.GCONFIG_IPPROBE_ENABLE = 0
-	defer func() { global.GCONFIG_IPPROBE_ENABLE = old }()
+	old := global.CurrentSettings().GCONFIG_IPPROBE_ENABLE
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IPPROBE_ENABLE = 0 })
+	defer func() { global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IPPROBE_ENABLE = old }) }()
 
 	host := model.Hosts{Code: "probe-off"}
 	recordIPProbe(host, newProbeRequest("8.8.8.8:1000"), "8.8.8.8")
@@ -113,7 +113,7 @@ func TestRecordIPProbeDisabledByDefault(t *testing.T) {
 	}
 
 	// 开→采到→关，ClearAllIPProbeSamples 必须把内存清干净
-	global.GCONFIG_IPPROBE_ENABLE = 1
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IPPROBE_ENABLE = 1 })
 	recordIPProbe(host, newProbeRequest("8.8.8.8:1000"), "8.8.8.8")
 	if got := len(GetIPProbeSamples(host.Code)); got != 1 {
 		t.Fatalf("开启后应采到1条，实际 %d 条", got)

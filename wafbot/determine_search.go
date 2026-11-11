@@ -68,20 +68,43 @@ var (
 *
 判断是否正确的搜索引擎 返回值： 是否是爬虫，是否是正常爬虫， 爬虫名称
 */
+func CanonicalCrawlerUA(userAgent string) string {
+	ua := strings.ToLower(userAgent)
+	switch {
+	case strings.Contains(ua, "baiduspider"):
+		return "Baiduspider"
+	case strings.Contains(ua, "googlebot"):
+		return "googlebot"
+	case strings.Contains(ua, "bingbot") || strings.Contains(ua, "msnbot"):
+		return "bingbot"
+	case strings.Contains(ua, "sogou") && (strings.Contains(ua, "spider") || strings.Contains(ua, "bot")):
+		return "sogou spider"
+	case strings.Contains(ua, "360spider"):
+		return "360Spider"
+	case strings.Contains(ua, "yisouspider"):
+		return "YisouSpider"
+	case strings.Contains(ua, "bytespider"):
+		return "Bytespider"
+	default:
+		return ""
+	}
+}
+
 func DetermineNormalSearch(userAgent, ip string) BotResult {
-	if strings.Contains(userAgent, "Baiduspider") {
+	switch CanonicalCrawlerUA(userAgent) {
+	case "Baiduspider":
 		return verifyByDNS(ip, baiduRules)
-	} else if strings.Contains(userAgent, "google") {
+	case "googlebot":
 		return verifyByDNS(ip, googleRules)
-	} else if strings.Contains(userAgent, "bingbot") || strings.Contains(userAgent, "msn.com") {
+	case "bingbot":
 		return verifyByDNS(ip, bingRules)
-	} else if strings.Contains(userAgent, "sogou") {
+	case "sogou spider":
 		return verifyByDNS(ip, sogouRules)
-	} else if strings.Contains(userAgent, "360Spider") {
+	case "360Spider":
 		return spider360(ip)
-	} else if strings.Contains(userAgent, "YisouSpider") {
+	case "YisouSpider":
 		return verifyByDNS(ip, yisouRules)
-	} else if strings.Contains(userAgent, "Bytespider") {
+	case "Bytespider":
 		return byteSpider(ip)
 	}
 	return BotResult{false, false, "", false}
@@ -98,16 +121,19 @@ func DetermineNormalSearch(userAgent, ip string) BotResult {
 //
 // 需要更强把握的场合改为只认 StrongVerified，这样既不放松拦截、也不误伤。
 func verifyByDNS(ip string, spider dnsSpider) BotResult {
+	return verifyByDNSWithLookups(ip, spider, ReverseDNSLookup, ForwardConfirms)
+}
+func verifyByDNSWithLookups(ip string, spider dnsSpider, reverse func(string) ([]string, error), forward func(string, string) bool) BotResult {
 	fake := BotResult{IsBot: true, IsNormalBot: false, BotName: spider.fakeName}
 
-	lookup, err := ReverseDNSLookup(ip)
+	lookup, err := reverse(ip)
 	if err != nil {
 		return dnsErrResult(err, fake)
 	}
 	if len(lookup) == 0 {
 		return fake
 	}
-	name := lookup[0]
+	name := strings.ToLower(lookup[0])
 	for _, rule := range spider.rules {
 		if !strings.HasSuffix(name, rule.suffix) {
 			continue
@@ -116,7 +142,7 @@ func verifyByDNS(ip string, spider dnsSpider) BotResult {
 			IsBot:          true,
 			IsNormalBot:    true,
 			BotName:        rule.botName,
-			StrongVerified: ForwardConfirms(name, ip),
+			StrongVerified: forward(name, ip),
 		}
 	}
 	return fake

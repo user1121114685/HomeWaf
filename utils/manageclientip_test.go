@@ -31,11 +31,15 @@ func newManageCtx(remoteAddr string, headers map[string]string) *gin.Context {
 // withManageIPConfig 临时设置管理端真实IP相关的三个全局配置，跑完还原
 func withManageIPConfig(t *testing.T, proxyHeader, trustedProxies, cdnProvider string, fn func()) {
 	t.Helper()
-	oldHeader, oldTrusted, oldCDN := global.GCONFIG_MANAGE_PROXY_HEADER, global.GCONFIG_MANAGE_TRUSTED_PROXIES, global.GCONFIG_MANAGE_CDN_PROVIDER
+	oldHeader, oldTrusted, oldCDN := global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER, global.CurrentSettings().GCONFIG_MANAGE_TRUSTED_PROXIES, global.CurrentSettings().GCONFIG_MANAGE_CDN_PROVIDER
 	defer func() {
-		global.GCONFIG_MANAGE_PROXY_HEADER, global.GCONFIG_MANAGE_TRUSTED_PROXIES, global.GCONFIG_MANAGE_CDN_PROVIDER = oldHeader, oldTrusted, oldCDN
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_MANAGE_PROXY_HEADER, cfg.GCONFIG_MANAGE_TRUSTED_PROXIES, cfg.GCONFIG_MANAGE_CDN_PROVIDER = oldHeader, oldTrusted, oldCDN
+		})
 	}()
-	global.GCONFIG_MANAGE_PROXY_HEADER, global.GCONFIG_MANAGE_TRUSTED_PROXIES, global.GCONFIG_MANAGE_CDN_PROVIDER = proxyHeader, trustedProxies, cdnProvider
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+		cfg.GCONFIG_MANAGE_PROXY_HEADER, cfg.GCONFIG_MANAGE_TRUSTED_PROXIES, cfg.GCONFIG_MANAGE_CDN_PROVIDER = proxyHeader, trustedProxies, cdnProvider
+	})
 	fn()
 }
 

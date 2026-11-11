@@ -16,8 +16,8 @@ import (
 func TaskDeleteHistoryInfo() {
 	zlog.Debug("TaskDeleteHistoryInfo")
 	// 安全事件与存量 web_logs 走「日志保留天数」，access_log 走自己的（更短的）保留期
-	deleteBeforeDay := time.Now().AddDate(0, 0, -int(global.GDATA_DELETE_INTERVAL)).Format("2006-01-02 15:04")
-	accessBeforeDay := time.Now().AddDate(0, 0, -int(global.GDATA_ACCESS_LOG_RETENTION_DAYS)).Format("2006-01-02 15:04")
+	deleteBeforeDay := time.Now().AddDate(0, 0, -int(global.CurrentSettings().GDATA_DELETE_INTERVAL)).Format("2006-01-02 15:04")
+	accessBeforeDay := time.Now().AddDate(0, 0, -int(global.CurrentSettings().GDATA_ACCESS_LOG_RETENTION_DAYS)).Format("2006-01-02 15:04")
 	waf_service.WafLogServiceApp.DeleteHistory(deleteBeforeDay, accessBeforeDay)
 
 	// 回收过期的归档分区：实时库只装当前周期，历史数据的保留期靠丢整个分区实现

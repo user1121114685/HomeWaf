@@ -26,9 +26,11 @@ import (
 
 func TestIsDirectLoopbackRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	oldHeader := global.GCONFIG_MANAGE_PROXY_HEADER
-	global.GCONFIG_MANAGE_PROXY_HEADER = " , X-Client-IP , X-Origin-IP, "
-	t.Cleanup(func() { global.GCONFIG_MANAGE_PROXY_HEADER = oldHeader })
+	oldHeader := global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_PROXY_HEADER = " , X-Client-IP , X-Origin-IP, " })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_PROXY_HEADER = oldHeader })
+	})
 	for _, tc := range []struct {
 		name, remote string
 		allowed      bool
@@ -114,11 +116,13 @@ func openApiLocalTestDB(t *testing.T) *gorm.DB {
 
 func TestValidateOpenApiKeyLocalOnly(t *testing.T) {
 	db := openApiLocalTestDB(t)
-	oldSwitch, oldHeader, oldLegacy := global.GCONFIG_OPEN_PLATFORM_ENABLED, global.GCONFIG_MANAGE_PROXY_HEADER, global.GCONFIG_COMM_LEGACY_KEY
-	global.GCONFIG_MANAGE_PROXY_HEADER = " X-Client-IP, X-Origin-IP "
-	global.GCONFIG_COMM_LEGACY_KEY = false
+	oldSwitch, oldHeader, oldLegacy := global.CurrentSettings().GCONFIG_OPEN_PLATFORM_ENABLED, global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER, global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_PROXY_HEADER = " X-Client-IP, X-Origin-IP " })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = false })
 	t.Cleanup(func() {
-		global.GCONFIG_OPEN_PLATFORM_ENABLED, global.GCONFIG_MANAGE_PROXY_HEADER, global.GCONFIG_COMM_LEGACY_KEY = oldSwitch, oldHeader, oldLegacy
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_OPEN_PLATFORM_ENABLED, cfg.GCONFIG_MANAGE_PROXY_HEADER, cfg.GCONFIG_COMM_LEGACY_KEY = oldSwitch, oldHeader, oldLegacy
+		})
 	})
 	if err := wafsec.InitCommKey(t.TempDir(), ""); err != nil {
 		t.Fatal(err)
@@ -161,7 +165,7 @@ func TestValidateOpenApiKeyLocalOnly(t *testing.T) {
 		{name: "missing_switch_on", missing: true, enabled: 1, remote: "127.0.0.1:5000", wantMessage: "无效的 API Key"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			global.GCONFIG_OPEN_PLATFORM_ENABLED = int64(tc.enabled)
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OPEN_PLATFORM_ENABLED = int64(tc.enabled) })
 			apiKey, id := "not-a-valid-key", ""
 			if !tc.missing {
 				var err error

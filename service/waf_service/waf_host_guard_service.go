@@ -489,7 +489,7 @@ func (receiver *WafHostGuardService) AddToWhitelist(ip string) error {
 		return errors.New("IP不能为空")
 	}
 
-	current := strings.TrimSpace(global.GCONFIG_HOST_GUARD_WHITELIST)
+	current := strings.TrimSpace(global.CurrentSettings().GCONFIG_HOST_GUARD_WHITELIST)
 	for _, item := range strings.Split(current, ",") {
 		if strings.TrimSpace(item) == ip {
 			return errors.New("该IP已在白名单中")
@@ -507,7 +507,7 @@ func (receiver *WafHostGuardService) AddToWhitelist(ip string) error {
 	if err != nil {
 		return err
 	}
-	global.GCONFIG_HOST_GUARD_WHITELIST = newValue
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_HOST_GUARD_WHITELIST = newValue })
 	wafhostguard.InvalidateWhitelist()
 
 	// 已经封着的要立刻放出来

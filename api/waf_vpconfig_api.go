@@ -121,7 +121,7 @@ func (w *WafVpConfigApi) GetIpWhitelistApi(c *gin.Context) {
 // @Router       /vipconfig/getManageTrustedProxies [get]
 func (w *WafVpConfigApi) GetManageTrustedProxiesApi(c *gin.Context) {
 	resp := response2.WafVpConfigManageTrustedProxiesGetResp{
-		TrustedProxies: global.GCONFIG_MANAGE_TRUSTED_PROXIES,
+		TrustedProxies: global.CurrentSettings().GCONFIG_MANAGE_TRUSTED_PROXIES,
 	}
 	response.OkWithDetailed(resp, "获取管理端可信代理网段成功", c)
 }
@@ -184,7 +184,7 @@ func (w *WafVpConfigApi) GetManageClientIPProbeApi(c *gin.Context) {
 
 // GetManageCDNProviderApi 获取管理端引用的 CDN 厂商码
 func (w *WafVpConfigApi) GetManageCDNProviderApi(c *gin.Context) {
-	response.OkWithDetailed(gin.H{"provider": global.GCONFIG_MANAGE_CDN_PROVIDER}, "获取成功", c)
+	response.OkWithDetailed(gin.H{"provider": global.CurrentSettings().GCONFIG_MANAGE_CDN_PROVIDER}, "获取成功", c)
 }
 
 // UpdateManageCDNProviderApi 更新管理端引用的 CDN 厂商码(设置后自动信任该厂商中心库最新回源段)
@@ -233,7 +233,7 @@ func (w *WafVpConfigApi) GetCDNProviderRangesApi(c *gin.Context) {
 // GetCorsAllowOriginsApi 获取 CORS 跨域来源白名单
 func (w *WafVpConfigApi) GetCorsAllowOriginsApi(c *gin.Context) {
 	resp := response2.WafVpConfigCorsAllowOriginsGetResp{
-		CorsAllowOrigins: global.GCONFIG_CORS_ALLOW_ORIGINS,
+		CorsAllowOrigins: global.CurrentSettings().GCONFIG_CORS_ALLOW_ORIGINS,
 	}
 	response.OkWithDetailed(resp, "获取CORS跨域白名单成功", c)
 }

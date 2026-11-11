@@ -57,13 +57,13 @@ func applyIPConfig(item, value string) error {
 	}
 	switch item {
 	case "ip_v4_source":
-		global.GCONFIG_IP_V4_SOURCE = value
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_V4_SOURCE = value })
 	case "ip_v6_source":
-		global.GCONFIG_IP_V6_SOURCE = value
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_V6_SOURCE = value })
 	case "ip_v4_format":
-		global.GCONFIG_IP_V4_FORMAT = value
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_V4_FORMAT = value })
 	case "ip_v6_format":
-		global.GCONFIG_IP_V6_FORMAT = value
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_V6_FORMAT = value })
 	}
 	return nil
 }
@@ -111,8 +111,8 @@ func reloadManagerByCurrentConfig() error {
 	dataDir := filepath.Join(utils.GetCurrentDir(), "data")
 	return global.GIPLOCATION_MANAGER.ReloadFromConfig(
 		dataDir,
-		global.GCONFIG_IP_V4_SOURCE, global.GCONFIG_IP_V6_SOURCE,
-		global.GCONFIG_IP_V4_FORMAT, global.GCONFIG_IP_V6_FORMAT,
+		global.CurrentSettings().GCONFIG_IP_V4_SOURCE, global.CurrentSettings().GCONFIG_IP_V6_SOURCE,
+		global.CurrentSettings().GCONFIG_IP_V4_FORMAT, global.CurrentSettings().GCONFIG_IP_V6_FORMAT,
 	)
 }
 
@@ -380,7 +380,7 @@ func (w *WafIPLocationApi) UploadIPDBFileApi(c *gin.Context) {
 		var sourceItem, sourceValue string
 		if ipType == "ipv4" {
 			if ext == ".xdb" {
-				reloadErr = global.GIPLOCATION_MANAGER.LoadV4Ip2Region(fileData, iplocation.DBFormat(global.GCONFIG_IP_V4_FORMAT))
+				reloadErr = global.GIPLOCATION_MANAGER.LoadV4Ip2Region(fileData, iplocation.DBFormat(global.CurrentSettings().GCONFIG_IP_V4_FORMAT))
 				sourceItem, sourceValue = "ip_v4_source", "ip2region"
 			} else {
 				reloadErr = global.GIPLOCATION_MANAGER.LoadV4GeoLite2(fileData)
@@ -388,7 +388,7 @@ func (w *WafIPLocationApi) UploadIPDBFileApi(c *gin.Context) {
 			}
 		} else {
 			if ext == ".xdb" {
-				reloadErr = global.GIPLOCATION_MANAGER.LoadV6Ip2Region(fileData, iplocation.DBFormat(global.GCONFIG_IP_V6_FORMAT))
+				reloadErr = global.GIPLOCATION_MANAGER.LoadV6Ip2Region(fileData, iplocation.DBFormat(global.CurrentSettings().GCONFIG_IP_V6_FORMAT))
 				sourceItem, sourceValue = "ip_v6_source", "ip2region"
 			} else {
 				reloadErr = global.GIPLOCATION_MANAGER.LoadV6GeoLite2(fileData)
@@ -461,9 +461,9 @@ func (w *WafIPLocationApi) ApplyIPDBUpgradeApi(c *gin.Context) {
 		return
 	}
 	dataDir := filepath.Join(utils.GetCurrentDir(), "data")
-	item, previous := "ip_v4_format", global.GCONFIG_IP_V4_FORMAT
+	item, previous := "ip_v4_format", global.CurrentSettings().GCONFIG_IP_V4_FORMAT
 	if req.Key == "ip2region_v6" {
-		item, previous = "ip_v6_format", global.GCONFIG_IP_V6_FORMAT
+		item, previous = "ip_v6_format", global.CurrentSettings().GCONFIG_IP_V6_FORMAT
 	}
 	reload := func() error {
 		// Official open-source downloads must not be parsed with a previous legacy/commercial layout.
@@ -533,12 +533,12 @@ func (w *WafIPLocationApi) TestIPLookupApi(c *gin.Context) {
 	if parsed := net.ParseIP(req.IP); parsed != nil {
 		if parsed.To4() != nil {
 			ipType = "IPv4"
-			usedSource = global.GCONFIG_IP_V4_SOURCE
-			usedFormat = global.GCONFIG_IP_V4_FORMAT
+			usedSource = global.CurrentSettings().GCONFIG_IP_V4_SOURCE
+			usedFormat = global.CurrentSettings().GCONFIG_IP_V4_FORMAT
 		} else {
 			ipType = "IPv6"
-			usedSource = global.GCONFIG_IP_V6_SOURCE
-			usedFormat = global.GCONFIG_IP_V6_FORMAT
+			usedSource = global.CurrentSettings().GCONFIG_IP_V6_SOURCE
+			usedFormat = global.CurrentSettings().GCONFIG_IP_V6_FORMAT
 		}
 	}
 

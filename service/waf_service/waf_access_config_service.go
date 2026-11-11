@@ -211,8 +211,8 @@ func (receiver *WafAccessConfigService) PublishConfig() {
 	}
 
 	cfg := &accessgate.Config{
-		ForceDisable: global.GCONFIG_ACCESS_FORCE_DISABLE,
-		GlobalEnable: global.GCONFIG_ACCESS_ENABLE == 1,
+		ForceDisable: global.CurrentSettings().GCONFIG_ACCESS_FORCE_DISABLE,
+		GlobalEnable: global.CurrentSettings().GCONFIG_ACCESS_ENABLE == 1,
 
 		CenterOrigin: bean.CenterOrigin,
 		CenterHost:   centerHost,

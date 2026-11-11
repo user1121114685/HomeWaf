@@ -2,66 +2,85 @@ package binarydist
 
 import (
 	"bytes"
-	"io/ioutil"
+	"compress/bzip2"
+	"encoding/binary"
+	"io"
+	"math/rand"
 	"os"
-	"os/exec"
 	"testing"
 )
 
-var diffT = []struct {
-	old *os.File
-	new *os.File
-}{
-	{
-		old: mustWriteRandFile("test.old", 1e3, 1),
-		new: mustWriteRandFile("test.new", 1e3, 2),
-	},
-	{
-		old: mustOpen("testdata/sample.old"),
-		new: mustOpen("testdata/sample.new"),
-	},
+// Compare the three uncompressed BSDIFF blocks exactly. Different bzip2
+// encoders can produce different compressed bytes for the same patch program.
+func patchBlocks(t *testing.T, patch []byte) [3][]byte {
+	t.Helper()
+	if len(patch) < 32 || string(patch[:8]) != "BSDIFF40" {
+		t.Fatal("invalid patch header")
+	}
+	x, y := int64(binary.LittleEndian.Uint64(patch[8:16])), int64(binary.LittleEndian.Uint64(patch[16:24]))
+	if x < 0 || y < 0 || x > int64(len(patch)-32) || y > int64(len(patch)-32)-x {
+		t.Fatal("invalid patch block sizes")
+	}
+	pieces := [][]byte{patch[32 : 32+x], patch[32+x : 32+x+y], patch[32+x+y:]}
+	var out [3][]byte
+	for i, p := range pieces {
+		b, err := io.ReadAll(bzip2.NewReader(bytes.NewReader(p)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[i] = b
+	}
+	return out
 }
-
+func readFixture(t *testing.T, name string) []byte {
+	t.Helper()
+	b, e := os.ReadFile("testdata/" + name)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return b
+}
+func randomPair() ([]byte, []byte) {
+	a, b := make([]byte, 1000), make([]byte, 1000)
+	_, _ = rand.New(rand.NewSource(2)).Read(b)
+	// Disjoint alphabets make the independent all-extra reference exact.
+	for i := range b {
+		b[i] |= 0x80
+	}
+	return a, b
+}
 func TestDiff(t *testing.T) {
-	for _, s := range diffT {
-		got, err := ioutil.TempFile("/tmp", "bspatch.")
-		if err != nil {
-			panic(err)
-		}
-		os.Remove(got.Name())
-
-		exp, err := ioutil.TempFile("/tmp", "bspatch.")
-		if err != nil {
-			panic(err)
-		}
-
-		cmd := exec.Command("bsdiff", s.old.Name(), s.new.Name(), exp.Name())
-		cmd.Stdout = os.Stdout
-		err = cmd.Run()
-		os.Remove(exp.Name())
-		if err != nil {
-			panic(err)
-		}
-
-		err = Diff(s.old, s.new, got)
-		if err != nil {
-			t.Fatal("err", err)
-		}
-
-		_, err = got.Seek(0, 0)
-		if err != nil {
-			panic(err)
-		}
-		gotBuf := mustReadAll(got)
-		expBuf := mustReadAll(exp)
-
-		if !bytes.Equal(gotBuf, expBuf) {
-			t.Fail()
-			t.Logf("diff %s %s", s.old.Name(), s.new.Name())
-			t.Logf("%s: len(got) = %d", got.Name(), len(gotBuf))
-			t.Logf("%s: len(exp) = %d", exp.Name(), len(expBuf))
-			i := matchlen(gotBuf, expBuf)
-			t.Logf("produced different output at pos %d; %d != %d", i, gotBuf[i], expBuf[i])
-		}
+	old, newer := randomPair()
+	// Independent reference for unrelated inputs: one all-extra control tuple.
+	control := make([]byte, 24)
+	binary.LittleEndian.PutUint64(control[8:16], uint64(len(newer)))
+	cases := []struct {
+		name       string
+		old, newer []byte
+		blocks     [3][]byte
+	}{
+		{"random", old, newer, [3][]byte{control, {}, newer}},
+		{"reference", readFixture(t, "sample.old"), readFixture(t, "sample.new"), patchBlocks(t, readFixture(t, "sample.patch"))},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var patch bytes.Buffer
+			if err := Diff(bytes.NewReader(tc.old), bytes.NewReader(tc.newer), &patch); err != nil {
+				t.Fatal(err)
+			}
+			got := patchBlocks(t, patch.Bytes())
+			for i := range got {
+				if !bytes.Equal(got[i], tc.blocks[i]) {
+					t.Fatalf("reference patch block %d differs: got %d bytes want %d", i, len(got[i]), len(tc.blocks[i]))
+				}
+			}
+			var output bytes.Buffer
+			if err := Patch(bytes.NewReader(tc.old), &output, bytes.NewReader(patch.Bytes())); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(output.Bytes(), tc.newer) {
+				t.Fatal("patch did not reproduce complete new file")
+			}
+		})
 	}
 }

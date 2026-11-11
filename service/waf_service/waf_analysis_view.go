@@ -92,8 +92,8 @@ func (receiver *WafAnalysisViewService) ActorListApi(req request.WafAnalysisActo
 	resp := response2.WafAnalysisActorResp{
 		Day:           day,
 		List:          []response2.WafAnalysisActorRow{},
-		ScanThreshold: global.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD,
-		UaThreshold:   global.GDATA_ANALYSIS_UA_THRESHOLD,
+		ScanThreshold: global.CurrentSettings().GDATA_ANALYSIS_SCAN_PATH_THRESHOLD,
+		UaThreshold:   global.CurrentSettings().GDATA_ANALYSIS_UA_THRESHOLD,
 	}
 	statsDB := global.GWAF_LOCAL_STATS_DB
 	if statsDB == nil {
@@ -115,12 +115,12 @@ func (receiver *WafAnalysisViewService) ActorListApi(req request.WafAnalysisActo
 	// 两个「疑似」计数：达到阈值的来源有几个。子查询必须带别名，PostgreSQL 不接受匿名派生表。
 	scanSub := receiver.scoped(statsDB.Model(&model.StatsActorPathDay{}), day, req.HostCode).
 		Select("actor_key").Group("actor_key").
-		Having("count(distinct path_norm) >= ?", global.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD)
+		Having("count(distinct path_norm) >= ?", global.CurrentSettings().GDATA_ANALYSIS_SCAN_PATH_THRESHOLD)
 	statsDB.Table("(?) as t", scanSub).Select("count(*)").Scan(&resp.ScanActor)
 
 	uaSub := receiver.scoped(statsDB.Model(&model.StatsActorUaDay{}), day, req.HostCode).
 		Select("actor_key").Group("actor_key").
-		Having("count(*) >= ?", global.GDATA_ANALYSIS_UA_THRESHOLD)
+		Having("count(*) >= ?", global.CurrentSettings().GDATA_ANALYSIS_UA_THRESHOLD)
 	statsDB.Table("(?) as t", uaSub).Select("count(*)").Scan(&resp.UaActor)
 
 	return resp

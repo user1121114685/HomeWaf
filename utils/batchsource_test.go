@@ -19,11 +19,11 @@ func setBatchImportBase(t *testing.T, base, allowedDirs string) {
 	t.Helper()
 	oldBase := batchImportBaseDir
 	batchImportBaseDir = func() string { return base }
-	oldDirs := global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS
-	global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = allowedDirs
+	oldDirs := global.CurrentSettings().GCONFIG_BATCH_IMPORT_ALLOWED_DIRS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = allowedDirs })
 	t.Cleanup(func() {
 		batchImportBaseDir = oldBase
-		global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = oldDirs
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = oldDirs })
 	})
 }
 
@@ -123,7 +123,7 @@ func TestValidateBatchLocalPath_config声明的目录被放行(t *testing.T) {
 	}
 
 	// 清单清空后立刻恢复 fail-closed
-	global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = ""
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = "" })
 	if got, err := ValidateBatchLocalPath(p); err == nil {
 		t.Fatalf("清空允许清单后必须拒绝，实际通过并返回 %q", got)
 	}

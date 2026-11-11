@@ -6,6 +6,7 @@ import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/innerbean"
 	"HomeWaf/model"
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -61,6 +62,7 @@ func (rulehelper *RuleHelper) LoadRuleString(ruleContent string) error {
 	err := rulehelper.ruleBuilder.BuildRuleFromResource("Region", "0.0.1", byteArr)
 	if err != nil {
 		zlog.Error("LoadRule", err)
+		return err
 	}
 	rulehelper.mergeRuleActions(ruleContent)
 	rulehelper.KnowledgeBase, err = rulehelper.knowledgeLibrary.NewKnowledgeBaseInstance("Region", "0.0.1")
@@ -125,10 +127,17 @@ func (rulehelper *RuleHelper) LoadRules(ruleconfig []model.Rules) (string, error
 	return rulestr, err
 }
 func (rulehelper *RuleHelper) Exec(key string, ruleinfo *innerbean.WAF_REQUEST_FULL) error {
+	if rulehelper.KnowledgeBase == nil {
+		return errors.New("没有规则数据")
+	}
+	instance, cloneErr := rulehelper.KnowledgeBase.Clone(pkg.NewCloneTable())
+	if cloneErr != nil {
+		return cloneErr
+	}
 	dataCtx := ast.NewDataContext()
 	dataCtx.Add(key, ruleinfo)
 	dataCtx.Add("RF", innerbean.NewRuleFunc()) // 注册规则函数助手
-	err := rulehelper.engine.Execute(dataCtx, rulehelper.KnowledgeBase)
+	err := rulehelper.engine.Execute(dataCtx, instance)
 	if err != nil {
 		zlog.Error("Exec", err)
 	}
@@ -136,20 +145,39 @@ func (rulehelper *RuleHelper) Exec(key string, ruleinfo *innerbean.WAF_REQUEST_F
 }
 
 func (rulehelper *RuleHelper) Match(key string, ruleinfo *innerbean.WebLog) ([]*ast.RuleEntry, error) {
+	return rulehelper.MatchFactsContext(context.Background(), key, ruleinfo, innerbean.NewRuleFunc())
+}
+
+// MatchFactsContext accepts pure, port-owned facts/functions supplied by the
+// pipeline. It never executes then statements; callers apply returned actions.
+func (rulehelper *RuleHelper) MatchFactsContext(ctx context.Context, key string, facts, functions any) (matches []*ast.RuleEntry, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	defer func() {
 		e := recover()
 		if e != nil { // 捕获该协程的panic 111111
-			zlog.Warn("RuleMatch", e)
+			matches, err = nil, errors.New("rule evaluation panic")
 		}
 	}()
 	dataCtx := ast.NewDataContext()
-	dataCtx.Add(key, ruleinfo)
-	dataCtx.Add("RF", innerbean.NewRuleFunc()) // 注册规则函数助手
+	if err := dataCtx.Add(key, facts); err != nil {
+		return nil, err
+	}
+	if err := dataCtx.Add("RF", functions); err != nil {
+		return nil, err
+	}
 	if rulehelper.KnowledgeBase == nil {
 		return nil, errors.New("没有规则数据")
 	}
-	return rulehelper.engine.FetchMatchingRules(dataCtx, rulehelper.KnowledgeBase)
+	instance, err := rulehelper.KnowledgeBase.Clone(pkg.NewCloneTable())
+	if err != nil {
+		return nil, err
+	}
+	engine := *rulehelper.engine
+	engine.ReturnErrOnFailedRuleEvaluation = true
+	return engine.FetchMatchingRulesWithContext(ctx, dataCtx, instance)
 }
 func (rulehelper *RuleHelper) CheckRuleAvailable(ruleText string) error {
 	myFact := &innerbean.WebLog{

@@ -30,7 +30,7 @@ func matchRuleBan(hostCode, netSrcIP, srcIP, ipMode string) (hitKey string, clie
 // echoRuleBanBlock 按全局配置执行规则封禁拦截：
 // rule_ban_mode=1 直接断开连接（444），0 返回拦截页；无法劫持连接时降级为拦截页。
 func echoRuleBanBlock(w http.ResponseWriter, r *http.Request, weblogbean *innerbean.WebLog, hostTarget *wafenginmodel.HostSafe, globalHostSafe *wafenginmodel.HostSafe) int {
-	if global.GCONFIG_RULE_BAN_MODE == 1 {
+	if requestSettings(r).GCONFIG_RULE_BAN_MODE == 1 {
 		if hj, ok := w.(http.Hijacker); ok {
 			if conn, _, err := hj.Hijack(); err == nil {
 				conn.Close()

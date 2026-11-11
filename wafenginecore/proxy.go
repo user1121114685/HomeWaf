@@ -4,7 +4,6 @@ package wafenginecore
 
 import (
 	"HomeWaf/common/zlog"
-	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/wafenginmodel"
@@ -227,8 +226,8 @@ func (waf *WafEngine) applyResponseBuffering(proxy *wafproxy.ReverseProxy, hostT
 func (waf *WafEngine) createPathRuleTransport(r *http.Request, rule *model.HostPathRule, hostTarget *wafenginmodel.HostSafe) *http.Transport {
 	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		dialer := net.Dialer{
-			Timeout:   time.Duration(global.GCONFIG_RECORD_CONNECT_TIME_OUT) * time.Second,
-			KeepAlive: time.Duration(global.GCONFIG_RECORD_KEEPALIVE_TIME_OUT) * time.Second,
+			Timeout:   time.Duration(requestSettings(r).GCONFIG_RECORD_CONNECT_TIME_OUT) * time.Second,
+			KeepAlive: time.Duration(requestSettings(r).GCONFIG_RECORD_KEEPALIVE_TIME_OUT) * time.Second,
 		}
 		if rule.RemoteIP != "" {
 			conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(rule.RemoteIP, strconv.Itoa(rule.RemotePort)))
@@ -288,8 +287,8 @@ func (waf *WafEngine) createTransport(r *http.Request, host string, isEnableLoad
 	var transport *http.Transport
 	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		dialer := net.Dialer{
-			Timeout:   time.Duration(global.GCONFIG_RECORD_CONNECT_TIME_OUT) * time.Second,
-			KeepAlive: time.Duration(global.GCONFIG_RECORD_KEEPALIVE_TIME_OUT) * time.Second,
+			Timeout:   time.Duration(requestSettings(r).GCONFIG_RECORD_CONNECT_TIME_OUT) * time.Second,
+			KeepAlive: time.Duration(requestSettings(r).GCONFIG_RECORD_KEEPALIVE_TIME_OUT) * time.Second,
 		}
 		if isEnableLoadBalance > 0 {
 			conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(loadBalance.Remote_ip, strconv.Itoa(loadBalance.Remote_port)))

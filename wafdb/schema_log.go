@@ -16,6 +16,7 @@ var logSchemaModels = []any{
 	&model.NotifyLog{},
 	&model.OPlatformLog{},
 	&model.SecurityAuditLog{},
+	&model.PipelineLog{},
 	&model.LoginHistory{},
 	&model.HostLoginEvent{},
 	&model.ThreatIPExcludeAudit{},

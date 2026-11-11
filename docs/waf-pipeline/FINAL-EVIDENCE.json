@@ -1,0 +1,970 @@
+{
+  "review_date": "2026-11-11",
+  "runtime_commit": "ad11410625bc7e91dfafc912e0d577832ddd91ae",
+  "source_sha256": "c0638a9a3f5bf4cd0cef64e96e8fd2582694c88dbed18fb8103eaf9336b96df8",
+  "environment": {
+    "os": "Windows amd64",
+    "go": "go1.27.3",
+    "node": "v26.13.0",
+    "cpu": "AMD Ryzen 9 5950X",
+    "default_cgo": 0,
+    "network_modules": "GOPROXY=off GOSUMDB=off"
+  },
+  "full_test_summary": {
+    "packages": {
+      "skip": 80,
+      "pass": 90
+    },
+    "skipped_tests": [
+      [
+        "HomeWaf/iplocation",
+        "TestIPv6GeoLite2FallsBackToIp2RegionV6"
+      ],
+      [
+        "HomeWaf/iplocation",
+        "TestUserSuppliedGeoLite2StillWorks"
+      ],
+      [
+        "HomeWaf/service/waf_service",
+        "TestWafAntiCCService_AddAndCheck/mysql"
+      ],
+      [
+        "HomeWaf/service/waf_service",
+        "TestAppFileExecutableAfterFirstUploadAndCopy"
+      ],
+      [
+        "HomeWaf/utils",
+        "TestValidateBatchLocalPath_软链接逃逸被拒"
+      ],
+      [
+        "HomeWaf/utils",
+        "TestWriteCertFileAtomic_私钥权限0600"
+      ],
+      [
+        "HomeWaf/utils",
+        "TestIPv6"
+      ],
+      [
+        "HomeWaf/utils/localca",
+        "TestKeyFilePermission"
+      ],
+      [
+        "HomeWaf/wafdb/dialect",
+        "TestFormatLocalTimeRoundTrip/mysql"
+      ],
+      [
+        "HomeWaf/wafdb",
+        "TestV201SchemaMigrationRehearsal"
+      ],
+      [
+        "HomeWaf/wafenginecore",
+        "TestPhase9FullChainBenchmark"
+      ],
+      [
+        "HomeWaf/service/waf_service",
+        "TestV201BusinessConfigurationMigrationRehearsal"
+      ],
+      [
+        "HomeWaf/wafdb",
+        "TestTenantScopeQuery/mysql"
+      ],
+      [
+        "HomeWaf/wafnotify/kafka",
+        "TestKafka"
+      ],
+      [
+        "HomeWaf/wafowasp",
+        "TestAnomalyScoreExtraction"
+      ],
+      [
+        "HomeWaf/wafowasp",
+        "TestOwasp"
+      ],
+      [
+        "HomeWaf/wafowasp",
+        "TestScanRealCRS"
+      ],
+      [
+        "HomeWaf/waftask",
+        "TestSeedStatsData"
+      ],
+      [
+        "HomeWaf/waftask",
+        "TestSeedAndCleanupStats"
+      ],
+      [
+        "HomeWaf/waftask",
+        "TestSeedLargeStatsIPDays"
+      ],
+      [
+        "HomeWaf/wafupgradenotice",
+        "TestConfigSetItemExists"
+      ]
+    ],
+    "failed_tests": []
+  },
+  "full_race_summary": {
+    "packages": {
+      "skip": 80,
+      "pass": 90
+    },
+    "race_warnings": 0,
+    "failed_tests": []
+  },
+  "post_profile_fix_tests": [
+    "ok  \tHomeWaf/wafpipeline\t14.766s",
+    "ok  \tHomeWaf/wafenginecore/ipset\t5.864s",
+    "ok  \tHomeWaf/wafenginecore\t9.297s",
+    "ok  \tHomeWaf/service/waf_service\t23.717s"
+  ],
+  "post_profile_fix_race": [
+    "ok  \tHomeWaf/wafpipeline\t65.861s",
+    "ok  \tHomeWaf/wafenginecore/ipset\t2.609s",
+    "ok  \tHomeWaf/wafenginecore\t25.051s",
+    "ok  \tHomeWaf/service/waf_service\t56.456s"
+  ],
+  "validation_revision_note": "全仓库普通/race在F66热路径优化前完成；优化后受影响4包完整普通与race补验，最后TTL慢分支抽取另有普通功能/微基准与最终完整race，vet及两个平台构建对应冻结源码。",
+  "ui_checks": [
+    "overview and existing port rows",
+    "wizard requires account and preview; creation stays disabled",
+    "observation enable retains login gate",
+    "account creation and service-token rotation update current draft revision",
+    "port edit persists only selected port",
+    "plugin policy and separate secret submission with readable validation",
+    "save-as template strips manual IPs and requires validation",
+    "batch preview and partial failure preserve failed port",
+    "credential-bearing template refused",
+    "legacy migration lists business, invalidates preview on source change, checks routes and copies accounts without activation",
+    "old site entry redirects to the unified port overview",
+    "dark and mobile rendering without document overflow"
+  ],
+  "ui_errors": [],
+  "baseline_phase0": {
+    "legacy_1": {
+      "samples": 3,
+      "qps_median": 3659.9286972691198,
+      "p99_ms_median": 1.5033,
+      "failures": 0
+    },
+    "legacy_16": {
+      "samples": 3,
+      "qps_median": 19597.672841675627,
+      "p99_ms_median": 2.1226,
+      "failures": 0
+    }
+  },
+  "macro_runs": {
+    ".cache/waf-pipeline-final-benchmark.log": [
+      {
+        "concurrency": 1,
+        "failures": 0,
+        "p50_ms": 0,
+        "p99_ms": 1.5043,
+        "qps": 4260.386289224844,
+        "requests": 12000,
+        "seconds": 2.816646,
+        "upstream_requests": 12000,
+        "path": "legacy"
+      },
+      {
+        "concurrency": 16,
+        "failures": 0,
+        "p50_ms": 0.5596,
+        "p99_ms": 1.7101,
+        "qps": 26066.369756233828,
+        "requests": 12000,
+        "seconds": 0.4603633,
+        "upstream_requests": 12000,
+        "path": "legacy"
+      },
+      {
+        "concurrency": 1,
+        "failures": 0,
+        "p50_ms": 0,
+        "p99_ms": 1.5026,
+        "qps": 4141.750871338097,
+        "requests": 12000,
+        "seconds": 2.8973254,
+        "upstream_requests": 12000,
+        "path": "pipeline"
+      },
+      {
+        "concurrency": 16,
+        "failures": 0,
+        "p50_ms": 0,
+        "p99_ms": 2.4503,
+        "qps": 31933.99456217296,
+        "requests": 12000,
+        "seconds": 0.3757751,
+        "upstream_requests": 12000,
+        "path": "pipeline"
+      }
+    ],
+    ".cache/waf-pipeline-final-benchmark-optimized.log": [
+      {
+        "allocated_bytes_per_request": 68110.93533333333,
+        "allocations_per_request": 388.61575,
+        "concurrency": 1,
+        "failures": 0,
+        "gc_cycles": 175,
+        "p50_ms": 0,
+        "p99_ms": 1.5033,
+        "qps": 4383.827956379597,
+        "requests": 12000,
+        "seconds": 2.7373336999999998,
+        "upstream_requests": 12000,
+        "path": "legacy"
+      },
+      {
+        "allocated_bytes_per_request": 67220.644,
+        "allocations_per_request": 386.8351666666667,
+        "concurrency": 16,
+        "failures": 0,
+        "gc_cycles": 89,
+        "p50_ms": 0.5682,
+        "p99_ms": 2.1008,
+        "qps": 24572.89241373379,
+        "requests": 12000,
+        "seconds": 0.488343,
+        "upstream_requests": 12000,
+        "path": "legacy"
+      },
+      {
+        "allocated_bytes_per_request": 48309.60666666667,
+        "allocations_per_request": 416.5585,
+        "concurrency": 1,
+        "failures": 0,
+        "gc_cycles": 60,
+        "p50_ms": 0,
+        "p99_ms": 1.5028,
+        "qps": 3196.88955433921,
+        "requests": 12000,
+        "seconds": 3.7536486,
+        "upstream_requests": 12000,
+        "path": "pipeline"
+      },
+      {
+        "allocated_bytes_per_request": 41159.69733333333,
+        "allocations_per_request": 415.126,
+        "concurrency": 16,
+        "failures": 0,
+        "gc_cycles": 16,
+        "p50_ms": 0,
+        "p99_ms": 2.5328,
+        "qps": 30880.32074359812,
+        "requests": 12000,
+        "seconds": 0.388597,
+        "upstream_requests": 12000,
+        "path": "pipeline"
+      }
+    ],
+    ".cache/waf-pipeline-final-benchmark-profile-fix.log": [
+      {
+        "allocated_bytes_per_request": 67899.596,
+        "allocations_per_request": 388.56258333333335,
+        "concurrency": 1,
+        "failures": 0,
+        "gc_cycles": 172,
+        "p50_ms": 0,
+        "p99_ms": 1.5042,
+        "qps": 4181.718967367712,
+        "requests": 12000,
+        "seconds": 2.8696333000000003,
+        "upstream_requests": 12000,
+        "path": "legacy"
+      },
+      {
+        "allocated_bytes_per_request": 68645.32866666667,
+        "allocations_per_request": 387.195,
+        "concurrency": 16,
+        "failures": 0,
+        "gc_cycles": 91,
+        "p50_ms": 0.5724,
+        "p99_ms": 1.7663,
+        "qps": 25158.0027397065,
+        "requests": 12000,
+        "seconds": 0.4769854,
+        "upstream_requests": 12000,
+        "path": "legacy"
+      },
+      {
+        "allocated_bytes_per_request": 30655.68,
+        "allocations_per_request": 333.90658333333334,
+        "concurrency": 1,
+        "failures": 0,
+        "gc_cycles": 70,
+        "p50_ms": 0,
+        "p99_ms": 1.5024,
+        "qps": 4250.44726216826,
+        "requests": 12000,
+        "seconds": 2.8232323,
+        "upstream_requests": 12000,
+        "path": "pipeline"
+      },
+      {
+        "allocated_bytes_per_request": 34661.484,
+        "allocations_per_request": 334.6356666666667,
+        "concurrency": 16,
+        "failures": 0,
+        "gc_cycles": 47,
+        "p50_ms": 0.5337,
+        "p99_ms": 1.8759,
+        "qps": 30563.19564698592,
+        "requests": 12000,
+        "seconds": 0.3926291,
+        "upstream_requests": 12000,
+        "path": "pipeline"
+      }
+    ]
+  },
+  "micro_runs": {
+    ".cache/waf-pipeline-final-microbenchmark.log": [
+      {
+        "name": "BenchmarkTimedIndex100kDeep/v4/deep-hit-32",
+        "iterations": 10180333,
+        "ns_per_op": 35.24,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkTimedIndex100kDeep/v4/adjacent-miss-32",
+        "iterations": 11999559,
+        "ns_per_op": 29.78,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkTimedIndex100kDeep/v4/expired-32",
+        "iterations": 10015161,
+        "ns_per_op": 36.11,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkTimedIndex100kDeep/v6/deep-hit-32",
+        "iterations": 4705875,
+        "ns_per_op": 75.79,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkTimedIndex100kDeep/v6/adjacent-miss-32",
+        "iterations": 5136963,
+        "ns_per_op": 69.86,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkTimedIndex100kDeep/v6/expired-32",
+        "iterations": 3998408,
+        "ns_per_op": 89.71,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkCRSRequest-32",
+        "iterations": 634,
+        "ns_per_op": 527700.0,
+        "bytes_per_op": 161019,
+        "allocs_per_op": 2800
+      },
+      {
+        "name": "BenchmarkFileDetectors/lfi-32",
+        "iterations": 519614,
+        "ns_per_op": 666.5,
+        "bytes_per_op": 180,
+        "allocs_per_op": 11
+      },
+      {
+        "name": "BenchmarkFileDetectors/rce-32",
+        "iterations": 4219576,
+        "ns_per_op": 85.74,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkFileDetectors/upload-32",
+        "iterations": 1221892,
+        "ns_per_op": 288.2,
+        "bytes_per_op": 112,
+        "allocs_per_op": 5
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/java_inject-32",
+        "iterations": 160174,
+        "ns_per_op": 2256.0,
+        "bytes_per_op": 224,
+        "allocs_per_op": 14
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/java_deser-32",
+        "iterations": 3625154,
+        "ns_per_op": 97.4,
+        "bytes_per_op": 16,
+        "allocs_per_op": 1
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/php_deser-32",
+        "iterations": 551977,
+        "ns_per_op": 647.2,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/php_inject-32",
+        "iterations": 211090,
+        "ns_per_op": 1708.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/asp_inject-32",
+        "iterations": 344184,
+        "ns_per_op": 1051.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/ssti-32",
+        "iterations": 235130,
+        "ns_per_op": 1523.0,
+        "bytes_per_op": 2,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkOriginDetectors/ssrf-32",
+        "iterations": 524918,
+        "ns_per_op": 616.2,
+        "bytes_per_op": 560,
+        "allocs_per_op": 10
+      },
+      {
+        "name": "BenchmarkOriginDetectors/csrf-32",
+        "iterations": 624901,
+        "ns_per_op": 590.7,
+        "bytes_per_op": 560,
+        "allocs_per_op": 7
+      },
+      {
+        "name": "BenchmarkProtocolDetectors/malformed-32",
+        "iterations": 2028951,
+        "ns_per_op": 174.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkProtocolDetectors/scanner-32",
+        "iterations": 1515285,
+        "ns_per_op": 235.4,
+        "bytes_per_op": 16,
+        "allocs_per_op": 1
+      },
+      {
+        "name": "BenchmarkInjectionDetectors/sqli-32",
+        "iterations": 117478,
+        "ns_per_op": 3097.0,
+        "bytes_per_op": 226,
+        "allocs_per_op": 14
+      },
+      {
+        "name": "BenchmarkInjectionDetectors/xss-32",
+        "iterations": 242474,
+        "ns_per_op": 1489.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkRulesARequest-32",
+        "iterations": 141964,
+        "ns_per_op": 2552.0,
+        "bytes_per_op": 4126,
+        "allocs_per_op": 27
+      }
+    ],
+    ".cache/waf-pipeline-final-permanent-comparison-initial.log": [
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/deep-hit/MatchSet-32",
+        "iterations": 8521606,
+        "ns_per_op": 28.04,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/deep-hit/TimedSet-32",
+        "iterations": 8169266,
+        "ns_per_op": 29.28,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/adjacent-miss/MatchSet-32",
+        "iterations": 10070916,
+        "ns_per_op": 23.39,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/adjacent-miss/TimedSet-32",
+        "iterations": 7831824,
+        "ns_per_op": 31.23,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/deep-hit/MatchSet-32",
+        "iterations": 3476859,
+        "ns_per_op": 68.63,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/deep-hit/TimedSet-32",
+        "iterations": 3431168,
+        "ns_per_op": 69.81,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/adjacent-miss/MatchSet-32",
+        "iterations": 3772303,
+        "ns_per_op": 64.11,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/adjacent-miss/TimedSet-32",
+        "iterations": 3560212,
+        "ns_per_op": 67.43,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      }
+    ],
+    ".cache/waf-pipeline-final-microbenchmark-profile-fix.log": [
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/deep-hit/MatchSet-32",
+        "iterations": 8595710,
+        "ns_per_op": 27.97,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/deep-hit/TimedSet-32",
+        "iterations": 8369221,
+        "ns_per_op": 28.62,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/adjacent-miss/MatchSet-32",
+        "iterations": 10106412,
+        "ns_per_op": 23.37,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/adjacent-miss/TimedSet-32",
+        "iterations": 9634530,
+        "ns_per_op": 24.61,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/deep-hit/MatchSet-32",
+        "iterations": 3496915,
+        "ns_per_op": 68.69,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/deep-hit/TimedSet-32",
+        "iterations": 3445552,
+        "ns_per_op": 70.22,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/adjacent-miss/MatchSet-32",
+        "iterations": 3755304,
+        "ns_per_op": 63.67,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/adjacent-miss/TimedSet-32",
+        "iterations": 3684880,
+        "ns_per_op": 65.06,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/java_inject-32",
+        "iterations": 123860,
+        "ns_per_op": 1932.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/java_deser-32",
+        "iterations": 2152886,
+        "ns_per_op": 110.8,
+        "bytes_per_op": 16,
+        "allocs_per_op": 1
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/php_deser-32",
+        "iterations": 353720,
+        "ns_per_op": 656.8,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/php_inject-32",
+        "iterations": 139498,
+        "ns_per_op": 1734.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/asp_inject-32",
+        "iterations": 230146,
+        "ns_per_op": 1060.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkLanguageDetectors/ssti-32",
+        "iterations": 3359551,
+        "ns_per_op": 71.98,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkInjectionDetectors/sqli-32",
+        "iterations": 89078,
+        "ns_per_op": 2912.0,
+        "bytes_per_op": 1,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkInjectionDetectors/xss-32",
+        "iterations": 161642,
+        "ns_per_op": 1487.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      }
+    ],
+    ".cache/waf-pipeline-final-permanent-comparison.log": [
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/deep-hit/MatchSet-32",
+        "iterations": 8483712,
+        "ns_per_op": 27.96,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/deep-hit/TimedSet-32",
+        "iterations": 8315229,
+        "ns_per_op": 28.86,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/adjacent-miss/MatchSet-32",
+        "iterations": 10250626,
+        "ns_per_op": 23.5,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v4/adjacent-miss/TimedSet-32",
+        "iterations": 9808208,
+        "ns_per_op": 24.61,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/deep-hit/MatchSet-32",
+        "iterations": 3482778,
+        "ns_per_op": 68.82,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/deep-hit/TimedSet-32",
+        "iterations": 3407434,
+        "ns_per_op": 69.2,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/adjacent-miss/MatchSet-32",
+        "iterations": 3762580,
+        "ns_per_op": 63.68,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "name": "BenchmarkPermanentIndex100kComparison/v6/adjacent-miss/TimedSet-32",
+        "iterations": 3680986,
+        "ns_per_op": 64.71,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      }
+    ]
+  },
+  "permanent_comparison": [
+    {
+      "family": "v4",
+      "scenario": "deep-hit",
+      "matchset_ns": 27.96,
+      "timedset_ns": 28.86,
+      "overhead_percent": 3.218884120171661
+    },
+    {
+      "family": "v4",
+      "scenario": "adjacent-miss",
+      "matchset_ns": 23.5,
+      "timedset_ns": 24.61,
+      "overhead_percent": 4.723404255319141
+    },
+    {
+      "family": "v6",
+      "scenario": "deep-hit",
+      "matchset_ns": 68.82,
+      "timedset_ns": 69.2,
+      "overhead_percent": 0.5521650682941193
+    },
+    {
+      "family": "v6",
+      "scenario": "adjacent-miss",
+      "matchset_ns": 63.68,
+      "timedset_ns": 64.71,
+      "overhead_percent": 1.6174623115577713
+    }
+  ],
+  "performance_notes": [
+    "阶段0为三样本中位数；本轮每次代码版本单样本，不选择性删除首测或无收益的中间结果。",
+    "最后全链路样本已含正则/保护诊断/永久名单分支优化；随后只将TTL遍历抽成慢函数，最终对照微基准、功能/race/vet/构建覆盖该抽取。",
+    "全链路每场景12000个请求，1/16并发、loopback真实HTTP/代理，关闭QPS/CC及CRS，没有普通持久日志。",
+    "内存数包含客户端、假上游与WAF整个进程；P50=0来自本机计时量化，不是零耗时。",
+    "最终IPv4永久miss开销4.72%，余量小；前一实现样本5.31%，均保留。有限样本不能承诺其他机器或长期稳定满足阈值。",
+    "TTL索引是新增能力，不能直接拿TTL耗时当永久路径回归。",
+    "没有新增浸泡测试；历史75秒完整记录不冒充当前冻结版本的长期运行证据。"
+  ],
+  "builds": [
+    {
+      "path": "artifacts/HomeWaf64.exe",
+      "sha256": "24aac81d3e28e78f1e918245f4b9e9def71e50f7521a7e9ff2bc115b6665f899",
+      "version": "v2.0.0-dev",
+      "deployed": false,
+      "embedded_build_info": {
+        "CGO_ENABLED": "0",
+        "GOARCH": "amd64",
+        "GOOS": "windows",
+        "vcs": "git",
+        "vcs.revision": "bb6426266e5b9708170c038c7842daee2eb60a26",
+        "vcs.time": "2026-11-11T10:04:16Z",
+        "vcs.modified": "true"
+      },
+      "note": "提交前构建，运行源码与冻结提交相同；内嵌VCS为父版本加dirty标记，不冒充干净发布包。"
+    },
+    {
+      "path": "artifacts/HomeWafLinuxArm64-final",
+      "sha256": "c1cff4f03765e19dc8c951f15267a1dfb8fb57e227051b4be172163b131d12bb",
+      "version": "v2.0.0-dev",
+      "deployed": false,
+      "embedded_build_info": {
+        "CGO_ENABLED": "0",
+        "GOARCH": "arm64",
+        "GOOS": "linux",
+        "vcs": "git",
+        "vcs.revision": "bb6426266e5b9708170c038c7842daee2eb60a26",
+        "vcs.time": "2026-11-11T10:04:16Z",
+        "vcs.modified": "true"
+      },
+      "note": "提交前构建，运行源码与冻结提交相同；内嵌VCS为父版本加dirty标记，不冒充干净发布包。"
+    }
+  ],
+  "migration_fixture": {
+    "path": ".cache/pipeline-migration-5f0974519e3c48fcb7d99d97b0b97754/v201.db",
+    "baseline_commit": "52078dfc164a3cb60637f903ba9b630dc64d5f45",
+    "sha256": "367c83fd802f954a0dd06ed4022f1874626fcf5c3f7dafa383e37d8292ef31e0"
+  },
+  "evidence_files": [
+    {
+      "path": ".cache/waf-pipeline-final-benchmark.log",
+      "bytes": 2530,
+      "sha256": "80450d8dc757f515fb0899f9b1a4a41b2816aef5d583c39502eeee5e7b8d27e4"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-benchmark-optimized.log",
+      "bytes": 3332,
+      "sha256": "c521651b1a03b3060ead964037031ee49cb213c9b3466eddfb53b56b1380699b"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-benchmark-profile-fix.log",
+      "bytes": 3348,
+      "sha256": "d84835b14195641841d78d3ca5634b852b9a38baa91ebd890a7f6bcaeedde202"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-microbenchmark.log",
+      "bytes": 5696,
+      "sha256": "f8230af0aa5ceebd2c780971a5d5a76291e35ce0323952f9e1be4f8873ec0362"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-permanent-comparison-initial.log",
+      "bytes": 2476,
+      "sha256": "8b481778396effafcefab1e2587d87cdd3c1f7cbb45373ca49b9d3cb443157ce"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-microbenchmark-profile-fix.log",
+      "bytes": 4564,
+      "sha256": "1241261a4d6ad58e1bba410a5ecedf10f441af70190f744d91b5e991979770b5"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-permanent-comparison.log",
+      "bytes": 2476,
+      "sha256": "be0c4bd27deaaf8d74a08cfb1d1d8fe738d6b6951a7611d35b1d8413883820d0"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-all-tests.jsonl",
+      "bytes": 3719341,
+      "sha256": "30c440a7fa33a2fa09d5f138967b1fa3190d4d82c2c2afbd41b377cc4e52bb3d"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-test-summary.json",
+      "bytes": 1834,
+      "sha256": "701d6364c8b92c393b5c6a42228877715db6a01f9c39083008446f1b504411cb"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-race.jsonl",
+      "bytes": 3729902,
+      "sha256": "3df9ff990c6f17fe1031c2f105a5b402a3a189672ccf15841f46ad2275dfc99e"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-race-summary.json",
+      "bytes": 105,
+      "sha256": "417da1109d52d1178e957e9b1a0fdb6981e7387f9db716fcb76b8677aafdc861"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-hotpath-tests.log",
+      "bytes": 306,
+      "sha256": "ac28bf6144c3f7477f4a25727d1cdaae58b0a070e8d2d024aad043e29d504eaf"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-hotpath-race.log",
+      "bytes": 308,
+      "sha256": "4e3a8eb0ed4b4ed0ee11163ac511391e90b0984eff6a47ea14622e6530f04025"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-ipset-tests.log",
+      "bytes": 84,
+      "sha256": "fc5ffbb09cb6454d9bc57e8d796071dc3d8ab0af7fa69e1d18667a2453a54735"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-hotpath-vet.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-vet.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-build.log",
+      "bytes": 20036,
+      "sha256": "dad16374f6642ef48566f5628bd8717564b565aba9ff3a5199430f2042ef0df6"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-hotpath-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-verify.log",
+      "bytes": 20342,
+      "sha256": "c9b9499e299e17080538fd961b33db4449b667f1f4feb6ce6aefdd246bbaff3b"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-ui-model.log",
+      "bytes": 1088,
+      "sha256": "0ef9947e31fa94e00ed72be82083f9247025f1c5d146d425f5e3bdd2ceae2085"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-ui-browser.log",
+      "bytes": 9116,
+      "sha256": "c11edb6b393bb6c88391d6c5b21c6b68b55dcda3b7e13a216a0402320478c213"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-migration.log",
+      "bytes": 2448,
+      "sha256": "495889a2d269d4af0f3ccd50ce660c77f29235d49871920cf42a9db74b5e9306"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-swagger.log",
+      "bytes": 36220,
+      "sha256": "c23185b6d8a0291e7f3728839c804341092ba466811206924572c73a91efd601"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-profile.log",
+      "bytes": 72,
+      "sha256": "732af9f62f332ed7222c0874bd94afc84550d8edc2b306f3469aab49f22c9db9"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-cpu.pprof",
+      "bytes": 42284,
+      "sha256": "9a12905e1230c06a458bdefe68934de041cc79a73fc2daded9e32747d6b861f1"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-memory.pprof",
+      "bytes": 21839,
+      "sha256": "8b2511086a2b511b7707501c8b00e4aa043ee62260898b220b467c6c56b74664"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-profile-cpu-top.log",
+      "bytes": 3348,
+      "sha256": "d9cac3425d69144a1a382ad5e54bde70ff3a62f510f106e1beb7bdfc3e959c0e"
+    },
+    {
+      "path": ".cache/waf-pipeline-final-profile-memory-top.log",
+      "bytes": 3440,
+      "sha256": "2df6582defe6e067e05abd398c92d63b6e46d7052ff5fe6129fb58640fc572cc"
+    },
+    {
+      "path": "artifacts/pipeline-ui/report.json",
+      "bytes": 4337,
+      "sha256": "0cf10ed3ee709701f9aa5c090c4ddc9cf1637be53a377d1f726b80a8dc0ab5f7"
+    },
+    {
+      "path": "artifacts/pipeline-soak-smoke-final",
+      "bytes": 1868,
+      "sha256": "912b9d9066ebc980efd580cb194098a9f1efd33dbf97953acb9cc2ce5ae138ba"
+    },
+    {
+      "path": "artifacts/pipeline-benchmark-summary.json",
+      "bytes": 1489,
+      "sha256": "ebf833b576400c76891d8e765e2c2cc1300f6ac89aa4bf7724f85d29c6a7f41b"
+    },
+    {
+      "path": ".cache/waf-pipeline-p9-fuzz-request.log",
+      "bytes": 5314,
+      "sha256": "40882c60519be17ba81bb71e7e34af982d6bb25e5db4e2434082632692088ba5"
+    },
+    {
+      "path": ".cache/waf-pipeline-p9-fuzz-template.log",
+      "bytes": 4850,
+      "sha256": "2cafc6cca9148d80afb0602cc30724dfcfce01ef1be803ae40e3c6402d3024da"
+    },
+    {
+      "path": ".cache/waf-pipeline-p9-100ports.log",
+      "bytes": 500,
+      "sha256": "a1f28d742fe851e3785625c099a266b7920cb419bc7d217898fbaaf66cc21019"
+    },
+    {
+      "path": ".cache/waf-pipeline-p9-soak-limit-check.log",
+      "bytes": 878,
+      "sha256": "c3c26803a8a60abeeaf06cad05f4a183ffc788f7d11c90d5065027a5f7a012ef"
+    }
+  ]
+}

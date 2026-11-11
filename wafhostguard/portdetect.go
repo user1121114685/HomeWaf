@@ -78,8 +78,8 @@ func GuardPorts() (ssh []int, rdp []int) {
 	}
 
 	snap := &portSnapshot{builtAt: time.Now(), auto: true}
-	manualSSH := parsePorts(global.GCONFIG_HOST_GUARD_SSH_PORTS)
-	manualRDP := parsePorts(global.GCONFIG_HOST_GUARD_RDP_PORTS)
+	manualSSH := parsePorts(global.CurrentSettings().GCONFIG_HOST_GUARD_SSH_PORTS)
+	manualRDP := parsePorts(global.CurrentSettings().GCONFIG_HOST_GUARD_RDP_PORTS)
 	if len(manualSSH) > 0 || len(manualRDP) > 0 {
 		snap.auto = false
 	}

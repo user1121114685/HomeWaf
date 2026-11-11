@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const maxFailureEvents = 4096
+
 func InitIPBanManager(wafCache cache.CacheStore) {
 	// 初始化IP失败管理器单例，使用传入的cache
 	ipFailureManagerOnce.Do(func() {
@@ -41,13 +43,14 @@ func InitIPBanManager(wafCache cache.CacheStore) {
 
 // IPFailureRecord IP失败记录
 type IPFailureRecord struct {
-	IP             string
-	Events         []time.Time
-	Count          int64
-	FirstTime      time.Time
-	LastTime       time.Time
-	TriggerMinutes int64 // 触发封禁的时间窗口（分钟）
-	TriggerCount   int64 // 触发封禁的失败次数阈值
+	IP              string
+	Events          []time.Time
+	EventsTruncated bool // Count is a conservative lower bound after saturation.
+	Count           int64
+	FirstTime       time.Time
+	LastTime        time.Time
+	TriggerMinutes  int64 // 触发封禁的时间窗口（分钟）
+	TriggerCount    int64 // 触发封禁的失败次数阈值
 }
 
 // IPFailureManager IP失败管理器
@@ -83,7 +86,15 @@ func cloneIPFailureRecord(r *IPFailureRecord) *IPFailureRecord {
 		return nil
 	}
 	c := *r
-	c.Events = append([]time.Time(nil), r.Events...)
+	// Keep the newest exact timestamps. Omitted older events can only lower a
+	// count; saturation must never manufacture a failure or falsely ban an IP.
+	start := max(0, len(r.Events)-maxFailureEvents)
+	c.Events = append([]time.Time(nil), r.Events[start:]...)
+	if start > 0 {
+		c.EventsTruncated = true
+		c.Count = int64(len(c.Events))
+		c.FirstTime = c.Events[0]
+	}
 	return &c
 }
 
@@ -92,13 +103,14 @@ func (m *IPFailureManager) initStatusCodes() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	statusCodesStr := global.GCONFIG_IP_FAILURE_STATUS_CODES
+	statusCodesStr := global.CurrentSettings().GCONFIG_IP_FAILURE_STATUS_CODES
 	if statusCodesStr == "" {
 		statusCodesStr = "401|403|404|444|429|503"
 	}
 
 	// 清空现有状态码
 	m.statusMap = make(map[int]bool)
+	m.statusRe = nil
 
 	// 尝试解析为数字状态码（用|分隔）
 	parts := strings.Split(statusCodesStr, "|")
@@ -159,12 +171,12 @@ func (m *IPFailureManager) IsFailureStatusCode(statusCode int) bool {
 
 // RecordFailure 记录IP失败
 func (m *IPFailureManager) RecordFailure(webLog *innerbean.WebLog) {
-	if webLog == nil || webLog.SRC_IP == "" || global.GCONFIG_IP_FAILURE_BAN_ENABLED == 0 {
+	if webLog == nil || webLog.SRC_IP == "" || global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_ENABLED == 0 {
 		return
 	}
 
-	// 如果是bot且危险程度是0，不记录失败
-	if webLog.IsBot == 1 && webLog.RISK_LEVEL == 0 {
+	// Unverified crawler claims must retain ordinary failure accounting.
+	if webLog.IsSafeBot() {
 		return
 	}
 
@@ -193,11 +205,16 @@ func (m *IPFailureManager) RecordFailure(webLog *innerbean.WebLog) {
 		}
 	}
 	// 记录事件
+	if len(record.Events) >= maxFailureEvents {
+		copy(record.Events, record.Events[1:])
+		record.Events = record.Events[:maxFailureEvents-1]
+		record.EventsTruncated = true
+	}
 	record.Events = append(record.Events, now)
 	// 清理过期事件（按封锁时间作为保留窗口）
-	retention := time.Duration(global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME) * time.Minute
+	retention := time.Duration(global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_LOCK_TIME) * time.Minute
 	windowStart := now.Add(-retention)
-	var valid []time.Time
+	valid := record.Events[:0]
 	for _, t := range record.Events {
 		if t.After(windowStart) {
 			valid = append(valid, t)
@@ -211,14 +228,14 @@ func (m *IPFailureManager) RecordFailure(webLog *innerbean.WebLog) {
 	record.LastTime = now
 
 	// 保存到缓存，TTL设置为封锁时间
-	ttl := time.Duration(global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME) * time.Minute
+	ttl := time.Duration(global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_LOCK_TIME) * time.Minute
 	m.cache.SetWithTTlRenewTime(key, record, ttl)
 }
 
 // GetFailureCount 获取IP在指定时间窗口内的失败次数
 // minutes: 时间窗口（分钟）
 func (m *IPFailureManager) GetFailureCount(ip string, minutes int64) int64 {
-	if ip == "" || global.GCONFIG_IP_FAILURE_BAN_ENABLED == 0 {
+	if ip == "" || global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_ENABLED == 0 {
 		return 0
 	}
 
@@ -247,6 +264,8 @@ func (m *IPFailureManager) ClearIPFailure(ip string) {
 		return
 	}
 	key := enums.CACHE_IP_FAILURE_PRE + ip
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.cache.Remove(key)
 }
 
@@ -262,7 +281,7 @@ func (m *IPFailureManager) GetFailureInfo(ip string) *IPFailureRecord {
 // minutes: 触发封禁的时间窗口（分钟）
 // count: 触发封禁的失败次数阈值
 func (m *IPFailureManager) RecordFailureThreshold(ip string, minutes int64, count int64) {
-	if ip == "" || global.GCONFIG_IP_FAILURE_BAN_ENABLED == 0 {
+	if ip == "" || global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_ENABLED == 0 {
 		return
 	}
 
@@ -292,6 +311,6 @@ func (m *IPFailureManager) RecordFailureThreshold(ip string, minutes int64, coun
 	}
 
 	// 保存记录
-	ttl := time.Duration(global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME) * time.Minute
+	ttl := time.Duration(global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_LOCK_TIME) * time.Minute
 	m.cache.SetWithTTlRenewTime(key, record, ttl)
 }

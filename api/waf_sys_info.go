@@ -28,7 +28,7 @@ func getAnnouncement() {
 	if err != nil {
 		zlog.Error(err.Error())
 	} else {
-		global.GCACHE_WAFCACHE.SetWithTTlRenewTime(enums.CACHE_ANNOUNCEMENT, announcement, time.Duration(global.GCONFIG_RECORD_ANNOUNCEMENT_EXPIRE_HOURS)*time.Hour)
+		global.GCACHE_WAFCACHE.SetWithTTlRenewTime(enums.CACHE_ANNOUNCEMENT, announcement, time.Duration(global.CurrentSettings().GCONFIG_RECORD_ANNOUNCEMENT_EXPIRE_HOURS)*time.Hour)
 	}
 }
 
@@ -80,7 +80,7 @@ func (w *WafSysInfoApi) GetAnnouncementApi(c *gin.Context) {
 			}, "获取中，请稍后", c)
 		} else {
 			// 快速获取成功，保存到缓存
-			global.GCACHE_WAFCACHE.SetWithTTlRenewTime(enums.CACHE_ANNOUNCEMENT, announcement, time.Duration(global.GCONFIG_RECORD_ANNOUNCEMENT_EXPIRE_HOURS)*time.Hour)
+			global.GCACHE_WAFCACHE.SetWithTTlRenewTime(enums.CACHE_ANNOUNCEMENT, announcement, time.Duration(global.CurrentSettings().GCONFIG_RECORD_ANNOUNCEMENT_EXPIRE_HOURS)*time.Hour)
 			response.OkWithDetailed(gin.H{
 				"code": "success",
 				"data": announcement,
@@ -178,7 +178,7 @@ func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
 		message = "HomeWaf 更新源尚未发布正式版本，发布后即可检查更新"
 		err = nil
 	}
-	if !available && global.GCONFIG_CHECK_BETA_VERSION == 1 && global.GUPDATE_GITHUB_VERSION_URL != "" {
+	if !available && global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION == 1 && global.GUPDATE_GITHUB_VERSION_URL != "" {
 		betaAvailable, betaVersion, betaDesc, betaErr := updater.UpdateAvailableWithChannel("github")
 		if betaAvailable {
 			available, newVer, desc, err = true, betaVersion, betaDesc, nil
@@ -298,7 +298,7 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 	// (docker compose up -d / 换镜像 / 重装宿主) 就会回退成镜像自带的旧版本，
 	// 而数据库已经被新版本迁移且无法回退，于是形成"旧程序 + 新库"的静默不一致状态
 	// (issue #938 现场即如此：库里有 v1.3.24 才有的任务行，跑的却是 v1.3.23)。
-	if container := utils.DetectContainerRuntime(); container != "" && global.GCONFIG_ALLOW_CONTAINER_SELFUPDATE != 1 {
+	if container := utils.DetectContainerRuntime(); container != "" && global.CurrentSettings().GCONFIG_ALLOW_CONTAINER_SELFUPDATE != 1 {
 		zlog.Warn(fmt.Sprintf("检测到容器环境(%v)，已拦截应用内升级", container))
 		response.FailWithMessage(fmt.Sprintf("检测到运行在容器(%v)中，已阻止应用内升级。"+
 			"容器内升级只对当前容器有效，容器重建后程序会回退到镜像自带的版本，"+
@@ -408,7 +408,7 @@ func (w *WafSysInfoApi) UpdateProgressApi(c *gin.Context) {
 	snapshot := wafupdate.GlobalUpdateProgress.Snapshot()
 	response.OkWithDetailed(updateProgressResp{
 		ProgressSnapshot: snapshot,
-		RestartTimeout:   global.GCONFIG_UPDATE_RESTART_TIMEOUT,
+		RestartTimeout:   global.CurrentSettings().GCONFIG_UPDATE_RESTART_TIMEOUT,
 	}, "获取成功", c)
 }
 
@@ -430,5 +430,5 @@ func isSelfUpdateAllowed() bool {
 	if utils.DetectContainerRuntime() == "" {
 		return true
 	}
-	return global.GCONFIG_ALLOW_CONTAINER_SELFUPDATE == 1
+	return global.CurrentSettings().GCONFIG_ALLOW_CONTAINER_SELFUPDATE == 1
 }

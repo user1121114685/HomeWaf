@@ -52,7 +52,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 			}
 
 			// 如果大于某个数就不让登录了
-			if hitCounter >= int(global.GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME) {
+			if hitCounter >= int(global.CurrentSettings().GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME) {
 				response.FailWithMessage("登录超限请稍后重试", c)
 				return
 			}
@@ -61,7 +61,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 			if !wafAccountService.VerifyPassword(bean.LoginPassword, req.LoginPassword) {
 				// 密码错误，增加错误计数
 				hitCounter++
-				global.GCACHE_WAFCACHE.SetWithTTl(cacheKey, hitCounter, time.Duration(global.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES)*time.Minute)
+				global.GCACHE_WAFCACHE.SetWithTTl(cacheKey, hitCounter, time.Duration(global.CurrentSettings().GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES)*time.Minute)
 
 				clientCountryStr := strings.Join(clientCountry, ",")
 				loginError := fmt.Sprintf("输入密码错误超过次数限制，IP:%s 归属地区：%s", clientIP, clientCountryStr)
@@ -106,14 +106,14 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 						otpErrCount = v
 					}
 				}
-				if otpErrCount >= int(global.GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME) {
+				if otpErrCount >= int(global.CurrentSettings().GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME) {
 					response.SecretCodeFailWithMessage("安全码错误次数过多，请稍后重试", c)
 					return
 				}
 				valid := totp.Validate(req.LoginOtpSecretCode, otpBean.Secret)
 				if !valid {
 					otpErrCount++
-					global.GCACHE_WAFCACHE.SetWithTTl(otpCacheKey, otpErrCount, time.Duration(global.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES)*time.Minute)
+					global.GCACHE_WAFCACHE.SetWithTTl(otpCacheKey, otpErrCount, time.Duration(global.CurrentSettings().GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES)*time.Minute)
 					response.SecretCodeFailWithMessage("请正确输入您的安全码", c)
 					return
 				}
@@ -135,7 +135,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 			if bean.NeedChangePassword == 1 {
 				needChangePwd = true
 				changePwdReason = "首次登录或密码已被重置，请立即修改密码"
-			} else if utils.IsPasswordExpired(bean.PwdUpdateTime, int(global.GCONFIG_PWD_EXPIRE_DAYS), time.Now()) {
+			} else if utils.IsPasswordExpired(bean.PwdUpdateTime, int(global.CurrentSettings().GCONFIG_PWD_EXPIRE_DAYS), time.Now()) {
 				needChangePwd = true
 				changePwdReason = "密码已超过有效期，请修改密码"
 			}
@@ -160,7 +160,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 
 			//生成设备指纹
 			deviceFingerprint := ""
-			if global.GCONFIG_ENABLE_DEVICE_FINGERPRINT == 1 {
+			if global.CurrentSettings().GCONFIG_ENABLE_DEVICE_FINGERPRINT == 1 {
 				deviceFingerprint = utils.GenerateFingerprint(c.Request)
 			}
 
@@ -183,7 +183,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 			}
 
 			//令牌记录到cache里
-			global.GCACHE_WAFCACHE.SetWithTTl(enums.CACHE_TOKEN+accessToken, *tokenInfo, time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute)
+			global.GCACHE_WAFCACHE.SetWithTTl(enums.CACHE_TOKEN+accessToken, *tokenInfo, time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute)
 
 			//通知信息（使用新的消息格式，通过队列统一处理）
 			currentTime := time.Now().Format("2006-01-02 15:04:05")

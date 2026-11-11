@@ -623,7 +623,8 @@ func TestDualWindowRealWorldScenario(t *testing.T) {
 	totalAnomalies := 0
 	sustainedHighWarnings := 0
 
-	for scenario, data := range scenarios {
+	for _, scenario := range []string{"正常日间流量", "突发异常流量", "系统升级后高位", "恢复正常"} {
+		data := scenarios[scenario]
 		fmt.Printf("\n--- %s ---\n", scenario)
 
 		for i, value := range data {

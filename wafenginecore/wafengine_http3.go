@@ -57,6 +57,7 @@ func (waf *WafEngine) newH3TLSConfig() *tls.Config {
 // 只有当该端口当前存在活跃的 HTTP/3 实例时才追加 Alt-Svc，因此 http3 开关可以热生效，
 // 而不必在运行期改写 http.Server.Handler(改写 Handler 与在途请求存在数据竞争)。
 func (waf *WafEngine) altSvcHandler(holder *innerbean.H3Holder, port string) http.Handler {
+	bound := waf.boundPortHandler(port)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if h3 := holder.Server(); h3 != nil {
 			// 关了 h2 的站点不广告 h3(Alt-Svc)：原生 WebSocket 客户端同样不能走 h3，
@@ -70,7 +71,7 @@ func (waf *WafEngine) altSvcHandler(holder *innerbean.H3Holder, port string) htt
 				_ = h3.SetQUICHeaders(w.Header())
 			}
 		}
-		waf.ServeHTTP(w, r)
+		bound.ServeHTTP(w, r)
 	})
 }
 
@@ -91,7 +92,7 @@ func (waf *WafEngine) ReconcileHTTP3() {
 		}
 	}()
 
-	want := global.GCONFIG_ENABLE_HTTP3 == 1
+	want := global.CurrentSettings().GCONFIG_ENABLE_HTTP3 == 1
 	var skipped []string
 	waf.ServerOnline.Range(func(port int, v innerbean.ServerRunTime) bool {
 		if v.H3 == nil {
@@ -133,7 +134,7 @@ func (waf *WafEngine) startHTTP3(port int, ipVersion string, holder *innerbean.H
 	holder.Mu.Lock()
 	defer holder.Mu.Unlock()
 
-	bbr := global.GCONFIG_ENABLE_HTTP3_BBR
+	bbr := global.CurrentSettings().GCONFIG_ENABLE_HTTP3_BBR
 	if holder.Server() != nil {
 		if holder.BBR == bbr {
 			// 已经是期望状态
@@ -191,8 +192,8 @@ func (waf *WafEngine) startHTTP3(port int, ipVersion string, holder *innerbean.H
 		" bbr=" + strconv.FormatInt(bbr, 10) + " ，请确认防火墙/安全组已放行该 UDP 端口")
 
 	// 配置与实际行为不一致时给出提示，避免再次出现「配置写着 TLS 1.2 却跑 1.3」的疑惑
-	if utils.ParseTLSVersion(global.GCONFIG_RECORD_SSLMaxVerson) < tls.VersionTLS13 {
-		zlog.Info("[HTTP3] 当前【SSL最大版本】为 " + global.GCONFIG_RECORD_SSLMaxVerson +
+	if utils.ParseTLSVersion(global.CurrentSettings().GCONFIG_RECORD_SSLMaxVerson) < tls.VersionTLS13 {
+		zlog.Info("[HTTP3] 当前【SSL最大版本】为 " + global.CurrentSettings().GCONFIG_RECORD_SSLMaxVerson +
 			" ，低于 TLS 1.3；HTTP/3 按 RFC 9001 强制使用 TLS 1.3，不受该配置限制(HTTPS/TCP 仍按该配置执行)")
 	}
 }
@@ -221,7 +222,7 @@ func (waf *WafEngine) stopHTTP3Locked(port int, holder *innerbean.H3Holder) {
 	// 先摘 Alt-Svc：新响应立刻不再把客户端引导到即将关闭的 UDP 端口
 	holder.SetServer(nil)
 
-	timeout := time.Duration(global.GCONFIG_RECORD_DRAIN_TIMEOUT) * time.Second
+	timeout := time.Duration(global.CurrentSettings().GCONFIG_RECORD_DRAIN_TIMEOUT) * time.Second
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}

@@ -660,7 +660,7 @@ func (w *WafOPlatformDocApi) GetDocApi(c *gin.Context) {
 // GetDocStatusApi 查询开放平台是否已启用（供管理界面 doc.vue 决定是否展示 Swagger UI）
 func (w *WafOPlatformDocApi) GetDocStatusApi(c *gin.Context) {
 	enabled := int64(0)
-	if global.GCONFIG_OPEN_PLATFORM_ENABLED == 1 {
+	if global.CurrentSettings().GCONFIG_OPEN_PLATFORM_ENABLED == 1 {
 		enabled = 1
 	}
 	response.OkWithData(gin.H{"enabled": enabled}, c)

@@ -39,14 +39,14 @@ func Decide(ev LoginFailEvent) BanResult {
 	action := model.HostEventActionCounted
 
 	// 1. 硬开关：连事件都不记，彻底安静
-	if global.GCONFIG_HOST_GUARD_FORCE_DISABLE {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_FORCE_DISABLE {
 		res.Skipped = "已被配置文件强制关闭"
 		return res
 	}
 
 	// 2. 软失败过滤。preauth 断连/用户名枚举/PAM 行默认不计数，
 	//    原因见 FailKind.IsHard 的注释——它们要么是扫描噪声，要么会与密码失败行重复。
-	countable := ev.Kind.IsHard() || global.GCONFIG_HOST_GUARD_COUNT_SOFT_FAIL == 1
+	countable := ev.Kind.IsHard() || global.CurrentSettings().GCONFIG_HOST_GUARD_COUNT_SOFT_FAIL == 1
 
 	// 3. 白名单
 	white, whiteReason := IsWhitelisted(ev.IP)
@@ -60,7 +60,7 @@ func Decide(ev LoginFailEvent) BanResult {
 	if countable {
 		mgr := wafipban.GetHostLoginFailureManager()
 		if mgr != nil {
-			window := global.GCONFIG_HOST_GUARD_FIND_TIME
+			window := global.CurrentSettings().GCONFIG_HOST_GUARD_FIND_TIME
 			if window <= 0 {
 				window = 10
 			}
@@ -73,7 +73,7 @@ func Decide(ev LoginFailEvent) BanResult {
 	}
 
 	// 4. 阈值判定
-	maxRetry := global.GCONFIG_HOST_GUARD_MAX_RETRY
+	maxRetry := global.CurrentSettings().GCONFIG_HOST_GUARD_MAX_RETRY
 	if maxRetry <= 0 {
 		maxRetry = 8
 	}

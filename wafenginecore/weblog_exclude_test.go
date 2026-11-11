@@ -62,8 +62,10 @@ func TestBuildIPLogExcludeIndexMatch(t *testing.T) {
 
 // TestShouldRecordWebLogIPExclude D13 语义：排除 IP 只静音正常请求，安全事件照记。
 func TestShouldRecordWebLogIPExclude(t *testing.T) {
-	origin := global.GWAF_RUNTIME_RECORD_LOG_TYPE
-	defer func() { global.GWAF_RUNTIME_RECORD_LOG_TYPE = origin }()
+	origin := global.CurrentSettings().GWAF_RUNTIME_RECORD_LOG_TYPE
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = origin })
+	}()
 	SetGlobalIPLogExclude("")
 	defer SetGlobalIPLogExclude("")
 
@@ -99,7 +101,7 @@ func TestShouldRecordWebLogIPExclude(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			global.GWAF_RUNTIME_RECORD_LOG_TYPE = tc.logType
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = tc.logType })
 			if got := shouldRecordWebLog(tc.weblog, mkHost(tc.hostRaw)); got != tc.want {
 				t.Errorf("期望 %v 实际 %v", tc.want, got)
 			}
@@ -107,7 +109,7 @@ func TestShouldRecordWebLogIPExclude(t *testing.T) {
 	}
 
 	t.Run("all_排除清单里的IP组命中", func(t *testing.T) {
-		global.GWAF_RUNTIME_RECORD_LOG_TYPE = "all"
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = "all" })
 		ipset.UpsertGroupMatcher("m6-test-grp", "测试组", ipset.BuildMatchSet([]string{"192.0.2.66"}))
 		defer ipset.RemoveGroupMatcher("m6-test-grp")
 		hostSafe := mkHost("group:m6-test-grp")
@@ -117,7 +119,7 @@ func TestShouldRecordWebLogIPExclude(t *testing.T) {
 	})
 
 	t.Run("all_全局排除清单命中", func(t *testing.T) {
-		global.GWAF_RUNTIME_RECORD_LOG_TYPE = "all"
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = "all" })
 		SetGlobalIPLogExclude("203.0.113.99")
 		defer SetGlobalIPLogExclude("")
 		hostSafe := mkHost("")

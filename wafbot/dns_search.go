@@ -23,13 +23,13 @@ func dnsResolver() *net.Resolver {
 	return &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			return net.Dial("udp", global.GWAF_RUNTIME_DNS_SERVER+":53")
+			return net.Dial("udp", global.CurrentSettings().GWAF_RUNTIME_DNS_SERVER+":53")
 		},
 	}
 }
 
 func dnsTimeout() time.Duration {
-	return time.Duration(global.GWAF_RUNTIME_DNS_TIMEOUT) * time.Millisecond
+	return time.Duration(global.CurrentSettings().GWAF_RUNTIME_DNS_TIMEOUT) * time.Millisecond
 }
 
 // ReverseDNSLookup 反查 IP 的 PTR 记录

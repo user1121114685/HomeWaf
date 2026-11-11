@@ -414,7 +414,7 @@ func (r *WafCDNIPService) providerInUse(code string) bool {
 	if code == "" {
 		return false
 	}
-	if global.GCONFIG_MANAGE_CDN_PROVIDER == code {
+	if global.CurrentSettings().GCONFIG_MANAGE_CDN_PROVIDER == code {
 		return true
 	}
 	var cnt int64

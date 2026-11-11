@@ -41,6 +41,8 @@ var sensitiveColumnSubstrings = []string{
 // 连行数/结构都不暴露——作为列级过滤之外的域级兜底（认证 / 密钥 / 证书相关表）。
 // 用子串而非精确表名，避免因 GORM 复数命名 / 前缀差异导致漏配。
 var sensitiveTableSubstrings = []string{
+	"gate_user", "gate_session", "gate_runtime", "port_config",
+	"pipeline_feed",
 	"account",        // accounts, account_pwd_histories（口令/历史口令指纹/访问码）
 	"otp",            // otps（2FA 密钥）
 	"ssl",            // sslconfigs, sslorders, sslexpires（证书私钥 key_content/apply_key/result_private_key）

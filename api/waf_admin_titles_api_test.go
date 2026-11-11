@@ -43,9 +43,11 @@ func TestNormalizeAdminTitle(t *testing.T) {
 }
 
 func TestAdminTitlesGetEncryptedSingleField(t *testing.T) {
-	priorLegacy := global.GCONFIG_COMM_LEGACY_KEY
-	global.GCONFIG_COMM_LEGACY_KEY = true
-	t.Cleanup(func() { global.GCONFIG_COMM_LEGACY_KEY = priorLegacy })
+	priorLegacy := global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = priorLegacy })
+	})
 	r := gin.New()
 	r.GET("/api/v1/public/uiconfig", (&WafVpConfigApi{}).GetAdminTitlesApi)
 	w := httptest.NewRecorder()

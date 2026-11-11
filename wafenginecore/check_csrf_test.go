@@ -8,6 +8,7 @@ import (
 	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/wafenginmodel"
+	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -169,6 +170,7 @@ func TestCheckCsrf(t *testing.T) {
 			}
 			req, _ := http.NewRequest(tc.method, "http://"+tc.host+tc.path, nil)
 			req.Host = tc.host
+			req.TLS = &tls.ConnectionState{}
 			if tc.origin != "" {
 				req.Header.Set("Origin", tc.origin)
 			}

@@ -20,7 +20,7 @@ type WafRuleBanService struct{}
 var WafRuleBanServiceApp = new(WafRuleBanService)
 
 func (s *WafRuleBanService) GetConfigApi() response2.RuleBanConfigResp {
-	return response2.RuleBanConfigResp{Mode: global.GCONFIG_RULE_BAN_MODE}
+	return response2.RuleBanConfigResp{Mode: global.CurrentSettings().GCONFIG_RULE_BAN_MODE}
 }
 
 func (s *WafRuleBanService) SetConfigApi(req request.WafRuleBanSetConfigReq) error {
@@ -30,7 +30,7 @@ func (s *WafRuleBanService) SetConfigApi(req request.WafRuleBanSetConfigReq) err
 	}); err != nil {
 		return err
 	}
-	global.GCONFIG_RULE_BAN_MODE = req.Mode
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RULE_BAN_MODE = req.Mode })
 	return nil
 }
 

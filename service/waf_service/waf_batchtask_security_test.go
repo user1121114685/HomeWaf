@@ -17,13 +17,13 @@ import (
 func withAllowedImportDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	oldDirs := global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS
-	oldHosts := global.GCONFIG_OUTBOUND_ALLOWED_HOSTS
-	global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = dir
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = ""
+	oldDirs := global.CurrentSettings().GCONFIG_BATCH_IMPORT_ALLOWED_DIRS
+	oldHosts := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = dir })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "" })
 	t.Cleanup(func() {
-		global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = oldDirs
-		global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = oldHosts
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = oldDirs })
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = oldHosts })
 	})
 	return dir
 }
@@ -100,9 +100,11 @@ func TestCheckTaskInput_越界来源与内网地址被拒(t *testing.T) {
 }
 
 func TestValidateChannelURL_威胁情报订阅同款收口(t *testing.T) {
-	oldHosts := global.GCONFIG_OUTBOUND_ALLOWED_HOSTS
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = ""
-	t.Cleanup(func() { global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = oldHosts })
+	oldHosts := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "" })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = oldHosts })
+	})
 
 	for _, u := range []string{"", "  ", "http://127.0.0.1/list", "http://169.254.169.254/x", "file:///etc/passwd"} {
 		if err := validateChannelURL(u); err == nil {
@@ -114,8 +116,11 @@ func TestValidateChannelURL_威胁情报订阅同款收口(t *testing.T) {
 	}
 
 	// 带外声明后内网镜像可用
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "10.9.8.7"
-	if err := validateChannelURL("http://10.9.8.7/list.txt"); err != nil {
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "10.9.8.7" })
+	if err := validateChannelURL("https://10.9.8.7/list.txt"); err != nil {
 		t.Fatalf("已带外声明的内网镜像应通过，实际: %v", err)
+	}
+	if err := validateChannelURL("http://10.9.8.7/list.txt"); err == nil {
+		t.Fatal("带外允许清单不能豁免威胁订阅的HTTPS要求")
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/globalobj"
 	"HomeWaf/innerbean"
+	"HomeWaf/internal/licensing"
 	"HomeWaf/iplocation"
 	"HomeWaf/model"
 	"HomeWaf/model/wafenginmodel"
@@ -36,6 +37,7 @@ import (
 	"HomeWaf/wafnet"
 	"HomeWaf/wafnotify"
 	"HomeWaf/wafowasp"
+	"HomeWaf/wafpipeline"
 	"HomeWaf/wafqueue"
 	"HomeWaf/wafreg"
 	"HomeWaf/wafsafeclear"
@@ -175,8 +177,8 @@ func (m *wafSystenService) run() {
 	// 绝不能阻止 WAF 启动——防护能力不依赖地区库。
 	if err := global.GIPLOCATION_MANAGER.ReloadFromConfig(
 		filepath.Join(utils.GetCurrentDir(), "data"),
-		global.GCONFIG_IP_V4_SOURCE, global.GCONFIG_IP_V6_SOURCE,
-		global.GCONFIG_IP_V4_FORMAT, global.GCONFIG_IP_V6_FORMAT,
+		global.CurrentSettings().GCONFIG_IP_V4_SOURCE, global.CurrentSettings().GCONFIG_IP_V6_SOURCE,
+		global.CurrentSettings().GCONFIG_IP_V4_FORMAT, global.CurrentSettings().GCONFIG_IP_V6_FORMAT,
 	); err != nil {
 		zlog.Warn("IP地理位置数据库加载失败，地区相关功能将不可用: ", err.Error())
 	}
@@ -267,8 +269,10 @@ func (m *wafSystenService) run() {
 	// 注入 IP 库在线下载上下文：iplocation 不能反向依赖 global/utils（会成环），
 	// 所以升级源、SSRF 安全客户端、通知回调都从这里传进去。
 	iplocation.ConfigureUpgrader(iplocation.UpgradeConfig{
+		Enabled:          global.GUPDATE_VERSION_URL != "",
+		RequireSignature: true,
+		TrustedKeysJSON:  licensing.TrustedKeysJSON,
 		UpdateVersionURL: global.GUPDATE_VERSION_URL,
-		ClientQuery:      wafupdate.ClientQuery,
 		NewClient:        utils.SafeHTTPClient,
 		ValidateURL:      utils.IsSafeOutboundURL,
 		NotifyFunc: func(success bool, msg string) {
@@ -360,14 +364,14 @@ func (m *wafSystenService) run() {
 	//初始化每实例静态数据加密密钥(DEK)：首启生成 .homewaf-keys/data_key(0600)，或用
 	//config.yml 的 security.data_key_file 指定自管路径。须在数据库初始化之前就绪，
 	//否则落库敏感字段(Access 密钥/CDN 凭证/2FA 密钥)无法按新格式加解密。
-	if err := wafsec.InitDataKey(utils.GetCurrentDir(), global.GCONFIG_DATA_KEY_FILE); err != nil {
+	if err := wafsec.InitDataKey(utils.GetCurrentDir(), global.CurrentSettings().GCONFIG_DATA_KEY_FILE); err != nil {
 		zlog.Error("初始化数据加密密钥失败，程序退出，请检查 .homewaf-keys 目录权限或 security.data_key_file 配置", "error", err)
 		os.Exit(1)
 	}
 
 	//初始化每实例传输密钥(X25519)：首启生成 data/.keys/comm_key(0600)，供管理端 v2 通道
 	//与客户端协商每会话密钥。失败不退出——传输层还有 legacy 通道可用，管理端不至于打不开。
-	if err := wafsec.InitCommKey(utils.GetCurrentDir(), global.GCONFIG_COMM_KEY_FILE); err != nil {
+	if err := wafsec.InitCommKey(utils.GetCurrentDir(), global.CurrentSettings().GCONFIG_COMM_KEY_FILE); err != nil {
 		zlog.Error("初始化传输密钥失败，管理端将只提供 legacy 传输通道，请检查 data/.keys 目录权限或 security.comm_key_file 配置", "error", err)
 	}
 
@@ -434,8 +438,8 @@ func (m *wafSystenService) run() {
 		ipDataDir := filepath.Join(utils.GetCurrentDir(), "data")
 		if err := global.GIPLOCATION_MANAGER.ReloadFromConfig(
 			ipDataDir,
-			global.GCONFIG_IP_V4_SOURCE, global.GCONFIG_IP_V6_SOURCE,
-			global.GCONFIG_IP_V4_FORMAT, global.GCONFIG_IP_V6_FORMAT,
+			global.CurrentSettings().GCONFIG_IP_V4_SOURCE, global.CurrentSettings().GCONFIG_IP_V6_SOURCE,
+			global.CurrentSettings().GCONFIG_IP_V4_FORMAT, global.CurrentSettings().GCONFIG_IP_V6_FORMAT,
 		); err != nil {
 			zlog.Warn("IP 数据库按配置重载失败: ", err)
 		}
@@ -443,21 +447,21 @@ func (m *wafSystenService) run() {
 
 	// 初始化任务日志管理器（需在 TaskLoadSetting 后执行，以获取正确的 retainDays 配置）
 	taskLogDir := filepath.Join(utils.GetCurrentDir(), "logs", "task")
-	tasklog.InitGlobalTaskLogManager(taskLogDir, int(global.GCONFIG_TASK_LOG_RETAIN_DAYS))
+	tasklog.InitGlobalTaskLogManager(taskLogDir, int(global.CurrentSettings().GCONFIG_TASK_LOG_RETAIN_DAYS))
 	// 将 TaskZapCore 挂到全局 zlog，使任务执行期间的 zlog 输出同步写入任务日志文件
 	zlog.AddCore(tasklog.NewTaskZapCore(zapcore.DebugLevel))
 	//启动通知相关程序
-	global.GNOTIFY_KAKFA_SERVICE = wafnotify.InitNotifyKafkaEngine(global.GCONFIG_RECORD_KAFKA_ENABLE, global.GCONFIG_RECORD_KAFKA_URL, global.GCONFIG_RECORD_KAFKA_TOPIC) //kafka
+	global.GNOTIFY_KAKFA_SERVICE = wafnotify.InitNotifyKafkaEngine(global.CurrentSettings().GCONFIG_RECORD_KAFKA_ENABLE, global.CurrentSettings().GCONFIG_RECORD_KAFKA_URL, global.CurrentSettings().GCONFIG_RECORD_KAFKA_TOPIC) //kafka
 	// 日志文件写入
-	compressFlag := global.GCONFIG_LOG_FILE_WRITE_COMPRESS == 1
+	compressFlag := global.CurrentSettings().GCONFIG_LOG_FILE_WRITE_COMPRESS == 1
 	global.GNOTIFY_LOG_FILE_WRITER = wafnotify.InitLogFileWriterEngine(
-		global.GCONFIG_LOG_FILE_WRITE_ENABLE,
-		global.GCONFIG_LOG_FILE_WRITE_PATH,
-		global.GCONFIG_LOG_FILE_WRITE_FORMAT,
-		global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL,
-		global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE,
-		int(global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS),
-		int(global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS),
+		global.CurrentSettings().GCONFIG_LOG_FILE_WRITE_ENABLE,
+		global.CurrentSettings().GCONFIG_LOG_FILE_WRITE_PATH,
+		global.CurrentSettings().GCONFIG_LOG_FILE_WRITE_FORMAT,
+		global.CurrentSettings().GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL,
+		global.CurrentSettings().GCONFIG_LOG_FILE_WRITE_MAX_SIZE,
+		int(global.CurrentSettings().GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS),
+		int(global.CurrentSettings().GCONFIG_LOG_FILE_WRITE_MAX_DAYS),
 		compressFlag,
 	)
 	//启动waf
@@ -471,12 +475,15 @@ func (m *wafSystenService) run() {
 			Mux: sync.Mutex{},
 			Map: map[string]*tls.Certificate{},
 		},
-		EngineCurrentStatus: 0, // 当前waf引擎状态
-		Sensitive:           make([]model.Sensitive, 0),
+		EngineCurrentStatus: 0,                                         // 当前waf引擎状态
 		PluginManager:       globalobj.GWAF_RUNTIME_OBJ_PLUGIN_MANAGER, // 设置插件管理器
 	}
 	//初始化路由快照(RCU 空表)，之后 StartWaf→LoadAllHost 通过 copy-on-write 填充
 	globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.InitRouting()
+	if err := waf_service.WafPipelineServiceApp.LoadLegacyPortOwnership(); err != nil {
+		zlog.Error("迁入端口归属无法读取，拒绝启动业务监听", err.Error())
+		return
+	}
 	//注册引擎侧运行诊断计量器（主机/端口/证书/Transport池等对象数）
 	globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.RegisterDiagProvider()
 	//IP组匹配集必须在引擎接管流量之前发布完成：LoadHost 只预抽出组短码，
@@ -636,6 +643,17 @@ func (m *wafSystenService) run() {
 			zlog.Info("[Fresh Install] A random initial admin password has been generated, please see file: data/initial_password.txt and change it right after first login")
 		}
 	}
+	waf_service.WafPipelineServiceApp.OnChange = wafpipeline.Listeners.Apply
+	initializePortPipeline()
+	if err := waf_service.WafPipelineServiceApp.Load(); err != nil {
+		zlog.Warn("部分端口配置未加载，其他端口继续启动", zap.Error(err))
+	}
+	if err := waf_service.WafPipelineServiceApp.RefreshSourceCertificates(); err != nil {
+		zlog.Warn("端口证书启动同步失败", err.Error())
+	}
+	if err := wafpipeline.Listeners.StartAll(); err != nil {
+		zlog.Warn("部分端口监听失败，其他端口与管理入口保持可用", zap.Error(err))
+	}
 	m.startup.Ready()
 	for {
 		select {
@@ -749,6 +767,9 @@ func (m *wafSystenService) run() {
 					break
 				case enums.ChanTypeSSL:
 					host := msg.Content.(model.Hosts)
+					if err := waf_service.WafPipelineServiceApp.RefreshSourceCertificates(); err != nil {
+						zlog.Warn("原生端口证书刷新失败", err.Error())
+					}
 					zlog.Info(fmt.Sprintf("服务端准备为 %s 主机刷新 SSL证书 ，证书信息：%v", host.Host, utils.PrintSSLCert(host.Certfile)))
 					// LoadHost 原子替换(单次发布)：刷新证书重载期间主端口 key 不缺失，不再先 RemoveHost(避免 403 空档)
 					globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.LoadHost(host)
@@ -982,11 +1003,11 @@ func (m *wafSystenService) run() {
 		}
 
 	}
-	zlog.Info("normal program close")
 }
 
 // 停止要提前关闭的 是服务的主要逻辑
 func (m *wafSystenService) stopHomeWaf() {
+	shutdownPortPipeline()
 	zlog.Info("Shutdown HomeWaf Engine...")
 	if globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE != nil {
 		globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.CloseWaf()
@@ -1252,7 +1273,7 @@ func main() {
 	sup := supervisor.New(supervisor.Options{
 		ExePath:      exePath,
 		DataDir:      dataDir,
-		DrainTimeout: int(global.GCONFIG_RECORD_DRAIN_TIMEOUT),
+		DrainTimeout: int(global.CurrentSettings().GCONFIG_RECORD_DRAIN_TIMEOUT),
 		// 自升级交接(Windows)靠"退出 + 助手把服务重新 start"，前台运行时退出等于停服，
 		// 故把"是否由服务管理器托管"传下去，由 Supervisor 决定是否交接。
 		ServiceManaged: !service.Interactive(),
@@ -1476,6 +1497,7 @@ func (wc *workerCtrl) serve(conn *wafipc.Conn) {
 				if globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE != nil {
 					conns = globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.TotalConns()
 				}
+				conns += wafpipeline.Listeners.Count()
 				wc.send(wafipc.Message{Type: wafipc.MsgHeartbeat, PID: os.Getpid(), Active: conns})
 			}
 		}
@@ -1535,6 +1557,9 @@ func (m *wafSystenService) waitReady(ctx context.Context) error {
 		return errors.New("Worker 引擎或管理端未初始化")
 	}
 	if err := globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.WaitProxyReadyContext(ctx); err != nil {
+		return err
+	}
+	if err := wafpipeline.Listeners.WaitReady(ctx); err != nil {
 		return err
 	}
 	return webmanager.WaitReady(ctx)

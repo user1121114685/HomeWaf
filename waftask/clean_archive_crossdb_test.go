@@ -53,14 +53,16 @@ func runArchiveCleanupAssertions(t *testing.T, db *gorm.DB) {
 	d := dialect.Get()
 
 	prevCore, prevLog := global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB
-	prevDel, prevAccess := global.GDATA_DELETE_INTERVAL, global.GDATA_ACCESS_LOG_RETENTION_DAYS
+	prevDel, prevAccess := global.CurrentSettings().GDATA_DELETE_INTERVAL, global.CurrentSettings().GDATA_ACCESS_LOG_RETENTION_DAYS
 	// 分片元数据与日志表放同一个库只是测试便利；生产里前者在核心库。
 	global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB = db, db
-	global.GDATA_DELETE_INTERVAL = 180
-	global.GDATA_ACCESS_LOG_RETENTION_DAYS = 30
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_DELETE_INTERVAL = 180 })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ACCESS_LOG_RETENTION_DAYS = 30 })
 	defer func() {
 		global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB = prevCore, prevLog
-		global.GDATA_DELETE_INTERVAL, global.GDATA_ACCESS_LOG_RETENTION_DAYS = prevDel, prevAccess
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GDATA_DELETE_INTERVAL, cfg.GDATA_ACCESS_LOG_RETENTION_DAYS = prevDel, prevAccess
+		})
 	}()
 
 	now := time.Now()

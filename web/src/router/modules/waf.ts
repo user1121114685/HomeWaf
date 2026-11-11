@@ -9,6 +9,17 @@ import Layout from '@/layouts/index.vue';
 export default [
 
   {
+    path: '/waf-pipeline', name: 'wafpipeline', component: Layout,
+    redirect: '/waf-pipeline/ports',
+    meta: { title: 'menu.pipeline.parent_title', icon: UserSafetyIcon },
+    children: [
+      { path: 'ports', name: 'WafPipeline', component: () => import('@/pages/waf/pipeline/index.vue'), meta: { title: 'menu.pipeline.ports', keepAlive: false, roleCode: 'WafHost' } },
+      { path: 'templates', name: 'WafPipelineTemplates', component: () => import('@/pages/waf/pipeline/index.vue'), meta: { title: 'menu.pipeline.templates', keepAlive: false, roleCode: 'WafHost' } },
+      { path: 'legacy-sources', name: 'LegacyWafHosts', component: () => import('@/pages/waf/host/index.vue'), meta: { title: 'menu.host.host_title', hidden: true, keepAlive: false, roleCode: 'WafHost' } },
+    ],
+  },
+
+  {
     path: '/waf-host',
     name: 'wafhost',
     component: Layout,
@@ -17,8 +28,8 @@ export default [
       {
         path: 'wafhost',
         name: 'WafHost',
-        component: () => import('@/pages/waf/host/index.vue'),
-        meta: { title: 'menu.host.host_title' },
+        redirect: '/waf-pipeline/ports',
+        meta: { title: 'menu.host.host_title', hidden: true },
 
       },
       {

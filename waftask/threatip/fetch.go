@@ -31,14 +31,14 @@ type FetchStat struct {
 // Fetch 拉取订阅源原始内容。限制最大读取字节数，返回原始 body 字节。
 // 注意：调用方需确保 url 已登记进对外访问白名单(见 CLAUDE.md)，且订阅默认关闭、由用户显式启用。
 func Fetch(url string) ([]byte, error) {
-	data, _, err := FetchWithStat(url)
+	data, _, err := fetchUnsignedWithStat(url)
 	return data, err
 }
 
-// FetchWithStat 与 Fetch 相同，但额外返回本次拉取的状态码/字节数/耗时。
+// fetchUnsignedWithStat 与 Fetch 相同，但额外返回本次拉取的状态码/字节数/耗时。
 // 失败时错误信息里会带上 URL、耗时与(非 200 时的)响应正文摘要——这条链路以前失败是完全静默的，
 // 用户只能看到"没反应"，所以这里刻意把上下文塞足，便于日志与"上次状态"里直接看出原因。
-func FetchWithStat(url string) ([]byte, FetchStat, error) {
+func fetchUnsignedWithStat(url string) ([]byte, FetchStat, error) {
 	start := time.Now()
 	stat := FetchStat{}
 	// 错误信息会进日志与渠道的"上次状态"（前端可见），订阅地址可能带 user:token@，先抹掉凭证

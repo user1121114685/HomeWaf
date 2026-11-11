@@ -30,6 +30,30 @@ var scannerUrlProbes = []string{
 	"w00tw00t", "muieblackcat", "thereisnowaythat-you-canbe-a-search-engine", "cybercop",
 }
 
+// HasScannerSignature reuses the scanner signatures without treating an
+// article URL or Referer mentioning a tool as proof of a scanner.
+func HasScannerSignature(userAgent string, headerNames []string) bool {
+	ua := strings.ToLower(userAgent)
+	for _, sig := range scannerSigsAny {
+		if strings.Contains(ua, sig) {
+			return true
+		}
+	}
+	for _, sig := range scannerSigsUA {
+		if strings.Contains(ua, sig) {
+			return true
+		}
+	}
+	for _, name := range headerNames {
+		for _, sig := range scannerHeaderMarkers {
+			if strings.EqualFold(name, sig) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // IsScan 检测已知扫描/攻击工具。工具名查 URL+全部请求头(含 UA、自定义头)、大小写不敏感；
 // 另叠扫描器头名标记(D2-6)与探测路径指纹(D2-7)。未纳入 curl/python-requests/Go-http-client
 // 等常见客户端，避免误伤。

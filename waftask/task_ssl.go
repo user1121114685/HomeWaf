@@ -30,7 +30,7 @@ SSL路径自动加载—_证书自动续期
 func SSLReload() {
 	innerLogName := "TaskSSL"
 	zlog.Info(innerLogName, "准备进行ssl证书文件路径自动加载")
-	if global.GCONFIG_RECORD_AUTO_LOAD_SSL == 1 {
+	if global.CurrentSettings().GCONFIG_RECORD_AUTO_LOAD_SSL == 1 {
 		zlog.Info(innerLogName, "自动加载ssl开关:开启")
 		//1.遍历所有证书夹得内容
 		//2.如果对应得位置有内容
@@ -164,10 +164,10 @@ func SSLOrderReload() {
 					var expireDays int64
 					var certType string
 					if isIpSSL {
-						expireDays = global.GCONFIG_RECORD_SSL_IP_EXPIRE_DAY
+						expireDays = global.CurrentSettings().GCONFIG_RECORD_SSL_IP_EXPIRE_DAY
 						certType = "IP证书"
 					} else {
-						expireDays = global.GCONFIG_RECORD_SSLOrder_EXPIRE_DAY
+						expireDays = global.CurrentSettings().GCONFIG_RECORD_SSLOrder_EXPIRE_DAY
 						certType = "域名证书"
 					}
 
@@ -212,7 +212,7 @@ func SSLExpireCheck() {
 		global.GWAF_RUNTIME_SSL_EXPIRE_CHECK = false
 	}()
 	innerLogName := "SSLExpireCheck"
-	if global.GCONFIG_SSL_EXPIRE_AUTO_SYNC_HOST == 1 {
+	if global.CurrentSettings().GCONFIG_SSL_EXPIRE_AUTO_SYNC_HOST == 1 {
 		SyncHostToSslCheck()
 	}
 	zlog.Info(innerLogName, "准备进行SSL证书过期检测")
@@ -284,14 +284,14 @@ func checkAndNotifySSLExpire(domain string, expiryTime time.Time) {
 
 	if isIpCert {
 		// IP证书：使用IP证书专用配置（默认3天）
-		expireDays = int(global.GCONFIG_RECORD_SSL_IP_EXPIRE_DAY)
+		expireDays = int(global.CurrentSettings().GCONFIG_RECORD_SSL_IP_EXPIRE_DAY)
 		certType = "IP证书"
 		if expireDays <= 0 {
 			expireDays = 3 // IP证书默认提前3天
 		}
 	} else {
 		// 域名证书：使用域名证书配置（默认30天）
-		expireDays = int(global.GCONFIG_RECORD_SSLOrder_EXPIRE_DAY)
+		expireDays = int(global.CurrentSettings().GCONFIG_RECORD_SSLOrder_EXPIRE_DAY)
 		certType = "域名证书"
 		if expireDays <= 0 {
 			expireDays = 30 // 域名证书默认提前30天

@@ -225,7 +225,7 @@ func (receiver *WafTokenInfoService) ReloadAllValidTokensToCache() error {
 	for _, token := range tokens {
 		// 检查token是否过期
 		// 假设token的过期时间存储在UPDATE_TIME字段中，并且有一个固定的过期时间
-		expireTime := time.Time(token.UPDATE_TIME).Add(time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES) * time.Minute)
+		expireTime := time.Time(token.UPDATE_TIME).Add(time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES) * time.Minute)
 
 		// 如果token没有过期，则重新加载到缓存中
 		if expireTime.After(now) {
@@ -236,7 +236,7 @@ func (receiver *WafTokenInfoService) ReloadAllValidTokensToCache() error {
 			global.GCACHE_WAFCACHE.SetWithTTlRenewTime(
 				enums.CACHE_TOKEN+token.AccessToken,
 				token,
-				time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute,
+				time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute,
 			)
 		}
 	}
@@ -257,7 +257,7 @@ func (receiver *WafTokenInfoService) ReloadSpecificTokenToCache(tokenId string) 
 	now := time.Now()
 
 	// 检查token是否过期
-	expireTime := time.Time(token.UPDATE_TIME).Add(time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES) * time.Minute)
+	expireTime := time.Time(token.UPDATE_TIME).Add(time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES) * time.Minute)
 
 	// 如果token没有过期，则重新加载到缓存中
 	if expireTime.After(now) {
@@ -265,7 +265,7 @@ func (receiver *WafTokenInfoService) ReloadSpecificTokenToCache(tokenId string) 
 		global.GCACHE_WAFCACHE.SetWithTTlRenewTime(
 			enums.CACHE_TOKEN+token.AccessToken,
 			token,
-			time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute,
+			time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute,
 		)
 		return nil
 	}

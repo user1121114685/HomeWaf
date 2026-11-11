@@ -40,7 +40,7 @@ type outboundAllowEntry struct {
 // parseOutboundAllowList 解析 config.yml 里的允许清单。每次调用现读现解析：
 // 清单极短、调用频率极低（只在发起对外请求时），省掉缓存失效的心智负担。
 func parseOutboundAllowList() []outboundAllowEntry {
-	raw := strings.TrimSpace(global.GCONFIG_OUTBOUND_ALLOWED_HOSTS)
+	raw := strings.TrimSpace(global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS)
 	if raw == "" {
 		return nil
 	}

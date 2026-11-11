@@ -3,6 +3,7 @@ package innerbean
 import "strings"
 
 type WebLog struct {
+	BodyTruncated      bool   `gorm:"-" json:"body_truncated,omitempty"`
 	WafInnerDFlag      string `gorm:"size:10" json:"waf_inner_dflag"` //日志队列处理方式
 	HOST               string `gorm:"size:255" json:"host"`
 	URL                string `gorm:"type:text" json:"url"`
@@ -125,9 +126,9 @@ func (WebLog) TableName() string {
 }
 
 // IsSafeBot 判断是否是安全bot
-// 返回: true表示是安全bot（是bot且风险等级为0），false表示不是
+// Only a fully verified identity may bypass ordinary failure accounting.
 func (w *WebLog) IsSafeBot() bool {
-	return w.IsBot == 1 && w.RISK_LEVEL == 0
+	return w.IsBot == 1 && w.RISK_LEVEL == 0 && w.BotVerifyStrong == 1
 }
 
 // IsSecurityEvent 判断这条请求算不算「安全事件」——命中了规则、被拦了、或处于仅记录模式。

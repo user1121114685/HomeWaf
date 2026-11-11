@@ -88,7 +88,7 @@ func DecideLadder(offender *model.HostGuardOffender, now time.Time) LadderDecisi
 	banCount := int64(1)
 	reset := false
 	if offender != nil && offender.BanCount > 0 {
-		resetDays := global.GCONFIG_HOST_GUARD_OFFENDER_RESET_DAY
+		resetDays := global.CurrentSettings().GCONFIG_HOST_GUARD_OFFENDER_RESET_DAY
 		if resetDays > 0 && offender.LastBanTime > 0 {
 			idleDays := now.Sub(time.Unix(offender.LastBanTime, 0)).Hours() / 24
 			if idleDays > float64(resetDays) {

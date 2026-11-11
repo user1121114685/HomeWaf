@@ -13,9 +13,11 @@ import (
 
 // 参数名与顺序是升级源侧日志解析的契约，改了要同步改服务端，故用例锁住
 func TestClientQueryShape(t *testing.T) {
-	oldReport := global.GCONFIG_UPDATE_ENV_REPORT
-	global.GCONFIG_UPDATE_ENV_REPORT = true
-	t.Cleanup(func() { global.GCONFIG_UPDATE_ENV_REPORT = oldReport })
+	oldReport := global.CurrentSettings().GCONFIG_UPDATE_ENV_REPORT
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_UPDATE_ENV_REPORT = true })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_UPDATE_ENV_REPORT = oldReport })
+	})
 	global.GWAF_RELEASE_VERSION = "v1.3.25"
 	global.GWAF_USER_CODE = "123456uuid"
 

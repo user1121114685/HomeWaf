@@ -55,8 +55,8 @@ func (waf *WafEngine) CheckXss(r *http.Request, weblogbean *innerbean.WebLog, fo
 		return result
 	}
 	// 请求体+头部深度检测（formValue/JSON 逐值 + 自定义头 S1-4）：受 body_detect_mode 门控 + 结构化跳过(C) + 多信号(D) + 字段排除(E)
-	if bodyDetectEnabled() && (waf.bodyXSSHit(formValue, weblogbean.BodyFields, weblogbean.BodyValues) || headerXSSHit(r)) {
-		if bodyDetectBlocking() {
+	if bodyDetectEnabled(r) && (waf.bodyXSSHit(formValue, weblogbean.BodyFields, weblogbean.BodyValues, r) || headerXSSHit(r)) {
+		if bodyDetectBlocking(r) {
 			weblogbean.RISK_LEVEL = 2
 			result.IsBlock = true
 			result.Title = "XSS跨站注入"
@@ -69,9 +69,9 @@ func (waf *WafEngine) CheckXss(r *http.Request, weblogbean *innerbean.WebLog, fo
 }
 
 // bodyXSSHit 请求体逐值 XSS：按字段排除(E) + 跳过结构化数据值(C) + libinjection 命中且含执行信号(D)
-func (waf *WafEngine) bodyXSSHit(formValue url.Values, bodyFields, bodyValues []string) bool {
+func (waf *WafEngine) bodyXSSHit(formValue url.Values, bodyFields, bodyValues []string, requests ...*http.Request) bool {
 	for key, vals := range formValue {
-		if isBodyFieldExcluded(key) { // E：已知富文本字段整体跳过
+		if isBodyFieldExcluded(key, requests...) { // E：已知富文本字段整体跳过
 			continue
 		}
 		for _, v := range vals {
@@ -81,7 +81,7 @@ func (waf *WafEngine) bodyXSSHit(formValue url.Values, bodyFields, bodyValues []
 		}
 	}
 	for i, v := range bodyValues {
-		if isBodyFieldExcluded(fieldAt(bodyFields, i)) { // E
+		if isBodyFieldExcluded(fieldAt(bodyFields, i), requests...) { // E
 			continue
 		}
 		if bodyValueIsXSS(v) {

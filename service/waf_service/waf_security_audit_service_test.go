@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"HomeWaf/common/queue"
 	"HomeWaf/global"
 	"HomeWaf/model"
 	commonreq "HomeWaf/model/common/request"
@@ -15,6 +16,36 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+func TestSecurityAuditQueuesWithoutRequestDatabaseWrite(t *testing.T) {
+	setupSecurityAuditTestDB(t)
+	old := global.GQEQUE_LOG_DB
+	global.GQEQUE_LOG_DB = queue.NewQueue()
+	defer func() { global.GQEQUE_LOG_DB = old }()
+	WafSecurityAuditServiceApp.Write(AuditEntry{Event: model.HttpAuthEventLoginFail, AccountName: "owner", URL: "/login?token=must-not-log", Country: "local", City: "local", Message: "invalid credentials"})
+	var count int64
+	if err := global.GWAF_LOCAL_LOG_DB.Model(&model.SecurityAuditLog{}).Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatal("request path synchronously wrote audit database")
+	}
+	v, ok := global.GQEQUE_LOG_DB.Dequeue()
+	if !ok {
+		t.Fatal("audit missing from queue")
+	}
+	row, ok := v.(*model.SecurityAuditLog)
+	if !ok || row.URL != "/login?token=[MASKED]" {
+		t.Fatal("queued audit lost redaction")
+	}
+	if err := global.GWAF_LOCAL_LOG_DB.CreateInBatches([]*model.SecurityAuditLog{row}, 100).Error; err != nil {
+		t.Fatal(err)
+	}
+	global.GWAF_LOCAL_LOG_DB.Model(&model.SecurityAuditLog{}).Count(&count)
+	if count != 1 {
+		t.Fatal("batch consumer could not persist audit")
+	}
+}
 
 // 统一安全审计表(security_audit_log)用例：Write() 按事件自动分类，GetListApi 支持按分类筛选。
 

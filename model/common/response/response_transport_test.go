@@ -118,7 +118,7 @@ func TestResultFallsBackToLegacyForOldClient(t *testing.T) {
 // 会话失效（服务端重启）时，legacy 开着就回落，客户端仍能解开并据此重新握手
 func TestResultFallsBackWhenSessionExpired(t *testing.T) {
 	setupSession(t)
-	global.GCONFIG_COMM_LEGACY_KEY = true
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
 	c, rec := newCtx(t, "早就没了的keyid")
 
 	OkWithData(map[string]string{"hello": "world"}, c)
@@ -137,8 +137,10 @@ func TestResultFallsBackWhenSessionExpired(t *testing.T) {
 // 而不是一段对方解不开的密文
 func TestResultSignalsRehandshakeWhenLegacyDisabled(t *testing.T) {
 	setupSession(t)
-	global.GCONFIG_COMM_LEGACY_KEY = false
-	defer func() { global.GCONFIG_COMM_LEGACY_KEY = true }()
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = false })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
+	}()
 
 	c, rec := newCtx(t, "早就没了的keyid")
 	OkWithData(map[string]string{"hello": "world"}, c)

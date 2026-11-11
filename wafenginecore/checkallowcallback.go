@@ -3,7 +3,6 @@
 package wafenginecore
 
 import (
-	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/model/detection"
 	"HomeWaf/model/wafenginmodel"
@@ -20,7 +19,7 @@ func (waf *WafEngine) CheckAllowCallBackIP(r *http.Request, weblogbean *innerbea
 		Content:         "",
 	}
 	clientIp := weblogbean.SRC_IP
-	if global.GCONFIG_RECORD_PROXY_HEADER == "" {
+	if requestSettings(r).GCONFIG_RECORD_PROXY_HEADER == "" {
 		clientIp = weblogbean.NetSrcIp
 	}
 	backIpResult := wafbot.CheckCallBackIp(clientIp)

@@ -454,7 +454,7 @@ type UploadSecurityConfig struct {
 }
 
 // DefaultUploadExtBlacklist 默认危险扩展名黑名单
-const DefaultUploadExtBlacklist = "php,php2,php3,php4,php5,php7,pht,phtml,phar,jsp,jspx,jspa,jsw,jsv,jspf,asp,aspx,asa,asax,ascx,ashx,asmx,cer,cdx,exe,dll,sh,bat,cmd,com,cgi,pl,py,jar,war"
+const DefaultUploadExtBlacklist = "php,php2,php3,php4,php5,php7,pht,phtml,phar,jsp,jspx,jspa,jsw,jsv,jspf,asp,aspx,asa,asax,ascx,ashx,asmx,cer,cdx,exe,dll,sh,bat,cmd,com,cgi,pl,py,jar,war,htaccess"
 
 // ParseUploadSecurityConfig 解析文件上传检测配置；空 JSON 给默认值（默认关闭、超限拦、10MB）
 func ParseUploadSecurityConfig(jsonStr string) UploadSecurityConfig {

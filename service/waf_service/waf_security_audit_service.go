@@ -8,6 +8,7 @@ import (
 	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
+	"HomeWaf/internal/logsanitize"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
@@ -52,9 +53,9 @@ type AuditEntry struct {
 
 // Write 落一条审计。
 //
-// 同步写库而非走 GQEQUE_LOG_DB 队列：除 denied 外都是低频事件（登录、踢人、票据异常），
-// 同步写对热路径没有影响，却省掉了改队列消费端的一整套改动。
-// denied 由 WriteDenied 做节流后再进来。
+// Production writes use the bounded shared log queue and are batched by its
+// consumer. The synchronous fallback is only for initialization without a queue.
+// denied is throttled by WriteDenied before reaching this boundary.
 //
 // 约束：Message 里绝不能出现密码、Cookie、票据明文。审计日志的可见性比业务日志更广。
 func (receiver *WafSecurityAuditService) Write(e AuditEntry) {
@@ -82,7 +83,7 @@ func (receiver *WafSecurityAuditService) Write(e AuditEntry) {
 		SessionCode: e.SessionCode,
 		Host:        e.Host,
 		HostCode:    e.HostCode,
-		URL:         truncate(e.URL, 1000),
+		URL:         truncate(logsanitize.URI(e.URL), 1000),
 		ClientIP:    e.ClientIP,
 		Country:     e.Country,
 		City:        e.City,
@@ -92,7 +93,12 @@ func (receiver *WafSecurityAuditService) Write(e AuditEntry) {
 		Message:     truncate(e.Message, 500),
 		Day:         day,
 	}
-	global.GWAF_LOCAL_LOG_DB.Create(&bean)
+	if global.GQEQUE_LOG_DB != nil {
+		global.GQEQUE_LOG_DB.Enqueue(&bean)
+	} else {
+		// Early initialization and isolated service tests have no queue yet.
+		global.GWAF_LOCAL_LOG_DB.Create(&bean)
+	}
 
 	receiver.notify(bean, now)
 }

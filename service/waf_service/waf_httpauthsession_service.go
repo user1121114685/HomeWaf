@@ -8,6 +8,7 @@ import (
 	"HomeWaf/customtype"
 	"HomeWaf/enums"
 	"HomeWaf/global"
+	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
@@ -58,8 +59,12 @@ func HashHttpAuthToken(plain string) string {
 //
 // Basic 没有令牌可言——浏览器每个请求原样重发凭证，服务端能识别的最小单位就是
 // 「哪个用户从哪个 IP 来」，所以用这三元组的摘要当会话标识。
-func BasicSessionCode(hostCode, userName, clientIP string) string {
-	sum := sha256.Sum256([]byte(hostCode + "|" + userName + "|" + clientIP))
+func BasicSessionCode(hostCode, userName, clientIP string, ports ...uint16) string {
+	identity := hostCode + "|" + userName + "|" + clientIP
+	if len(ports) > 0 && ports[0] > 0 {
+		identity += "|port:" + strconv.Itoa(int(ports[0]))
+	}
+	sum := sha256.Sum256([]byte(identity))
 	return hex.EncodeToString(sum[:])
 }
 
@@ -81,14 +86,14 @@ func httpAuthSessionCacheKey(hostCode, tokenCode string) string {
 
 // CreateCustomSession 建立一条 custom 模式会话，返回要写进 Cookie 的明文。
 func (receiver *WafHttpAuthSessionService) CreateCustomSession(host model.Hosts, userName, clientIP,
-	userAgent string, cfg model.HttpAuthConfig) (string, model.HttpAuthSession, error) {
+	userAgent string, cfg model.HttpAuthConfig, ports ...uint16) (string, model.HttpAuthSession, error) {
 
 	plain, err := genHttpAuthToken()
 	if err != nil {
 		return "", model.HttpAuthSession{}, err
 	}
 	bean := receiver.newSession(host, model.HttpAuthTypeCustom, HashHttpAuthToken(plain),
-		userName, clientIP, userAgent, cfg)
+		userName, clientIP, userAgent, cfg, ports...)
 	if err := global.GWAF_LOCAL_DB.Create(&bean).Error; err != nil {
 		return "", model.HttpAuthSession{}, err
 	}
@@ -99,8 +104,12 @@ func (receiver *WafHttpAuthSessionService) CreateCustomSession(host model.Hosts,
 // newSession 组装一条会话行。归属地在建会话时定格：会话页要能一眼看出「这人从哪儿登进来的」，
 // 事后再查已经晚了——IP 库更新或用户换网络后，同一个 IP 的解析结果可能已经变了。
 func (receiver *WafHttpAuthSessionService) newSession(host model.Hosts, authType, tokenCode,
-	userName, clientIP, userAgent string, cfg model.HttpAuthConfig) model.HttpAuthSession {
+	userName, clientIP, userAgent string, cfg model.HttpAuthConfig, ports ...uint16) model.HttpAuthSession {
 
+	port := 0
+	if len(ports) > 0 {
+		port = int(ports[0])
+	}
 	now := time.Now()
 	country, city := accessLookupLocation(clientIP)
 	return model.HttpAuthSession{
@@ -111,6 +120,7 @@ func (receiver *WafHttpAuthSessionService) newSession(host model.Hosts, authType
 			CREATE_TIME: customtype.JsonTime(now),
 			UPDATE_TIME: customtype.JsonTime(now),
 		},
+		Port:           port,
 		HostCode:       host.Code,
 		Host:           host.Host,
 		TokenCode:      tokenCode,
@@ -131,7 +141,7 @@ func (receiver *WafHttpAuthSessionService) newSession(host model.Hosts, authType
 
 // ValidateCustom 校验 custom 模式的 Cookie 明文。第二个返回值为 false 表示要下发登录页。
 func (receiver *WafHttpAuthSessionService) ValidateCustom(hostCode, plain, clientIP string,
-	cfg model.HttpAuthConfig) (*model.HttpAuthSession, bool) {
+	cfg model.HttpAuthConfig, ports ...uint16) (*model.HttpAuthSession, bool) {
 
 	if strings.TrimSpace(plain) == "" {
 		return nil, false
@@ -144,6 +154,9 @@ func (receiver *WafHttpAuthSessionService) ValidateCustom(hostCode, plain, clien
 	sess := receiver.loadSession(hostCode, tokenCode)
 	if sess == nil {
 		receiver.markBadToken(tokenCode)
+		return nil, false
+	}
+	if len(ports) > 0 && sess.Port != int(ports[0]) {
 		return nil, false
 	}
 	now := time.Now()
@@ -187,9 +200,9 @@ type BasicAuthResult struct {
 // 与 custom 的区别在于这里没有令牌：会话行按 (站点+用户+IP) 唯一，不存在就建、
 // 存在就刷新活跃时间；被踢或到期时返回 Challenge，由调用方换 realm 发 401。
 func (receiver *WafHttpAuthSessionService) TouchBasicSession(host model.Hosts, userName, clientIP,
-	userAgent string, cfg model.HttpAuthConfig) BasicAuthResult {
+	userAgent string, cfg model.HttpAuthConfig, ports ...uint16) BasicAuthResult {
 
-	tokenCode := BasicSessionCode(host.Code, userName, clientIP)
+	tokenCode := BasicSessionCode(host.Code, userName, clientIP, ports...)
 
 	// 冷却期内一律挑战，不看会话行状态：这段时间就是留给用户重新输入密码的。
 	//
@@ -217,7 +230,7 @@ func (receiver *WafHttpAuthSessionService) TouchBasicSession(host model.Hosts, u
 	sess := receiver.loadSession(host.Code, tokenCode)
 	if sess == nil {
 		bean := receiver.newSession(host, model.HttpAuthTypeAuthorization, tokenCode,
-			userName, clientIP, userAgent, cfg)
+			userName, clientIP, userAgent, cfg, ports...)
 		if err := global.GWAF_LOCAL_DB.Create(&bean).Error; err != nil {
 			// 记账失败不能连累访问：凭证本身已经校验通过了
 			return BasicAuthResult{Session: &bean}
@@ -303,10 +316,12 @@ func (receiver *WafHttpAuthSessionService) touch(sess *model.HttpAuthSession, no
 	if !last.IsZero() && now.Sub(last) < httpAuthTouchInterval {
 		return
 	}
-	global.GWAF_LOCAL_DB.Model(&model.HttpAuthSession{}).Where("id = ?", sess.Id).
-		Updates(map[string]interface{}{
-			"last_active_time": customtype.JsonTime(now), "update_time": customtype.JsonTime(now),
-		})
+	updates := map[string]interface{}{"last_active_time": customtype.JsonTime(now), "update_time": customtype.JsonTime(now)}
+	if global.GQEQUE_UPDATE_DB != nil {
+		global.GQEQUE_UPDATE_DB.Enqueue(innerbean.UpdateModel{Model: &model.HttpAuthSession{}, Query: "id = ? AND status = ?", Args: []interface{}{sess.Id, model.HttpAuthStatusValid}, Update: updates})
+	} else {
+		global.GWAF_LOCAL_DB.Model(&model.HttpAuthSession{}).Where("id = ? AND status = ?", sess.Id, model.HttpAuthStatusValid).Updates(updates)
+	}
 	sess.LastActiveTime = customtype.JsonTime(now)
 	global.GCACHE_WAFCACHE.Remove(httpAuthSessionCacheKey(sess.HostCode, sess.TokenCode))
 }

@@ -127,8 +127,8 @@ func (waf *WafEngine) GetCertificateFunc(clientInfo *tls.ClientHelloInfo) (*tls.
 			localAddr := clientInfo.Conn.LocalAddr().String()
 			// 去掉端口号，只保留 IP
 			if host, _, err := net.SplitHostPort(localAddr); err == nil {
-				if global.GCONFIG_RECORD_SSL_IP_CERT_IP != "" {
-					serverName = global.GCONFIG_RECORD_SSL_IP_CERT_IP
+				if global.CurrentSettings().GCONFIG_RECORD_SSL_IP_CERT_IP != "" {
+					serverName = global.CurrentSettings().GCONFIG_RECORD_SSL_IP_CERT_IP
 					zlog.Debug("Using configured real IP: ", serverName)
 				} else if global.GWAF_RUNTIME_IP != "" {
 					serverName = global.GWAF_RUNTIME_IP
@@ -232,8 +232,8 @@ func (waf *WafEngine) GetTLSConfigForClient(clientInfo *tls.ClientHelloInfo) (*t
 	}
 	return &tls.Config{
 		GetCertificate: waf.GetCertificateFunc,
-		MinVersion:     utils.ParseTLSVersion(global.GCONFIG_RECORD_SSLMinVerson),
-		MaxVersion:     utils.ParseTLSVersion(global.GCONFIG_RECORD_SSLMaxVerson),
+		MinVersion:     utils.ParseTLSVersion(global.CurrentSettings().GCONFIG_RECORD_SSLMinVerson),
+		MaxVersion:     utils.ParseTLSVersion(global.CurrentSettings().GCONFIG_RECORD_SSLMaxVerson),
 		NextProtos:     nextProtos,
 	}, nil
 }

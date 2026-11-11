@@ -41,8 +41,8 @@ type tierRetention struct {
 
 // archiveTiers 归档分区里可能有的四层，以及各自的保留期来源
 func archiveTiers() []tierRetention {
-	logDays := int(global.GDATA_DELETE_INTERVAL)
-	accessDays := int(global.GDATA_ACCESS_LOG_RETENTION_DAYS)
+	logDays := int(global.CurrentSettings().GDATA_DELETE_INTERVAL)
+	accessDays := int(global.CurrentSettings().GDATA_ACCESS_LOG_RETENTION_DAYS)
 	if accessDays <= 0 {
 		accessDays = logDays
 	}
@@ -117,7 +117,7 @@ func CleanExpiredArchiveShard() {
 		}
 
 		if dialect.Get().IsFileBased() {
-			if !expiredBy(end, int(global.GDATA_DELETE_INTERVAL), now) {
+			if !expiredBy(end, int(global.CurrentSettings().GDATA_DELETE_INTERVAL), now) {
 				continue
 			}
 			if dropShardFile(innerLogName, shard) {

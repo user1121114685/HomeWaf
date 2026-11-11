@@ -27,7 +27,7 @@ func newAPIKeyCommand() *cobra.Command {
 			if err := prepareKeyDirectory(keyPath); err != nil {
 				return fail(ExitFailed, fmt.Errorf("准备 Key 文件目录失败: %w", err))
 			}
-			if err := wafsec.InitDataKey(utils.GetCurrentDir(), global.GCONFIG_DATA_KEY_FILE); err != nil {
+			if err := wafsec.InitDataKey(utils.GetCurrentDir(), global.CurrentSettings().GCONFIG_DATA_KEY_FILE); err != nil {
 				return fail(ExitFailed, fmt.Errorf("数据密钥初始化失败: %w", err))
 			}
 			if err := initCoreDatabase(); err != nil {

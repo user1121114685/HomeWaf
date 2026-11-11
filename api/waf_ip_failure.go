@@ -34,9 +34,9 @@ func (w *WafIPFailureApi) GetConfigApi(c *gin.Context) {
 	err := c.ShouldBind(&req)
 	if err == nil {
 		configResp := response2.IPFailureConfigResp{
-			Enabled:     global.GCONFIG_IP_FAILURE_BAN_ENABLED,
-			StatusCodes: global.GCONFIG_IP_FAILURE_STATUS_CODES,
-			LockTime:    global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME,
+			Enabled:     global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_ENABLED,
+			StatusCodes: global.CurrentSettings().GCONFIG_IP_FAILURE_STATUS_CODES,
+			LockTime:    global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_LOCK_TIME,
 		}
 		response.OkWithDetailed(configResp, "获取成功", c)
 	} else {

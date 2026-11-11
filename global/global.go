@@ -54,12 +54,7 @@ var (
 	GWAF_CURRENT_REALTIME_QPS     uint64 = 0 //当前实时QPS
 	GWAF_CURRENT_REALTIME_LOG_QPS uint64 = 0 //当前实时日志QPS
 
-	GWAF_RUNTIME_DNS_SERVER  string = "119.29.29.29" //反向查询DNS的IP
-	GWAF_RUNTIME_DNS_TIMEOUT int64  = 500            // DNS 查询超时时间 单位毫秒
-
-	GWAF_RUNTIME_RECORD_LOG_TYPE string = "all" // 记录日志形式： 全部(all),非正常(abnormal)
-	GCONFIG_EXCLUDE_IP_LOG       string = ""    // 全局排除记录日志的IP清单(所有站点生效)，语法同站点级 exclude_ip_log
-	GWAF_RUNTIME_IS_UPDATETING   bool   = false //是否正在升级中
+	GWAF_RUNTIME_IS_UPDATETING bool = false //是否正在升级中
 
 	GWAF_RUNTIME_CURRENT_EXEPATH                 string = "" //当前程序运行路径
 	GWAF_RUNTIME_CURRENT_WEBPORT                 string = "" //当前程序所占用端口
@@ -164,18 +159,13 @@ var (
 	GCACHE_IPV6_SEARCHER       *geoip2.Reader // IPV6得查询器 (已废弃，由 GIPLOCATION_MANAGER 管理)
 
 	// IP 数据库配置
-	GCONFIG_IP_V4_SOURCE string = "ip2region" // IPv4 数据来源: ip2region / geolite2（ip2region.xdb 随程序内置）
-	GCONFIG_IP_V6_SOURCE string = "ip2region" // IPv6 数据来源: ip2region / geolite2
+
 	// 注：IPv6 默认自 1.3.24-beta.6 由 geolite2 改为 ip2region —— GeoLite2 受 MaxMind 再分发授权限制，
 	// 已不再随程序内置。ip2region_v6.xdb 需在【IP库管理】在线下载或自行放入 data/。
 	// 只影响新装；老用户 sys_config 里已有的值不动，由 ReloadFromConfig 做运行时降级。
-	GCONFIG_IP_V4_FORMAT string = "opensource" // IPv4 xdb 字段格式，所有发行版本统一默认开源版
-	GCONFIG_IP_V6_FORMAT string = "opensource" // IPv6 xdb 字段格式（仅 ip2region 时有效）
 
 	// IP Location Manager 全局实例
 	GIPLOCATION_MANAGER *iplocation.Manager
-
-	GDATA_DELETE_INTERVAL int64 = 180 // 删除180天前的数据
 
 	/****队列相关*****/
 	GQEQUE_DB              *queue.Queue //正常DB队列
@@ -196,30 +186,27 @@ var (
 	GSSL_HTTP_CHANGLE_PATH string = "/.well-known/acme-challenge/" // http01证书验证路径
 
 	/******数据库处理参数*****/
-	GDATA_BATCH_INSERT       int64 = 100         //最大批量插入数量
-	GDATA_SHARE_DB_SIZE      int64 = 100 * 10000 //100w 进行分库 100*10000
-	GDATA_SHARE_DB_FILE_SIZE int64 = 1024        //1024M 进行分库
-	GDATA_CURRENT_CHANGE     bool  = false       //当前是否正在切换
+
+	GDATA_CURRENT_CHANGE bool = false //当前是否正在切换
 	// GDATA_ACCESS_LOG_MODE 访问日志窄行档位：off=只留安全事件，db=全量入库，sample=事件+采样。
 	// off 会失去：CC 阈值推荐、AI 训练负样本、异常 IP 的正常行为回溯（全都要正常请求的全量/样本）。
-	GDATA_ACCESS_LOG_MODE string = "db"
+
 	// GDATA_ACCESS_LOG_RETENTION_DAYS access_log 保留天数。它直接决定 CC 阈值推荐能回看多少天。
-	GDATA_ACCESS_LOG_RETENTION_DAYS int64 = 30
+
 	// GDATA_ANALYSIS_SCAN_PATH_THRESHOLD 来源分析里「疑似扫目录」的判定线：一天摸过多少个不同路径模板。
 	// 只影响界面上的提示与筛选，不落库、不改任何拦截行为。
-	GDATA_ANALYSIS_SCAN_PATH_THRESHOLD int64 = 20
+
 	// GDATA_ANALYSIS_UA_THRESHOLD 来源分析里「疑似换 UA 试探」的判定线：一天用过多少种 UA 指纹。
-	GDATA_ANALYSIS_UA_THRESHOLD int64 = 5
+
 	// GDATA_IP_TAG_DB IP Tag 存放位置：0 核心库，1 统计库。
 	// 新装默认统计库——ip_tags 是派生索引，写入量跟着攻击量走，和配置共用核心库会拖慢每一次配置读写。
 	// 存量用户的取值来自 system_configs 里已有的那一行，不受这个默认值影响；
 	// 切换归属时 MergeIPTagsInto 会把另一个库里的历史标签并过来。
-	GDATA_IP_TAG_DB int64 = 1
+
 	// GDATA_IP_TAG_MERGING 标签合并任务是否在跑（atomic 读写）。界面据此显示"合并中"。
 	GDATA_IP_TAG_MERGING int32 = 0
 	// GCONFIG_ATTACK_TAG_EXCLUDE 风险日志里不算风险的标签（逗号分隔）。"正常"永远排除，不用写这里。
 	// 这些标签既不出现在规则筛选列表里，也不计入「阻止数量」，而是算作放行。
-	GCONFIG_ATTACK_TAG_EXCLUDE string = "ACME证书校验,静态文件访问成功"
 
 	GDATA_CURRENT_LOG_DB_MAP map[string]*gorm.DB //当前自定义的数据库连接 TODO 如果用户打开了多个 会不会影响内存
 	/******WebSocket*********/
@@ -404,7 +391,7 @@ func UpdateRealtimeQPS() {
 
 // GetIPTagDB 根据配置获取IP标签数据库连接
 func GetIPTagDB() *gorm.DB {
-	if GDATA_IP_TAG_DB == 1 {
+	if CurrentSettings().GDATA_IP_TAG_DB == 1 {
 		return GWAF_LOCAL_STATS_DB // 使用统计数据库
 	}
 	return GWAF_LOCAL_DB // 默认使用主数据库

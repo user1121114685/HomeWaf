@@ -262,18 +262,20 @@ func TestValidateCatchesInvalidJSONAtSaveTime(t *testing.T) {
 // issue #990：内网告警平台（自建 ntfy/Gotify 等）经 config.yml 的
 // security.outbound_allowed_hosts 带外声明后必须能保存；未声明的内网字面量仍拒。
 func TestValidateAllowlistedIntranetHost(t *testing.T) {
-	old := global.GCONFIG_OUTBOUND_ALLOWED_HOSTS
-	t.Cleanup(func() { global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	old := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	})
 
 	cfg := Config{URL: "http://192.168.10.8:8080/hook", Method: "POST"}
 	cfg.normalize()
 
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = ""
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "" })
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "不被允许") {
 		t.Fatalf("未声明时内网地址应被拒，实际: %v", err)
 	}
 
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "192.168.10.0/24"
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "192.168.10.0/24" })
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("已声明网段内的地址应放行，实际被拒: %v", err)
 	}
@@ -286,7 +288,7 @@ func TestValidateAllowlistedIntranetHost(t *testing.T) {
 	}
 
 	// 主机名精确匹配
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "notify.intranet.lan"
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "notify.intranet.lan" })
 	cfg3 := Config{URL: "http://notify.intranet.lan/hook", Method: "POST"}
 	cfg3.normalize()
 	if err := cfg3.Validate(); err != nil {

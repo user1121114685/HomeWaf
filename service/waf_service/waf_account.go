@@ -54,7 +54,7 @@ func (receiver *WafAccountService) ValidateNewPassword(loginAccount, newPlain st
 	if ok, msg := utils.ValidatePasswordComplexity(newPlain, utils.BuildPolicyFromConfig()); !ok {
 		return errors.New(msg)
 	}
-	historyCount := int(global.GCONFIG_PWD_HISTORY_COUNT)
+	historyCount := int(global.CurrentSettings().GCONFIG_PWD_HISTORY_COUNT)
 	if historyCount > 0 {
 		var histories []model.AccountPwdHistory
 		global.GWAF_LOCAL_DB.Where("login_account = ?", loginAccount).Order("CREATE_TIME desc").Limit(historyCount).Find(&histories)
@@ -70,7 +70,7 @@ func (receiver *WafAccountService) ValidateNewPassword(loginAccount, newPlain st
 
 // recordPwdHistory 记录口令指纹并裁剪到最近 N 条
 func (receiver *WafAccountService) recordPwdHistory(loginAccount, hash string) {
-	historyCount := int(global.GCONFIG_PWD_HISTORY_COUNT)
+	historyCount := int(global.CurrentSettings().GCONFIG_PWD_HISTORY_COUNT)
 	if historyCount <= 0 {
 		return
 	}
@@ -102,7 +102,7 @@ func (receiver *WafAccountService) AddApi(req request.WafAccountAddReq) error {
 	if err := receiver.ValidateNewPassword(req.LoginAccount, req.LoginPassword); err != nil {
 		return err
 	}
-	return receiver.createAccount(req.LoginAccount, req.Role, req.LoginPassword, req.Status, req.Remarks, global.GCONFIG_PWD_FORCE_CHANGE_DEFAULT == 1)
+	return receiver.createAccount(req.LoginAccount, req.Role, req.LoginPassword, req.Status, req.Remarks, global.CurrentSettings().GCONFIG_PWD_FORCE_CHANGE_DEFAULT == 1)
 }
 
 // InitDefaultAccount 系统引导创建默认管理员（全新安装）。

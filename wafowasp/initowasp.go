@@ -5,13 +5,11 @@ package wafowasp
 import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/innerbean"
-	"bytes"
+	"HomeWaf/internal/bodyinspect"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/corazawaf/coraza/v3"
@@ -84,14 +82,6 @@ func SetBodyInspectLimit(n int) {
 // GetBodyInspectLimit 返回当前检测字节上限（0 = 无限制）。
 func GetBodyInspectLimit() int64 {
 	return bodyInspectLimit.Load()
-}
-
-// bodyBufferPool 用于回放 r.Body 时复用底层缓冲区，降低 GC 压力。
-var bodyBufferPool = sync.Pool{
-	New: func() interface{} {
-		b := make([]byte, 0, 4096)
-		return &b
-	},
 }
 
 // CustomLogger 自定义日志记录器，用于集成 zlog
@@ -376,66 +366,32 @@ func (w *WafOWASP) processRequestHeaders(tx types.Transaction, r *http.Request) 
 //   - 从 r.Body 读取时用 io.LimitReader 封顶，最大 maxRequestBodyBytes，避免无限读
 //   - 读到的字节复用给下游消费，原实现会让同一 body 同时存在 3 份（weblog 字符串 + []byte 副本 + coraza 内部缓冲）
 func (w *WafOWASP) processRequestBody(tx types.Transaction, r *http.Request, weblog *innerbean.WebLog) error {
-	// 优先使用上游已经读取好的 body，避免二次读 r.Body
-	if weblog != nil && weblog.BODY != "" {
-		limit := GetBodyInspectLimit()
-		bodyLen := int64(len(weblog.BODY))
-		// strings.NewReader 与底层字符串共享只读数据，零拷贝
-		var reader io.Reader = strings.NewReader(weblog.BODY)
-		if limit > 0 && bodyLen > limit {
-			reader = io.LimitReader(reader, limit)
-			zlog.Warn("processRequestBody: body truncated for Coraza inspection", map[string]interface{}{
-				"original_bytes": bodyLen,
-				"inspect_limit":  limit,
-			})
+	limit := GetBodyInspectLimit()
+	if limit <= 0 || limit > maxRequestBodyBytes {
+		limit = maxRequestBodyBytes
+	}
+	var data []byte
+	if r.Body != nil && r.Body != http.NoBody {
+		prefix, err := bodyinspect.ReadPrefix(r, limit)
+		if err != nil {
+			return fmt.Errorf("request body read failed")
 		}
-		if _, _, err := tx.ReadRequestBodyFrom(reader); err != nil {
-			return fmt.Errorf("failed to feed weblog body to coraza: %v", err)
+		data = prefix
+	} else if weblog != nil && weblog.BODY != "" {
+		n := len(weblog.BODY)
+		if int64(n) > limit {
+			n = int(limit)
 		}
-		return nil
+		data = []byte(weblog.BODY[:n])
 	}
-
-	if r.Body == nil {
-		return nil
+	if int64(len(data)) > limit {
+		data = data[:limit]
 	}
-
-	// 读取 r.Body 并封顶。LimitReader + 1 用于探测是否超限（coraza 自身也会按 SecRequestBodyLimit 截断）
-	bufPtr := bodyBufferPool.Get().(*[]byte)
-	buf := bytes.NewBuffer((*bufPtr)[:0])
-	defer func() {
-		// 回池前丢弃过大的 buffer，避免长期占用
-		if cap(buf.Bytes()) <= 1<<20 { // 1MB
-			*bufPtr = buf.Bytes()[:0]
-			bodyBufferPool.Put(bufPtr)
-		}
-	}()
-
-	_, err := io.Copy(buf, io.LimitReader(r.Body, maxRequestBodyBytes))
-	if err != nil {
-		return fmt.Errorf("failed to read request body: %v", err)
-	}
-
-	data := buf.Bytes()
-	// 重置 body 以便下游继续消费（完整副本，不受检测截断影响）
-	bodyCopy := make([]byte, len(data))
-	copy(bodyCopy, data)
-	r.Body = io.NopCloser(bytes.NewReader(bodyCopy))
-
-	// 仅截断送入 Coraza 的部分，r.Body 已还原为完整数据
-	inspectData := bodyCopy
-	if limit := GetBodyInspectLimit(); limit > 0 && int64(len(bodyCopy)) > limit {
-		inspectData = bodyCopy[:limit]
-		zlog.Warn("processRequestBody: body truncated for Coraza inspection", map[string]interface{}{
-			"original_bytes": len(bodyCopy),
-			"inspect_limit":  limit,
-		})
-	}
-	if len(inspectData) > 0 {
-		if _, _, err := tx.WriteRequestBody(inspectData); err != nil {
-			return fmt.Errorf("failed to write request body: %v", err)
+	if len(data) > 0 {
+		if _, _, err := tx.WriteRequestBody(data); err != nil {
+			return fmt.Errorf("request body inspection failed: %w", err)
 		}
 	}
-
 	return nil
 }
 

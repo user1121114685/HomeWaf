@@ -65,7 +65,7 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 	// 1. 查询 Key，只有本机 Key 不受开放平台总开关约束。
 	keyBean, err := openApiKeyService.GetByApiKey(apiKey)
 	localOnly := err == nil && keyBean.LocalOnly == 1
-	if global.GCONFIG_OPEN_PLATFORM_ENABLED == 0 && !localOnly {
+	if global.CurrentSettings().GCONFIG_OPEN_PLATFORM_ENABLED == 0 && !localOnly {
 		response.AuthFailWithMessage("开放平台已关闭", c)
 		return model.OPlatformKey{}, false
 	}
@@ -163,7 +163,7 @@ func isDirectLoopbackRequest(c *gin.Context) bool {
 	}
 
 	headers := []string{"X-Forwarded-For", "X-Real-IP", "Forwarded", "X-Forwarded-Host"}
-	headers = append(headers, strings.Split(global.GCONFIG_MANAGE_PROXY_HEADER, ",")...)
+	headers = append(headers, strings.Split(global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER, ",")...)
 	for _, header := range headers {
 		header = strings.TrimSpace(header)
 		if header == "" {

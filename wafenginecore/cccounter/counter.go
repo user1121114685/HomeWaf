@@ -75,6 +75,7 @@ type Counter struct {
 
 // New 创建计数器。maxKeys / ruleQuota 传 0 时使用默认值。
 func New(maxKeys int64, ruleQuota int) *Counter {
+	clockOrigin := time.Now()
 	if maxKeys <= 0 {
 		maxKeys = defaultMaxKeys
 	}
@@ -85,7 +86,7 @@ func New(maxKeys int64, ruleQuota int) *Counter {
 		ruleKeys:  make(map[string]int),
 		maxKeys:   maxKeys,
 		ruleQuota: ruleQuota,
-		nowFn:     time.Now,
+		nowFn:     func() time.Time { return time.Unix(0, time.Since(clockOrigin).Nanoseconds()) },
 	}
 	for i := 0; i < shardCount; i++ {
 		c.shards[i] = &shard{keys: make(map[string]*bucketRing)}
@@ -128,7 +129,7 @@ func (c *Counter) Incr(ruleID, dimValue string, windowSec int) Result {
 	if windowSec <= 0 {
 		windowSec = 1
 	}
-	bucketWidth := windowSec / numBuckets
+	bucketWidth := (windowSec + numBuckets - 1) / numBuckets
 	if bucketWidth <= 0 {
 		bucketWidth = 1
 	}
@@ -170,8 +171,13 @@ func (c *Counter) Incr(ruleID, dimValue string, windowSec int) Result {
 	ring.lastSeen = now
 
 	var sum int64
-	for _, v := range ring.counts {
-		sum += int64(v)
+	activeBuckets := (windowSec + bucketWidth - 1) / bucketWidth
+	for age := 0; age < activeBuckets; age++ {
+		index := (slot - int64(age)) % numBuckets
+		if index < 0 {
+			index += numBuckets
+		}
+		sum += int64(ring.counts[index])
 	}
 	sh.mu.Unlock()
 
@@ -187,6 +193,11 @@ func (c *Counter) reserveKey(ruleID string) bool {
 	}
 	c.metaMu.Lock()
 	defer c.metaMu.Unlock()
+	// Recheck under the reservation lock; different shards may arrive together.
+	if atomic.LoadInt64(&c.totalKeys) >= atomic.LoadInt64(&c.maxKeys) {
+		atomic.AddInt64(&c.rejectedCount, 1)
+		return false
+	}
 	if c.ruleKeys[ruleID] >= c.ruleQuota {
 		atomic.AddInt64(&c.degradedCount, 1)
 		return false
@@ -273,3 +284,38 @@ func (c *Counter) Stats() map[string]int64 {
 
 // ActiveKeys 当前计数键总数。
 func (c *Counter) ActiveKeys() int64 { return atomic.LoadInt64(&c.totalKeys) }
+
+// Peek evaluates the current window without allocating a key, rotating buckets,
+// incrementing counters or changing eviction order (management dry-run).
+func (c *Counter) Peek(ruleID, dimValue string, windowSec int) Result {
+	if windowSec < 1 {
+		windowSec = 1
+	}
+	width := (windowSec + numBuckets - 1) / numBuckets
+	if width < 1 {
+		width = 1
+	}
+	key := buildKey(ruleID, dimValue)
+	sh := c.shards[shardFor(key)]
+	slot := c.nowFn().Unix() / int64(width)
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	ring := sh.keys[key]
+	if ring == nil {
+		return Result{}
+	}
+	if slot-ring.slot >= numBuckets {
+		return Result{}
+	}
+	var count int64
+	for i, v := range ring.counts {
+		age := (slot - int64(i)) % numBuckets
+		if age < 0 {
+			age += numBuckets
+		}
+		if age < int64((windowSec+width-1)/width) && slot-age <= ring.slot {
+			count += int64(v)
+		}
+	}
+	return Result{Count: count}
+}
