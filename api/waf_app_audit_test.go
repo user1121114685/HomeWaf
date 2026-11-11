@@ -48,17 +48,17 @@ func setupAppAuditTest(t *testing.T) string {
 	log := openDB("log.db", &model.SecurityAuditLog{})
 	oldCore, oldLog, oldDirs := global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_ALLOW_DIRS
 	oldChan, oldEngine := global.GWAF_CHAN_COMMON_MSG, globalobj.GWAF_RUNTIME_OBJ_APP_ENGINE
-	oldHeader := global.GCONFIG_MANAGE_PROXY_HEADER
+	oldHeader := global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER
 	oldUser, oldTenant := global.GWAF_USER_CODE, global.GWAF_TENANT_ID
 	global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_ALLOW_DIRS = core, log, root
 	global.GWAF_CHAN_COMMON_MSG = make(chan spec.ChanCommon, 32)
 	globalobj.GWAF_RUNTIME_OBJ_APP_ENGINE = wafappengine.NewWafAppEngine()
-	global.GCONFIG_MANAGE_PROXY_HEADER = ""
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_PROXY_HEADER = "" })
 	global.GWAF_USER_CODE, global.GWAF_TENANT_ID = "app-audit-user", "app-audit-tenant"
 	t.Cleanup(func() {
 		global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_ALLOW_DIRS = oldCore, oldLog, oldDirs
 		global.GWAF_CHAN_COMMON_MSG, globalobj.GWAF_RUNTIME_OBJ_APP_ENGINE = oldChan, oldEngine
-		global.GCONFIG_MANAGE_PROXY_HEADER = oldHeader
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_PROXY_HEADER = oldHeader })
 		global.GWAF_USER_CODE, global.GWAF_TENANT_ID = oldUser, oldTenant
 	})
 	return root

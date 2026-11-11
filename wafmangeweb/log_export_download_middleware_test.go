@@ -23,14 +23,16 @@ func TestLogExportDownloadMiddlewareAcceptsReplayQueryAndRewindsBody(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	oldCache, oldReplay := global.GCACHE_WAFCACHE, global.GCONFIG_ENABLE_REPLAY_PROTECT
+	oldCache, oldReplay := global.GCACHE_WAFCACHE, global.CurrentSettings().GCONFIG_ENABLE_REPLAY_PROTECT
 	oldIP, oldDomain := global.GWAF_IP_WHITELIST, global.GWAF_DOMAIN_WHITELIST
 	defer func() {
-		global.GCACHE_WAFCACHE, global.GCONFIG_ENABLE_REPLAY_PROTECT = oldCache, oldReplay
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			global.GCACHE_WAFCACHE, cfg.GCONFIG_ENABLE_REPLAY_PROTECT = oldCache, oldReplay
+		})
 		global.GWAF_IP_WHITELIST, global.GWAF_DOMAIN_WHITELIST = oldIP, oldDomain
 	}()
 	global.GCACHE_WAFCACHE = store
-	global.GCONFIG_ENABLE_REPLAY_PROTECT = 1
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ENABLE_REPLAY_PROTECT = 1 })
 	global.GWAF_IP_WHITELIST = "0.0.0.0/0,::/0"
 	global.GWAF_DOMAIN_WHITELIST = ""
 

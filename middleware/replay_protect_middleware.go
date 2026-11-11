@@ -28,7 +28,7 @@ func isLogExportDownloadPath(path string) bool {
 
 func ReplayProtect() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if global.GCONFIG_ENABLE_REPLAY_PROTECT == 0 {
+		if global.CurrentSettings().GCONFIG_ENABLE_REPLAY_PROTECT == 0 {
 			c.Next()
 			return
 		}

@@ -25,7 +25,6 @@ import (
 func newStreamProcessorForTest(src io.ReadCloser) *StreamProcessor {
 	waf := &WafEngine{}
 	waf.InitRouting()
-	waf.SensitiveDirectionMap = map[string]bool{} // 关闭出站敏感词，等价用户"关掉所有防护"
 	ctx := innerbean.WafHttpContextData{
 		HostCode: "test",
 		Weblog:   &innerbean.WebLog{URL: "/v1/responses"},

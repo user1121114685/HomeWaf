@@ -72,8 +72,8 @@ func (w *WafSslOrderApi) AddApi(c *gin.Context) {
 		}
 		if req.ApplyPlatform == "zerossl" {
 
-			if global.GCONFIG_ZEROSSL_EAB_KID == "" || global.GCONFIG_ZEROSSL_EAB_HMAC_KEY == "" {
-				if global.GCONFIG_ZEROSSL_ACCESS_KEY == "" {
+			if global.CurrentSettings().GCONFIG_ZEROSSL_EAB_KID == "" || global.CurrentSettings().GCONFIG_ZEROSSL_EAB_HMAC_KEY == "" {
+				if global.CurrentSettings().GCONFIG_ZEROSSL_ACCESS_KEY == "" {
 					response.FailWithMessage("请配置zerossl访问key,在系统配置中 zerossl_access_key 中配置", c)
 					return
 				}
@@ -308,7 +308,7 @@ func (w *WafSslOrderApi) fetchAndUpdateZeroSSLEABCredentials() error {
 
 	// 添加查询参数（GET 请求）
 	q := u.Query()
-	q.Set("access_key", global.GCONFIG_ZEROSSL_ACCESS_KEY)
+	q.Set("access_key", global.CurrentSettings().GCONFIG_ZEROSSL_ACCESS_KEY)
 	u.RawQuery = q.Encode()
 
 	// 创建 HTTP 客户端
@@ -377,8 +377,10 @@ func (w *WafSslOrderApi) fetchAndUpdateZeroSSLEABCredentials() error {
 	}
 
 	// 更新全局变量
-	global.GCONFIG_ZEROSSL_EAB_KID = apiResponse.EabKid
-	global.GCONFIG_ZEROSSL_EAB_HMAC_KEY = apiResponse.EabHmacKey
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+		cfg.GCONFIG_ZEROSSL_EAB_KID = apiResponse.EabKid
+		cfg.GCONFIG_ZEROSSL_EAB_HMAC_KEY = apiResponse.EabHmacKey
+	})
 
 	// 更新数据库配置
 	// 更新 zerossl_eab_kid

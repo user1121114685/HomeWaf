@@ -5,6 +5,8 @@ package wafenginecore
 import (
 	"HomeWaf/common/domaintool"
 	"HomeWaf/utils"
+	"net"
+	"net/url"
 	"strings"
 )
 
@@ -16,7 +18,15 @@ type requestHostMatch struct {
 }
 
 // resolveRequestHost 与请求入口共用同一份路由顺序。
-func resolveRequestHost(rt *routingTable, authority string, secure, trace bool) requestHostMatch {
+func resolveRequestHost(rt *routingTable, authority string, secure, trace bool, listenerPort ...string) requestHostMatch {
+	bound := ""
+	if len(listenerPort) > 0 {
+		bound = listenerPort[0]
+	}
+	if bound != "" {
+		u := &url.URL{Host: authority}
+		authority = net.JoinHostPort(u.Hostname(), bound)
+	}
 	m := requestHostMatch{Host: authority, Kind: "unmatched"}
 	if !strings.Contains(m.Host, ":") {
 		if secure {
@@ -35,7 +45,7 @@ func resolveRequestHost(rt *routingTable, authority string, secure, trace bool) 
 		m.Steps = append(m.Steps, "authority="+m.Host)
 	}
 	loose := false
-	if targetHost, ok := rt.HostTargetNoPort[utils.GetPureDomain(m.Host)]; ok {
+	if targetHost, ok := rt.HostTargetNoPort[utils.GetPureDomain(m.Host)]; ok && (bound == "" || strings.HasSuffix(targetHost, ":"+bound)) {
 		m.Host = targetHost
 		loose = true
 		if trace {
@@ -68,7 +78,7 @@ func resolveRequestHost(rt *routingTable, authority string, secure, trace bool) 
 	if trace && m.Found {
 		m.Steps = append(m.Steps, m.Kind+"="+m.Code)
 	}
-	if targetHost, ok := rt.HostTargetNoPort["*"]; ok {
+	if targetHost, ok := rt.HostTargetNoPort["*"]; ok && (bound == "" || strings.HasSuffix(targetHost, ":"+bound)) {
 		m.Host = targetHost
 		target, ok = rt.HostTarget[m.Host]
 		if ok {

@@ -8,6 +8,15 @@ import (
 )
 
 var coreSchemaModels = []any{
+	&model.PortConfig{},
+	&model.PipelinePortMigration{},
+	&model.PipelineFeed{},
+	&model.ConfigTemplate{},
+	&model.GateUser{},
+	&model.GateSession{},
+	&model.GateRuntime{},
+	&model.PipelineState{},
+	&model.PipelineDailyMetrics{},
 	&model.Hosts{},
 	&model.Rules{},
 	&model.LDPUrl{},
@@ -106,6 +115,32 @@ var coreSchemaIndexes = []schemaIndex{
 func InitializeCoreSchema(db *gorm.DB) error {
 	if err := initializeSchema(db, coreSchemaModels, coreSchemaIndexes); err != nil {
 		return err
+	}
+	// Explicit additive changes for the new pipeline tables, never a legacy
+	// data rewrite or a blanket migration of unrelated application tables.
+	for _, m := range []any{&model.GateUser{}, &model.GateSession{}} {
+		if !db.Migrator().HasColumn(m, "AuthVersion") {
+			if err := db.Migrator().AddColumn(m, "AuthVersion"); err != nil {
+				return err
+			}
+		}
+	}
+	for _, change := range []struct {
+		model any
+		field string
+	}{{&model.HttpAuthBase{}, "PasswordHashed"}, {&model.HttpAuthSession{}, "Port"}, {&model.GateRuntime{}, "Owner"}} {
+		if !db.Migrator().HasColumn(change.model, change.field) {
+			if err := db.Migrator().AddColumn(change.model, change.field); err != nil {
+				return err
+			}
+		}
+	}
+	for _, field := range []string{"SignatureURL", "FeedID", "SigningKeyID", "SigningPublicKey", "SignedSequence", "SignedDigest", "SignatureExpiresAt"} {
+		if !db.Migrator().HasColumn(&model.ThreatIPChannel{}, field) {
+			if err := db.Migrator().AddColumn(&model.ThreatIPChannel{}, field); err != nil {
+				return err
+			}
+		}
 	}
 	return seedCoreDefaults(db)
 }

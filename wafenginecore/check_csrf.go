@@ -7,6 +7,8 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/model/detection"
 	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafpipeline"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -42,13 +44,14 @@ func (waf *WafEngine) CheckCsrf(r *http.Request, weblogbean *innerbean.WebLog, f
 	if hostTarget != nil {
 		bindMoreHost = hostTarget.Host.BindMoreHost
 	}
-	allowedHosts := buildCsrfAllowedHosts(r.Host, bindMoreHost, cfg.AllowedOrigins)
+	if len(r.Header.Values("Origin")) > 1 {
+		return csrfBlock(weblogbean)
+	}
 
 	// Origin 是权威信号：存在且非 "null" 时直接据此判定
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin != "" && !strings.EqualFold(origin, "null") {
-		originHost := extractHostFromOrigin(origin)
-		if isCsrfOriginAllowed(originHost, allowedHosts) {
+		if legacyCSRFOriginAllowed(r, origin, false, hostTarget.Host, bindMoreHost, cfg.AllowedOrigins) {
 			return result
 		}
 		return csrfBlock(weblogbean)
@@ -57,8 +60,7 @@ func (waf *WafEngine) CheckCsrf(r *http.Request, weblogbean *innerbean.WebLog, f
 	// Origin 缺失/为 null 时退化到 Referer 判定
 	referer := strings.TrimSpace(r.Header.Get("Referer"))
 	if referer != "" {
-		refererHost := extractHostFromOrigin(referer)
-		if isCsrfOriginAllowed(refererHost, allowedHosts) {
+		if legacyCSRFOriginAllowed(r, referer, true, hostTarget.Host, bindMoreHost, cfg.AllowedOrigins) {
 			return result
 		}
 		return csrfBlock(weblogbean)
@@ -202,4 +204,59 @@ func buildCsrfAllowedHosts(reqHost string, bindMoreHost string, allowedOrigins s
 	}
 
 	return hosts
+}
+
+func legacyCSRFOriginAllowed(r *http.Request, source string, referer bool, host model.Hosts, aliases, extra string) bool {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	} else if peer, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		trusted := ipInCIDRList(peer, host.IPTrustProxies) || (host.IPSourceMode == "cdn_preset" && IsIPSourceTrustedPeer(host, peer))
+		if trusted {
+			if proto := r.Header.Get("X-Forwarded-Proto"); proto == "http" || proto == "https" {
+				scheme = proto
+			}
+		}
+	}
+	actual, ok := wafpipeline.CanonicalOrigin(source, referer)
+	if !ok {
+		return false
+	}
+	expected, ok := wafpipeline.CanonicalOrigin(scheme+"://"+r.Host, false)
+	if !ok {
+		return false
+	}
+	if actual == expected {
+		return true
+	}
+	self, _ := url.Parse(expected)
+	origin, _ := url.Parse(actual)
+	for _, line := range strings.Split(aliases+"\n"+extra, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if !strings.Contains(line, "://") {
+			u := &url.URL{Host: line}
+			if u.Port() == "" {
+				line = net.JoinHostPort(u.Hostname(), self.Port())
+			}
+			line = scheme + "://" + line
+		}
+		allowed, ok := wafpipeline.CanonicalOrigin(line, false)
+		if !ok {
+			continue
+		}
+		if allowed == actual {
+			return true
+		}
+		pattern, _ := url.Parse(allowed)
+		if pattern.Scheme == origin.Scheme && pattern.Port() == origin.Port() && strings.HasPrefix(pattern.Hostname(), "*.") {
+			base := strings.TrimPrefix(pattern.Hostname(), "*.")
+			if origin.Hostname() == base || strings.HasSuffix(origin.Hostname(), "."+base) {
+				return true
+			}
+		}
+	}
+	return false
 }

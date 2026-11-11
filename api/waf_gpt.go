@@ -176,7 +176,7 @@ func GetRuleAiPrompt(lang string) string {
 func callGPTOnce(messages []model.GptMessage) (string, error) {
 	gptReq := model.GPTRequest{
 		Messages:       messages,
-		Model:          global.GCONFIG_RECORD_GPT_MODEL,
+		Model:          global.CurrentSettings().GCONFIG_RECORD_GPT_MODEL,
 		MaxTokens:      2048,
 		ResponseFormat: model.GptResponseFormat{Type: "text"},
 		Stream:         false,
@@ -185,7 +185,7 @@ func callGPTOnce(messages []model.GptMessage) (string, error) {
 	}
 	bodyBytes, _ := json.Marshal(gptReq)
 
-	apiURL := global.GCONFIG_RECORD_GPT_URL
+	apiURL := global.CurrentSettings().GCONFIG_RECORD_GPT_URL
 	if strings.HasSuffix(apiURL, "/v1") {
 		apiURL += "/chat/completions"
 	} else {
@@ -197,7 +197,7 @@ func callGPTOnce(messages []model.GptMessage) (string, error) {
 		return "", err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+global.GCONFIG_RECORD_GPT_TOKEN)
+	httpReq.Header.Set("Authorization", "Bearer "+global.CurrentSettings().GCONFIG_RECORD_GPT_TOKEN)
 
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(httpReq)
@@ -257,7 +257,7 @@ func normalizeGeneratedRule(s string) string {
 
 // IsGPTConfigured GPT 是否已配置密钥
 func IsGPTConfigured() bool {
-	tok := strings.TrimSpace(global.GCONFIG_RECORD_GPT_TOKEN)
+	tok := strings.TrimSpace(global.CurrentSettings().GCONFIG_RECORD_GPT_TOKEN)
 	return tok != "" && tok != "SamWaf提示请输入密钥"
 }
 
@@ -265,8 +265,8 @@ func IsGPTConfigured() bool {
 // 安全：token 是敏感凭证，接口只回传 has_token 布尔，绝不下发明文到浏览器（日志脱敏/防泄露原则）。
 func (w *WafGPTApi) GetGptConfigApi(c *gin.Context) {
 	response.OkWithDetailed(map[string]interface{}{
-		"gpt_url":   global.GCONFIG_RECORD_GPT_URL,
-		"gpt_model": global.GCONFIG_RECORD_GPT_MODEL,
+		"gpt_url":   global.CurrentSettings().GCONFIG_RECORD_GPT_URL,
+		"gpt_model": global.CurrentSettings().GCONFIG_RECORD_GPT_MODEL,
 		"has_token": IsGPTConfigured(),
 	}, "获取成功", c)
 }
@@ -468,7 +468,7 @@ func (w *WafGPTApi) ChatApi(c *gin.Context) {
 			}
 			gptReq := model.GPTRequest{
 				Messages:         messages,
-				Model:            global.GCONFIG_RECORD_GPT_MODEL,
+				Model:            global.CurrentSettings().GCONFIG_RECORD_GPT_MODEL,
 				FrequencyPenalty: 0,
 				MaxTokens:        2048,
 				PresencePenalty:  0,
@@ -484,7 +484,7 @@ func (w *WafGPTApi) ChatApi(c *gin.Context) {
 			requestBody := string(bodyBytes)
 
 			// 兼容两种URL格式：https://api.deepseek.com 和 https://api.deepseek.com/v1
-			apiURL := global.GCONFIG_RECORD_GPT_URL
+			apiURL := global.CurrentSettings().GCONFIG_RECORD_GPT_URL
 			if strings.HasSuffix(apiURL, "/v1") {
 				// 如果URL已经以/v1结尾，只添加/chat/completions
 				apiURL += "/chat/completions"
@@ -503,7 +503,7 @@ func (w *WafGPTApi) ChatApi(c *gin.Context) {
 			// 设置请求头
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Accept", "text/event-stream")
-			req.Header.Set("Authorization", "Bearer "+global.GCONFIG_RECORD_GPT_TOKEN)
+			req.Header.Set("Authorization", "Bearer "+global.CurrentSettings().GCONFIG_RECORD_GPT_TOKEN)
 
 			// 创建 HTTP 客户端并发送请求
 			client := &http.Client{}

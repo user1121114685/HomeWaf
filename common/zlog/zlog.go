@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync"
+	"sync/atomic"
 )
 
 // 简单封装一下对 zap 日志库的使用
@@ -20,7 +22,12 @@ import (
 // logger 默认是 Nop 而非 nil：InitZLog 之前就打日志的代码路径（早期启动、
 // 一次性 CLI 命令、单元测试）不该因为 nil 指针把进程打崩，丢几条早期日志即可。
 // InitZLog 会把它换成真正的 logger。
-var logger = zap.NewNop()
+var logger atomic.Pointer[zap.Logger]
+var initMu sync.Mutex
+var fileWriter zapcore.WriteSyncer
+var extraCore zapcore.Core
+
+func init() { logger.Store(zap.NewNop()) }
 
 // baseCores 保存 InitZLog 创建的基础 cores，供 AddCore 重建时使用
 var baseCores []zapcore.Core
@@ -33,6 +40,8 @@ var FileName = "log.log"
 
 // InitZLog 初始化zlog
 func InitZLog(debugEnable bool, outputFormat string) {
+	initMu.Lock()
+	defer initMu.Unlock()
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	var encoder zapcore.Encoder
@@ -60,23 +69,37 @@ func InitZLog(debugEnable bool, outputFormat string) {
 		}
 	}
 
-	logger = zap.New(zapcore.NewTee(baseCores...))
+	publishLogger()
 }
 
 // AddCore 在现有 logger 上追加一个额外的 zapcore.Core（通常在 zlog 初始化之后调用）
 // 追加后原有的所有 baseCores 依然保留，新 core 并联写入
 func AddCore(extra zapcore.Core) {
+	initMu.Lock()
+	defer initMu.Unlock()
 	// baseCores 为空表示 InitZLog 还没跑过（logger 此时是 Nop），追加没有意义。
 	if len(baseCores) == 0 || extra == nil {
 		return
 	}
+	extraCore = extra
+	publishLogger()
+}
+
+func publishLogger() {
 	all := make([]zapcore.Core, 0, len(baseCores)+1)
 	all = append(all, baseCores...)
-	all = append(all, extra)
-	logger = zap.New(zapcore.NewTee(all...))
+	if extraCore != nil {
+		all = append(all, extraCore)
+	}
+	logger.Store(zap.New(zapcore.NewTee(all...)))
 }
 
 func getFileLogWriter() (writeSyncer zapcore.WriteSyncer) {
+	// FileName is a startup-only setting. Reuse the writer when changing
+	// verbosity/encoding so lumberjack maintenance goroutines do not accumulate.
+	if fileWriter != nil {
+		return fileWriter
+	}
 	exeDir := ""
 	// 检测环境变量是否存在
 	envVar := "SamWafIDE"
@@ -117,49 +140,50 @@ func getFileLogWriter() (writeSyncer zapcore.WriteSyncer) {
 		Compress:   false,
 	}
 
-	return zapcore.AddSync(lumberJackLogger)
+	fileWriter = zapcore.AddSync(lumberJackLogger)
+	return fileWriter
 }
 
 func InfoCall(message string, fields ...zap.Field) {
 	callerFields := getCallerInfoForLog()
 	fields = append(fields, callerFields...)
-	logger.Info(message, fields...)
+	logger.Load().Info(message, fields...)
 }
 
 func Info(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("info", inter))
-	logger.Info(message, fields...)
+	logger.Load().Info(message, fields...)
 }
 
 func DebugCall(message string, fields ...zap.Field) {
 	callerFields := getCallerInfoForLog()
 	fields = append(fields, callerFields...)
-	logger.Debug(message, fields...)
+	logger.Load().Debug(message, fields...)
 }
 func Debug(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("debug", inter))
-	logger.Debug(message, fields...)
+	logger.Load().Debug(message, fields...)
 }
 
 func ErrorCall(message string, fields ...zap.Field) {
 	callerFields := getCallerInfoForLog()
 	fields = append(fields, callerFields...)
-	logger.Error(message, fields...)
+	logger.Load().Error(message, fields...)
 }
 func Error(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("err", inter))
 
-	logger.Error(message, fields...)
+	logger.Load().Error(message, fields...)
 }
 
 func WarnCall(message string, fields ...zap.Field) {
 	callerFields := getCallerInfoForLog()
 	fields = append(fields, callerFields...)
-	logger.Warn(message, fields...)
+	logger.Load().Warn(message, fields...)
 }
 func Warn(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("warn", inter))
-	logger.Warn(message, fields...)
+	logger.Load().Warn(message, fields...)
 }
 
 func getCallerInfoForLog() (callerFields []zap.Field) {

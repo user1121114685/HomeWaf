@@ -69,7 +69,7 @@ func Auth() gin.HandlerFunc {
 			// 据此要求重新登录会把一次后端抖动变成一次强制下线。
 			var tokenInfo model.TokenInfo
 			tokenErr := global.GCACHE_WAFCACHE.GetAsEx(enums.CACHE_TOKEN+tokenStr, &tokenInfo,
-				time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute)
+				time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute)
 			if tokenErr != nil {
 				// 令牌只打前 8 位，避免把可用凭证写进日志。
 				shortToken := utils.TruncateString(tokenStr, 8)
@@ -103,7 +103,7 @@ func Auth() gin.HandlerFunc {
 			ipMatched := false
 
 			// 如果启用严格IP绑定，进行严格IP检查
-			if global.GCONFIG_ENABLE_STRICT_IP_BINDING == 1 {
+			if global.CurrentSettings().GCONFIG_ENABLE_STRICT_IP_BINDING == 1 {
 				if tokenInfo.LoginIp == currentIP {
 					ipMatched = true
 				} else {
@@ -117,7 +117,7 @@ func Auth() gin.HandlerFunc {
 			// 豁免路径：WebSocket 握手、SSE、带查询串令牌的下载。这三类请求由浏览器直接发起，
 			// Accept-Encoding/Accept-Language 与普通 XHR 并不一致，参与指纹比对必然误判。
 			fingerprintMatched := true
-			if global.GCONFIG_ENABLE_DEVICE_FINGERPRINT == 1 && tokenInfo.DeviceFingerprint != "" &&
+			if global.CurrentSettings().GCONFIG_ENABLE_DEVICE_FINGERPRINT == 1 && tokenInfo.DeviceFingerprint != "" &&
 				!isFingerprintExemptPath(c) {
 				currentFingerprint := utils.GenerateFingerprint(c.Request)
 				if tokenInfo.DeviceFingerprint == currentFingerprint {
@@ -189,7 +189,7 @@ func Auth() gin.HandlerFunc {
 			}
 
 			//检测是否强制2Fa绑定
-			if global.GCONFIG_RECORD_FORCE_BIND_2FA == 1 && c.Request.URL.Path != "/api/v1/ws" && c.Request.URL.Path != "/api/v1/logout" {
+			if global.CurrentSettings().GCONFIG_RECORD_FORCE_BIND_2FA == 1 && c.Request.URL.Path != "/api/v1/ws" && c.Request.URL.Path != "/api/v1/logout" {
 				otpBean := wafOtpService.GetDetailByUserNameApi(tokenInfo.LoginAccount)
 				if otpBean.UserName == "" {
 					//需要强制跳转2fa绑定界面
@@ -221,7 +221,7 @@ const bindFailCounterMaxTTL = 30 * time.Minute
 
 // bindFailCounterTTL 取"令牌有效期"与上限中的较小者
 func bindFailCounterTTL() time.Duration {
-	ttl := time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES) * time.Minute
+	ttl := time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES) * time.Minute
 	if ttl <= 0 || ttl > bindFailCounterMaxTTL {
 		return bindFailCounterMaxTTL
 	}
@@ -303,7 +303,7 @@ func bumpTokenBindFailure(tokenStr string) bool {
 // 指纹与严格IP绑定都关闭时不存在该计数，整段跳过——这是每个请求都会走到的路径，
 // 缓存后端为 Redis 时一次跳过就少一次往返。
 func clearTokenBindFailure(tokenStr string) {
-	if global.GCONFIG_ENABLE_STRICT_IP_BINDING != 1 && global.GCONFIG_ENABLE_DEVICE_FINGERPRINT != 1 {
+	if global.CurrentSettings().GCONFIG_ENABLE_STRICT_IP_BINDING != 1 && global.CurrentSettings().GCONFIG_ENABLE_DEVICE_FINGERPRINT != 1 {
 		return
 	}
 	global.GCACHE_WAFCACHE.Remove(enums.CACHE_TOKEN_BINDFAIL + tokenStr)

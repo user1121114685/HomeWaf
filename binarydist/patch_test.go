@@ -1,62 +1,29 @@
 package binarydist
 
 import (
-	"io/ioutil"
-	"os"
-	"os/exec"
+	"bytes"
 	"testing"
 )
 
 func TestPatch(t *testing.T) {
-	mustWriteRandFile("test.old", 1e3, 1)
-	mustWriteRandFile("test.new", 1e3, 2)
-
-	got, err := ioutil.TempFile("/tmp", "bspatch.")
-	if err != nil {
-		panic(err)
+	old, newer := randomPair()
+	var diff, output bytes.Buffer
+	if err := Diff(bytes.NewReader(old), bytes.NewReader(newer), &diff); err != nil {
+		t.Fatal(err)
 	}
-	os.Remove(got.Name())
-
-	err = exec.Command("bsdiff", "test.old", "test.new", "test.patch").Run()
-	if err != nil {
-		panic(err)
+	if err := Patch(bytes.NewReader(old), &output, &diff); err != nil {
+		t.Fatal(err)
 	}
-
-	err = Patch(mustOpen("test.old"), got, mustOpen("test.patch"))
-	if err != nil {
-		t.Fatal("err", err)
-	}
-
-	ref, err := got.Seek(0, 2)
-	if err != nil {
-		panic(err)
-	}
-
-	t.Logf("got %d bytes", ref)
-	if n := fileCmp(got, mustOpen("test.new")); n > -1 {
-		t.Fatalf("produced different output at pos %d", n)
+	if !bytes.Equal(output.Bytes(), newer) {
+		t.Fatal("random patch differs from expected complete file")
 	}
 }
-
 func TestPatchHk(t *testing.T) {
-	got, err := ioutil.TempFile("/tmp", "bspatch.")
-	if err != nil {
-		panic(err)
+	var output bytes.Buffer
+	if err := Patch(bytes.NewReader(readFixture(t, "sample.old")), &output, bytes.NewReader(readFixture(t, "sample.patch"))); err != nil {
+		t.Fatal(err)
 	}
-	os.Remove(got.Name())
-
-	err = Patch(mustOpen("testdata/sample.old"), got, mustOpen("testdata/sample.patch"))
-	if err != nil {
-		t.Fatal("err", err)
-	}
-
-	ref, err := got.Seek(0, 2)
-	if err != nil {
-		panic(err)
-	}
-
-	t.Logf("got %d bytes", ref)
-	if n := fileCmp(got, mustOpen("testdata/sample.new")); n > -1 {
-		t.Fatalf("produced different output at pos %d", n)
+	if !bytes.Equal(output.Bytes(), readFixture(t, "sample.new")) {
+		t.Fatal("independent reference patch produced incorrect file")
 	}
 }

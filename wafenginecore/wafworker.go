@@ -16,9 +16,9 @@ import (
 	"HomeWaf/wafenginecore/accessgate"
 	"HomeWaf/wafenginecore/ipset"
 	"HomeWaf/wafenginecore/loadbalance"
+	"HomeWaf/wafpipeline"
 	"HomeWaf/wafproxy"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -77,6 +77,9 @@ func (waf *WafEngine) LoadHost(inHost model.Hosts) []innerbean.ServerRunTime {
 	for _, listen := range listens {
 		if !listen.IsMain && !listen.Implied {
 			ports = append(ports, listen.Port)
+		}
+		if wafpipeline.OwnsLegacyPort(uint16(listen.Port)) {
+			continue
 		}
 		onlineServer, ok := waf.ServerOnline.Get(listen.Port)
 		if !ok {
@@ -147,8 +150,10 @@ func (waf *WafEngine) LoadHost(inHost model.Hosts) []innerbean.ServerRunTime {
 	global.GWAF_LOCAL_DB.Where("host_code=? ", inHost.Code).Order("create_time asc").Find(&loadBalanceList)
 
 	//查询HTTP AUTH
-	var httpAuthList []model.HttpAuthBase
-	global.GWAF_LOCAL_DB.Where("host_code=? ", inHost.Code).Find(&httpAuthList)
+	httpAuthList, authLoadErr := waf_service.WafHttpAuthBaseServiceApp.LoadForHost(inHost.Code)
+	if authLoadErr != nil {
+		zlog.Error("HTTPAuth account load failed", inHost.Code)
+	}
 
 	//查询自定义拦截界面
 	var blockingPageList []model.BlockingPage
@@ -454,96 +459,55 @@ func (waf *WafEngine) RemoveHost(host model.Hosts) {
 	waf.RemovePortServer()
 }
 
-// ReLoadSensitive 加载敏感词
+// ReLoadSensitive builds a complete immutable matcher before publication.
 func (waf *WafEngine) ReLoadSensitive() {
-	//敏感词处理
-	var sensitiveList []model.Sensitive
-	global.GWAF_LOCAL_DB.Find(&sensitiveList)
-	//敏感词
-	waf.Sensitive = sensitiveList
-
-	// 初始化敏感词检测方向映射
-	if waf.SensitiveDirectionMap == nil {
-		waf.SensitiveDirectionMap = make(map[string]bool)
-	}
-	// 重置映射
-	waf.SensitiveDirectionMap["in"] = false
-	waf.SensitiveDirectionMap["out"] = false
-	waf.SensitiveDirectionMap["all"] = false
-
-	if len(sensitiveList) == 0 {
+	var rows []model.Sensitive
+	if err := global.GWAF_LOCAL_DB.Find(&rows).Error; err != nil {
+		zlog.Error("Sensitive configuration load failed")
 		return
 	}
-	// 提取 content 字段并转换为 [][]rune
+	state := &sensitiveSnapshot{}
 	var keywords [][]rune
-	var customData map[string]interface{}
-	customData = make(map[string]interface{})
-	for _, sensitive := range waf.Sensitive {
-		if len(sensitive.Content) == 0 {
-			// ahocorasick 不支持空字符串模式，跳过以避免 index out of range [-1] panic
+	data := map[string]interface{}{}
+	for _, row := range rows {
+		if row.Content == "" {
 			continue
 		}
-		keywords = append(keywords, []rune(sensitive.Content))
-		customData[sensitive.Content] = sensitive
-		if sensitive.CheckDirection == "in" && waf.SensitiveDirectionMap["in"] == false {
-			// 检测请求
-			waf.SensitiveDirectionMap["in"] = true
-		} else if sensitive.CheckDirection == "out" && waf.SensitiveDirectionMap["out"] == false {
-			// 检测响应
-			waf.SensitiveDirectionMap["out"] = true
-		} else if sensitive.CheckDirection == "all" && waf.SensitiveDirectionMap["all"] == false {
-			// 检测请求和响应
-			waf.SensitiveDirectionMap["all"] = true
+		keywords = append(keywords, []rune(row.Content))
+		data[row.Content] = row
+		state.in = state.in || row.CheckDirection == "in" || row.CheckDirection == "all"
+		state.out = state.out || row.CheckDirection == "out" || row.CheckDirection == "all"
+	}
+	state.count = len(keywords)
+	if len(keywords) > 0 {
+		state.machine = new(goahocorasick.Machine)
+		if err := state.machine.BuildByCustom(keywords, data); err != nil {
+			zlog.Error("Sensitive configuration compilation failed")
+			return
 		}
 	}
-
-	if len(keywords) == 0 {
-		return
-	}
-	m := new(goahocorasick.Machine)
-	err := m.BuildByCustom(keywords, customData)
-	if err != nil {
-		zlog.Error("load sensitive error", err)
-		return
-	}
-	waf.SensitiveManager = m
+	waf.sensitive.Store(state)
 }
 
-// CheckRequestSensitive 检查是否需要请求敏感词检测
+type sensitiveSnapshot struct {
+	machine *goahocorasick.Machine
+	in, out bool
+	count   int
+}
+
+func (waf *WafEngine) sensitiveCount() int {
+	if state := waf.sensitive.Load(); state != nil {
+		return state.count
+	}
+	return 0
+}
 func (waf *WafEngine) CheckRequestSensitive() bool {
-	// 优先使用预先计算的映射进行快速判断
-	if waf.SensitiveDirectionMap != nil {
-		// 检查是否有针对请求的敏感词检测
-		return waf.SensitiveDirectionMap["in"] || waf.SensitiveDirectionMap["all"]
-	}
-	// 如果内存中没有数据，则进行数据库查询
-	var bean model.Sensitive
-	//只要不是检测返回的，那说明是检查请求的
-	global.GWAF_LOCAL_DB.Where("check_direction!=?", "out").Find(&bean).Limit(1)
-	if len(bean.Id) > 0 {
-		return true
-	} else {
-		return false
-	}
+	state := waf.sensitive.Load()
+	return state != nil && state.in
 }
-
-// CheckResponseSensitive 检查是否需要响应敏感词检测
 func (waf *WafEngine) CheckResponseSensitive() bool {
-	// 优先使用预先计算的映射进行快速判断
-	if waf.SensitiveDirectionMap != nil {
-		// 检查是否有针对响应的敏感词检测
-		return waf.SensitiveDirectionMap["out"] || waf.SensitiveDirectionMap["all"]
-	}
-
-	// 如果内存中没有数据，则进行数据库查询
-	var bean model.Sensitive
-	//只要不是检测请求的，那说明是检查返回的
-	global.GWAF_LOCAL_DB.Where("check_direction!=?", "in").Find(&bean).Limit(1)
-	if len(bean.Id) > 0 {
-		return true
-	} else {
-		return false
-	}
+	state := waf.sensitive.Load()
+	return state != nil && state.out
 }
 
 // httpAuthResult 「网站密码访问」处理一次请求的结果。
@@ -563,6 +527,7 @@ type httpAuthResult struct {
 // 认证链路自己再取一次连接 IP 的话，站点挂在 CDN／前置 Nginx 后面时会话列表里
 // 全站都是同一个边缘节点地址，「绑定登录 IP」这条约束也会一并失效。
 func (waf *WafEngine) DoHttpAuthBase(hostSafe *wafenginmodel.HostSafe, w http.ResponseWriter, r *http.Request, clientIP string) httpAuthResult {
+	r = wafpipeline.WithTrustedExternalScheme(r, legacyRequestScheme(hostSafe.Host, r))
 	cfg := model.DecodeHttpAuthConfig(hostSafe.Host.HttpAuthJSON)
 
 	// 路径归一化：小写 + path.Clean。下面所有路径判定（登录页前缀、保护范围）都必须用 p，
@@ -715,40 +680,27 @@ func (waf *WafEngine) doBasicAuth(hostSafe *wafenginmodel.HostSafe, w http.Respo
 	clientIP string, cfg model.HttpAuthConfig) httpAuthResult {
 
 	// 获取 Authorization 头部
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		tip := "当前网站需要授权方可访问"
+	username, password, valid := r.BasicAuth()
+	if !valid {
+		if r.Header.Get("Authorization") != "" {
+			http.Error(w, "Invalid authorization format", http.StatusBadRequest)
+			waf.auditHttpAuthDenied(hostSafe, r, clientIP, "Invalid authorization format")
+			return httpAuthResult{Blocked: true, Tip: "Invalid authorization format", Status: http.StatusBadRequest}
+		}
+		tip := "Authentication required"
 		waf.writeBasicChallenge(w, "", tip)
 		waf.auditHttpAuthDenied(hostSafe, r, clientIP, tip)
-		return httpAuthResult{Blocked: true, Tip: tip, Status: http.StatusUnauthorized}
+		return httpAuthResult{Blocked: true, Tip: tip, Status: 401}
 	}
-
-	// 验证 Authorization 头部格式 "Basic base64(username:password)"
-	authParts := strings.SplitN(authHeader, " ", 2)
-	if len(authParts) != 2 || authParts[0] != "Basic" {
-		tip := "密码格式不正确 Invalid authorization header format"
-		http.Error(w, tip, http.StatusBadRequest)
-		return httpAuthResult{Blocked: true, Tip: tip, Status: http.StatusBadRequest}
+	port := httpAuthPort(hostSafe.Host, r)
+	hash, _ := legacyCredentialHash(hostSafe, username)
+	if !legacyPasswordCache.Cached(hash, password) {
+		if !legacyAllowAttempt(hostSafe.Host, r) || !legacyHashWork.Acquire(port, 4) {
+			http.Error(w, "Please retry later", 429)
+			return httpAuthResult{Blocked: true, Tip: "Login rate limited", Status: 429}
+		}
+		defer legacyHashWork.Release(port)
 	}
-
-	// 解码 base64 编码的用户名和密码
-	decoded, err := base64.StdEncoding.DecodeString(authParts[1])
-	if err != nil {
-		tip := "Invalid base64 encoding"
-		http.Error(w, tip, http.StatusBadRequest)
-		return httpAuthResult{Blocked: true, Tip: tip, Status: http.StatusBadRequest}
-	}
-
-	// 解码后的结果是 "username:password"
-	credentials := strings.SplitN(string(decoded), ":", 2)
-	if len(credentials) != 2 {
-		tip := "密码格式不正确 Invalid authorization format"
-		http.Error(w, tip, http.StatusBadRequest)
-		return httpAuthResult{Blocked: true, Tip: tip, Status: http.StatusBadRequest}
-	}
-
-	// 校验用户名和密码
-	username, password := credentials[0], credentials[1]
 	if !waf.checkCredentials(hostSafe, username, password) {
 		tip := "密码错误"
 		waf.writeBasicChallenge(w, "", tip)
@@ -763,7 +715,7 @@ func (waf *WafEngine) doBasicAuth(hostSafe *wafenginmodel.HostSafe, w http.Respo
 
 	// 凭证过关，接着做会话记账：到期或被踢时要换 realm 把浏览器重新逼回弹窗
 	res := waf_service.WafHttpAuthSessionServiceApp.TouchBasicSession(hostSafe.Host, username,
-		clientIP, r.UserAgent(), cfg)
+		clientIP, r.UserAgent(), cfg, port)
 	if res.Challenge {
 		tip := "登录状态已失效，请重新输入密码"
 		if res.Expired {
@@ -808,10 +760,10 @@ func (waf *WafEngine) doCustomAuth(hostSafe *wafenginmodel.HostSafe, w http.Resp
 	}
 
 	// 检查是否已经通过认证
-	cookie, err := r.Cookie("samwaf_httpauth_token")
+	cookie, err := r.Cookie(httpAuthCookieName(hostSafe.Host, r))
 	if err == nil && cookie.Value != "" {
 		if _, ok := waf_service.WafHttpAuthSessionServiceApp.ValidateCustom(hostSafe.Host.Code,
-			cookie.Value, clientIP, cfg); ok {
+			cookie.Value, clientIP, cfg, httpAuthPort(hostSafe.Host, r)); ok {
 			return httpAuthResult{}
 		}
 	}
@@ -845,91 +797,45 @@ func (waf *WafEngine) handleHttpAuthRequest(hostSafe *wafenginmodel.HostSafe, w 
 // handleHttpAuthValidate 处理登录验证，返回实际下发的状态码。
 func (waf *WafEngine) handleHttpAuthValidate(hostSafe *wafenginmodel.HostSafe, w http.ResponseWriter, r *http.Request,
 	clientIP string, cfg model.HttpAuthConfig) int {
-
-	// 安全策略：检查IP是否被锁定
-	lockKey := "httpauth_lock:" + clientIP
-	lockVal := global.GCACHE_WAFCACHE.Get(lockKey)
-	if lockVal != nil {
-		// IP已被锁定
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusTooManyRequests)
-		w.Write([]byte(`{"success": false, "message": "登录失败次数过多，请3分钟后再试"}`))
-		zlog.Warn("HTTP Auth登录IP被锁定", zap.String("ip", clientIP))
-		return http.StatusTooManyRequests
+	port := httpAuthPort(hostSafe.Host, r)
+	if !legacyAllowAttempt(hostSafe.Host, r) {
+		http.Error(w, "Please retry later", 429)
+		return 429
 	}
-
-	// 解析请求体
+	if !legacyLoginOrigin(r) || !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		http.Error(w, "Request verification failed", 403)
+		return 403
+	}
+	controller := http.NewResponseController(w)
+	_ = controller.SetReadDeadline(time.Now().Add(5 * time.Second))
+	defer controller.SetReadDeadline(time.Time{})
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		zlog.Error("解析登录请求失败", zap.Error(err))
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"success": false, "message": "请求格式错误"}`))
-		return http.StatusBadRequest
+		http.Error(w, "Invalid request", 400)
+		return 400
 	}
-
-	// 验证用户名和密码
+	if !legacyHashWork.Acquire(port, 4) {
+		http.Error(w, "Please retry later", 429)
+		return 429
+	}
+	defer legacyHashWork.Release(port)
 	if !waf.checkCredentials(hostSafe, req.Username, req.Password) {
-		// 验证失败，记录失败次数
-		failCountKey := "httpauth_fail:" + clientIP
-		failCount := 0
-
-		if count, err := global.GCACHE_WAFCACHE.GetInt(failCountKey); err == nil {
-			failCount = count
-		}
-
-		failCount++
-		zlog.Warn("HTTP Auth登录失败",
-			zap.String("ip", clientIP),
-			zap.String("username", req.Username),
-			zap.Int("fail_count", failCount))
-
 		entry := waf.httpAuthAudit(hostSafe, r, clientIP, req.Username)
-		entry.Result = model.AccessAuditFail
-
-		// 失败次数超过10次，锁定IP 3分钟
-		if failCount >= 10 {
-			global.GCACHE_WAFCACHE.SetWithTTl(lockKey, "locked", 3*time.Minute)
-			// 清除失败计数
-			global.GCACHE_WAFCACHE.Remove(failCountKey)
-			zlog.Error("HTTP Auth登录失败次数过多，锁定IP",
-				zap.String("ip", clientIP),
-				zap.Int("fail_count", failCount))
-
-			entry.Event = model.HttpAuthEventLocked
-			entry.Message = "网站密码连续输错10次，该IP已锁定3分钟"
-			waf_service.WafSecurityAuditServiceApp.Write(entry)
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`{"success": false, "message": "登录失败次数过多，已锁定3分钟"}`))
-			return http.StatusTooManyRequests
-		}
-
-		// 记录失败次数，5分钟内有效
-		global.GCACHE_WAFCACHE.SetWithTTl(failCountKey, failCount, 5*time.Minute)
-
 		entry.Event = model.HttpAuthEventLoginFail
-		entry.Message = fmt.Sprintf("网站密码错误，剩余尝试次数：%d", 10-failCount)
-		waf_service.WafSecurityAuditServiceApp.Write(entry)
-
+		entry.Result = model.AccessAuditFail
+		entry.Message = "Credential verification failed"
+		waf_service.WafSecurityAuditServiceApp.WriteThrottled(entry)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(fmt.Sprintf(`{"success": false, "message": "用户名或密码错误，剩余尝试次数：%d"}`, 10-failCount)))
-		return http.StatusUnauthorized
+		w.WriteHeader(401)
+		_, _ = w.Write([]byte(`{"success":false,"message":"Invalid username or password"}`))
+		return 401
 	}
-
-	// 验证成功，清除失败计数
-	failCountKey := "httpauth_fail:" + clientIP
-	global.GCACHE_WAFCACHE.Remove(failCountKey)
-
-	// 建会话：明文令牌只出现在 Cookie 里，库与缓存存的都是它的 sha256
 	authToken, sess, err := waf_service.WafHttpAuthSessionServiceApp.CreateCustomSession(hostSafe.Host,
-		req.Username, clientIP, r.UserAgent(), cfg)
+		req.Username, clientIP, r.UserAgent(), cfg, port)
 	if err != nil {
 		zlog.Error("HTTP Auth建立会话失败", zap.Error(err))
 		w.Header().Set("Content-Type", "application/json")
@@ -951,11 +857,11 @@ func (waf *WafEngine) handleHttpAuthValidate(hostSafe *wafenginmodel.HostSafe, w
 
 	// 设置Cookie，有效期跟随站点配置的会话时长
 	cookie := &http.Cookie{
-		Name:     "samwaf_httpauth_token",
+		Name:     httpAuthCookieName(hostSafe.Host, r),
 		Value:    authToken,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   wafpipeline.RequestScheme(r) == "https",
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(cfg.SessionTTL) * 60,
 	}
@@ -1007,17 +913,9 @@ func (waf *WafEngine) serveLoginPage(w http.ResponseWriter, r *http.Request, pat
 
 // checkCredentials 验证用户名和密码
 func (waf *WafEngine) checkCredentials(hostSafe *wafenginmodel.HostSafe, username, password string) bool {
-	// 这里硬编码了一个用户名和密码，实际使用中可以替换成数据库验证或其他方式
-	baseList := hostSafe.HttpAuthBases
-	if baseList == nil || len(baseList) == 0 {
-		return false
-	}
-	for _, bean := range baseList {
-		if bean.UserName == username && bean.Password == password {
-			return true
-		}
-	}
-	return false
+	hash, found := legacyCredentialHash(hostSafe, username)
+	valid := legacyPasswordCache.Verify(hash, password)
+	return found && valid
 }
 
 // purgeTransportForHost 清理指定主机相关的 TransportPool 键

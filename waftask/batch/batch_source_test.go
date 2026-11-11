@@ -21,9 +21,11 @@ import (
 func allowImportDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	old := global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS
-	global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = dir
-	t.Cleanup(func() { global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = old })
+	old := global.CurrentSettings().GCONFIG_BATCH_IMPORT_ALLOWED_DIRS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = dir })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = old })
+	})
 	return dir
 }
 
@@ -98,9 +100,11 @@ func TestOpenSource_越界本地路径被拒(t *testing.T) {
 }
 
 func TestOpenSource_内网与云元数据地址被拒(t *testing.T) {
-	old := global.GCONFIG_OUTBOUND_ALLOWED_HOSTS
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = ""
-	t.Cleanup(func() { global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	old := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "" })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	})
 
 	for _, u := range []string{
 		"http://127.0.0.1:26666/api/v1/batch_task/list",

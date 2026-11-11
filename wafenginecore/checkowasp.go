@@ -6,6 +6,7 @@ import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
+	"HomeWaf/internal/logsanitize"
 	"HomeWaf/model/detection"
 	"HomeWaf/model/wafenginmodel"
 	"HomeWaf/wafowasp"
@@ -58,7 +59,7 @@ func (waf *WafEngine) CheckOwasp(r *http.Request, weblogbean *innerbean.WebLog, 
 		zlog.Warn("CheckOwasp slow", map[string]interface{}{
 			"elapsed_ms":         elapsed.Milliseconds(),
 			"method":             r.Method,
-			"uri":                r.URL.RequestURI(),
+			"uri":                logsanitize.URI(r.URL.RequestURI()),
 			"host":               r.Host,
 			"src_ip":             weblogbean.SRC_IP,
 			"body_inspect_limit": wafowasp.GetBodyInspectLimit(),
@@ -70,7 +71,7 @@ func (waf *WafEngine) CheckOwasp(r *http.Request, weblogbean *innerbean.WebLog, 
 		zlog.Error("CheckOwasp ProcessRequest err", map[string]interface{}{
 			"error":  err.Error(),
 			"method": r.Method,
-			"uri":    r.URL.RequestURI(),
+			"uri":    logsanitize.URI(r.URL.RequestURI()),
 		})
 		return result
 	}
@@ -90,7 +91,7 @@ func (waf *WafEngine) CheckOwasp(r *http.Request, weblogbean *innerbean.WebLog, 
 		zlog.Info("CheckOwasp blocked", map[string]interface{}{
 			"rule_id": ruleID,
 			"method":  r.Method,
-			"uri":     r.URL.RequestURI(),
+			"uri":     logsanitize.URI(r.URL.RequestURI()),
 			"src_ip":  weblogbean.SRC_IP,
 			"host":    r.Host,
 		})
@@ -101,7 +102,7 @@ func (waf *WafEngine) CheckOwasp(r *http.Request, weblogbean *innerbean.WebLog, 
 	if wafowasp.IsDebugEnabled() {
 		zlog.Debug("CheckOwasp pass", map[string]interface{}{
 			"method": r.Method,
-			"uri":    r.URL.RequestURI(),
+			"uri":    logsanitize.URI(r.URL.RequestURI()),
 			"host":   r.Host,
 		})
 	}

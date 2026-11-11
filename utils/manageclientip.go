@@ -100,11 +100,12 @@ func GetManageClientIP(c *gin.Context) string {
 //	        此时取最左侧的链起点。这个结论与"客户端伪造了一个网段内的 IP"在协议上不可区分，
 //	        因此只在可信网段本身够窄时才用——网段宽到 0.0.0.0/0 就等于没有闸门，一律回退网络层 IP。
 func TraceManageClientIP(c *gin.Context) ManageClientIPTrace {
+	cfg := global.CurrentSettings()
 	trace := ManageClientIPTrace{
 		RemoteIP:       c.RemoteIP(),
-		ProxyHeader:    global.GCONFIG_MANAGE_PROXY_HEADER,
-		TrustedProxies: global.GCONFIG_MANAGE_TRUSTED_PROXIES,
-		CDNProvider:    global.GCONFIG_MANAGE_CDN_PROVIDER,
+		ProxyHeader:    cfg.GCONFIG_MANAGE_PROXY_HEADER,
+		TrustedProxies: cfg.GCONFIG_MANAGE_TRUSTED_PROXIES,
+		CDNProvider:    cfg.GCONFIG_MANAGE_CDN_PROVIDER,
 	}
 	trace.ClientIP = trace.RemoteIP
 
@@ -113,7 +114,7 @@ func TraceManageClientIP(c *gin.Context) ManageClientIPTrace {
 		return trace
 	}
 	var narrowGate bool
-	trace.PeerTrusted, trace.PeerTrustedBy, narrowGate = trustManageProxy(trace.RemoteIP)
+	trace.PeerTrusted, trace.PeerTrustedBy, narrowGate = trustManageProxy(trace.RemoteIP, cfg)
 	if !trace.PeerTrusted {
 		trace.Reason = ManageIPReasonPeerUntrusted
 		return trace
@@ -216,12 +217,16 @@ func normalizeIPText(ip string) string {
 // 引用的 CDN 厂商回源段 ∪ GCONFIG_MANAGE_TRUSTED_PROXIES（CIDR / 单 IP / private 关键字，逗号分隔）。
 // 第三个返回值 narrow 表示命中的条目是否足够具体——过宽的条目（如 0.0.0.0/0）能放行闸门，
 // 但不足以支撑第二轮那个不可验证的兜底结论。两者都为空 → 不信任任何代理头（安全默认）。
-func trustManageProxy(ip string) (trusted bool, by string, narrow bool) {
-	ip = strings.TrimSpace(ip)
-	if global.GCONFIG_MANAGE_CDN_PROVIDER != "" && clientip.IsProviderIP(global.GCONFIG_MANAGE_CDN_PROVIDER, ip) {
-		return true, "cdn:" + global.GCONFIG_MANAGE_CDN_PROVIDER, true
+func trustManageProxy(ip string, snapshots ...global.RuntimeSettings) (trusted bool, by string, narrow bool) {
+	cfg := global.CurrentSettings()
+	if len(snapshots) > 0 {
+		cfg = snapshots[0]
 	}
-	if global.GCONFIG_MANAGE_TRUSTED_PROXIES == "" {
+	ip = strings.TrimSpace(ip)
+	if cfg.GCONFIG_MANAGE_CDN_PROVIDER != "" && clientip.IsProviderIP(cfg.GCONFIG_MANAGE_CDN_PROVIDER, ip) {
+		return true, "cdn:" + cfg.GCONFIG_MANAGE_CDN_PROVIDER, true
+	}
+	if cfg.GCONFIG_MANAGE_TRUSTED_PROXIES == "" {
 		return false, "", false
 	}
 	parsed := net.ParseIP(ip)
@@ -229,7 +234,7 @@ func trustManageProxy(ip string) (trusted bool, by string, narrow bool) {
 		return false, "", false
 	}
 	matched, matchedBy := false, ""
-	for _, entry := range strings.Split(global.GCONFIG_MANAGE_TRUSTED_PROXIES, ",") {
+	for _, entry := range strings.Split(cfg.GCONFIG_MANAGE_TRUSTED_PROXIES, ",") {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
 			continue

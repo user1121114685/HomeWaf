@@ -21,11 +21,11 @@ func setExportBase(t *testing.T, base, allowedDirs string) {
 	t.Helper()
 	oldBase := certExportBaseDir
 	certExportBaseDir = func() string { return base }
-	oldDirs := global.GCONFIG_SSL_EXPORT_ALLOWED_DIRS
-	global.GCONFIG_SSL_EXPORT_ALLOWED_DIRS = allowedDirs
+	oldDirs := global.CurrentSettings().GCONFIG_SSL_EXPORT_ALLOWED_DIRS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_SSL_EXPORT_ALLOWED_DIRS = allowedDirs })
 	t.Cleanup(func() {
 		certExportBaseDir = oldBase
-		global.GCONFIG_SSL_EXPORT_ALLOWED_DIRS = oldDirs
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_SSL_EXPORT_ALLOWED_DIRS = oldDirs })
 	})
 }
 

@@ -49,8 +49,8 @@ type aiStatusResp struct {
 // GetAIStatusApi 获取 AI 检测状态与当前模型信息
 func (w *WafAIApi) GetAIStatusApi(c *gin.Context) {
 	resp := aiStatusResp{
-		GlobalEnable:   global.GCONFIG_AI_ENABLE,
-		Mode:           global.GCONFIG_AI_MODE,
+		GlobalEnable:   global.CurrentSettings().GCONFIG_AI_ENABLE,
+		Mode:           global.CurrentSettings().GCONFIG_AI_MODE,
 		FeatureVersion: wafai.FeatureVersion,
 	}
 	if global.GWAF_AI_DETECTOR != nil {

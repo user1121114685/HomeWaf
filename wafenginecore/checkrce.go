@@ -7,6 +7,7 @@ import (
 	"HomeWaf/model/detection"
 	"HomeWaf/model/wafenginmodel"
 	"HomeWaf/wafdefenserce"
+	"HomeWaf/wafenginecore/wafhttpcore"
 	"net/http"
 	"net/url"
 )
@@ -22,25 +23,9 @@ func (waf *WafEngine) CheckRce(r *http.Request, weblogbean *innerbean.WebLog, fo
 		Title:           "",
 		Content:         "",
 	}
-	// 既有检测（查询串多轮解码 + 原始 cookie/body + 逐个表单值）：始终强制拦截
-	isRce, RceName := wafdefenserce.DetermineRCE(weblogbean.RawQuery, weblogbean.URL,
-		weblogbean.COOKIES, weblogbean.BODY)
-	if isRce == false {
-		for key, values := range formValue {
-			if isBodyFieldExcluded(key) { // E
-				continue
-			}
-			for _, v := range values {
-				if ok, name := wafdefenserce.DetermineRCE(v); ok {
-					isRce, RceName = ok, name
-					break
-				}
-			}
-			if isRce {
-				break
-			}
-		}
-	}
+	// URL and cookies retain their configured legacy checks. Every request-body
+	// source below uses the same off/observe/block gate.
+	isRce, RceName := wafdefenserce.DetermineRCE(weblogbean.RawQuery, weblogbean.URL, weblogbean.COOKIES)
 	if isRce == true {
 		weblogbean.RISK_LEVEL = 3
 		result.IsBlock = true
@@ -49,11 +34,30 @@ func (waf *WafEngine) CheckRce(r *http.Request, weblogbean *innerbean.WebLog, fo
 		return result
 	}
 	// 请求体深度检测（S1 新增：cookie/body 解码副本 + JSON 逐值）：受 body_detect_mode 门控
-	if bodyDetectEnabled() {
-		hit, name := wafdefenserce.DetermineRCE(weblogbean.CookiesDecoded, weblogbean.BodyDecoded)
+	if bodyDetectEnabled(r) {
+		hit, name := wafdefenserce.DetermineRCE(weblogbean.CookiesDecoded)
+		if !hit && !wafhttpcore.IsJSONBody(weblogbean.BODY) && len(formValue) == 0 {
+			hit, name = wafdefenserce.DetermineRCE(weblogbean.BodyDecoded, weblogbean.BODY)
+		}
+		if !hit {
+			for key, values := range formValue {
+				if isBodyFieldExcluded(key, r) {
+					continue
+				}
+				for _, v := range values {
+					if ok, n := wafdefenserce.DetermineRCE(v); ok {
+						hit, name = ok, n
+						break
+					}
+				}
+				if hit {
+					break
+				}
+			}
+		}
 		if hit == false {
 			for i, v := range weblogbean.BodyValues {
-				if isBodyFieldExcluded(fieldAt(weblogbean.BodyFields, i)) { // E
+				if isBodyFieldExcluded(fieldAt(weblogbean.BodyFields, i), r) { // E
 					continue
 				}
 				if ok, n := wafdefenserce.DetermineRCE(v); ok {
@@ -66,7 +70,7 @@ func (waf *WafEngine) CheckRce(r *http.Request, weblogbean *innerbean.WebLog, fo
 			hit, name = headerRCEHit(r)
 		}
 		if hit {
-			if bodyDetectBlocking() {
+			if bodyDetectBlocking(r) {
 				weblogbean.RISK_LEVEL = 3
 				result.IsBlock = true
 				result.Title = "RCE:" + name

@@ -6,6 +6,7 @@ import (
 	"HomeWaf/common/queue"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
+	"HomeWaf/internal/logsanitize"
 	"HomeWaf/model"
 	"HomeWaf/model/wafenginmodel"
 	"html"
@@ -50,7 +51,7 @@ func TestUnmatchedHostServeHTTP(t *testing.T) {
 			t.Fatal("request log missing")
 		}
 		log := entry.(*innerbean.WebLog)
-		if log.STATUS_CODE != w.Code || log.RES_BODY != w.Body.String() || log.HOST_CODE != "" {
+		if log.STATUS_CODE != w.Code || log.RES_BODY != logsanitize.Body(w.Body.String()) || log.HOST_CODE != "" {
 			t.Fatal("request log differs from unmatched response")
 		}
 	}

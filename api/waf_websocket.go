@@ -27,7 +27,7 @@ func (w *WafWebSocketApi) WebSocketMessageApi(c *gin.Context) {
 	if origin != "" {
 		parsed, parseErr := url.Parse(origin)
 		allowed := parseErr == nil && (parsed.Scheme == "https" || parsed.Scheme == "http") && strings.EqualFold(parsed.Host, c.Request.Host)
-		for _, entry := range strings.Split(global.GCONFIG_CORS_ALLOW_ORIGINS, ",") {
+		for _, entry := range strings.Split(global.CurrentSettings().GCONFIG_CORS_ALLOW_ORIGINS, ",") {
 			if strings.EqualFold(strings.TrimRight(strings.TrimSpace(entry), "/"), strings.TrimRight(origin, "/")) {
 				allowed = true
 			}

@@ -17,11 +17,13 @@ import (
 // newTestManager 直接构造管理器（绕过单例），接指定的缓存后端
 func newTestManager(t *testing.T, store cache.CacheStore) *IPFailureManager {
 	t.Helper()
-	oldEnabled, oldLock := global.GCONFIG_IP_FAILURE_BAN_ENABLED, global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME
-	global.GCONFIG_IP_FAILURE_BAN_ENABLED = 1
-	global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = 10
+	oldEnabled, oldLock := global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_ENABLED, global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_LOCK_TIME
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_FAILURE_BAN_ENABLED = 1 })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = 10 })
 	t.Cleanup(func() {
-		global.GCONFIG_IP_FAILURE_BAN_ENABLED, global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = oldEnabled, oldLock
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_IP_FAILURE_BAN_ENABLED, cfg.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = oldEnabled, oldLock
+		})
 	})
 	return &IPFailureManager{cache: store}
 }

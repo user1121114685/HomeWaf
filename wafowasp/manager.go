@@ -129,9 +129,11 @@ func (m *OwaspManager) ResetRuleAndReload(id int) error {
 
 // SetActive 设置全局激活状态。关闭后请求路径直接短路返回。
 func (m *OwaspManager) SetActive(active bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.active.Store(active)
 	if w := m.current.Load(); w != nil {
-		w.IsActive = active
+		m.current.Store(&WafOWASP{IsActive: active, WAF: w.WAF, logger: w.logger})
 	}
 }
 
@@ -195,28 +197,28 @@ func loadDirConfs(cfg coraza.WAFConfig, dir string) coraza.WAFConfig {
 //
 // 完整加载顺序（优先级从低到高，后加载者覆盖同名变量）：
 //
-//  Layer 2 前置（SamWaf 官方，全部先于 Layer 3 加载）：
-//  1. data/owasp/coraza.conf
-//  2. data/owasp/coreruleset/crs-setup.conf
-//  3. data/owasp/samwaf/before/*.conf        ← 全部 SamWaf 变量（字母序，00-samwaf-base.conf 先于 01-samwaf-init-vars.conf）
-//     含：00-samwaf-base.conf（数值变量 paranoia/threshold，990001-990009）
-//         01-samwaf-init-vars.conf（字符串变量 allowed_methods 等，991001-991099）
+//	Layer 2 前置（SamWaf 官方，全部先于 Layer 3 加载）：
+//	1. data/owasp/coraza.conf
+//	2. data/owasp/coreruleset/crs-setup.conf
+//	3. data/owasp/samwaf/before/*.conf        ← 全部 SamWaf 变量（字母序，00-samwaf-base.conf 先于 01-samwaf-init-vars.conf）
+//	   含：00-samwaf-base.conf（数值变量 paranoia/threshold，990001-990009）
+//	       01-samwaf-init-vars.conf（字符串变量 allowed_methods 等，991001-991099）
 //
-//  Layer 3 前置（用户设置，最后加载 → 优先级最高）：
-//  4. data/owasp/overrides/05-user-vars.conf ← 用户所有覆盖（950001+ / 990100+）
+//	Layer 3 前置（用户设置，最后加载 → 优先级最高）：
+//	4. data/owasp/overrides/05-user-vars.conf ← 用户所有覆盖（950001+ / 990100+）
 //
-//  ↑ 步骤 3-4 必须在 CRS rules 之前：CRS rule 901160 只在变量未设置时才写默认值。
-//  ↑ Layer 3（步骤 4）加载最晚 → 同名变量用户值胜出，正确覆盖 Layer 2。
+//	↑ 步骤 3-4 必须在 CRS rules 之前：CRS rule 901160 只在变量未设置时才写默认值。
+//	↑ Layer 3（步骤 4）加载最晚 → 同名变量用户值胜出，正确覆盖 Layer 2。
 //
-//  Layer 1（CRS 规则集）：
-//  5. data/owasp/coreruleset/rules/*.conf
+//	Layer 1（CRS 规则集）：
+//	5. data/owasp/coreruleset/rules/*.conf
 //
-//  Layer 2 后置（SamWaf 官方补充，CRS 执行后）：
-//  6. data/owasp/samwaf/after/*.conf         ← 补充检测（991100-991199）
+//	Layer 2 后置（SamWaf 官方补充，CRS 执行后）：
+//	6. data/owasp/samwaf/after/*.conf         ← 补充检测（991100-991199）
 //
-//  Layer 3 后置（用户禁用 / 改写，须在 CRS 之后）：
-//  7. data/owasp/overrides/10-disabled-rules.conf
-//  8. data/owasp/overrides/20-custom-rules.conf
+//	Layer 3 后置（用户禁用 / 改写，须在 CRS 之后）：
+//	7. data/owasp/overrides/10-disabled-rules.conf
+//	8. data/owasp/overrides/20-custom-rules.conf
 //
 // 构建失败时旧实例保留，返回错误由调用方决定如何处理。
 func (m *OwaspManager) Reload() error {

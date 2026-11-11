@@ -11,3 +11,5 @@ func (SslOrder) BeforeSave(tx *gorm.DB) error      { return secretfield.ProtectU
 func (PrivateInfo) BeforeSave(tx *gorm.DB) error   { return secretfield.ProtectUpdates(tx) }
 func (NotifyChannel) BeforeSave(tx *gorm.DB) error { return secretfield.ProtectUpdates(tx) }
 func (HttpAuthBase) BeforeSave(tx *gorm.DB) error  { return secretfield.ProtectUpdates(tx) }
+func (PortConfig) BeforeSave(tx *gorm.DB) error    { return secretfield.ProtectUpdates(tx) }
+func (PipelineFeed) BeforeSave(tx *gorm.DB) error  { return secretfield.ProtectUpdates(tx) }

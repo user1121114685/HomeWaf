@@ -85,10 +85,14 @@ func TestValidateAttackTagExclude(t *testing.T) {
 // benignTags 是查询实际用的清单：脏配置要被丢弃而不是让整页查不出来
 func TestBenignTagsDropsInvalid(t *testing.T) {
 	zlog.InitZLog(false, "console") // benignTags 里有 zlog.Warn
-	old := global.GCONFIG_ATTACK_TAG_EXCLUDE
-	defer func() { global.GCONFIG_ATTACK_TAG_EXCLUDE = old }()
+	old := global.CurrentSettings().GCONFIG_ATTACK_TAG_EXCLUDE
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ATTACK_TAG_EXCLUDE = old })
+	}()
 
-	global.GCONFIG_ATTACK_TAG_EXCLUDE = "ACME证书校验,x' OR 1=1--,静态文件访问成功"
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+		cfg.GCONFIG_ATTACK_TAG_EXCLUDE = "ACME证书校验,x' OR 1=1--,静态文件访问成功"
+	})
 	tags := benignTags()
 	want := map[string]bool{"正常": true, "ACME证书校验": true, "静态文件访问成功": true}
 	if len(tags) != len(want) {
@@ -101,7 +105,7 @@ func TestBenignTagsDropsInvalid(t *testing.T) {
 	}
 
 	// "正常"永远在，且不会因为用户又写一遍而重复
-	global.GCONFIG_ATTACK_TAG_EXCLUDE = "正常,正常,ACME证书校验"
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ATTACK_TAG_EXCLUDE = "正常,正常,ACME证书校验" })
 	tags = benignTags()
 	if len(tags) != 2 || tags[0] != "正常" {
 		t.Fatalf("去重后应是 [正常 ACME证书校验]，实际 %v", tags)
@@ -112,7 +116,7 @@ func TestBenignTagsDropsInvalid(t *testing.T) {
 	for i := 0; i < attackTagExcludeMax+10; i++ {
 		many = append(many, strings.Repeat("标签", 1)+string(rune('A'+i%26))+string(rune('0'+i/26)))
 	}
-	global.GCONFIG_ATTACK_TAG_EXCLUDE = strings.Join(many, ",")
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ATTACK_TAG_EXCLUDE = strings.Join(many, ",") })
 	if got := len(benignTags()); got > attackTagExcludeMax+1 {
 		t.Errorf("清单应被截到 %d 项(含正常)，实际 %d 项", attackTagExcludeMax+1, got)
 	}

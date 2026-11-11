@@ -183,7 +183,7 @@ func clearTokenNeedChangePassword(c *gin.Context) {
 			return
 		}
 	}
-	global.GCACHE_WAFCACHE.SetWithTTlRenewTime(key, tokenInfo, time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute)
+	global.GCACHE_WAFCACHE.SetWithTTlRenewTime(key, tokenInfo, time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute)
 }
 
 func (w *WafAccountApi) ResetAccountPwdApi(c *gin.Context) {

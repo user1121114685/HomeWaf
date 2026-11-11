@@ -22,9 +22,11 @@ func newReq(remoteAddr string, headers map[string]string) *http.Request {
 
 // TestCompatModeTakesLeftmost 验证 IPSourceMode="" 保持旧行为：取 X-Forwarded-For 最左第一个(向后兼容硬约束)
 func TestCompatModeTakesLeftmost(t *testing.T) {
-	old := global.GCONFIG_RECORD_PROXY_HEADER
-	global.GCONFIG_RECORD_PROXY_HEADER = "X-Forwarded-For"
-	defer func() { global.GCONFIG_RECORD_PROXY_HEADER = old }()
+	old := global.CurrentSettings().GCONFIG_RECORD_PROXY_HEADER
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_PROXY_HEADER = "X-Forwarded-For" })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_PROXY_HEADER = old })
+	}()
 
 	waf := &WafEngine{}
 	r := newReq("10.0.0.1:1234", map[string]string{"X-Forwarded-For": "1.1.1.1, 2.2.2.2, 3.3.3.3"})

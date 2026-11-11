@@ -117,9 +117,9 @@ func TaskShareDbInfo() {
 	var shardingReason string
 
 	// 检查记录数量是否超过限制
-	if total > global.GDATA_SHARE_DB_SIZE {
+	if total > global.CurrentSettings().GDATA_SHARE_DB_SIZE {
 		needSharding = true
-		shardingReason = fmt.Sprintf("记录数量(%d)超过限制(%d)", total, global.GDATA_SHARE_DB_SIZE)
+		shardingReason = fmt.Sprintf("记录数量(%d)超过限制(%d)", total, global.CurrentSettings().GDATA_SHARE_DB_SIZE)
 	}
 
 	// 检查大小是否超过限制：SQLite 用 .db 文件大小，MySQL/PG 用 access_log 表(数据+索引)大小
@@ -132,9 +132,9 @@ func TaskShareDbInfo() {
 				totalBytes += walInfo.Size()
 			}
 			fileSizeMB := totalBytes / (1024 * 1024) // 转换为MB
-			if fileSizeMB > global.GDATA_SHARE_DB_FILE_SIZE {
+			if fileSizeMB > global.CurrentSettings().GDATA_SHARE_DB_FILE_SIZE {
 				needSharding = true
-				shardingReason = fmt.Sprintf("文件大小(%dMB,含WAL)超过限制(%dMB)", fileSizeMB, global.GDATA_SHARE_DB_FILE_SIZE)
+				shardingReason = fmt.Sprintf("文件大小(%dMB,含WAL)超过限制(%dMB)", fileSizeMB, global.CurrentSettings().GDATA_SHARE_DB_FILE_SIZE)
 			}
 		} else {
 			zlog.Error(innerLogName, "获取数据库文件大小失败:", err)
@@ -146,9 +146,9 @@ func TaskShareDbInfo() {
 		}
 		tableSizeMB, err := dialect.Get().TableSizeMB(global.GWAF_LOCAL_LOG_DB, sizeTable)
 		if err == nil {
-			if tableSizeMB > global.GDATA_SHARE_DB_FILE_SIZE {
+			if tableSizeMB > global.CurrentSettings().GDATA_SHARE_DB_FILE_SIZE {
 				needSharding = true
-				shardingReason = fmt.Sprintf("表大小(%dMB)超过限制(%dMB)", tableSizeMB, global.GDATA_SHARE_DB_FILE_SIZE)
+				shardingReason = fmt.Sprintf("表大小(%dMB)超过限制(%dMB)", tableSizeMB, global.CurrentSettings().GDATA_SHARE_DB_FILE_SIZE)
 			}
 		} else {
 			zlog.Error(innerLogName, "获取"+sizeTable+"表大小失败:", err)

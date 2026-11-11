@@ -41,11 +41,11 @@ func (waf *WafEngine) CheckDirTraversal(r *http.Request, weblogbean *innerbean.W
 	}
 
 	// 2) 请求体深检(表单值/JSON 体/整串)：受 body_detect_mode 门控(observe 默认只观察不拦)，与 CheckXss 一致
-	if bodyDetectEnabled() {
+	if bodyDetectEnabled(r) {
 		hit := wafhttpcore.HasTraversalOrLFI(weblogbean.BodyDecoded)
 		if !hit {
 			for key, values := range formValue {
-				if isBodyFieldExcluded(key) { // E：已知富文本字段整体跳过
+				if isBodyFieldExcluded(key, r) { // E：已知富文本字段整体跳过
 					continue
 				}
 				for _, v := range values {
@@ -61,7 +61,7 @@ func (waf *WafEngine) CheckDirTraversal(r *http.Request, weblogbean *innerbean.W
 		}
 		if !hit {
 			for i, v := range weblogbean.BodyValues {
-				if isBodyFieldExcluded(fieldAt(weblogbean.BodyFields, i)) { // E
+				if isBodyFieldExcluded(fieldAt(weblogbean.BodyFields, i), r) { // E
 					continue
 				}
 				if wafhttpcore.HasTraversalOrLFI(v) {
@@ -71,7 +71,7 @@ func (waf *WafEngine) CheckDirTraversal(r *http.Request, weblogbean *innerbean.W
 			}
 		}
 		if hit {
-			if bodyDetectBlocking() {
+			if bodyDetectBlocking(r) {
 				return block()
 			}
 			markBodyObserve(weblogbean, "目录穿越/LFI")

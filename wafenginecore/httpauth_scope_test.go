@@ -15,6 +15,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/utils"
 	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafenginecore/ipset"
 
@@ -72,6 +73,10 @@ func TestHttpAuthPathScope(t *testing.T) {
 	ipset.UpsertGroupMatcher("g_test", "测试组", ipset.BuildMatchSet([]string{"10.1.1.1"}))
 	defer ipset.SetGroupSnapshot(nil)
 
+	fixtureHash, hashErr := utils.BcryptHash("p")
+	if hashErr != nil {
+		t.Fatal(hashErr)
+	}
 	waf := &WafEngine{}
 	newHost := func(authJSON, authType string) *wafenginmodel.HostSafe {
 		h := &wafenginmodel.HostSafe{}
@@ -80,7 +85,7 @@ func TestHttpAuthPathScope(t *testing.T) {
 		h.Host.IsEnableHttpAuthBase = 1
 		h.Host.HttpAuthBaseType = authType
 		h.Host.HttpAuthJSON = authJSON
-		h.HttpAuthBases = []model.HttpAuthBase{{UserName: "u", Password: "p"}}
+		h.HttpAuthBases = []model.HttpAuthBase{{UserName: "u", Password: fixtureHash, PasswordHashed: true}}
 		return h
 	}
 	// run 发一个请求并返回 (是否被这道门接住, 响应记录器)
@@ -203,6 +208,10 @@ func TestHttpAuthLogAttribution(t *testing.T) {
 	global.GWAF_LOCAL_LOG_DB = logDB
 	global.GWAF_LOCAL_DB = open("core-nomigrate.db")
 
+	fixtureHash, hashErr := utils.BcryptHash("p")
+	if hashErr != nil {
+		t.Fatal(hashErr)
+	}
 	waf := &WafEngine{}
 	newHost := func(authType string) *wafenginmodel.HostSafe {
 		h := &wafenginmodel.HostSafe{}
@@ -211,13 +220,14 @@ func TestHttpAuthLogAttribution(t *testing.T) {
 		h.Host.IsEnableHttpAuthBase = 1
 		h.Host.HttpAuthBaseType = authType
 		h.Host.HttpAuthJSON = `{"path_scope":"all"}`
-		h.HttpAuthBases = []model.HttpAuthBase{{UserName: "u", Password: "p"}}
+		h.HttpAuthBases = []model.HttpAuthBase{{UserName: "u", Password: fixtureHash, PasswordHashed: true}}
 		return h
 	}
 	do := func(host *wafenginmodel.HostSafe, method, target, body string) (httpAuthResult, *httptest.ResponseRecorder) {
 		r := httptest.NewRequest(method, "http://test.example.com"+target, strings.NewReader(body))
 		if body != "" {
 			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("Origin", "http://test.example.com")
 		}
 		w := httptest.NewRecorder()
 		res := waf.DoHttpAuthBase(host, w, r, "8.8.8.8")

@@ -127,7 +127,7 @@ func (I *Engine) detectBytes(line []byte) ([]*dlpheader.DetectResult, error) {
 	for _, obj := range I.detectorMap {
 		if obj != nil && obj.IsValue() {
 			if I.isOnlyForLog() { // used in log processor mod, need very efficient
-				if obj.GetRuleID() > DEF_MAX_REGEX_RULE_ID && obj.UseRegex() { // if ID>MAX and rule uses regex
+				if obj.GetRuleID() > I.maxRegexRuleID && obj.UseRegex() { // if ID>MAX and rule uses regex
 					continue // will not use this rule in log processor mod
 				}
 			}
@@ -255,7 +255,7 @@ func (I *Engine) detectKVList(kvList []*detector.KVItem) ([]*dlpheader.DetectRes
 	for _, obj := range I.detectorMap {
 		if obj != nil && obj.IsKV() {
 			if I.isOnlyForLog() { // used in log processor mod, need very efficient
-				if obj.GetRuleID() > DEF_MAX_REGEX_RULE_ID && obj.UseRegex() { // if ID>MAX and rule uses regex
+				if obj.GetRuleID() > I.maxRegexRuleID && obj.UseRegex() { // if ID>MAX and rule uses regex
 					continue // will not use this rule in log processor mod
 				}
 			}

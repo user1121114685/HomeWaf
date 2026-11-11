@@ -113,7 +113,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
-	github.com/oschwald/maxminddb-golang/v2 v2.9.0 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.9.0
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/petar-dambovaliev/aho-corasick v0.0.0-20250424160509-463d218d4745 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect

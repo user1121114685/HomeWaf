@@ -11,6 +11,7 @@ import (
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
 	"HomeWaf/utils"
+	"HomeWaf/wafenginecore/accessgate"
 	"HomeWaf/wafsec"
 	"errors"
 	"strings"
@@ -26,7 +27,7 @@ var WafAccessAccountServiceApp = new(WafAccessAccountService)
 // 用途：账号不存在时也跑一次 BcryptVerify，让「用户名存在」与「用户名不存在」
 // 两条路径的耗时基本一致。缺了它，攻击者只要测量响应时间就能枚举出有效用户名——
 // bcrypt 要几十毫秒，而「查不到直接返回」是微秒级，差异肉眼可辨。
-const dummyBcryptHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+const dummyBcryptHash = accessgate.DummyPasswordHash
 
 const accessTimeLayout = "2006-01-02 15:04:05"
 

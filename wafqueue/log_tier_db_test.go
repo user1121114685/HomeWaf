@@ -21,11 +21,11 @@ import (
 func TestStoreTieredCrossEngine(t *testing.T) {
 	zlog.InitZLog(false, "console")
 	savedDB := global.GWAF_LOCAL_LOG_DB
-	savedMode := global.GDATA_ACCESS_LOG_MODE
+	savedMode := global.CurrentSettings().GDATA_ACCESS_LOG_MODE
 	savedSampler := negSampler
 	defer func() {
 		global.GWAF_LOCAL_LOG_DB = savedDB
-		global.GDATA_ACCESS_LOG_MODE = savedMode
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ACCESS_LOG_MODE = savedMode })
 		negSampler = savedSampler
 	}()
 
@@ -42,7 +42,7 @@ func TestStoreTieredCrossEngine(t *testing.T) {
 				t.Fatalf("建分层表失败: %v", err)
 			}
 			global.GWAF_LOCAL_LOG_DB = db
-			global.GDATA_ACCESS_LOG_MODE = "db"
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ACCESS_LOG_MODE = "db" })
 			negSampler = &sampleReservoir{buckets: map[string]*sampleBucket{}}
 
 			mk := func(uid, ip, action, rule string) *innerbean.WebLog {
@@ -86,7 +86,7 @@ func TestStoreTieredCrossEngine(t *testing.T) {
 			}
 
 			// off 档：正常请求三层都不留，事件照留
-			global.GDATA_ACCESS_LOG_MODE = "off"
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ACCESS_LOG_MODE = "off" })
 			storeTiered([]*innerbean.WebLog{mk("to1", "9.9.9.9", "放行", "")})
 			var offAccess int64
 			db.Model(&model.AccessLog{}).Where("req_uuid = ?", "to1").Count(&offAccess)
@@ -94,7 +94,7 @@ func TestStoreTieredCrossEngine(t *testing.T) {
 				t.Fatalf("off 档正常请求不应有窄行，实际 %d", offAccess)
 			}
 			for _, mode := range []string{"db", "sample", "off"} {
-				global.GDATA_ACCESS_LOG_MODE = mode
+				global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ACCESS_LOG_MODE = mode })
 				uid := "cc-ban-" + mode
 				lg := mk(uid, "203.0.113.10", "阻止", "CC封禁")
 				lg.SkipPayloadStore = true
@@ -110,7 +110,7 @@ func TestStoreTieredCrossEngine(t *testing.T) {
 					t.Fatalf("%s payload: count=%d err=%v", mode, payloadCount, err)
 				}
 			}
-			global.GDATA_ACCESS_LOG_MODE = "db"
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_ACCESS_LOG_MODE = "db" })
 		})
 	}
 }

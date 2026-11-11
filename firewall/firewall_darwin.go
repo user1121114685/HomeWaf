@@ -41,6 +41,7 @@ const (
 )
 
 type FireWallEngine struct {
+	command func(*exec.Cmd) (error, string)
 }
 
 // IPBlockInfo IP封禁信息结构
@@ -79,6 +80,9 @@ func (fw *FireWallEngine) checkAvailable() error {
 }
 
 func (fw *FireWallEngine) executeCommand(cmd *exec.Cmd) (error error, printstr string) {
+	if fw.command != nil {
+		return fw.command(cmd)
+	}
 	// 只补 Stdin：下面要取 StdoutPipe，Stdout 必须留给 os/exec 自己接管。
 	// Stderr 本函数不接管，无空设备时需显式兜底，否则 os/exec 会去打开空设备而失败。
 	wafexec.FixStdin(cmd)

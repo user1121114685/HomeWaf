@@ -52,7 +52,7 @@ func (w *WafHostAPi) IPSourceProbeApi(c *gin.Context) {
 	effectiveHeader := wafenginecore.IPSourceEffectiveHeader(host)
 	if host.IPSourceMode == "" {
 		// 兼容模式取全局「获取IP头信息」配置，可能配了多个，原样展示第一个之外的也一并给出
-		effectiveHeader = strings.TrimSpace(global.GCONFIG_RECORD_PROXY_HEADER)
+		effectiveHeader = strings.TrimSpace(global.CurrentSettings().GCONFIG_RECORD_PROXY_HEADER)
 	}
 
 	samples := wafenginecore.GetIPProbeSamples(code)

@@ -82,7 +82,7 @@ func ValidateAttackTagExclude(value string) (string, bool) {
 func benignTags() []string {
 	tags := []string{"正常"}
 	seen := map[string]bool{"正常": true}
-	for _, t := range strings.Split(global.GCONFIG_ATTACK_TAG_EXCLUDE, ",") {
+	for _, t := range strings.Split(global.CurrentSettings().GCONFIG_ATTACK_TAG_EXCLUDE, ",") {
 		t = strings.TrimSpace(t)
 		if t == "" || seen[t] {
 			continue

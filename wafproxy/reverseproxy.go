@@ -103,6 +103,8 @@ type BufferPool interface {
 	Put([]byte)
 }
 
+type customXFFControlKey struct{}
+
 func singleJoiningSlash(a, b string) string {
 	aslash := strings.HasSuffix(a, "/")
 	bslash := strings.HasPrefix(b, "/")
@@ -193,7 +195,7 @@ func NewSingleHostReverseProxyCustomHeader(target *url.URL, customHeaders map[st
 		if userSetXFF {
 			if strings.TrimSpace(xffValue) != "" {
 				// 使用特殊的头信息作为标记（会在后续处理中删除）
-				req.Header.Set("X-Waf-Custom-XFF-Control", "skip-auto-append")
+				*req = *req.WithContext(context.WithValue(req.Context(), customXFFControlKey{}, true))
 			}
 		}
 
@@ -360,11 +362,8 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// 检查是否有自定义 X-Forwarded-For 的控制标记
-	skipAutoXFF := outreq.Header.Get("X-Waf-Custom-XFF-Control") == "skip-auto-append"
-	if skipAutoXFF {
-		// 删除内部控制标记，不发送到后端
-		outreq.Header.Del("X-Waf-Custom-XFF-Control")
-	}
+	skipAutoXFF, _ := outreq.Context().Value(customXFFControlKey{}).(bool)
+	outreq.Header.Del("X-Waf-Custom-XFF-Control")
 
 	// 只有在用户没有自定义 X-Forwarded-For 时，才自动追加客户端 IP
 	if !skipAutoXFF {

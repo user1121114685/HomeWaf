@@ -144,14 +144,16 @@ func timeIt(t *testing.T, name string, rounds int, fn func()) time.Duration {
 
 func TestIPTagExcludePerf(t *testing.T) {
 	oldUser, oldTenant, oldDB, oldExclude :=
-		global.GWAF_USER_CODE, global.GWAF_TENANT_ID, global.GWAF_LOCAL_DB, global.GCONFIG_ATTACK_TAG_EXCLUDE
+		global.GWAF_USER_CODE, global.GWAF_TENANT_ID, global.GWAF_LOCAL_DB, global.CurrentSettings().GCONFIG_ATTACK_TAG_EXCLUDE
 	defer func() {
-		global.GWAF_USER_CODE, global.GWAF_TENANT_ID, global.GWAF_LOCAL_DB, global.GCONFIG_ATTACK_TAG_EXCLUDE =
-			oldUser, oldTenant, oldDB, oldExclude
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			global.GWAF_USER_CODE, global.GWAF_TENANT_ID, global.GWAF_LOCAL_DB, cfg.GCONFIG_ATTACK_TAG_EXCLUDE =
+				oldUser, oldTenant, oldDB, oldExclude
+		})
 	}()
 	global.GWAF_USER_CODE = perfUser
 	global.GWAF_TENANT_ID = perfTenant
-	global.GDATA_IP_TAG_DB = 0
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GDATA_IP_TAG_DB = 0 })
 
 	db := openPerfIPTagDB(t)
 	global.GWAF_LOCAL_DB = db
@@ -200,7 +202,7 @@ func TestIPTagExcludePerf(t *testing.T) {
 	})
 
 	// ============ ② 服务层：排除前 vs 排除后 ============
-	global.GCONFIG_ATTACK_TAG_EXCLUDE = ""
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ATTACK_TAG_EXCLUDE = "" })
 	baseTag := timeIt(t, "[排除前] 规则标签列表 GetAllAttackIPTagList", rounds, func() {
 		if _, err := svc.GetAllAttackIPTagListApi(false); err != nil {
 			t.Fatalf("标签列表查询失败: %v", err)
@@ -219,7 +221,9 @@ func TestIPTagExcludePerf(t *testing.T) {
 		baseIPCnt = int(total)
 	}
 
-	global.GCONFIG_ATTACK_TAG_EXCLUDE = "ACME证书校验,静态文件访问成功"
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+		cfg.GCONFIG_ATTACK_TAG_EXCLUDE = "ACME证书校验,静态文件访问成功"
+	})
 	newTag := timeIt(t, "[排除后] 规则标签列表 GetAllAttackIPTagList", rounds, func() {
 		if _, err := svc.GetAllAttackIPTagListApi(false); err != nil {
 			t.Fatalf("标签列表查询失败: %v", err)

@@ -84,7 +84,7 @@ func certExportAllowedRoots() []string {
 			roots = append(roots, filepath.Clean(filepath.Join(absBase, certExportDefaultSubDir)))
 		}
 	}
-	for _, d := range strings.Split(global.GCONFIG_SSL_EXPORT_ALLOWED_DIRS, ",") {
+	for _, d := range strings.Split(global.CurrentSettings().GCONFIG_SSL_EXPORT_ALLOWED_DIRS, ",") {
 		d = strings.TrimSpace(d)
 		if d == "" {
 			continue

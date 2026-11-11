@@ -4,6 +4,7 @@ package wafenginecore
 
 import (
 	"HomeWaf/common/zlog"
+	"HomeWaf/internal/bodyinspect"
 	"HomeWaf/utils"
 	"bufio"
 	"bytes"
@@ -27,6 +28,12 @@ import (
 
 // encodingDetectPeekSize 编码自动检测的探测窗口大小（meta声明可能在1024字节之后）
 const encodingDetectPeekSize = 8192
+
+// Legacy response transforms are bounded; larger bodies retain their original
+// stream. The new port proxy never needs whole-response transformation.
+const maxResponseTransformBytes = 1 << 20
+
+var errResponseTransformLimit = errors.New("response transformation limit exceeded")
 
 // rawLatin1Charset 内部无损兜底编码名：真正的ISO-8859-1（256字节全双射，解码→处理→回写字节级无损）
 // 不能直接用"iso-8859-1"标签——WHATWG会把它归一到windows-1252，而windows-1252有5个
@@ -200,12 +207,15 @@ func (waf *WafEngine) compressContent(res *http.Response, isStaticAssist bool, i
 
 // 获取原始内容
 func (waf *WafEngine) getOrgContent(resp *http.Response, isStaticAssist bool, defaultEncoding string) (cntBytes []byte, encodeType string, err error) {
-	bodyBytes, err := io.ReadAll(resp.Body)
+	request := &http.Request{Body: resp.Body}
+	bodyBytes, err := bodyinspect.ReadPrefix(request, maxResponseTransformBytes)
+	resp.Body = request.Body
 	if err != nil {
 		return bodyBytes, "", fmt.Errorf("读取原始响应体失败: %v", err)
 	}
-	// 重新设置响应体，以便后续处理
-	resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	if len(bodyBytes) > maxResponseTransformBytes {
+		return bodyBytes[:maxResponseTransformBytes], "", errResponseTransformLimit
+	}
 
 	// 如果是静态资源响应或资源类型请求，直接返回原始内容
 	if isStaticAssist {
@@ -231,7 +241,7 @@ func (waf *WafEngine) getOrgContent(resp *http.Response, isStaticAssist bool, de
 	case "br":
 		bodyReader = brotli.NewReader(bytes.NewReader(bodyBytes))
 	case "zstd":
-		zstdReader, zstdErr := zstd.NewReader(bytes.NewReader(bodyBytes))
+		zstdReader, zstdErr := zstd.NewReader(bytes.NewReader(bodyBytes), zstd.WithDecoderMaxMemory(8<<20), zstd.WithDecoderConcurrency(1))
 		if zstdErr != nil {
 			zlog.Warn("zstd解压失败: %v", zstdErr)
 			return bodyBytes, "", fmt.Errorf("zstd解压失败: %v", zstdErr)
@@ -242,7 +252,15 @@ func (waf *WafEngine) getOrgContent(resp *http.Response, isStaticAssist bool, de
 		bodyReader = bytes.NewReader(bodyBytes)
 	}
 	// 创建缓冲读取器
-	bufReader := bufio.NewReaderSize(bodyReader, encodingDetectPeekSize)
+	decodedLimit := min(maxResponseTransformBytes, max(8192, len(bodyBytes)*100))
+	decoded, decodeErr := io.ReadAll(io.LimitReader(bodyReader, int64(decodedLimit+1)))
+	if decodeErr != nil {
+		return bodyBytes, "", decodeErr
+	}
+	if len(decoded) > decodedLimit {
+		return bodyBytes, "", errResponseTransformLimit
+	}
+	bufReader := bufio.NewReaderSize(bytes.NewReader(decoded), encodingDetectPeekSize)
 
 	contentType := resp.Header.Get("Content-Type")
 	var currentEncoding encoding.Encoding
@@ -311,6 +329,9 @@ func (waf *WafEngine) getOrgContent(resp *http.Response, isStaticAssist bool, de
 	// UTF-8内容无需转换直接读取，避免个别非法字节被解码器替换为U+FFFD导致内容变动
 	if strings.EqualFold(charsetNameFinal, "utf-8") {
 		resBodyBytes, readErr := io.ReadAll(bufReader)
+		if len(resBodyBytes) > decodedLimit {
+			return bodyBytes, "", errResponseTransformLimit
+		}
 		if readErr != nil {
 			zlog.Warn("读取响应体失败: %v", readErr)
 			return bodyBytes, "", fmt.Errorf("读取响应体失败: %v", readErr)
@@ -322,7 +343,10 @@ func (waf *WafEngine) getOrgContent(resp *http.Response, isStaticAssist bool, de
 	reader := transform.NewReader(bufReader, currentEncoding.NewDecoder())
 
 	// 读取全部内容
-	resBodyBytes, readErr := io.ReadAll(reader)
+	resBodyBytes, readErr := io.ReadAll(io.LimitReader(reader, maxResponseTransformBytes+1))
+	if len(resBodyBytes) > maxResponseTransformBytes {
+		return bodyBytes, "", errResponseTransformLimit
+	}
 	if readErr != nil {
 		zlog.Warn("读取响应体失败: %v", readErr)
 		return bodyBytes, "", fmt.Errorf("读取响应体失败: %v", readErr)
@@ -332,57 +356,3 @@ func (waf *WafEngine) getOrgContent(resp *http.Response, isStaticAssist bool, de
 }
 
 // 处理请求的Content-Encoding解压
-func (waf *WafEngine) decompressRequestContent(req *http.Request) ([]byte, error) {
-	if req.Body == nil || req.Body == http.NoBody {
-		return nil, nil
-	}
-
-	// 读取原始请求体
-	bodyBytes, err := io.ReadAll(req.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取请求体失败: %v", err)
-	}
-
-	// 重新设置请求体
-	req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-	// 根据Content-Encoding进行解压
-	var bodyReader io.Reader
-	switch req.Header.Get("Content-Encoding") {
-	case "gzip":
-		gzipReader, gzipErr := gzip.NewReader(bytes.NewReader(bodyBytes))
-		if gzipErr != nil {
-			zlog.Warn("请求gzip解压失败: %v", gzipErr)
-			return bodyBytes, fmt.Errorf("请求gzip解压失败: %v", gzipErr)
-		}
-		bodyReader = gzipReader
-		defer gzipReader.Close()
-	case "deflate":
-		deflateReader := flate.NewReader(bytes.NewReader(bodyBytes))
-		bodyReader = deflateReader
-		defer deflateReader.Close()
-	case "br":
-		brotliReader := brotli.NewReader(bytes.NewReader(bodyBytes))
-		bodyReader = brotliReader
-	case "zstd":
-		zstdReader, zstdErr := zstd.NewReader(bytes.NewReader(bodyBytes))
-		if zstdErr != nil {
-			zlog.Warn("请求zstd解压失败: %v", zstdErr)
-			return bodyBytes, fmt.Errorf("请求zstd解压失败: %v", zstdErr)
-		}
-		bodyReader = zstdReader
-		defer zstdReader.Close()
-	default:
-		// 没有压缩或不支持的压缩格式，直接返回原始内容
-		return bodyBytes, nil
-	}
-
-	// 读取解压后的内容
-	decompressedBytes, readErr := io.ReadAll(bodyReader)
-	if readErr != nil {
-		zlog.Warn("读取解压后的请求体失败: %v", readErr)
-		return bodyBytes, fmt.Errorf("读取解压后的请求体失败: %v", readErr)
-	}
-
-	return decompressedBytes, nil
-}

@@ -2,6 +2,7 @@
 
 <template>
   <div>
+    <div role="note" style="padding:16px;margin-bottom:16px;border:1px solid var(--td-component-border);border-radius:6px;line-height:1.7">此页保留原站点源记录，仅影响尚未接管的监听。已接管端口的策略、账号和业务路由请在五步配置中修改。<hw-button variant="text" theme="primary" @click="$router.push({name:'WafPipeline'})">返回端口总览与配置</hw-button></div>
     <!-- 站点态势总览：先给页面一个「重心」，关键指标集中呈现 -->
     <div class="host-overview">
       <hw-loading :loading="statsLoading" show-overlay>

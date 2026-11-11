@@ -63,7 +63,7 @@ func GetBanExecutor() *BanExecutor {
 
 // useIncremental 判断本次是否走增量路径
 func (e *BanExecutor) useIncremental() bool {
-	switch global.GCONFIG_HOST_GUARD_EXEC_MODE {
+	switch global.CurrentSettings().GCONFIG_HOST_GUARD_EXEC_MODE {
 	case "rule":
 		// 强制逐条规则(调试用)：逐条 BlockIP 本身就是增量语义
 		return true
@@ -76,10 +76,10 @@ func (e *BanExecutor) useIncremental() bool {
 
 // useRuleMode 是否走逐条防火墙规则而不是集合
 func (e *BanExecutor) useRuleMode() bool {
-	if global.GCONFIG_HOST_GUARD_EXEC_MODE == "rule" {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_EXEC_MODE == "rule" {
 		return true
 	}
-	if global.GCONFIG_HOST_GUARD_EXEC_MODE == "ipset" {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_EXEC_MODE == "ipset" {
 		return false
 	}
 	// auto：集合不可用时退回逐条规则(比如 Linux 上没装 ipset)
@@ -114,7 +114,7 @@ func (e *BanExecutor) ApplyPortScope() {
 	if e.useRuleMode() {
 		return
 	}
-	if global.GCONFIG_HOST_GUARD_PORT_SCOPE != "detected" {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_PORT_SCOPE != "detected" {
 		// 恢复全端口
 		if err := e.fw.ApplyIPSetPortScope(BanSetName, nil); err != nil {
 			zlog.Warn("[主机登录防护] 恢复全端口封禁范围失败", "error", err.Error())
@@ -266,7 +266,7 @@ func (e *BanExecutor) markDirty() {
 	}
 	e.dirty = true
 
-	debounce := time.Duration(global.GCONFIG_HOST_GUARD_DEBOUNCE_SEC) * time.Second
+	debounce := time.Duration(global.CurrentSettings().GCONFIG_HOST_GUARD_DEBOUNCE_SEC) * time.Second
 	if debounce <= 0 {
 		debounce = 30 * time.Second
 	}

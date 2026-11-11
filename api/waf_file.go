@@ -301,7 +301,7 @@ func (w *WafFileApi) getFileDescription(fileName, relPath string) string {
 	case fileName == "local_stats.db":
 		return "统计数据库文件，存储访问统计信息"
 	case fileName == "local_log.db":
-		return "主日志数据库文件，存储访问日志和攻击记录删除后会情况重新创建一个新的日志文件"
+		return "日志数据库文件，存储访问日志和攻击记录"
 	case strings.Contains(fileName, "local_log"):
 		return "日志数据库文件，存储访问日志和攻击记录"
 	case strings.Contains(relPath, "backup"):

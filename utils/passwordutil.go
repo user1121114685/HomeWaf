@@ -97,11 +97,12 @@ func IsPasswordReused(newHash string, history []string) bool {
 
 // BuildPolicyFromConfig 从全局配置组装当前口令复杂度策略
 func BuildPolicyFromConfig() PasswordComplexityPolicy {
+	cfg := global.CurrentSettings()
 	return PasswordComplexityPolicy{
-		MinLength:      int(global.GCONFIG_PWD_MIN_LENGTH),
-		RequireUpper:   global.GCONFIG_PWD_REQUIRE_UPPER == 1,
-		RequireLower:   global.GCONFIG_PWD_REQUIRE_LOWER == 1,
-		RequireDigit:   global.GCONFIG_PWD_REQUIRE_DIGIT == 1,
-		RequireSpecial: global.GCONFIG_PWD_REQUIRE_SPECIAL == 1,
+		MinLength:      int(cfg.GCONFIG_PWD_MIN_LENGTH),
+		RequireUpper:   cfg.GCONFIG_PWD_REQUIRE_UPPER == 1,
+		RequireLower:   cfg.GCONFIG_PWD_REQUIRE_LOWER == 1,
+		RequireDigit:   cfg.GCONFIG_PWD_REQUIRE_DIGIT == 1,
+		RequireSpecial: cfg.GCONFIG_PWD_REQUIRE_SPECIAL == 1,
 	}
 }

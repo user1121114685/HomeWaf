@@ -35,7 +35,9 @@ const (
 	DIRECTION_BOTH = "both" // 双向
 )
 
-type FireWallEngine struct{}
+type FireWallEngine struct {
+	command func(*exec.Cmd) (error, string)
+}
 
 // IPBlockInfo IP封禁信息结构
 type IPBlockInfo struct {
@@ -99,6 +101,9 @@ func (fw *FireWallEngine) checkAvailable() error {
 }
 
 func (fw *FireWallEngine) executeCommand(cmd *exec.Cmd) (error, string) {
+	if fw.command != nil {
+		return fw.command(cmd)
+	}
 	// 只补 Stdin：下面要取 StdoutPipe/StderrPipe，Stdout/Stderr 必须留给 os/exec 自己接管
 	wafexec.FixStdin(cmd)
 	stdout, err := cmd.StdoutPipe()
@@ -134,7 +139,7 @@ func (fw *FireWallEngine) executeCommand(cmd *exec.Cmd) (error, string) {
 // isIPInRules 直接用原始 IP 检查 iptables 中是否存在 DROP 规则，支持单 IP 和 CIDR
 func (fw *FireWallEngine) isIPInRules(ip string) (bool, error) {
 	cmd := wafexec.FixStdin(exec.Command("iptables-save"))
-	output, err := cmd.CombinedOutput()
+	err, output := fw.executeCommand(cmd)
 	if err != nil {
 		fmt.Printf("[ERROR] 获取iptables规则失败: %v\n", err)
 		return false, fmt.Errorf("failed to list iptables rules: %v, output: %s", err, string(output))
@@ -283,7 +288,7 @@ func (fw *FireWallEngine) UnblockIPList(ips []string) (successCount int, failedI
 // GetBlockedIPList 获取所有已封禁的IP列表
 func (fw *FireWallEngine) GetBlockedIPList() ([]string, error) {
 	cmd := wafexec.FixStdin(exec.Command("iptables-save"))
-	output, err := cmd.CombinedOutput()
+	err, output := fw.executeCommand(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blocked IP list: %v", err)
 	}

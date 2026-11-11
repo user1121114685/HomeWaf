@@ -13,13 +13,17 @@ import (
 
 func TestHomeWafUpdateSourceResponses(t *testing.T) {
 	oldManifest, oldRelease, oldBeta := global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL
-	oldBetaCheck, oldUpdating, oldVersion, oldWin7 := global.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING, global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_WIN7_VERSION
+	oldBetaCheck, oldUpdating, oldVersion, oldWin7 := global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING, global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_WIN7_VERSION
 	t.Cleanup(func() {
 		global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL = oldManifest, oldRelease, oldBeta
-		global.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING, global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_WIN7_VERSION = oldBetaCheck, oldUpdating, oldVersion, oldWin7
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING, global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_WIN7_VERSION = oldBetaCheck, oldUpdating, oldVersion, oldWin7
+		})
 	})
 	global.GUPDATE_VERSION_URL, global.GUPDATE_GITHUB_VERSION_URL = "", ""
-	global.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = 0, false
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+		cfg.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = 0, false
+	})
 	global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_WIN7_VERSION = "v2.0.0", "false"
 	for _, status := range []int{404, 403, 500} {
 		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) }))

@@ -64,7 +64,7 @@ func (waf *WafEngine) checkCaptchaToken(r *http.Request, webLog innerbean.WebLog
 				return true
 			}
 			//伪爬虫是否开启图形验证
-			if global.GCONFIG_RECORD_FAKE_SPIDER_CAPTCHA == 0 {
+			if requestSettings(r).GCONFIG_RECORD_FAKE_SPIDER_CAPTCHA == 0 {
 				return true
 			}
 		}

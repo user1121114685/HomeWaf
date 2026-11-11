@@ -35,6 +35,7 @@
           <threat-exclude-panel ref="excludePanel" @changed="getList('')" />
         </template>
       </help-block>
+      <p class="quick-fill-tips">网络更新必须显式启用并配置可信Ed25519公钥、源标识和HTTPS签名清单。未签名的历史缓存保留，网络更新暂停；常用源预填只提供文本地址，不能代替签名。可用离线工具 homewaf-license sign-threat-snapshot 为自己审核的镜像签名。</p>
       <div class="table-container">
         <hw-table :columns="columns" :data="data" :rowKey="rowKey" :verticalAlign="verticalAlign" :hover="hover"
           :pagination="pagination" :loading="dataLoading" @page-change="rehandlePageChange"
@@ -112,6 +113,11 @@
           <hw-form-item :label="$t('page.threatip.label_url')" name="url">
             <hw-input :style="{ width: '480px' }" v-model="formData.url"></hw-input>
           </hw-form-item>
+          <hw-form-item label="签名清单HTTPS地址" name="signature_url"><hw-input v-model="formData.signature_url" style="width:480px;max-width:100%" aria-label="签名清单HTTPS地址" /></hw-form-item>
+          <hw-form-item label="签名源标识" name="feed_id"><hw-input v-model="formData.feed_id" style="width:480px;max-width:100%" aria-label="签名源标识" /></hw-form-item>
+          <hw-form-item label="签名密钥ID" name="signing_key_id"><hw-input v-model="formData.signing_key_id" style="width:480px;max-width:100%" aria-label="签名密钥ID" /></hw-form-item>
+          <hw-form-item label="可信Ed25519公钥" name="signing_public_key"><hw-input v-model="formData.signing_public_key" style="width:480px;max-width:100%" aria-label="可信Ed25519公钥" /></hw-form-item>
+          <p class="quick-fill-tips">公钥为Base64URL无填充；签名版本必须递增，同版本只能是相同内容。私钥保留在签名机，不上传WAF。保存关闭状态可保留尚未配齐的草稿。</p>
           <hw-form-item :label="$t('page.threatip.label_parser')" name="parser_type">
             <hw-select v-model="formData.parser_type" :style="{ width: '480px' }">
               <hw-option v-for="item in parserOptions" :value="item.value" :label="item.label" :key="item.value" />
@@ -154,6 +160,11 @@
           <hw-form-item :label="$t('page.threatip.label_url')" name="url">
             <hw-input :style="{ width: '480px' }" v-model="formEditData.url"></hw-input>
           </hw-form-item>
+          <hw-form-item label="签名清单HTTPS地址" name="signature_url"><hw-input v-model="formEditData.signature_url" style="width:480px;max-width:100%" aria-label="签名清单HTTPS地址" /></hw-form-item>
+          <hw-form-item label="签名源标识" name="feed_id"><hw-input v-model="formEditData.feed_id" style="width:480px;max-width:100%" aria-label="签名源标识" /></hw-form-item>
+          <hw-form-item label="签名密钥ID" name="signing_key_id"><hw-input v-model="formEditData.signing_key_id" style="width:480px;max-width:100%" aria-label="签名密钥ID" /></hw-form-item>
+          <hw-form-item label="可信Ed25519公钥" name="signing_public_key"><hw-input v-model="formEditData.signing_public_key" style="width:480px;max-width:100%" aria-label="可信Ed25519公钥" /></hw-form-item>
+          <p class="quick-fill-tips">公钥为Base64URL无填充；签名版本必须递增，同版本只能是相同内容。私钥保留在签名机，不上传WAF。保存关闭状态可保留尚未配齐的草稿。</p>
           <hw-form-item :label="$t('page.threatip.label_parser')" name="parser_type">
             <hw-select v-model="formEditData.parser_type" :style="{ width: '480px' }">
               <hw-option v-for="item in parserOptions" :value="item.value" :label="item.label" :key="item.value" />
@@ -202,10 +213,11 @@ import {defineComponent} from 'vue';
     code: '',
     name: '',
     url: '',
+    signature_url: '', feed_id: '', signing_key_id: '', signing_public_key: '',
     parser_type: 'plain_mixed',
     threshold: 0,
     land_target: 'waf',
-    enable: 1,
+    enable: 0,
     interval_hour: 24,
     remarks: '',
   };
@@ -256,6 +268,7 @@ import {defineComponent} from 'vue';
           { code: 'feodo', name: 'Feodo Tracker', url: 'https://feodotracker.abuse.ch/downloads/ipblocklist.txt', parser_type: 'cidr_only', threshold: 0, optionLabel: 'Feodo Tracker · abuse.ch（僵尸网络C2）' },
         ],
         columns: [
+          { title: '已验签版本（0为历史缓存）', width: 150, colKey: 'signed_sequence' },
           { title: this.$t('page.threatip.label_name'), align: 'left', width: 160, ellipsis: true, colKey: 'name' },
           { title: this.$t('page.threatip.label_code'), width: 120, ellipsis: true, colKey: 'code' },
           { title: this.$t('page.threatip.label_parser'), width: 120, colKey: 'parser_type' },
@@ -374,6 +387,8 @@ import {defineComponent} from 'vue';
         this.formData.url = p.url;
         this.formData.parser_type = p.parser_type;
         this.formData.threshold = p.threshold || 0;
+        this.formData.enable = 0;
+        this.formData.signature_url = ''; this.formData.feed_id = ''; this.formData.signing_key_id = ''; this.formData.signing_public_key = '';
       },
       handleClickEdit(e) {
         this.editFormVisible = true;

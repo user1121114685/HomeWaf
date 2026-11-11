@@ -40,8 +40,8 @@ func (waf *WafEngine) ApplySSLOrder(chanType int, bean model.SslOrder) {
 	eab_kid := ""
 	eab_hmac_key := ""
 	if bean.ApplyPlatform == "zerossl" {
-		eab_kid = global.GCONFIG_ZEROSSL_EAB_KID
-		eab_hmac_key = global.GCONFIG_ZEROSSL_EAB_HMAC_KEY
+		eab_kid = global.CurrentSettings().GCONFIG_ZEROSSL_EAB_KID
+		eab_hmac_key = global.CurrentSettings().GCONFIG_ZEROSSL_EAB_HMAC_KEY
 	}
 	if chanType == enums.ChanSslOrderSubmitted {
 		//发起申请

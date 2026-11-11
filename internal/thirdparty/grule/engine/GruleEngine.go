@@ -261,6 +261,12 @@ func (g *GruleEngine) ExecuteWithContext(ctx context.Context, dataCtx ast.IDataC
 // FetchMatchingRules function is responsible to fetch all the rules that matches to a fact against all rule entries
 // Returns []*ast.RuleEntry order by salience
 func (g *GruleEngine) FetchMatchingRules(dataCtx ast.IDataContext, knowledge *ast.KnowledgeBase) ([]*ast.RuleEntry, error) {
+	return g.FetchMatchingRulesWithContext(context.Background(), dataCtx, knowledge)
+}
+
+// HomeWaf: bound matching to the request inspection deadline, without starting
+// detached evaluator goroutines or executing any rule action statements.
+func (g *GruleEngine) FetchMatchingRulesWithContext(ctx context.Context, dataCtx ast.IDataContext, knowledge *ast.KnowledgeBase) ([]*ast.RuleEntry, error) {
 	if knowledge == nil || dataCtx == nil {
 
 		return nil, fmt.Errorf("nil KnowledgeBase or DataContext is not allowed")
@@ -292,9 +298,12 @@ func (g *GruleEngine) FetchMatchingRules(dataCtx ast.IDataContext, knowledge *as
 	log.Tracef("Select all rule entry that can be executed.")
 	runnable := make([]*ast.RuleEntry, 0)
 	for _, entries := range knowledge.RuleEntries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if !entries.Deleted {
 			// test if this rule entry v can execute.
-			can, err := entries.Evaluate(context.Background(), dataCtx, knowledge.WorkingMemory)
+			can, err := entries.Evaluate(ctx, dataCtx, knowledge.WorkingMemory)
 			if err != nil {
 				log.Errorf("Failed testing condition for rule : %s. Got error %v", entries.RuleName, err)
 				if g.ReturnErrOnFailedRuleEvaluation {

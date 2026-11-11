@@ -133,10 +133,10 @@ func LoadAndInitConfig() {
 	// 超时仍未排空的连接将被强制关闭。<=0 时回退到默认 30s。
 	if config.IsSet("drain_time_out") {
 		if v := config.GetInt64("drain_time_out"); v > 0 {
-			global.GCONFIG_RECORD_DRAIN_TIMEOUT = v
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_DRAIN_TIMEOUT = v })
 		}
 	} else {
-		config.Set("drain_time_out", global.GCONFIG_RECORD_DRAIN_TIMEOUT)
+		config.Set("drain_time_out", global.CurrentSettings().GCONFIG_RECORD_DRAIN_TIMEOUT)
 		configChanged = true
 	}
 
@@ -144,18 +144,18 @@ func LoadAndInitConfig() {
 	// 只读 config.yml、不进数据库/API：容器或低配机器重启慢，属部署环境差异，运营方带外调整。
 	if config.IsSet("update_restart_timeout") {
 		if v := config.GetInt64("update_restart_timeout"); v > 0 {
-			global.GCONFIG_UPDATE_RESTART_TIMEOUT = v
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_UPDATE_RESTART_TIMEOUT = v })
 		}
 	} else {
-		config.Set("update_restart_timeout", global.GCONFIG_UPDATE_RESTART_TIMEOUT)
+		config.Set("update_restart_timeout", global.CurrentSettings().GCONFIG_UPDATE_RESTART_TIMEOUT)
 		configChanged = true
 	}
 
 	// 版本/清单检查请求是否附带运行环境标识
 	if config.IsSet("update_env_report") {
-		global.GCONFIG_UPDATE_ENV_REPORT = config.GetBool("update_env_report")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_UPDATE_ENV_REPORT = config.GetBool("update_env_report") })
 	} else {
-		config.Set("update_env_report", global.GCONFIG_UPDATE_ENV_REPORT)
+		config.Set("update_env_report", global.CurrentSettings().GCONFIG_UPDATE_ENV_REPORT)
 		configChanged = true
 	}
 
@@ -237,18 +237,22 @@ func LoadAndInitConfig() {
 	//这是“配错就可能被管理端 IP 白名单挡在门外”的救命配置，必须能不登录、改文件+重启即可修复。
 	//仅当管理请求的直连对端落在此网段内，才采信 gwaf_manage_proxy_header 指定的代理头；留空=不信任任何代理头。
 	if config.IsSet("security.manage_trusted_proxies") {
-		global.GCONFIG_MANAGE_TRUSTED_PROXIES = config.GetString("security.manage_trusted_proxies")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_MANAGE_TRUSTED_PROXIES = config.GetString("security.manage_trusted_proxies")
+		})
 	} else {
-		config.Set("security.manage_trusted_proxies", global.GCONFIG_MANAGE_TRUSTED_PROXIES)
+		config.Set("security.manage_trusted_proxies", global.CurrentSettings().GCONFIG_MANAGE_TRUSTED_PROXIES)
 		configChanged = true
 	}
 
 	//管理端引用的 CDN 厂商码（管理端也挂 CDN 时）。设置后 GetManageClientIP 会额外把该厂商中心库
 	//最新回源段视为可信代理，自动跟随更新，无需手填静态网段。同放 config.yml 便于救命自救。
 	if config.IsSet("security.manage_cdn_provider") {
-		global.GCONFIG_MANAGE_CDN_PROVIDER = config.GetString("security.manage_cdn_provider")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_MANAGE_CDN_PROVIDER = config.GetString("security.manage_cdn_provider")
+		})
 	} else {
-		config.Set("security.manage_cdn_provider", global.GCONFIG_MANAGE_CDN_PROVIDER)
+		config.Set("security.manage_cdn_provider", global.CurrentSettings().GCONFIG_MANAGE_CDN_PROVIDER)
 		configChanged = true
 	}
 
@@ -256,9 +260,11 @@ func LoadAndInitConfig() {
 	//“向宿主机哪些目录落盘”属运营方的带外授权，攻击者/OpenAPI Key/普通 systemAdmin 都不能改。
 	//内置默认 data/ssl_export 恒允许；留空=只允许该默认目录（fail-closed）。
 	if config.IsSet("security.ssl_export_allowed_dirs") {
-		global.GCONFIG_SSL_EXPORT_ALLOWED_DIRS = config.GetString("security.ssl_export_allowed_dirs")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_SSL_EXPORT_ALLOWED_DIRS = config.GetString("security.ssl_export_allowed_dirs")
+		})
 	} else {
-		config.Set("security.ssl_export_allowed_dirs", global.GCONFIG_SSL_EXPORT_ALLOWED_DIRS)
+		config.Set("security.ssl_export_allowed_dirs", global.CurrentSettings().GCONFIG_SSL_EXPORT_ALLOWED_DIRS)
 		configChanged = true
 	}
 
@@ -266,18 +272,22 @@ func LoadAndInitConfig() {
 	//只放 config.yml、不进数据库/API——密钥来源属运营方带外授权。留空=默认 .homewaf-keys/data_key
 	//（首次启动自动生成、权限 0600）。指定自管文件便于把密钥与数据库分盘保管或统一托管。
 	if config.IsSet("security.data_key_file") {
-		global.GCONFIG_DATA_KEY_FILE = config.GetString("security.data_key_file")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_DATA_KEY_FILE = config.GetString("security.data_key_file")
+		})
 	} else {
-		config.Set("security.data_key_file", global.GCONFIG_DATA_KEY_FILE)
+		config.Set("security.data_key_file", global.CurrentSettings().GCONFIG_DATA_KEY_FILE)
 		configChanged = true
 	}
 
 	//每实例传输密钥(X25519)文件的自管路径，口径同 data_key_file。
 	//留空=默认 data/.keys/comm_key（首次启动自动生成、权限 0600）。
 	if config.IsSet("security.comm_key_file") {
-		global.GCONFIG_COMM_KEY_FILE = config.GetString("security.comm_key_file")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_COMM_KEY_FILE = config.GetString("security.comm_key_file")
+		})
 	} else {
-		config.Set("security.comm_key_file", global.GCONFIG_COMM_KEY_FILE)
+		config.Set("security.comm_key_file", global.CurrentSettings().GCONFIG_COMM_KEY_FILE)
 		configChanged = true
 	}
 
@@ -286,9 +296,11 @@ func LoadAndInitConfig() {
 	//可手动置 false，此时没有会话密钥的请求会收到明确的重新握手信号而不是一段解不开的密文。
 	//收紧永远是运营方的主动行为——任何版本都不得自动翻转这个默认值。
 	if config.IsSet("security.comm_legacy_key") {
-		global.GCONFIG_COMM_LEGACY_KEY = config.GetBool("security.comm_legacy_key")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_COMM_LEGACY_KEY = config.GetBool("security.comm_legacy_key")
+		})
 	} else {
-		config.Set("security.comm_legacy_key", global.GCONFIG_COMM_LEGACY_KEY)
+		config.Set("security.comm_legacy_key", global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY)
 		configChanged = true
 	}
 
@@ -296,27 +308,33 @@ func LoadAndInitConfig() {
 	//只放 config.yml、不进数据库/API——「能读宿主机哪些目录」属运营方带外授权，
 	//攻击者/OpenAPI Key/普通管理员都不能改。内置默认 data/import 恒允许；留空=只允许该默认目录（fail-closed）。
 	if config.IsSet("security.batch_import_allowed_dirs") {
-		global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = config.GetString("security.batch_import_allowed_dirs")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS = config.GetString("security.batch_import_allowed_dirs")
+		})
 	} else {
-		config.Set("security.batch_import_allowed_dirs", global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS)
+		config.Set("security.batch_import_allowed_dirs", global.CurrentSettings().GCONFIG_BATCH_IMPORT_ALLOWED_DIRS)
 		configChanged = true
 	}
 
 	//用户可配的对外地址允许清单（主机名/IP/CIDR，逗号分隔）。覆盖：通知渠道 Webhook、
 	//批量任务远端来源、威胁情报订阅、CDN 回源段拉取。默认只允许公网目标；确有内网目标的部署，
 	if config.IsSet("security.outbound_allowed_hosts") {
-		global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = config.GetString("security.outbound_allowed_hosts")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = config.GetString("security.outbound_allowed_hosts")
+		})
 	} else {
-		config.Set("security.outbound_allowed_hosts", global.GCONFIG_OUTBOUND_ALLOWED_HOSTS)
+		config.Set("security.outbound_allowed_hosts", global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS)
 		configChanged = true
 	}
 
 	//CORS 跨域来源白名单（逗号分隔，大小写不敏感）。同放 config.yml 而非数据库：
 	//异地部署的前端跨域配错会连不上后端，改文件即可自救；回环/本机来源(dev server)在代码里始终放行。
 	if config.IsSet("security.cors_allow_origins") {
-		global.GCONFIG_CORS_ALLOW_ORIGINS = config.GetString("security.cors_allow_origins")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_CORS_ALLOW_ORIGINS = config.GetString("security.cors_allow_origins")
+		})
 	} else {
-		config.Set("security.cors_allow_origins", global.GCONFIG_CORS_ALLOW_ORIGINS)
+		config.Set("security.cors_allow_origins", global.CurrentSettings().GCONFIG_CORS_ALLOW_ORIGINS)
 		configChanged = true
 	}
 
@@ -358,13 +376,15 @@ func LoadAndInitConfig() {
 	//「用户把管理端也反代进了 WAF 并开启了 Access，配错后自己都进不去管理端」——
 	//那时唯一能操作的就是配置文件。环境变量走 SAMWAF_ACCESS_DISABLE=1，容器场景更方便。
 	if config.IsSet("security.access_force_disable") {
-		global.GCONFIG_ACCESS_FORCE_DISABLE = config.GetBool("security.access_force_disable")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_ACCESS_FORCE_DISABLE = config.GetBool("security.access_force_disable")
+		})
 	} else {
-		config.Set("security.access_force_disable", global.GCONFIG_ACCESS_FORCE_DISABLE)
+		config.Set("security.access_force_disable", global.CurrentSettings().GCONFIG_ACCESS_FORCE_DISABLE)
 		configChanged = true
 	}
 	if v := strings.TrimSpace(os.Getenv("SAMWAF_ACCESS_DISABLE")); v == "1" || strings.EqualFold(v, "true") {
-		global.GCONFIG_ACCESS_FORCE_DISABLE = true
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_ACCESS_FORCE_DISABLE = true })
 	}
 
 	//配置和提取主机防爆破的强制关闭开关（自救用）
@@ -374,13 +394,15 @@ func LoadAndInitConfig() {
 	//能操作的只有配置文件。容器场景走 SAMWAF_HOSTGUARD_DISABLE=1 更方便。
 	//注意：它只阻止「新的」封禁，已经下发的规则仍在，需要手工 ipset del / netsh delete rule 清掉。
 	if config.IsSet("security.host_guard_force_disable") {
-		global.GCONFIG_HOST_GUARD_FORCE_DISABLE = config.GetBool("security.host_guard_force_disable")
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_HOST_GUARD_FORCE_DISABLE = config.GetBool("security.host_guard_force_disable")
+		})
 	} else {
-		config.Set("security.host_guard_force_disable", global.GCONFIG_HOST_GUARD_FORCE_DISABLE)
+		config.Set("security.host_guard_force_disable", global.CurrentSettings().GCONFIG_HOST_GUARD_FORCE_DISABLE)
 		configChanged = true
 	}
 	if v := strings.TrimSpace(os.Getenv("SAMWAF_HOSTGUARD_DISABLE")); v == "1" || strings.EqualFold(v, "true") {
-		global.GCONFIG_HOST_GUARD_FORCE_DISABLE = true
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_HOST_GUARD_FORCE_DISABLE = true })
 	}
 
 	//配置和提取安全路径入口开关
@@ -672,7 +694,7 @@ func UpdateManageTrustedProxies(trustedProxies string) error {
 	}
 
 	config.Set("security.manage_trusted_proxies", trustedProxies)
-	global.GCONFIG_MANAGE_TRUSTED_PROXIES = trustedProxies
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_TRUSTED_PROXIES = trustedProxies })
 
 	if err := config.WriteConfig(); err != nil {
 		fmt.Printf("%s\tERROR\twrite config failed:%v\n", currentTime, err)
@@ -715,7 +737,7 @@ func UpdateManageCDNProvider(provider string) error {
 	}
 
 	config.Set("security.manage_cdn_provider", provider)
-	global.GCONFIG_MANAGE_CDN_PROVIDER = provider
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_CDN_PROVIDER = provider })
 
 	if err := config.WriteConfig(); err != nil {
 		fmt.Printf("%s\tERROR\twrite config failed:%v\n", currentTime, err)
@@ -758,7 +780,7 @@ func UpdateCorsAllowOrigins(origins string) error {
 	}
 
 	config.Set("security.cors_allow_origins", origins)
-	global.GCONFIG_CORS_ALLOW_ORIGINS = origins
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_CORS_ALLOW_ORIGINS = origins })
 
 	if err := config.WriteConfig(); err != nil {
 		fmt.Printf("%s\tERROR\twrite config failed:%v\n", currentTime, err)

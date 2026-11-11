@@ -3,9 +3,9 @@
 package api
 
 import (
+	"HomeWaf/common/zlog"
 	"HomeWaf/enums"
 	"HomeWaf/global"
-	"HomeWaf/model"
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
 	"HomeWaf/model/spec"
@@ -108,8 +108,11 @@ func (w *WafHttpAuthBaseApi) ModifyApi(c *gin.Context) {
 
 // NotifyWaf  通知到waf引擎实时生效
 func (w *WafHttpAuthBaseApi) NotifyWaf(hostCode string) {
-	var list []model.HttpAuthBase
-	global.GWAF_LOCAL_DB.Where("host_code = ? ", hostCode).Find(&list)
+	list, err := wafHttpAuthBaseService.LoadForHost(hostCode)
+	if err != nil {
+		zlog.Error("HTTPAuth account refresh failed", hostCode)
+		return
+	}
 	var chanInfo = spec.ChanCommonHost{
 		HostCode: hostCode,
 		Type:     enums.ChanTypeHttpauth,

@@ -41,12 +41,16 @@ func TestAppOpPasswordAudit(t *testing.T) {
 			if err := db.AutoMigrate(&model.SecurityAuditLog{}); err != nil {
 				t.Fatal(err)
 			}
-			oldLog, oldPassword, oldHeader := global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_OP_PASSWORD, global.GCONFIG_MANAGE_PROXY_HEADER
+			oldLog, oldPassword, oldHeader := global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_OP_PASSWORD, global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER
 			oldUser, oldTenant := global.GWAF_USER_CODE, global.GWAF_TENANT_ID
-			global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_OP_PASSWORD, global.GCONFIG_MANAGE_PROXY_HEADER = db, tc.expected, ""
+			global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+				global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_OP_PASSWORD, cfg.GCONFIG_MANAGE_PROXY_HEADER = db, tc.expected, ""
+			})
 			global.GWAF_USER_CODE, global.GWAF_TENANT_ID = "audit-user", "audit-tenant"
 			t.Cleanup(func() {
-				global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_OP_PASSWORD, global.GCONFIG_MANAGE_PROXY_HEADER = oldLog, oldPassword, oldHeader
+				global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+					global.GWAF_LOCAL_LOG_DB, global.GWAF_APP_OP_PASSWORD, cfg.GCONFIG_MANAGE_PROXY_HEADER = oldLog, oldPassword, oldHeader
+				})
 				global.GWAF_USER_CODE, global.GWAF_TENANT_ID = oldUser, oldTenant
 				sqlDB, _ := db.DB()
 				_ = sqlDB.Close()

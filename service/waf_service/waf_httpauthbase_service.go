@@ -9,6 +9,7 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
+	"HomeWaf/utils"
 	"errors"
 	"time"
 )
@@ -18,6 +19,23 @@ type WafHttpAuthBaseService struct{}
 var WafHttpAuthBaseServiceApp = new(WafHttpAuthBaseService)
 
 func (receiver *WafHttpAuthBaseService) AddApi(req request.WafHttpAuthBaseAddReq) error {
+	if err := validateGateUsername(req.UserName); err != nil {
+		return err
+	}
+	if err := ValidateGatePassword(req.UserName, req.Password); err != nil {
+		return err
+	}
+	var count int64
+	if err := global.GWAF_LOCAL_DB.Model(&model.HttpAuthBase{}).Where("host_code = ?", req.HostCode).Count(&count).Error; err != nil {
+		return err
+	}
+	if count >= 1000 {
+		return errors.New("站点账号数量已达上限")
+	}
+	hash, err := utils.BcryptHash(req.Password)
+	if err != nil {
+		return err
+	}
 	var bean = &model.HttpAuthBase{
 		BaseOrm: baseorm.BaseOrm{
 			Id:          uuid.GenUUID(),
@@ -27,9 +45,10 @@ func (receiver *WafHttpAuthBaseService) AddApi(req request.WafHttpAuthBaseAddReq
 			UPDATE_TIME: customtype.JsonTime(time.Now()),
 		},
 
-		HostCode: req.HostCode,
-		UserName: req.UserName,
-		Password: req.Password,
+		HostCode:       req.HostCode,
+		UserName:       req.UserName,
+		Password:       hash,
+		PasswordHashed: true,
 	}
 	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
@@ -125,7 +144,31 @@ func (receiver *WafHttpAuthBaseService) ModifyApi(req request.WafHttpAuthBaseEdi
 	// 改之前先把老身份记下来：改密/改名之后，凭旧密码建立的会话必须一并作废，
 	// 否则「改了密码」只挡住新登录，已经登进去的人照样在里面。
 	var old model.HttpAuthBase
-	global.GWAF_LOCAL_DB.Where("id = ?", req.Id).Limit(1).Find(&old)
+	if err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&old).Error; err != nil {
+		return err
+	}
+	if err := validateGateUsername(req.UserName); err != nil {
+		return err
+	}
+	password := old.Password
+	if req.Password != "" {
+		if err := ValidateGatePassword(req.UserName, req.Password); err != nil {
+			return err
+		}
+		hash, err := utils.BcryptHash(req.Password)
+		if err != nil {
+			return err
+		}
+		password = hash
+	} else if !old.PasswordHashed {
+		hash, err := utils.BcryptHash(old.Password)
+		if err != nil {
+			return err
+		}
+		password = hash
+	}
+	beanMap["Password"] = password
+	beanMap["PasswordHashed"] = true
 
 	err := global.GWAF_LOCAL_DB.Model(model.HttpAuthBase{}).Where("id = ?", req.Id).Updates(beanMap).Error
 	if err != nil {
@@ -143,6 +186,33 @@ func (receiver *WafHttpAuthBaseService) GetDetailApi(req request.WafHttpAuthBase
 	var bean model.HttpAuthBase
 	global.GWAF_LOCAL_DB.Where("id=?", req.Id).Find(&bean)
 	return bean
+}
+
+// LoadForHost performs a one-way conversion of old encrypted plaintext during
+// configuration loading, never on a request. Account rows and keys are kept.
+func (receiver *WafHttpAuthBaseService) LoadForHost(hostCode string) ([]model.HttpAuthBase, error) {
+	var rows []model.HttpAuthBase
+	if err := global.GWAF_LOCAL_DB.Where("host_code = ?", hostCode).Limit(1001).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	if len(rows) > 1000 {
+		return nil, errors.New("HTTPAuth account quota exceeded")
+	}
+	for i := range rows {
+		if rows[i].PasswordHashed {
+			continue
+		}
+		hash, err := utils.BcryptHash(rows[i].Password)
+		if err != nil {
+			return nil, errors.New("legacy HTTPAuth password cannot be converted; reset this account")
+		}
+		if err = global.GWAF_LOCAL_DB.Model(&model.HttpAuthBase{}).Where("id = ? AND (password_hashed = ? OR password_hashed IS NULL)", rows[i].Id, false).Updates(map[string]any{"Password": hash, "PasswordHashed": true}).Error; err != nil {
+			return nil, err
+		}
+		rows[i].Password = hash
+		rows[i].PasswordHashed = true
+	}
+	return rows, nil
 }
 func (receiver *WafHttpAuthBaseService) GetDetailByIdApi(id string) model.HttpAuthBase {
 	var bean model.HttpAuthBase

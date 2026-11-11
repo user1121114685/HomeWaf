@@ -4,11 +4,13 @@ package iplocation
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ipipdotnet/ipdb-go"
@@ -18,7 +20,10 @@ import (
 
 // Manager IP 地理位置查询管理器
 type Manager struct {
-	mu sync.RWMutex
+	mu                                sync.RWMutex
+	generation                        atomic.Uint64
+	v4Regions, v6Regions, ipdbRegions []RegionOption
+	v4RegionData, v6RegionData        []byte
 
 	// IPv4 后端
 	v4Source     DBSource
@@ -46,6 +51,8 @@ type Manager struct {
 	ipdbFileSize   int64
 	ipdbCreateTime time.Time
 }
+
+func (m *Manager) Generation() uint64 { return m.generation.Load() }
 
 // NewManager 创建新的 IP 地理位置查询管理器
 func NewManager() *Manager {
@@ -152,6 +159,14 @@ func (m *Manager) lookupV6(ipStr string) *IPLocationResult {
 
 // LoadV4Ip2Region 加载 IPv4 ip2region 数据库
 func (m *Manager) LoadV4Ip2Region(data []byte, format DBFormat) error {
+	regions, catalogErr := xdbRegions(data, xdb.IPv4, format)
+	if catalogErr != nil {
+		return catalogErr
+	}
+	searcher, err := xdb.NewWithBuffer(xdb.IPv4, data)
+	if err != nil {
+		return fmt.Errorf("创建 IPv4 searcher 失败: %w", err)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -161,13 +176,10 @@ func (m *Manager) LoadV4Ip2Region(data []byte, format DBFormat) error {
 		m.v4Searcher = nil
 	}
 
-	// 创建新的 searcher (buffer 模式并发安全)
-	searcher, err := xdb.NewWithBuffer(xdb.IPv4, data)
-	if err != nil {
-		return fmt.Errorf("创建 IPv4 searcher 失败: %w", err)
-	}
-
 	m.v4Searcher = searcher
+	m.v4Regions = regions
+	m.v4RegionData = data
+	m.generation.Add(1)
 	m.v4Source = SourceIp2Region
 	m.v4Format = format
 	m.v4LoadTime = time.Now()
@@ -180,6 +192,14 @@ func (m *Manager) LoadV4Ip2Region(data []byte, format DBFormat) error {
 
 // LoadV4GeoLite2 加载 IPv4 GeoLite2 数据库
 func (m *Manager) LoadV4GeoLite2(data []byte) error {
+	regions, catalogErr := mmdbRegions(data)
+	if catalogErr != nil {
+		return catalogErr
+	}
+	reader, err := geoip2.OpenBytes(data)
+	if err != nil {
+		return fmt.Errorf("创建 IPv4 GeoLite2 reader 失败: %w", err)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -189,13 +209,9 @@ func (m *Manager) LoadV4GeoLite2(data []byte) error {
 		m.v4GeoReader = nil
 	}
 
-	// 创建新的 reader
-	reader, err := geoip2.OpenBytes(data)
-	if err != nil {
-		return fmt.Errorf("创建 IPv4 GeoLite2 reader 失败: %w", err)
-	}
-
 	m.v4GeoReader = reader
+	m.v4Regions = regions
+	m.generation.Add(1)
 	m.v4Source = SourceGeoLite2
 	m.v4LoadTime = time.Now()
 	m.v4FileSize = int64(len(data))
@@ -207,6 +223,14 @@ func (m *Manager) LoadV4GeoLite2(data []byte) error {
 
 // LoadV6Ip2Region 加载 IPv6 ip2region 数据库
 func (m *Manager) LoadV6Ip2Region(data []byte, format DBFormat) error {
+	regions, catalogErr := xdbRegions(data, xdb.IPv6, format)
+	if catalogErr != nil {
+		return catalogErr
+	}
+	searcher, err := xdb.NewWithBuffer(xdb.IPv6, data)
+	if err != nil {
+		return fmt.Errorf("创建 IPv6 searcher 失败: %w", err)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -216,13 +240,10 @@ func (m *Manager) LoadV6Ip2Region(data []byte, format DBFormat) error {
 		m.v6Searcher = nil
 	}
 
-	// 创建新的 searcher (buffer 模式并发安全)
-	searcher, err := xdb.NewWithBuffer(xdb.IPv6, data)
-	if err != nil {
-		return fmt.Errorf("创建 IPv6 searcher 失败: %w", err)
-	}
-
 	m.v6Searcher = searcher
+	m.v6Regions = regions
+	m.v6RegionData = data
+	m.generation.Add(1)
 	m.v6Source = SourceIp2Region
 	m.v6Format = format
 	m.v6LoadTime = time.Now()
@@ -235,6 +256,14 @@ func (m *Manager) LoadV6Ip2Region(data []byte, format DBFormat) error {
 
 // LoadV6GeoLite2 加载 IPv6 GeoLite2 数据库
 func (m *Manager) LoadV6GeoLite2(data []byte) error {
+	regions, catalogErr := mmdbRegions(data)
+	if catalogErr != nil {
+		return catalogErr
+	}
+	reader, err := geoip2.OpenBytes(data)
+	if err != nil {
+		return fmt.Errorf("创建 IPv6 GeoLite2 reader 失败: %w", err)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -244,13 +273,9 @@ func (m *Manager) LoadV6GeoLite2(data []byte) error {
 		m.v6GeoReader = nil
 	}
 
-	// 创建新的 reader
-	reader, err := geoip2.OpenBytes(data)
-	if err != nil {
-		return fmt.Errorf("创建 IPv6 GeoLite2 reader 失败: %w", err)
-	}
-
 	m.v6GeoReader = reader
+	m.v6Regions = regions
+	m.generation.Add(1)
 	m.v6Source = SourceGeoLite2
 	m.v6LoadTime = time.Now()
 	m.v6FileSize = int64(len(data))
@@ -262,14 +287,31 @@ func (m *Manager) LoadV6GeoLite2(data []byte) error {
 
 // LoadIpdb 加载 ipdb 数据库（ipdb 支持 IPv4+IPv6，共用同一文件）
 func (m *Manager) LoadIpdb(filePath string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	reader, err := ipdb.NewCity(filePath)
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	data, err := io.ReadAll(io.LimitReader(file, (512<<20)+1))
+	file.Close()
+	if err != nil {
+		return err
+	}
+	if len(data) > 512<<20 {
+		return fmt.Errorf("IPDB exceeds 512 MiB")
+	}
+	regions, err := ipdbRegions(data)
+	if err != nil {
+		return err
+	}
+	reader, err := ipdb.NewCityFromBytes(data)
 	if err != nil {
 		return fmt.Errorf("创建 ipdb reader 失败: %w", err)
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.ipdbReader = reader
+	m.ipdbRegions = regions
+	m.generation.Add(1)
 	m.ipdbLoadTime = time.Now()
 	if fi, err2 := os.Stat(filePath); err2 == nil {
 		m.ipdbFileSize = fi.Size()
@@ -415,6 +457,7 @@ func parseIpdbMap(info map[string]string) *IPLocationResult {
 func (m *Manager) SetV4Source(source DBSource) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.generation.Add(1)
 	m.v4Source = source
 }
 
@@ -422,6 +465,7 @@ func (m *Manager) SetV4Source(source DBSource) {
 func (m *Manager) SetV6Source(source DBSource) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.generation.Add(1)
 	m.v6Source = source
 }
 
@@ -429,6 +473,7 @@ func (m *Manager) SetV6Source(source DBSource) {
 func (m *Manager) SetBothSourceIpdb() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.generation.Add(1)
 	m.v4Source = SourceIpdb
 	m.v6Source = SourceIpdb
 	// ipdb 没有内置数据，只能来自上传的文件
@@ -545,14 +590,10 @@ func (m *Manager) ReloadFromConfig(dataDir, v4Source, v6Source, v4Format, v6Form
 
 // SetV4Format 设置 IPv4 数据格式
 func (m *Manager) SetV4Format(format DBFormat) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.v4Format = format
+	m.updateRegionFormat(true, format)
 }
 
 // SetV6Format 设置 IPv6 数据格式
 func (m *Manager) SetV6Format(format DBFormat) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.v6Format = format
+	m.updateRegionFormat(false, format)
 }

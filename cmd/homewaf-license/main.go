@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 )
 
 func writeExclusive(path string, data []byte, mode os.FileMode) error {
@@ -32,7 +33,7 @@ func writeExclusive(path string, data []byte, mode os.FileMode) error {
 
 func run() error {
 	if len(os.Args) < 2 {
-		return errors.New("usage: homewaf-license keygen|sign|sign-plugin [options]")
+		return errors.New("usage: homewaf-license keygen|sign|sign-plugin|sign-threat-snapshot [options]")
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ContinueOnError)
 	keyPath := fs.String("key", "", "private key PEM path (outside the repository)")
@@ -40,6 +41,10 @@ func run() error {
 	out := fs.String("out", "", "output path; must not exist")
 	binaryPath := fs.String("binary", "", "plugin binary to sign")
 	claimsPath := fs.String("claims", "", "signed-claims JSON path")
+	snapshotPath := fs.String("snapshot", "", "raw threat subscription file to sign")
+	feedID := fs.String("feed-id", "", "expected subscription identity")
+	sequence := fs.Uint64("sequence", 0, "monotonically increasing snapshot sequence")
+	validFor := fs.Duration("valid-for", 24*time.Hour, "signature validity (maximum 31 days)")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		return err
 	}
@@ -65,7 +70,7 @@ func run() error {
 			return err
 		}
 		return writeExclusive(*out, append(publicJSON, '\n'), 0644)
-	case "sign", "sign-plugin":
+	case "sign", "sign-plugin", "sign-threat-snapshot":
 		if os.Args[1] == "sign" && *claimsPath == "" {
 			return errors.New("--claims is required")
 		}
@@ -84,6 +89,29 @@ func run() error {
 		key, ok := parsed.(ed25519.PrivateKey)
 		if !ok {
 			return errors.New("Ed25519 private key required")
+		}
+		if os.Args[1] == "sign-threat-snapshot" {
+			if *snapshotPath == "" || *validFor <= 0 || *validFor > 31*24*time.Hour {
+				return errors.New("--snapshot and validity within 31 days are required")
+			}
+			file, err := os.Open(*snapshotPath)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+			hash := sha256.New()
+			size, err := io.Copy(hash, io.LimitReader(file, (64<<20)+1))
+			if err != nil {
+				return err
+			}
+			if size > 64<<20 {
+				return errors.New("snapshot exceeds 64 MiB")
+			}
+			doc, err := licensing.SignThreatSnapshot(licensing.ThreatSnapshotPayload{Schema: 1, FeedID: *feedID, Sequence: *sequence, SHA256: hex.EncodeToString(hash.Sum(nil)), ExpiresAt: time.Now().Add(*validFor).Unix()}, *keyID, key)
+			if err != nil {
+				return err
+			}
+			return writeExclusive(*out, append(doc, '\n'), 0644)
 		}
 		if os.Args[1] == "sign-plugin" {
 			if *binaryPath == "" {

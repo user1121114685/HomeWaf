@@ -29,7 +29,7 @@ func TestIPv6(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Printf("国家: %v\n", record.Country.Names.SimplifiedChinese)
-	fmt.Sprintf("%v", record)
+	t.Logf("GeoIP record: %v", record)
 	fmt.Printf("Portuguese (BR) city name: %v\n", record.City.Names.BrazilianPortuguese)
 	if len(record.Subdivisions) > 0 {
 		fmt.Printf("English subdivision name: %v\n", record.Subdivisions[0].Names.English)

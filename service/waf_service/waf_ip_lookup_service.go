@@ -524,7 +524,7 @@ func ipFailureEffect(record *wafipban.IPFailureRecord, remain string) (string, s
 		effect = "block"
 		detail = fmt.Sprintf("%d分钟内失败%d次触发封禁", record.TriggerMinutes, record.TriggerCount)
 	} else if record != nil {
-		detail = fmt.Sprintf("近%d分钟失败%d次，未触发封禁规则", global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME, record.Count)
+		detail = fmt.Sprintf("近%d分钟失败%d次，未触发封禁规则", global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_LOCK_TIME, record.Count)
 	}
 	if detail == "" {
 		detail = "有失败记录"
@@ -772,8 +772,8 @@ type logExcludeList struct {
 // collectLogExcludeLists 收齐全局与各站点的排除清单（空的跳过）
 func (r *WafIPLookupService) collectLogExcludeLists() []logExcludeList {
 	lists := make([]logExcludeList, 0, 4)
-	if strings.TrimSpace(global.GCONFIG_EXCLUDE_IP_LOG) != "" {
-		lists = append(lists, logExcludeList{scope: "全局", raw: global.GCONFIG_EXCLUDE_IP_LOG})
+	if strings.TrimSpace(global.CurrentSettings().GCONFIG_EXCLUDE_IP_LOG) != "" {
+		lists = append(lists, logExcludeList{scope: "全局", raw: global.CurrentSettings().GCONFIG_EXCLUDE_IP_LOG})
 	}
 	var hosts []model.Hosts
 	if err := global.GWAF_LOCAL_DB.Where("exclude_ip_log <> ''").Find(&hosts).Error; err == nil {

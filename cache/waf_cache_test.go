@@ -7,13 +7,13 @@ import (
 
 func TestWafCache_SetWithTTl(t *testing.T) {
 	wafcache := InitWafCache()
-	wafcache.SetWithTTl("KEY1", "我是key1的值", 5*time.Second)
-	time.Sleep(65 * time.Second)
-	key1Value := wafcache.Get("KEY1")
-	if str, ok := key1Value.(string); ok {
-		println(str)
+	t.Cleanup(wafcache.Close)
+	wafcache.SetWithTTl("KEY1", "我是key1的值", 20*time.Millisecond)
+	time.Sleep(30 * time.Millisecond)
+	wafcache.ClearExpirationCache()
+	if wafcache.Get("KEY1") != nil || wafcache.Stats()["keys"] != 0 {
+		t.Fatal("expired entry was retained")
 	}
-	time.Sleep(65 * time.Second)
 
 }
 func TestWafCache_GetExpireTime(t *testing.T) {

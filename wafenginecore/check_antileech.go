@@ -8,10 +8,10 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/model/detection"
 	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/wafenginecore/antileech"
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
@@ -106,76 +106,17 @@ func (waf *WafEngine) CheckAntiLeech(r *http.Request, weblogbean *innerbean.WebL
 }
 
 // isProtectedFileType 检查URL是否匹配需要防盗链的文件类型
-func isProtectedFileType(path string, fileTypes string) bool {
-	if fileTypes == "" {
-		return false
-	}
-
-	pattern := ".*\\.(" + fileTypes + ")$"
-	matched, err := regexp.MatchString(pattern, strings.ToLower(path))
-	if err != nil {
-		zlog.Error("防盗链正则匹配错误: " + err.Error())
-		return false
-	}
-
-	return matched
+func isProtectedFileType(path, fileTypes string) bool {
+	matcher, err := antileech.Compile(fileTypes, "")
+	return err == nil && matcher.Protected(path)
 }
 
-// isValidReferer 检查Referer是否有效
 func isValidReferer(referer string, hosts []string, validReferers []string) bool {
-	// 如果没有设置有效的Referer列表，则默认允许所有
 	if len(validReferers) == 0 {
 		return true
 	}
-
-	// 如果没有Referer，检查是否允许none
-	if referer == "" {
-		return contains(validReferers, "none")
-	}
-
-	// 解析Referer URL
-	parsedReferer, err := url.Parse(referer)
-	if err != nil {
-		return contains(validReferers, "blocked")
-	}
-	refererHost := parsedReferer.Host
-
-	// 检查是否允许当前服务器名称（支持多域名）
-	if contains(validReferers, "server_names") {
-		for _, h := range hosts {
-			if refererHost == h {
-				return true
-			}
-		}
-	}
-
-	// 检查是否匹配其他有效的Referer模式
-	for _, validReferer := range validReferers {
-		// 跳过特殊关键字
-		if validReferer == "none" || validReferer == "blocked" || validReferer == "server_names" {
-			continue
-		}
-
-		// 处理正则表达式模式 (~开头)
-		if strings.HasPrefix(validReferer, "~") {
-			pattern := strings.TrimPrefix(validReferer, "~")
-			matched, err := regexp.MatchString(pattern, refererHost)
-			if err == nil && matched {
-				return true
-			}
-		} else if strings.HasPrefix(validReferer, "*.") {
-			// 处理通配符域名 (*.example.com)
-			suffix := strings.TrimPrefix(validReferer, "*")
-			if strings.HasSuffix(refererHost, suffix) {
-				return true
-			}
-		} else if refererHost == validReferer {
-			// 完全匹配
-			return true
-		}
-	}
-
-	return false
+	matcher, err := antileech.Compile("", strings.Join(validReferers, ";"))
+	return err == nil && matcher.Allowed(referer, hosts)
 }
 
 // contains 检查字符串数组是否包含指定字符串

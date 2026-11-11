@@ -31,8 +31,10 @@ func newTestWafForXSS() (*WafEngine, *wafenginmodel.HostSafe) {
 func TestCheckXss(t *testing.T) {
 	waf, hostSafe := newTestWafForXSS()
 	globalHost := waf.rt().HostTarget[global.GWAF_GLOBAL_HOST_NAME]
-	global.GCONFIG_BODY_DETECT_MODE = "block" // 测请求体拦截逻辑（默认 observe 只记录不拦）
-	defer func() { global.GCONFIG_BODY_DETECT_MODE = "observe" }()
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "block" }) // 测请求体拦截逻辑（默认 observe 只记录不拦）
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "observe" })
+	}()
 
 	tests := []struct {
 		name        string
@@ -170,10 +172,12 @@ func TestCheckXss(t *testing.T) {
 func TestCheckXssBodyMode(t *testing.T) {
 	waf, hostSafe := newTestWafForXSS()
 	globalHost := waf.rt().HostTarget[global.GWAF_GLOBAL_HOST_NAME]
-	defer func() { global.GCONFIG_BODY_DETECT_MODE = "observe" }()
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "observe" })
+	}()
 
 	run := func(mode string, bodyValues []string) detection.Result {
-		global.GCONFIG_BODY_DETECT_MODE = mode
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = mode })
 		req, _ := http.NewRequest("POST", "http://example.com/api", nil)
 		weblog := &innerbean.WebLog{BodyValues: bodyValues}
 		return waf.CheckXss(req, weblog, url.Values{}, hostSafe, globalHost)
@@ -190,7 +194,7 @@ func TestCheckXssBodyMode(t *testing.T) {
 		t.Error("off 模式不应做 body 检测")
 	}
 	// observe 模式命中要在 RULE 打观察标记(供 abnormal 日志落库复查)
-	global.GCONFIG_BODY_DETECT_MODE = "observe"
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "observe" })
 	req, _ := http.NewRequest("POST", "http://example.com/api", nil)
 	wl := &innerbean.WebLog{BodyValues: xss}
 	waf.CheckXss(req, wl, url.Values{}, hostSafe, globalHost)
@@ -204,8 +208,10 @@ func TestCheckXssBodyMode(t *testing.T) {
 func TestCheckXssBodyMultiSignal(t *testing.T) {
 	waf, hostSafe := newTestWafForXSS()
 	globalHost := waf.rt().HostTarget[global.GWAF_GLOBAL_HOST_NAME]
-	global.GCONFIG_BODY_DETECT_MODE = "block"
-	defer func() { global.GCONFIG_BODY_DETECT_MODE = "observe" }()
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "block" })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "observe" })
+	}()
 
 	// 正常散文/表达式：无真标签、无事件 → 不拦
 	benign := []string{
@@ -240,10 +246,10 @@ func TestCheckXssBodyMultiSignal(t *testing.T) {
 func TestCheckXssBodyFieldExclude(t *testing.T) {
 	waf, hostSafe := newTestWafForXSS()
 	globalHost := waf.rt().HostTarget[global.GWAF_GLOBAL_HOST_NAME]
-	global.GCONFIG_BODY_DETECT_MODE = "block"
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "block" })
 	SetBodyDetectFieldExclude("html, content") // 大小写不敏感、去空
 	defer func() {
-		global.GCONFIG_BODY_DETECT_MODE = "observe"
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "observe" })
 		SetBodyDetectFieldExclude("")
 	}()
 

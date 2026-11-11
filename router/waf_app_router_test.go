@@ -21,11 +21,13 @@ import (
 const appFeatureStatusPath = "/api/v1/application/app/feature_status"
 
 func TestAppFeatureStatusAndDisabledList(t *testing.T) {
-	priorEnabled, priorLegacy, priorKey := global.GWAF_CAN_APP_MANAGE, global.GCONFIG_COMM_LEGACY_KEY, global.GWAF_COMMUNICATION_KEY
-	global.GCONFIG_COMM_LEGACY_KEY = true
+	priorEnabled, priorLegacy, priorKey := global.GWAF_CAN_APP_MANAGE, global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY, global.GWAF_COMMUNICATION_KEY
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
 	global.GWAF_COMMUNICATION_KEY = []byte("0123456789abcdef0123456789abcdef")
 	t.Cleanup(func() {
-		global.GWAF_CAN_APP_MANAGE, global.GCONFIG_COMM_LEGACY_KEY, global.GWAF_COMMUNICATION_KEY = priorEnabled, priorLegacy, priorKey
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			global.GWAF_CAN_APP_MANAGE, cfg.GCONFIG_COMM_LEGACY_KEY, global.GWAF_COMMUNICATION_KEY = priorEnabled, priorLegacy, priorKey
+		})
 	})
 
 	r := gin.New()

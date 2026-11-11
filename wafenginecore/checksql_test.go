@@ -28,8 +28,10 @@ func newTestWafForSQL() (*WafEngine, *wafenginmodel.HostSafe, *wafenginmodel.Hos
 // 确认收敛后（JSON 体走逐值不整块扫 + 跳过结构化数据值 + JSON 值不再叠 URL 解码）不再误拦。
 func TestCheckSqlBodyFalsePositives(t *testing.T) {
 	waf, hostSafe, globalHost := newTestWafForSQL()
-	global.GCONFIG_BODY_DETECT_MODE = "block" // 测请求体拦截逻辑（默认 observe 只记录不拦）
-	defer func() { global.GCONFIG_BODY_DETECT_MODE = "observe" }()
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "block" }) // 测请求体拦截逻辑（默认 observe 只记录不拦）
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "observe" })
+	}()
 
 	// 均为真实正常业务体（遥测/日志上报/埋点/URL编码JSON），不应被 SQLi 拦
 	benignBodies := []struct {

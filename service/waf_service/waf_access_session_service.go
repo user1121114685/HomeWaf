@@ -11,15 +11,21 @@ import (
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
 	"HomeWaf/wafenginecore/accessgate"
+	"container/list"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 )
 
-type WafAccessSessionService struct{}
+type WafAccessSessionService struct {
+	activityMu    sync.Mutex
+	activity      map[string]*accessActivity
+	activityOrder *list.List
+}
 
 var WafAccessSessionServiceApp = new(WafAccessSessionService)
 
@@ -31,14 +37,16 @@ var WafAccessSessionServiceApp = new(WafAccessSessionService)
 // 快路径会绕过慢路径上的绑定校验——那等于让"域名绑定""IP 绑定""设备绑定"
 // 三个安全开关在缓存有效期内全部失效。
 type AccessState struct {
-	SessionCode string `json:"session_code"`
-	AccountCode string `json:"account_code"`
-	AccountName string `json:"account_name"`
-	ExpireUnix  int64  `json:"expire_unix"`
-	Host        string `json:"host"`
-	HostCode    string `json:"host_code"`
-	ClientIP    string `json:"client_ip"`
-	Fingerprint string `json:"fingerprint"`
+	SessionCode       string    `json:"session_code"`
+	AccountCode       string    `json:"account_code"`
+	AccountName       string    `json:"account_name"`
+	ExpireUnix        int64     `json:"expire_unix"`
+	Host              string    `json:"host"`
+	HostCode          string    `json:"host_code"`
+	ClientIP          string    `json:"client_ip"`
+	Fingerprint       string    `json:"fingerprint"`
+	SessionExpireUnix int64     `json:"session_expire_unix"`
+	SessionLastActive time.Time `json:"session_last_active"`
 }
 
 // matchBindings 校验令牌的绑定条件。慢路径(回库)与快路径(缓存命中)都必须走它，
@@ -215,13 +223,19 @@ func (receiver *WafAccessSessionService) ValidateToken(plain, host, hostCode, cl
 	// 读取失败（未命中或后端故障）一律回落查库，缓存抖动不会让访客掉线。
 	var cached AccessState
 	if err := global.GCACHE_WAFCACHE.GetAs(enums.CACHE_ACCESS_TOKEN+code, &cached); err == nil &&
-		cached.SessionCode != "" && cached.ExpireUnix > time.Now().Unix() {
+		cached.SessionCode != "" && cached.SessionExpireUnix > 0 && cached.ExpireUnix > time.Now().Unix() {
 		// 缓存命中也必须重新比对绑定条件。缓存键只有 token_code，
 		// 若在这里直接返回，攻击者只要先在自己有权的域名上刷一次缓存，
 		// 60 秒内就能拿同一个 Cookie 访问任意其它站点。
 		if !cached.matchBindings(host, hostCode, clientIP, fingerprint, cfg) {
 			return nil
 		}
+		now := time.Now()
+		last := cached.SessionLastActive
+		if cached.SessionExpireUnix <= now.Unix() || receiver.sessionIdle(cached.SessionCode, last, now, cfg.IdleTimeout) {
+			return nil
+		}
+		receiver.touchSession(model.AccessSession{SessionCode: cached.SessionCode, LastActiveTime: customtype.JsonTime(last)}, now, cfg.IdleTimeout)
 		return &cached
 	}
 
@@ -246,14 +260,16 @@ func (receiver *WafAccessSessionService) ValidateToken(plain, host, hostCode, cl
 	}
 
 	st := &AccessState{
-		SessionCode: sess.SessionCode,
-		AccountCode: sess.AccountCode,
-		AccountName: sess.AccountName,
-		ExpireUnix:  time.Time(token.ExpireTime).Unix(),
-		Host:        token.Host,
-		HostCode:    token.HostCode,
-		ClientIP:    token.ClientIP,
-		Fingerprint: token.Fingerprint,
+		SessionCode:       sess.SessionCode,
+		AccountCode:       sess.AccountCode,
+		AccountName:       sess.AccountName,
+		ExpireUnix:        time.Time(token.ExpireTime).Unix(),
+		Host:              token.Host,
+		HostCode:          token.HostCode,
+		ClientIP:          token.ClientIP,
+		Fingerprint:       token.Fingerprint,
+		SessionExpireUnix: time.Time(sess.ExpireTime).Unix(),
+		SessionLastActive: time.Time(sess.LastActiveTime),
 	}
 	// 先写缓存再判绑定：令牌本身是有效的，缓存的是"这个令牌的签发条件"，
 	// 与本次请求是否满足这些条件无关。反过来做会导致合法用户的令牌
@@ -263,6 +279,7 @@ func (receiver *WafAccessSessionService) ValidateToken(plain, host, hostCode, cl
 		return nil
 	}
 	receiver.touchToken(token, now)
+	receiver.touchSession(*sess, now, cfg.IdleTimeout)
 	return st
 }
 
@@ -289,7 +306,7 @@ func (receiver *WafAccessSessionService) ValidateSSOSession(plain, host, clientI
 	if cfg.BindFingerprint && sess.Fingerprint != "" && sess.Fingerprint != fingerprint {
 		return nil
 	}
-	receiver.touchSession(*sess, time.Now())
+	receiver.touchSession(*sess, time.Now(), cfg.IdleTimeout)
 	return sess
 }
 
@@ -300,7 +317,10 @@ func (receiver *WafAccessSessionService) loadValidSession(sessionCode string, cf
 	}
 	var cachedSess model.AccessSession
 	if err := global.GCACHE_WAFCACHE.GetAs(enums.CACHE_ACCESS_SESSION+sessionCode, &cachedSess); err == nil &&
-		cachedSess.SessionCode != "" && time.Time(cachedSess.ExpireTime).After(time.Now()) {
+		cachedSess.SessionCode != "" && cachedSess.Status == model.AccessStatusValid && time.Time(cachedSess.ExpireTime).After(time.Now()) {
+		if receiver.sessionIdle(sessionCode, time.Time(cachedSess.LastActiveTime), time.Now(), cfg.IdleTimeout) {
+			return nil
+		}
 		return &cachedSess
 	}
 	var sess model.AccessSession
@@ -312,13 +332,10 @@ func (receiver *WafAccessSessionService) loadValidSession(sessionCode string, cf
 	if time.Time(sess.ExpireTime).Before(now) {
 		return nil
 	}
-	if cfg.IdleTimeout > 0 {
-		last := time.Time(sess.LastActiveTime)
-		if !last.IsZero() && now.Sub(last) > cfg.IdleTimeout {
-			// 空闲太久，顺手落库标记，避免它一直被反复查出来
-			receiver.revokeSessionRows(sess.SessionCode, model.AccessRevokeByExpire)
-			return nil
-		}
+	if receiver.sessionIdle(sessionCode, time.Time(sess.LastActiveTime), now, cfg.IdleTimeout) {
+		// Expiry is a read decision. Do not synchronously mutate the session and
+		// every child token from the authentication request path.
+		return nil
 	}
 	global.GCACHE_WAFCACHE.SetWithTTl(enums.CACHE_ACCESS_SESSION+sessionCode, sess, cfg.CachePositiveTTL)
 	return &sess
@@ -340,23 +357,15 @@ func (receiver *WafAccessSessionService) markBad(code string) {
 
 // touchToken / touchSession 节流更新最后活跃时间。
 func (receiver *WafAccessSessionService) touchToken(token model.AccessToken, now time.Time) {
-	last := time.Time(token.LastActiveTime)
-	if !last.IsZero() && now.Sub(last) < touchIntervalMinutes*time.Minute {
-		return
-	}
-	global.GWAF_LOCAL_DB.Model(&model.AccessToken{}).Where("token_code = ?", token.TokenCode).
-		Updates(map[string]interface{}{"last_active_time": customtype.JsonTime(now)})
+	receiver.touchActivity(&model.AccessToken{}, "token_code", token.TokenCode, time.Time(token.LastActiveTime), now, touchIntervalMinutes*time.Minute)
 }
 
-func (receiver *WafAccessSessionService) touchSession(sess model.AccessSession, now time.Time) {
-	last := time.Time(sess.LastActiveTime)
-	if !last.IsZero() && now.Sub(last) < touchIntervalMinutes*time.Minute {
-		return
+func (receiver *WafAccessSessionService) touchSession(sess model.AccessSession, now time.Time, idle time.Duration) {
+	interval := touchIntervalMinutes * time.Minute
+	if idle > 0 && idle/2 < interval {
+		interval = idle / 2
 	}
-	global.GWAF_LOCAL_DB.Model(&model.AccessSession{}).Where("session_code = ?", sess.SessionCode).
-		Updates(map[string]interface{}{"last_active_time": customtype.JsonTime(now)})
-	// 会话行变了，缓存里的副本作废，否则空闲超时会按旧的活跃时间算
-	global.GCACHE_WAFCACHE.Remove(enums.CACHE_ACCESS_SESSION + sess.SessionCode)
+	receiver.touchActivity(&model.AccessSession{}, "session_code", sess.SessionCode, time.Time(sess.LastActiveTime), now, interval)
 }
 
 // ─────────────────────────── 撤销 ───────────────────────────

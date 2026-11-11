@@ -59,7 +59,7 @@ const (
 // GetList 分页查询连接
 func (receiver *WafHostConnService) GetList(req request.WafHostConnSearchReq) ([]response.HostConnItem, int64, response.HostConnSummary, error) {
 	summary := response.HostConnSummary{}
-	if global.GCONFIG_HOST_CONN_ENABLED != 1 {
+	if global.CurrentSettings().GCONFIG_HOST_CONN_ENABLED != 1 {
 		summary.Unavailable = "远程连接看板已在系统配置中关闭"
 		return nil, 0, summary, nil
 	}
@@ -128,7 +128,7 @@ func (receiver *WafHostConnService) GetList(req request.WafHostConnSearchReq) ([
 
 // GetSummary 只要汇总卡片数据
 func (receiver *WafHostConnService) GetSummary() (response.HostConnSummary, error) {
-	if global.GCONFIG_HOST_CONN_ENABLED != 1 {
+	if global.CurrentSettings().GCONFIG_HOST_CONN_ENABLED != 1 {
 		return response.HostConnSummary{Unavailable: "远程连接看板已在系统配置中关闭"}, nil
 	}
 	all, fromCache, err := receiver.getSnapshot()
@@ -141,7 +141,7 @@ func (receiver *WafHostConnService) GetSummary() (response.HostConnSummary, erro
 
 // getSnapshot 取连接快照，TTL 内直接复用
 func (receiver *WafHostConnService) getSnapshot() ([]response.HostConnItem, bool, error) {
-	ttl := time.Duration(global.GCONFIG_HOST_CONN_CACHE_SEC) * time.Second
+	ttl := time.Duration(global.CurrentSettings().GCONFIG_HOST_CONN_CACHE_SEC) * time.Second
 	if ttl <= 0 {
 		ttl = 3 * time.Second
 	}

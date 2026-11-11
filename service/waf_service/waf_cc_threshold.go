@@ -89,8 +89,8 @@ func (receiver *WafCCThresholdService) RecommendApi(req request.WafCCThresholdRe
 	// （阈值过低 = 误杀，方向危险）。保留期以外即便归档里还有改造前的数据也不去借，
 	// 那些数据随保留期退场，借了反而把「推荐能看多远」搞成随升级时间漂移。
 	maxDays := ccThMaxDays
-	if global.GDATA_ACCESS_LOG_RETENTION_DAYS < int64(maxDays) {
-		maxDays = int(global.GDATA_ACCESS_LOG_RETENTION_DAYS)
+	if global.CurrentSettings().GDATA_ACCESS_LOG_RETENTION_DAYS < int64(maxDays) {
+		maxDays = int(global.CurrentSettings().GDATA_ACCESS_LOG_RETENTION_DAYS)
 	}
 	if days > maxDays {
 		days = maxDays
@@ -98,7 +98,7 @@ func (receiver *WafCCThresholdService) RecommendApi(req request.WafCCThresholdRe
 	rep.WindowSec = window
 
 	// off 档正常请求不入库，推荐功能失去数据基础——明说原因而不是算个偏小的值出来
-	if global.GDATA_ACCESS_LOG_MODE == "off" {
+	if global.CurrentSettings().GDATA_ACCESS_LOG_MODE == "off" {
 		rep.Reason = "访问日志档位为 off（仅安全事件入库），正常请求不留存，无法按历史流量推荐阈值。" +
 			"需要这个功能请在系统配置把 access_log_mode 调回 db 或 sample。"
 		return rep

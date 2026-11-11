@@ -15,9 +15,11 @@ import (
 // 带阈值戳（规则真实命中过）才是 block，纯失败记分卡报 none——
 // 与封禁列表的收录判据一致，避免"有失败记录"被误读成"已被拦截"。
 func TestIPFailureEffectByRecord(t *testing.T) {
-	oldLock := global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME
-	global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = 10
-	t.Cleanup(func() { global.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = oldLock })
+	oldLock := global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_LOCK_TIME
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = 10 })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_FAILURE_BAN_LOCK_TIME = oldLock })
+	})
 
 	cases := []struct {
 		name       string
@@ -78,12 +80,12 @@ func TestIPFailureEffectByRecord(t *testing.T) {
 func TestLookupIPFailureEffect(t *testing.T) {
 	store := cache.InitWafCache()
 	oldCache := global.GCACHE_WAFCACHE
-	oldEnabled := global.GCONFIG_IP_FAILURE_BAN_ENABLED
+	oldEnabled := global.CurrentSettings().GCONFIG_IP_FAILURE_BAN_ENABLED
 	global.GCACHE_WAFCACHE = store
-	global.GCONFIG_IP_FAILURE_BAN_ENABLED = 1
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_FAILURE_BAN_ENABLED = 1 })
 	t.Cleanup(func() {
 		global.GCACHE_WAFCACHE = oldCache
-		global.GCONFIG_IP_FAILURE_BAN_ENABLED = oldEnabled
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_IP_FAILURE_BAN_ENABLED = oldEnabled })
 	})
 	wafipban.InitIPBanManager(store)
 

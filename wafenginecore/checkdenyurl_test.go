@@ -24,7 +24,6 @@ func TestCheckDenyURL(t *testing.T) {
 	waf.InitRouting()
 
 	// 设置全局主机
-	global.GWAF_GLOBAL_HOST_NAME = "全局网站"
 	waf.rt().HostTarget[global.GWAF_GLOBAL_HOST_NAME] = &wafenginmodel.HostSafe{
 		Host: model.Hosts{
 			GUARD_STATUS: 1, // 启用防护

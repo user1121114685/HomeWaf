@@ -3,24 +3,46 @@
 package wafenginecore
 
 import (
+	"HomeWaf/internal/bodyinspect"
 	"HomeWaf/wafenginecore/wafhttpcore"
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
 // 替换Body字符串内容
 func (waf *WafEngine) ReplaceBodyContent(r *http.Request, oldStrings []string, newString string) error {
-	//TODO 如果是文本内容才进行替换
-
-	var bodyByte []byte
-	bodyByte, _ = io.ReadAll(r.Body)
+	if r.Header.Get("Content-Encoding") != "" {
+		return errors.New("encoded request replacement is unavailable")
+	}
+	bodyByte, err := bodyinspect.ReadPrefix(r, 1<<20)
+	if err != nil {
+		return err
+	}
+	if len(bodyByte) > 1<<20 {
+		return errors.New("request replacement limit exceeded")
+	}
 	for _, oldString := range oldStrings {
+		if oldString == "" {
+			continue
+		}
+		if len(bodyByte)+bytes.Count(bodyByte, []byte(oldString))*max(0, len(newString)-len(oldString)) > 1<<20 {
+			return errors.New("request replacement expansion limit exceeded")
+		}
 		bodyByte = bytes.ReplaceAll(bodyByte, []byte(oldString), []byte(newString))
 	}
+	_ = r.Body.Close()
 	r.Body = io.NopCloser(bytes.NewBuffer(bodyByte))
+	r.ContentLength = int64(len(bodyByte))
+	r.Header.Set("Content-Length", strconv.Itoa(len(bodyByte)))
+	r.TransferEncoding = nil
+	r.GetBody = nil
+	r.Form = nil
+	r.PostForm = nil
 	return nil
 }
 
@@ -34,13 +56,12 @@ func (waf *WafEngine) ReplaceURLContent(r *http.Request, oldStrings []string, ne
 	decodedPath, err := url.PathUnescape(newURL.Path)
 	if err == nil {
 		for _, oldString := range oldStrings {
-			modifiedPath := strings.ReplaceAll(decodedPath, oldString, newString)
-			if decodedPath != modifiedPath {
-				newURL.Path = modifiedPath
-			} else {
-				newURL.Path = originalURL.Path
+			if oldString != "" {
+				decodedPath = strings.ReplaceAll(decodedPath, oldString, newString)
 			}
 		}
+		newURL.Path = decodedPath
+		newURL.RawPath = ""
 
 	}
 
@@ -61,15 +82,17 @@ func (waf *WafEngine) ReplaceURLContent(r *http.Request, oldStrings []string, ne
 				originalEncoded := value
 				// 递归解码
 				decodedValue := wafhttpcore.WafHttpCoreUrlEncode(value, 5)
+				originalDecoded := decodedValue
 				// 执行替换
 				for _, oldString := range oldStrings {
-					modifiedValue := strings.ReplaceAll(decodedValue, oldString, newString)
-					// 判断是否需要重新编码
-					if modifiedValue != decodedValue {
-						value = url.QueryEscape(modifiedValue)
-					} else {
-						value = originalEncoded // 保留原始编码
+					if oldString != "" {
+						decodedValue = strings.ReplaceAll(decodedValue, oldString, newString)
 					}
+				}
+				if decodedValue != originalDecoded {
+					value = url.QueryEscape(decodedValue)
+				} else {
+					value = originalEncoded
 				}
 			}
 			// 重新构建键值对

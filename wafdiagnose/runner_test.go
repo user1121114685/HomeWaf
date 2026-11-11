@@ -46,9 +46,11 @@ func TestPublicAllowProxyFollowsSystemProxy(t *testing.T) {
 	t.Setenv("ALL_PROXY", "")
 	t.Setenv("NO_PROXY", "")
 	t.Setenv("no_proxy", "")
-	old := global.GCONFIG_OUTBOUND_ALLOWED_HOSTS
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = ""
-	defer func() { global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old }()
+	old := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "" })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	}()
 
 	before := proxyServer.hits.Load()
 	r := Run(context.Background(), Target{URL: "http://proxy-target.invalid/", Method: "GET", Public: true, AllowProxy: true})
@@ -243,9 +245,11 @@ func TestPublicDirectTransportHasNoProxyExemption(t *testing.T) {
 	defer srv.Close()
 	t.Setenv("HTTP_PROXY", srv.URL)
 	t.Setenv("HTTPS_PROXY", srv.URL)
-	old := global.GCONFIG_OUTBOUND_ALLOWED_HOSTS
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = ""
-	defer func() { global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old }()
+	old := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "" })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	}()
 	transport := utils.SafeOutboundDirectTransport(nil)
 	defer transport.CloseIdleConnections()
 	if transport.Proxy != nil {
@@ -265,9 +269,11 @@ func TestPublicTLSAlwaysStrict(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("strict public TLS request reached HTTP") }))
 	defer srv.Close()
 	u, _ := url.Parse(srv.URL)
-	old := global.GCONFIG_OUTBOUND_ALLOWED_HOSTS
-	global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = u.Hostname()
-	defer func() { global.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old }()
+	old := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = u.Hostname() })
+	defer func() {
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_OUTBOUND_ALLOWED_HOSTS = old })
+	}()
 	r := Run(context.Background(), Target{URL: srv.URL, Public: true, InsecureSkipVerify: true})
 	if r.Status != "error" || r.Stage != "tls" || r.HTTPWritten || r.TLS == nil || r.TLS.Verification != "failed" {
 		t.Fatalf("public TLS report: %+v", r)

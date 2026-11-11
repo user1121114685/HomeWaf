@@ -35,7 +35,7 @@ func subnetOf(ip string) (string, bool) {
 // ShouldAggregateSubnet 判断是否应把这次封禁升级为整段封禁。
 // 返回 (网段CIDR, 是否升级)。
 func ShouldAggregateSubnet(ip string, now time.Time) (string, bool) {
-	if global.GCONFIG_HOST_GUARD_SUBNET_AGGREGATE != 1 {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_SUBNET_AGGREGATE != 1 {
 		return "", false
 	}
 	cidr, ok := subnetOf(ip)
@@ -46,7 +46,7 @@ func ShouldAggregateSubnet(ip string, now time.Time) (string, bool) {
 		return "", false
 	}
 
-	threshold := global.GCONFIG_HOST_GUARD_SUBNET_THRESHOLD
+	threshold := global.CurrentSettings().GCONFIG_HOST_GUARD_SUBNET_THRESHOLD
 	if threshold <= 0 {
 		threshold = 10
 	}

@@ -1,13 +1,12 @@
 // HomeWaf modification: local imports and maintained YAML v4. Upstream license retained.
-//go:generate go-bindata -o=bindata.go -pkg=dlp conf.yml
 // Package dlp provides dlp sdk api implementaion
+//
+//go:generate go-bindata -o=bindata.go -pkg=dlp conf.yml
 package dlp
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
-	"unsafe"
 
 	"HomeWaf/internal/thirdparty/godlp/conf"
 	"HomeWaf/internal/thirdparty/godlp/detector"
@@ -45,25 +44,27 @@ const (
 	DEF_MAX_CALL_DEEP = 5                                // max call depth for MaskStruct
 )
 
-var (
+const (
 	DEF_MAX_LOG_INPUT     int32 = 1024 // default 1KB, the max input lenght for log, change it in conf
 	DEF_MAX_REGEX_RULE_ID int32 = 0    // default 0, no regex rule will be used for log default, change it in conf
 )
 
 // Engine Object implements all DLP API functions
 type Engine struct {
-	Version     string
-	callerID    string
-	endPoint    string
-	accessKey   string
-	secretKey   string
-	isLegal     bool // true: auth is ok, false: auth failed
-	isClosed    bool // true: Close() has been called
-	isForLog    bool // true: NewLogProcessor() has been called, will not do other API
-	isConfiged  bool // true: ApplyConfig* API has been called, false: not been called
-	confObj     *conf.DlpConf
-	detectorMap map[int32]detector.DetectorAPI
-	maskerMap   map[string]mask.MaskAPI
+	maxLogInput    int32
+	maxRegexRuleID int32
+	Version        string
+	callerID       string
+	endPoint       string
+	accessKey      string
+	secretKey      string
+	isLegal        bool // true: auth is ok, false: auth failed
+	isClosed       bool // true: Close() has been called
+	isForLog       bool // true: NewLogProcessor() has been called, will not do other API
+	isConfiged     bool // true: ApplyConfig* API has been called, false: not been called
+	confObj        *conf.DlpConf
+	detectorMap    map[int32]detector.DetectorAPI
+	maskerMap      map[string]mask.MaskAPI
 }
 
 // NewEngine creates an Engine Object,不要放在循环中调用
@@ -79,6 +80,8 @@ type Engine struct {
 func NewEngine(callerID string) (dlpheader.EngineAPI, error) {
 	defer recoveryImplStatic()
 	eng := new(Engine)
+	eng.maxLogInput = DEF_MAX_LOG_INPUT
+	eng.maxRegexRuleID = DEF_MAX_REGEX_RULE_ID
 	eng.Version = Version
 	eng.callerID = callerID
 	eng.detectorMap = make(map[int32]detector.DetectorAPI)
@@ -138,9 +141,9 @@ func (I *Engine) NewLogProcessor() dlpheader.Processor {
 		//Do not use logs function inside this function
 		newLog := rawLog
 		logCutted := false
-		if int32(len(newLog)) >= DEF_MAX_LOG_INPUT {
+		if int32(len(newLog)) >= I.maxLogInput {
 			// cut for long log
-			newLog = newLog[:DEF_MAX_LOG_INPUT]
+			newLog = newLog[:I.maxLogInput]
 			logCutted = true
 		}
 		newLog, _, _ = I.deidentifyImpl(newLog)
@@ -253,16 +256,9 @@ func (I *Engine) formatEndPoint(endpoint string) string {
 }
 
 func B2S(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return string(b)
 }
 
 func S2B(s string) (b []byte) {
-	/* #nosec G103 */
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	/* #nosec G103 */
-	sh := *(*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh.Data = sh.Data
-	bh.Len = sh.Len
-	bh.Cap = sh.Len
-	return b
+	return []byte(s)
 }

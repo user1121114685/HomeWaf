@@ -131,6 +131,9 @@ func (receiver *WafHostService) AddApi(wafHostAddReq request.WafHostAddReq) (str
 		GroupCode:                 wafHostAddReq.GroupCode,
 		PortListensJSON:           wafHostAddReq.PortListensJSON,
 	}
+	if err := guardNativePortOwnership(*wafHost, nil); err != nil {
+		return "", err
+	}
 	if err := global.GWAF_LOCAL_DB.Create(wafHost).Error; err != nil {
 		return "", err
 	}
@@ -157,6 +160,13 @@ func (receiver *WafHostService) ModifyApi(wafHostEditReq request.WafHostEditReq)
 	// 只是更隐蔽。这里只拦「改之前托管着认证中心、改之后不再托管」这一种情况，
 	// 认证中心站点的其它字段（后端地址、证书……）照常可改。
 	oldHost := receiver.GetDetailByCodeApi(wafHostEditReq.CODE)
+	candidate := model.Hosts{Port: wafHostEditReq.Port, Ssl: wafHostEditReq.Ssl, BindMorePort: wafHostEditReq.BindMorePort, PortListensJSON: oldHost.PortListensJSON, AutoJumpHTTPS: wafHostEditReq.AutoJumpHTTPS}
+	if wafHostEditReq.PortListensJSON != nil {
+		candidate.PortListensJSON = *wafHostEditReq.PortListensJSON
+	}
+	if err := guardNativePortOwnership(candidate, &oldHost); err != nil {
+		return err
+	}
 	if used, centerHost := WafAccessConfigServiceApp.IsHostUsedAsCenter(oldHost); used {
 		after := model.Hosts{Host: wafHostEditReq.Host, BindMoreHost: wafHostEditReq.BindMoreHost}
 		if stillUsed, _ := WafAccessConfigServiceApp.IsHostUsedAsCenter(after); !stillUsed {

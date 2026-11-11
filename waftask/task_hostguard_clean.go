@@ -20,7 +20,7 @@ func TaskHostGuardCleanExpired() {
 	innerLogName := "TaskHostGuardCleanExpired"
 
 	// 功能没开就别去碰数据库和防火墙
-	if global.GCONFIG_HOST_GUARD_ENABLED != 1 {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_ENABLED != 1 {
 		return
 	}
 

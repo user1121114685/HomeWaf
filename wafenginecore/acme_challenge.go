@@ -223,7 +223,7 @@ func handleACMEChallengeResponse(resp *http.Response, weblogfrist *innerbean.Web
 		// sslhttp_check 的语义已经收窄成"要不要为这种情况写告警"：
 		// 本地挑战文件在上面就已经无条件优先了，这个开关不再影响能否签发，
 		// 只是留给"后端自己跑 certbot"的用户关掉无谓告警。
-		if global.GCONFIG_RECORD_SSLHTTP_CHECK == 1 {
+		if requestSettings(resp.Request).GCONFIG_RECORD_SSLHTTP_CHECK == 1 {
 			warnACMEChallenge(weblogfrist.HOST, weblogfrist.HOST_CODE, weblogfrist.URL, token, filePath, resp.StatusCode,
 				"本地无挑战文件，且后端对该路径返回了非 404/301/302",
 				"若证书是在 SamWaf 里申请的：确认申请是否就在本站点(核对站点编码)；若后端自己跑 certbot：属正常，可在【证书文件验证设置】里关掉本告警")

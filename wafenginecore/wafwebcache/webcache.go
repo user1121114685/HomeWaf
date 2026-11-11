@@ -7,6 +7,8 @@ import (
 	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
+	"HomeWaf/internal/bodyinspect"
+	"HomeWaf/internal/logsanitize"
 	"HomeWaf/model"
 	"HomeWaf/model/wafenginmodel"
 	"HomeWaf/utils"
@@ -15,6 +17,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -25,6 +28,8 @@ import (
 	"strings"
 	"time"
 )
+
+const maxCacheObjectBytes = 8 << 20
 
 // LoadWebDataFormCache  从缓存里面拿数据
 func LoadWebDataFormCache(w http.ResponseWriter, r *http.Request, hostSafe *wafenginmodel.HostSafe, cacheConfig model.CacheConfig, weblog *innerbean.WebLog) *http.Response {
@@ -38,7 +43,7 @@ func LoadWebDataFormCache(w http.ResponseWriter, r *http.Request, hostSafe *wafe
 	requestMethod := strings.ToLower(r.Method)
 	requestURI := r.RequestURI
 
-	zlog.Debug(fmt.Sprintf("缓存键组成部分 (加载) - 方法: %s, URI: %s", requestMethod, requestURI))
+	zlog.Debug(fmt.Sprintf("缓存键组成部分 (加载) - 方法: %s, URI: %s", requestMethod, logsanitize.URI(requestURI)))
 
 	key := utils.Md5String(requestMethod + requestURI)
 	if requestMethod == "post" || requestMethod == "put" {
@@ -46,7 +51,7 @@ func LoadWebDataFormCache(w http.ResponseWriter, r *http.Request, hostSafe *wafe
 		key = utils.Md5String(requestMethod + requestURI + bodyHashKey)
 	}
 	zlog.Debug(fmt.Sprintf("尝试从缓存加载数据 URL: %s, 缓存键: %s, 主机代码: %s, 缓存位置: %s",
-		requestURI, key, hostSafe.Host.Code, cacheConfig.CacheLocation))
+		logsanitize.URI(requestURI), key, hostSafe.Host.Code, cacheConfig.CacheLocation))
 
 	//规则匹配查询
 	_, err2 := checkCacheRule(hostSafe, cacheConfig, r)
@@ -81,41 +86,49 @@ func LoadWebDataFormCache(w http.ResponseWriter, r *http.Request, hostSafe *wafe
 	}
 
 	if data == nil {
-		zlog.Debug(fmt.Sprintf("缓存完全未命中 URL: %s, 缓存键: %s", r.RequestURI, key))
+		zlog.Debug(fmt.Sprintf("缓存完全未命中 URL: %s, 缓存键: %s", logsanitize.URI(r.RequestURI), key))
 		return nil
 	}
 
 	buf := bufio.NewReader(bytes.NewReader(data))
 	resp, err := http.ReadResponse(buf, nil)
 	if err != nil {
-		zlog.Error(fmt.Sprintf("解析缓存响应失败 URL: %s, 缓存键: %s, 错误: %v", r.RequestURI, key, err))
+		zlog.Error(fmt.Sprintf("解析缓存响应失败 URL: %s, 缓存键: %s, 错误: %v", logsanitize.URI(r.RequestURI), key, err))
 		return nil
 	}
 
 	zlog.Debug(fmt.Sprintf("成功从缓存加载响应 URL: %s, 缓存键: %s, 状态码: %d, 响应头数量: %d",
-		r.RequestURI, key, resp.StatusCode, len(resp.Header)))
+		logsanitize.URI(r.RequestURI), key, resp.StatusCode, len(resp.Header)))
 	return resp
 }
 
 // StoreWebDataCache 缓存web数据到cache里面
 func StoreWebDataCache(resp *http.Response, hostSafe *wafenginmodel.HostSafe, cacheConfig model.CacheConfig, weblog *innerbean.WebLog) {
+	// Do not buffer unbounded/streaming responses or cache personalized content.
+	if resp.Request == nil || resp.ContentLength < 0 || resp.ContentLength > maxCacheObjectBytes ||
+		resp.Request.Header.Get("Authorization") != "" || resp.Request.Header.Get("Cookie") != "" ||
+		resp.Header.Get("Set-Cookie") != "" || strings.Contains(strings.ToLower(resp.Header.Get("Cache-Control")), "private") ||
+		strings.Contains(strings.ToLower(resp.Header.Get("Cache-Control")), "no-store") ||
+		strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "stream") {
+		return
+	}
 	// 检查HTTP响应状态码，只缓存2xx的响应
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		zlog.Debug(fmt.Sprintf("响应状态码 %d 不符合缓存条件 (2xx)，不进行缓存 URL: %s",
-			resp.StatusCode, resp.Request.RequestURI))
+			resp.StatusCode, logsanitize.URI(resp.Request.RequestURI)))
 		return
 	}
 
 	requestMethod := strings.ToLower(resp.Request.Method)
 	requestURI := resp.Request.RequestURI
-	zlog.Debug(fmt.Sprintf("缓存键组成部分 - 方法: %s, URI: %s", requestMethod, requestURI))
+	zlog.Debug(fmt.Sprintf("缓存键组成部分 - 方法: %s, URI: %s", requestMethod, logsanitize.URI(requestURI)))
 	key := utils.Md5String(requestMethod + requestURI)
 	if requestMethod == "post" || requestMethod == "put" {
 		zlog.Debug(fmt.Sprintf("缓存键组成部分 - BodyHash: %s (用于POST/PUT请求)", weblog.BodyHash))
 		key = utils.Md5String(requestMethod + requestURI + weblog.BodyHash)
 	}
 	zlog.Debug(fmt.Sprintf("尝试存储响应到缓存 URL: %s, 缓存键: %s, 主机代码: %s, 缓存位置: %s",
-		requestURI, key, hostSafe.Host.Code, cacheConfig.CacheLocation))
+		logsanitize.URI(requestURI), key, hostSafe.Host.Code, cacheConfig.CacheLocation))
 
 	//规则匹配查询 获取缓存时间
 	timeout, err2 := checkCacheRule(hostSafe, cacheConfig, resp.Request)
@@ -123,13 +136,21 @@ func StoreWebDataCache(resp *http.Response, hostSafe *wafenginmodel.HostSafe, ca
 		return
 	}
 
-	data, err := httputil.DumpResponse(resp, true)
+	probe := &http.Request{Body: resp.Body}
+	prefix, readErr := bodyinspect.ReadPrefix(probe, maxCacheObjectBytes)
+	resp.Body = probe.Body
+	if readErr != nil || len(prefix) > maxCacheObjectBytes {
+		return
+	}
+	copyResponse := *resp
+	copyResponse.Body = io.NopCloser(bytes.NewReader(prefix))
+	data, err := httputil.DumpResponse(&copyResponse, true)
 	if err != nil {
-		zlog.Error(fmt.Sprintf("序列化响应失败 URL: %s, 错误: %v", requestURI, err))
+		zlog.Error(fmt.Sprintf("序列化响应失败 URL: %s, 错误: %v", logsanitize.URI(requestURI), err))
 		return
 	}
 
-	zlog.Debug(fmt.Sprintf("响应序列化成功 URL: %s, 数据大小: %d", requestURI, len(data)))
+	zlog.Debug(fmt.Sprintf("响应序列化成功 URL: %s, 数据大小: %d", logsanitize.URI(requestURI), len(data)))
 
 	if cacheConfig.CacheLocation == "memory" || cacheConfig.CacheLocation == "all" {
 		zlog.Debug(fmt.Sprintf("存储到内存缓存 主机代码: %s, 缓存键: %s, 超时时间(秒): %d",
@@ -143,7 +164,7 @@ func StoreWebDataCache(resp *http.Response, hostSafe *wafenginmodel.HostSafe, ca
 		storeFile(hostSafe.Host.Code, key, data, cacheConfig.CacheDir, timeout, cacheConfig.MaxFileSizeMB)
 	}
 
-	zlog.Debug(fmt.Sprintf("响应缓存完成 URL: %s, 缓存键: %s", resp.Request.RequestURI, key))
+	zlog.Debug(fmt.Sprintf("响应缓存完成 URL: %s, 缓存键: %s", logsanitize.URI(resp.Request.RequestURI), key))
 }
 
 func loadFormMemory(hostCode string, key string) []byte {
@@ -218,7 +239,15 @@ func loadFormFile(hostCode string, key string, path string) []byte {
 
 	zlog.Debug(fmt.Sprintf("找到有效的缓存文件: %s, 过期时间戳: %d", validFile, latestExpire))
 
-	data, err := ioutil.ReadFile(validFile)
+	file, err := os.Open(validFile)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxCacheObjectBytes+65537))
+	if len(data) > maxCacheObjectBytes+65536 {
+		return nil
+	}
 	if err != nil {
 		zlog.Error(fmt.Sprintf("读取文件缓存失败 文件路径: %s, 错误: %v", validFile, err))
 		return nil
@@ -294,22 +323,28 @@ func storeFile(hostCode string, key string, data []byte, path string, timeout in
 }
 
 func checkCacheRule(hostSafe *wafenginmodel.HostSafe, cacheConfig model.CacheConfig, r *http.Request) (int, error) {
+	return MatchSortedCacheRules(PrepareCacheRules(hostSafe.CacheRule), r)
+}
+
+// PrepareCacheRules owns its slice. Request matching must never reorder the
+// published HostSafe snapshot while other requests read it.
+func PrepareCacheRules(rules []model.CacheRule) []model.CacheRule {
+	copy := append([]model.CacheRule{}, rules...)
+	sort.SliceStable(copy, func(i, j int) bool { return copy[i].Priority > copy[j].Priority })
+	return copy
+}
+func MatchSortedCacheRules(rules []model.CacheRule, r *http.Request) (int, error) {
 	//规则匹配查询
-	if hostSafe.CacheRule == nil || len(hostSafe.CacheRule) == 0 {
+	if len(rules) == 0 {
 		return 0, fmt.Errorf("没有配置缓存规则")
 	}
 
 	requestURI := r.URL.RequestURI()
 	requestMethod := r.Method
 
-	// 按优先级排序规则（优先级数字越大越优先）
-	sort.Slice(hostSafe.CacheRule, func(i, j int) bool {
-		return hostSafe.CacheRule[i].Priority > hostSafe.CacheRule[j].Priority
-	})
-
 	pureRequestUrl := r.URL.Path
 	// 循环检查每个规则
-	for _, rule := range hostSafe.CacheRule {
+	for _, rule := range rules {
 		finalUrl := requestURI
 		if rule.ParamType == 1 {
 			finalUrl = pureRequestUrl

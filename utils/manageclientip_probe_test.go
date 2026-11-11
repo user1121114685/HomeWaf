@@ -23,12 +23,14 @@ func TestProbeOverRealSocket(t *testing.T) {
 	srv := httptest.NewServer(r)
 	defer srv.Close()
 
-	oldH, oldT, oldC := global.GCONFIG_MANAGE_PROXY_HEADER, global.GCONFIG_MANAGE_TRUSTED_PROXIES, global.GCONFIG_MANAGE_CDN_PROVIDER
+	oldH, oldT, oldC := global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER, global.CurrentSettings().GCONFIG_MANAGE_TRUSTED_PROXIES, global.CurrentSettings().GCONFIG_MANAGE_CDN_PROVIDER
 	defer func() {
-		global.GCONFIG_MANAGE_PROXY_HEADER, global.GCONFIG_MANAGE_TRUSTED_PROXIES, global.GCONFIG_MANAGE_CDN_PROVIDER = oldH, oldT, oldC
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+			cfg.GCONFIG_MANAGE_PROXY_HEADER, cfg.GCONFIG_MANAGE_TRUSTED_PROXIES, cfg.GCONFIG_MANAGE_CDN_PROVIDER = oldH, oldT, oldC
+		})
 	}()
-	global.GCONFIG_MANAGE_PROXY_HEADER = "CF-Connecting-IP"
-	global.GCONFIG_MANAGE_CDN_PROVIDER = ""
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_PROXY_HEADER = "CF-Connecting-IP" })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_CDN_PROVIDER = "" })
 
 	cases := []struct{ name, trusted, wantIP, wantReason string }{
 		{"配置A 0.0.0.0/0（过宽）", "0.0.0.0/0", "127.0.0.1", ManageIPReasonOverBroadGate},
@@ -36,7 +38,7 @@ func TestProbeOverRealSocket(t *testing.T) {
 		{"配置C private 关键字", "private", "1.2.3.4", ManageIPReasonRightmostUntrusted},
 	}
 	for _, cs := range cases {
-		global.GCONFIG_MANAGE_TRUSTED_PROXIES = cs.trusted
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_TRUSTED_PROXIES = cs.trusted })
 		req, _ := http.NewRequest(http.MethodGet, srv.URL+"/probe", nil)
 		req.Header.Set("CF-Connecting-IP", "1.2.3.4")
 		resp, err := http.DefaultClient.Do(req)

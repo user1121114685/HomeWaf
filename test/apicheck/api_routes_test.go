@@ -1,21 +1,17 @@
-// 集成测试：验证所有带 @Router 注解的 API 路由路径是否可达（返回非 404）
-// 运行前请确保 SamWaf 服务已启动。
-//
-// 运行命令：
-//
-//	go test -v -run TestAllRoutes ./test/
-//
-// 如需跳过集成测试，加 -short 参数：
-//
-//	go test -short ./test/
+// Isolated route registration and unauthenticated-response integration checks.
 package apicheck
 
 import (
+	"HomeWaf/api"
+	"HomeWaf/global"
+	"HomeWaf/wafmangeweb"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -25,10 +21,19 @@ import (
 // 配置入口：修改这里即可
 // ─────────────────────────────────────────────────────────────────────────────
 
-const (
-	baseURL = "http://127.0.0.1:26666"              // 服务地址
-	sk      = "sk-f4e7230617a118e8869a8089269e4b4b" // X-Token 登录令牌，按实际值修改
-)
+func fixtureURL(t *testing.T) string {
+	t.Helper()
+	oldRef, oldRelease := api.GinEngineRef, global.GWAF_RELEASE
+	global.GWAF_RELEASE = "false"
+	t.Cleanup(func() { api.GinEngineRef = oldRef; global.GWAF_RELEASE = oldRelease })
+	r := gin.New()
+	r.Use(gin.Recovery())
+	_ = r.SetTrustedProxies(nil)
+	(&wafmangeweb.WafWebManager{}).RegisterRoutes(r)
+	server := httptest.NewServer(r)
+	t.Cleanup(server.Close)
+	return server.URL
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 路由清单（与 @Router 注解保持一致）
@@ -301,7 +306,7 @@ func sendRequest(method, url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-API-Key", sk)
+	// No credentials: mutating handlers must stop at the real authentication boundary.
 	req.Header.Set("Content-Type", "application/json")
 	return httpClient.Do(req)
 }
@@ -318,9 +323,7 @@ func checkJSON(data []byte) bool {
 
 // TestAllRoutes 逐条验证 @Router 中的路由是否注册可达（非 404）且响应为合法 JSON
 func TestAllRoutes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("跳过集成测试（-short 模式）")
-	}
+	baseURL := fixtureURL(t)
 
 	type result struct {
 		route
@@ -402,9 +405,7 @@ func TestAllRoutes(t *testing.T) {
 
 // TestSingleRoute 调试单条路由时使用（修改下面的 method/path 后运行）
 func TestSingleRoute(t *testing.T) {
-	if testing.Short() {
-		t.Skip("跳过集成测试（-short 模式）")
-	}
+	baseURL := fixtureURL(t)
 
 	method := "GET"
 	path := "/api/v1/sysinfo/version"

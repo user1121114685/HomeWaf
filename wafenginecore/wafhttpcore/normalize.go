@@ -54,11 +54,12 @@ func NormalizeForXSSDetection(raw string) string {
 	if raw == "" {
 		return ""
 	}
-	s := NormalizeForDetection(raw) // 多轮 URL 解码
-	s = html.UnescapeString(s)      // HTML 实体：&lt; &gt; &quot; &#39; &#40; &#x3c;
-	s = decodeJSEscapes(s)          // JS 转义：< \x3c
-	return s
+	return NormalizeDecodedForXSSDetection(NormalizeForDetection(raw))
 }
+
+// NormalizeDecodedForXSSDetection avoids another URL-decoding loop when the
+// caller already owns a normalized request view.
+func NormalizeDecodedForXSSDetection(s string) string { return decodeJSEscapes(html.UnescapeString(s)) }
 
 // ExtractJSONFieldValues 把 JSON 请求体里的所有字符串**值**逐个取出，并返回每个值的**直接父键名**
 // (fields[i] 对应 values[i]；顶层数组元素父键为 "")。相比“整块 body 喂 libinjection”，逐值能大幅

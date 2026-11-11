@@ -7,6 +7,7 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/utils"
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -41,16 +42,22 @@ func ParseByType(parserType string, r io.Reader, threshold int) (ParseResult, er
 }
 
 // keepIfValid 校验单条并追加到结果，非法则计入 dropped
-func keepIfValid(item string, res *ParseResult) {
+const MaxSnapshotEntries = 500000
+
+func keepIfValid(item string, res *ParseResult) error {
 	item = strings.TrimSpace(item)
 	if item == "" {
-		return
+		return nil
 	}
 	if ok, _ := utils.IsValidIPOrNetwork(item); ok {
+		if len(res.IPs) >= MaxSnapshotEntries {
+			return errors.New("threat snapshot exceeds 500000 entries; previous cache retained")
+		}
 		res.IPs = append(res.IPs, item)
 	} else {
 		res.Dropped++
 	}
+	return nil
 }
 
 // cidrOnlyParser 适配 USTC blackip：一行一条(单 IP 或 CIDR，v4/v6 混合)，无注释头。
@@ -65,7 +72,9 @@ func (cidrOnlyParser) Parse(r io.Reader, _ int) (ParseResult, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		keepIfValid(line, &res)
+		if err := keepIfValid(line, &res); err != nil {
+			return ParseResult{}, err
+		}
 	}
 	return res, sc.Err()
 }
@@ -93,7 +102,9 @@ func (ipsumParser) Parse(r io.Reader, threshold int) (ParseResult, error) {
 				continue // 命中数不足阈值，丢弃
 			}
 		}
-		keepIfValid(fields[0], &res)
+		if err := keepIfValid(fields[0], &res); err != nil {
+			return ParseResult{}, err
+		}
 	}
 	return res, sc.Err()
 }
@@ -114,7 +125,9 @@ func (plainMixedParser) Parse(r io.Reader, _ int) (ParseResult, error) {
 		if len(fields) == 0 {
 			continue
 		}
-		keepIfValid(fields[0], &res)
+		if err := keepIfValid(fields[0], &res); err != nil {
+			return ParseResult{}, err
+		}
 	}
 	return res, sc.Err()
 }

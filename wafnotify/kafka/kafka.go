@@ -48,9 +48,11 @@ func connect(brokers []string) (*kgo.Client, error) {
 		return nil, fmt.Errorf("failed to create Kafka client: %v", err)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	err = client.Ping(ctx)
 	if err != nil {
+		client.Close()
 		zlog.Error("failed to ping Kafka server: %v", err)
 		return nil, err
 	}

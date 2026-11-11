@@ -36,7 +36,7 @@ func batchImportAllowedRoots() []string {
 	if d := BatchImportDefaultDir(); d != "" && filepath.IsAbs(d) {
 		roots = append(roots, d)
 	}
-	for _, d := range strings.Split(global.GCONFIG_BATCH_IMPORT_ALLOWED_DIRS, ",") {
+	for _, d := range strings.Split(global.CurrentSettings().GCONFIG_BATCH_IMPORT_ALLOWED_DIRS, ",") {
 		d = strings.TrimSpace(d)
 		if d == "" {
 			continue

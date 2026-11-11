@@ -15,7 +15,7 @@ func (waf *WafEngine) RegisterDiagProvider() {
 			"hosts":            int64(len(table.HostTarget)),
 			"host_more_domain": int64(len(table.HostTargetMoreDomain)),
 			"online_ports":     int64(waf.ServerOnline.Len()),
-			"sensitive_words":  int64(len(waf.Sensitive)),
+			"sensitive_words":  int64(waf.sensitiveCount()),
 			"engine_status":    int64(waf.EngineCurrentStatus),
 		}
 		waf.TransportMux.RLock()

@@ -68,10 +68,10 @@ func TestRuleBanConfigSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	oldDB, oldMode := global.GWAF_LOCAL_DB, global.GCONFIG_RULE_BAN_MODE
-	global.GWAF_LOCAL_DB, global.GCONFIG_RULE_BAN_MODE = db, 0
+	oldDB, oldMode := global.GWAF_LOCAL_DB, global.CurrentSettings().GCONFIG_RULE_BAN_MODE
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { global.GWAF_LOCAL_DB, cfg.GCONFIG_RULE_BAN_MODE = db, 0 })
 	t.Cleanup(func() {
-		global.GWAF_LOCAL_DB, global.GCONFIG_RULE_BAN_MODE = oldDB, oldMode
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { global.GWAF_LOCAL_DB, cfg.GCONFIG_RULE_BAN_MODE = oldDB, oldMode })
 		if sqlDB, err := db.DB(); err == nil {
 			_ = sqlDB.Close()
 		}
@@ -81,7 +81,7 @@ func TestRuleBanConfigSave(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := request.WafRuleBanSetConfigReq{Mode: 1}
-	if err := WafRuleBanServiceApp.SetConfigApi(req); err == nil || global.GCONFIG_RULE_BAN_MODE != 0 {
+	if err := WafRuleBanServiceApp.SetConfigApi(req); err == nil || global.CurrentSettings().GCONFIG_RULE_BAN_MODE != 0 {
 		t.Fatal("missing config must fail without changing the runtime mode")
 	}
 	if err := db.Create(&model.SystemConfig{Item: "rule_ban_mode", Value: "0"}).Error; err != nil {
@@ -91,15 +91,15 @@ func TestRuleBanConfigSave(t *testing.T) {
 		t.Fatal(err)
 	}
 	var saved model.SystemConfig
-	if err := db.Where("item = ?", "rule_ban_mode").First(&saved).Error; err != nil || saved.Value != "1" || global.GCONFIG_RULE_BAN_MODE != 1 {
-		t.Fatalf("save: value=%q mode=%d err=%v", saved.Value, global.GCONFIG_RULE_BAN_MODE, err)
+	if err := db.Where("item = ?", "rule_ban_mode").First(&saved).Error; err != nil || saved.Value != "1" || global.CurrentSettings().GCONFIG_RULE_BAN_MODE != 1 {
+		t.Fatalf("save: value=%q mode=%d err=%v", saved.Value, global.CurrentSettings().GCONFIG_RULE_BAN_MODE, err)
 	}
 	if err := db.Callback().Update().Before("gorm:update").Register("ruleban_test_error", func(tx *gorm.DB) {
 		tx.AddError(gorm.ErrInvalidTransaction)
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := WafRuleBanServiceApp.SetConfigApi(request.WafRuleBanSetConfigReq{Mode: 0}); err == nil || global.GCONFIG_RULE_BAN_MODE != 1 {
+	if err := WafRuleBanServiceApp.SetConfigApi(request.WafRuleBanSetConfigReq{Mode: 0}); err == nil || global.CurrentSettings().GCONFIG_RULE_BAN_MODE != 1 {
 		t.Fatal("failed update must not change the runtime mode")
 	}
 }

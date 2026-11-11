@@ -61,13 +61,13 @@ func runAuthWith(t *testing.T, store cache.CacheStore) (int, bool) {
 	gin.SetMode(gin.TestMode)
 
 	oldStore := global.GCACHE_WAFCACHE
-	oldLegacy := global.GCONFIG_COMM_LEGACY_KEY
+	oldLegacy := global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY
 	global.GCACHE_WAFCACHE = store
 	// 固定走 legacy 加密分支，避免握手状态影响响应码
-	global.GCONFIG_COMM_LEGACY_KEY = true
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
 	t.Cleanup(func() {
 		global.GCACHE_WAFCACHE = oldStore
-		global.GCONFIG_COMM_LEGACY_KEY = oldLegacy
+		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = oldLegacy })
 	})
 
 	reached := false

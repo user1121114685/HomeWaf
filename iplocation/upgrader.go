@@ -100,6 +100,9 @@ func fileNameByKey(key string) string {
 
 // UpgradeConfig 下载所需的外部上下文，由主程序注入。
 type UpgradeConfig struct {
+	Enabled          bool
+	RequireSignature bool
+	TrustedKeysJSON  string
 	// UpdateVersionURL 升级源根 URL，例如 https://publisher.example/
 	UpdateVersionURL string
 	// ClientQuery 清单请求上统一携带的客户端标识(v/u/os/arch/rt)，由上层注入。
@@ -144,6 +147,21 @@ func newHTTPClient() *http.Client {
 		c = &http.Client{}
 	}
 	c.Timeout = httpTimeout
+	if cfg.RequireSignature {
+		previous := c.CheckRedirect
+		c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if err := checkSignedDatasetURL(req.URL.String(), cfg); err != nil {
+				return err
+			}
+			if len(via) >= 5 {
+				return fmt.Errorf("IP数据库跳转过多")
+			}
+			if previous != nil {
+				return previous(req, via)
+			}
+			return nil
+		}
+	}
 	return c
 }
 
@@ -168,6 +186,8 @@ type remoteFile struct {
 //	  }
 //	}
 type remoteManifest struct {
+	KeyID     string                `json:"key_id,omitempty"`
+	Signature string                `json:"signature,omitempty"`
 	Version   string                `json:"version"`
 	Changelog string                `json:"changelog"`
 	Files     map[string]remoteFile `json:"files"`
@@ -353,6 +373,10 @@ func CheckUpgrade(dataDir string) (*UpgradeInfo, error) {
 	}
 
 	info.SourceLabel = "自定义发行方数据源"
+	if cfg := currentUpgradeCfg(); cfg.RequireSignature && !cfg.Enabled {
+		info.SourceLabel = "离线模式：未启用签名HTTPS数据源"
+		return info, nil
+	}
 	if UsesOpenSourceUpdates() {
 		info.SourceLabel = "ip2region 官方开源数据（GitHub，缓存 5 分钟）"
 	}
@@ -582,6 +606,11 @@ func notifyErr(err error) error {
 
 // checkURL 用注入的校验函数把关一个对外地址。未注入时不拦（单测里用 httptest 本地地址）。
 func checkURL(rawURL string) error {
+	if cfg := currentUpgradeCfg(); cfg.RequireSignature {
+		if err := checkSignedDatasetURL(rawURL, cfg); err != nil {
+			return err
+		}
+	}
 	f := currentUpgradeCfg().ValidateURL
 	if f == nil {
 		return nil
@@ -611,6 +640,11 @@ func fetchManifest(ctx context.Context, url string) (*remoteManifest, error) {
 	var m remoteManifest
 	if err = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&m); err != nil {
 		return nil, err
+	}
+	if currentUpgradeCfg().RequireSignature {
+		if err := verifyDatasetManifest(&m, currentUpgradeCfg()); err != nil {
+			return nil, err
+		}
 	}
 	return &m, nil
 }

@@ -39,7 +39,7 @@ const (
 // 同一 req_uuid 一批里可能出现两次（分阶段入队），三张表都以它为主键，批内去重取后到的那条，
 // 跨批次由主键 DoNothing 兜住。
 func tierForStore(logs []*innerbean.WebLog) (events []*model.SecurityEvent, accesses []*model.AccessLog, payloads []*model.EventPayload) {
-	mode := global.GDATA_ACCESS_LOG_MODE
+	mode := global.CurrentSettings().GDATA_ACCESS_LOG_MODE
 	seenEvent := make(map[string]int, len(logs))
 	seenAccess := make(map[string]int, len(logs))
 	seenPayload := make(map[string]int, len(logs))
@@ -103,11 +103,9 @@ func dedupByUUID[T any](dst []T, seen map[string]int, id string, item T) []T {
 // narrowFromLog 从完整日志对象拷出窄行：url/raw_query 截断到 2KB，三个分析键算好。
 // 脱敏开时查询串按参数名抹值（GET 凭证常挂 ?api_key= 上），路径保持原样。
 func narrowFromLog(lg *innerbean.WebLog) model.LogNarrow {
+	lg = lg.RedactedCopy()
 	srcURL, srcRawQuery := lg.URL, lg.RawQuery
-	if global.GCONFIG_RECORD_LOG_DESENSITIZE == 1 {
-		srcURL = maskPersistedRequestURI(srcURL)
-		srcRawQuery = maskPersistedQuery(srcRawQuery)
-	}
+
 	url := cutUTF8N(srcURL, narrowURLMaxBytes)
 	rawQuery := cutUTF8N(srcRawQuery, narrowURLMaxBytes)
 	truncated := 0
@@ -163,18 +161,11 @@ func narrowFromLog(lg *innerbean.WebLog) model.LogNarrow {
 // extractPayload 拷出报文行（含 HEADER——它随窄行拆出后只能跟报文走），单列 64KB 截断。
 // 报文列全空返回 nil：不占一行，读侧找不到报文行时本来就显示「未留存报文」。
 func extractPayload(lg *innerbean.WebLog, kind string) *model.EventPayload {
-	// 副本上做凭证脱敏（Basic 凭据/令牌/会话/表单密码不进报文表），原对象保持完整，
-	// 检测、Kafka 与文件出口拿的还是未脱敏报文。截断判定对脱敏后的源串做，
-	// 否则脱敏缩短了内容会被误标成截断。
+	lg = lg.RedactedCopy()
+	// Every sink receives the same mandatory redacted copy.
 	srcHeader, srcCookies, srcResHeader, srcPostForm := lg.HEADER, lg.COOKIES, lg.ResHeader, lg.POST_FORM
 	srcURL := string(lg.SrcURL)
-	if global.GCONFIG_RECORD_LOG_DESENSITIZE == 1 {
-		srcHeader = maskPersistedHeaderLines(srcHeader, false)
-		srcCookies = maskPersistedCookies(srcCookies)
-		srcResHeader = maskPersistedHeaderLines(srcResHeader, true)
-		srcPostForm = maskPersistedForm(srcPostForm)
-		srcURL = maskPersistedRequestURI(srcURL)
-	}
+
 	srcBody, srcResBody := lg.BODY, lg.RES_BODY
 
 	header := cutUTF8(srcHeader)

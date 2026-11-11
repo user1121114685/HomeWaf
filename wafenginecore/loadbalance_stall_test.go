@@ -26,7 +26,6 @@ func newLBTestEngine(t *testing.T, hostCode, hostKey string, backendHost string,
 	t.Helper()
 	waf := &WafEngine{}
 	waf.InitRouting()
-	waf.SensitiveDirectionMap = map[string]bool{}
 	waf.TransportPool = map[string]*http.Transport{}
 
 	hs := &wafenginmodel.HostSafe{

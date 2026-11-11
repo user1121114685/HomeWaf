@@ -83,7 +83,7 @@ func Stop() { engine.Stop() }
 
 // Reload 配置变更后重新应用：开关 0→1 启动，1→0 停止
 func Reload() {
-	if global.GCONFIG_HOST_GUARD_ENABLED == 1 {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_ENABLED == 1 {
 		engine.Start()
 	} else {
 		engine.Stop()
@@ -98,12 +98,12 @@ func (e *Engine) Start() {
 		return
 	}
 
-	if global.GCONFIG_HOST_GUARD_FORCE_DISABLE {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_FORCE_DISABLE {
 		zlog.Warn("[主机登录防护] 已被 conf/config.yml 的 security.host_guard_force_disable " +
 			"或环境变量 SAMWAF_HOSTGUARD_DISABLE 强制关闭，不启动采集")
 		return
 	}
-	if global.GCONFIG_HOST_GUARD_ENABLED != 1 {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_ENABLED != 1 {
 		return
 	}
 
@@ -157,9 +157,9 @@ func (e *Engine) Start() {
 	}()
 
 	zlog.Info("[主机登录防护] 启动采集", "事件源", e.sourceNames,
-		"模式", global.GCONFIG_HOST_GUARD_MODE,
-		"窗口分钟", global.GCONFIG_HOST_GUARD_FIND_TIME,
-		"阈值", global.GCONFIG_HOST_GUARD_MAX_RETRY)
+		"模式", global.CurrentSettings().GCONFIG_HOST_GUARD_MODE,
+		"窗口分钟", global.CurrentSettings().GCONFIG_HOST_GUARD_FIND_TIME,
+		"阈值", global.CurrentSettings().GCONFIG_HOST_GUARD_MAX_RETRY)
 }
 
 // Stop 停止引擎。必须在 stopSamWaf 里、关库之前调用：
@@ -274,7 +274,7 @@ func GetStatus() Status {
 
 	st := Status{
 		Running:     running,
-		Mode:        global.GCONFIG_HOST_GUARD_MODE,
+		Mode:        global.CurrentSettings().GCONFIG_HOST_GUARD_MODE,
 		Sources:     sources,
 		Unavailable: unavailable,
 		LastEventAt: e.lastEventAt.Load(),

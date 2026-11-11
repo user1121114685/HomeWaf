@@ -70,7 +70,7 @@ func Result(code int, data interface{}, msg string, c *gin.Context) {
 
 	// 关掉 legacy 的前提是 v2 确实可用；传输密钥没初始化成功时仍走 legacy，
 	// 否则管理端会两条通道都不通，等于把自己锁在门外。
-	if !global.GCONFIG_COMM_LEGACY_KEY && wafsec.CommKeyReady() {
+	if !global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY && wafsec.CommKeyReady() {
 		// legacy 通道已被关闭：给出可诊断的明文信号，而不是发一段对方解不开的密文
 		c.JSON(http.StatusOK, Response{
 			NEED_REHANDSHAKE,

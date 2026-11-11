@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -85,7 +86,7 @@ func getWhitelist() *whitelistSnapshot {
 		loopback: ipset.BuildMatchSet(loopbackCIDRs),
 		local:    ipset.BuildMatchSet(LocalAddrs()),
 		lan:      ipset.BuildMatchSet(lanCIDRs),
-		config:   ipset.BuildMatchSet(splitList(global.GCONFIG_HOST_GUARD_WHITELIST)),
+		config:   ipset.BuildMatchSet(splitList(global.CurrentSettings().GCONFIG_HOST_GUARD_WHITELIST)),
 		manage:   ipset.BuildMatchSet(dropCatchAll(splitList(global.GWAF_IP_WHITELIST))),
 		builtAt:  time.Now(),
 	}
@@ -109,7 +110,7 @@ func IsWhitelisted(ip string) (bool, string) {
 	if snap.local.Contains(parsed) {
 		return true, WhiteReasonLocal
 	}
-	if global.GCONFIG_HOST_GUARD_AUTO_LAN == 1 && snap.lan.Contains(parsed) {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_AUTO_LAN == 1 && snap.lan.Contains(parsed) {
 		return true, WhiteReasonLAN
 	}
 	if snap.config.Contains(parsed) {
@@ -149,10 +150,10 @@ func AutoExcludeSources() []AutoExcludeItem {
 	}
 	add(loopbackCIDRs, WhiteReasonLoopback, false)
 	add(LocalAddrs(), WhiteReasonLocal, false)
-	if global.GCONFIG_HOST_GUARD_AUTO_LAN == 1 {
+	if global.CurrentSettings().GCONFIG_HOST_GUARD_AUTO_LAN == 1 {
 		add(lanCIDRs, WhiteReasonLAN, false)
 	}
-	add(splitList(global.GCONFIG_HOST_GUARD_WHITELIST), WhiteReasonConfig, false)
+	add(splitList(global.CurrentSettings().GCONFIG_HOST_GUARD_WHITELIST), WhiteReasonConfig, false)
 	// 管理端白名单默认是 0.0.0.0/0，原样拿来会把整个威胁情报功能架空，必须先剔全网段
 	add(dropCatchAll(splitList(global.GWAF_IP_WHITELIST)), WhiteReasonManage, false)
 	add(ActiveAdminIPs(), WhiteReasonAdminIP, true)
@@ -177,6 +178,20 @@ func ActiveAdminIPs() []string {
 // adminIPTTL 活跃管理会话 IP 的记忆时长
 const adminIPTTL = 30 * time.Minute
 
+type adminIPObserver struct{ fn func(string) }
+
+var currentAdminIPObserver atomic.Pointer[adminIPObserver]
+
+// SetAdminIPObserver installs a local post-authentication observer. Business
+// request readers do not need to consult the optional Redis cache.
+func SetAdminIPObserver(fn func(string)) {
+	if fn == nil {
+		currentAdminIPObserver.Store(nil)
+	} else {
+		currentAdminIPObserver.Store(&adminIPObserver{fn: fn})
+	}
+}
+
 // TouchAdminIP 记录一个正在使用管理端的客户端 IP。
 //
 // 这是防误封的最后一道保险，也是最实用的一道：只要你还在用管理端，
@@ -191,6 +206,9 @@ func TouchAdminIP(ip string) {
 		return
 	}
 	global.GCACHE_WAFCACHE.SetWithTTlRenewTime(enums.CACHE_HOST_GUARD_ADMIN_PRE+ip, 1, adminIPTTL)
+	if observer := currentAdminIPObserver.Load(); observer != nil {
+		observer.fn(ip)
+	}
 }
 
 // isActiveAdminIP 该 IP 最近是否用过管理端

@@ -39,6 +39,7 @@ const (
 // 就是「哪个用户从哪个 IP 来」，所以这三元组的摘要就是它的会话身份。
 type HttpAuthSession struct {
 	baseorm.BaseOrm
+	Port           int                 `gorm:"index" json:"port"`
 	HostCode       string              `gorm:"size:64;index" json:"host_code"`  //归属站点
 	Host           string              `gorm:"size:255" json:"host"`            //冗余域名(含端口)，列表直接展示
 	TokenCode      string              `gorm:"size:64;index" json:"token_code"` //见上方说明，存摘要不存明文

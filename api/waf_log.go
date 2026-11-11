@@ -239,7 +239,7 @@ func (w *WafLogAPi) GetHttpCopyMaskApi(c *gin.Context) {
 // 页面据此显示「合并中」并在合并结束后重新拉取列表。
 func (w *WafLogAPi) GetIPTagDBStatusApi(c *gin.Context) {
 	response.OkWithData(gin.H{
-		"db":      global.GDATA_IP_TAG_DB,
+		"db":      global.CurrentSettings().GDATA_IP_TAG_DB,
 		"merging": atomic.LoadInt32(&global.GDATA_IP_TAG_MERGING) == 1,
 	}, c)
 }
