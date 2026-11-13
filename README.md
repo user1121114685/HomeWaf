@@ -104,6 +104,49 @@ Windows PowerShell（Docker Desktop）：
 
 首次启动需要初始化资源，若文件尚未生成请稍等片刻。登录后修改密码。远程服务器可以通过 SSH 隧道访问管理端，例如 `ssh -L 26666:127.0.0.1:26666 user@server`。
 
+`initial_password.txt` 只记录首次生成的密码，后续修改或重置密码不会更新该文件。开发模式使用独立账号数据，查看密码及重置方法见[开发实例的账号与密码](#开发实例的账号与密码)。
+
+### 忘记密码与重置密码
+
+能够登录时，在管理页面右上角账号菜单选择“修改密码”。忘记密码时，可在目标实例所在主机使用交互式维护命令 `resetpwd`，无需输入旧密码。
+
+**原生安装：**先停止目标实例，在它的安装目录执行重置，成功后再启动。Windows 系统服务安装的示例（管理员 PowerShell）：
+
+```powershell
+Set-Location 'C:\ProgramData\HomeWaf'
+.\HomeWaf64.exe stop
+.\HomeWaf64.exe resetpwd
+.\HomeWaf64.exe start
+```
+
+Linux x86_64 系统服务安装的示例：
+
+```sh
+cd /opt/homewaf
+sudo ./HomeWafLinux64 stop
+sudo ./HomeWafLinux64 resetpwd
+sudo ./HomeWafLinux64 start
+```
+
+Linux ARM64 将文件名替换为 `HomeWafLinuxArm64`；macOS 按架构使用 `HomeWafDarwin64` 或 `HomeWafDarwinArm64`。自定义安装目录或改过可执行文件名时，使用对应实例的实际路径和文件名。未安装为系统服务的实例，在原终端按 `Ctrl+C` 停止，执行 `resetpwd` 后按原来的方式启动，无需使用 `stop` / `start` 服务命令。
+
+**Docker：**保持目标容器运行，进入容器执行交互式重置，成功后重启容器：
+
+```sh
+docker exec -it homewaf /app/homewaf resetpwd
+docker restart homewaf
+```
+
+容器名不是 `homewaf` 时替换为实际名称。
+
+各安装方式的交互步骤相同：
+
+1. 程序列出当前实例的账号，输入账号序号；存在 `admin` 时直接回车默认选择它。
+2. 看到 `Reset password ... successfully` 后，保存终端紧接着显示的新随机临时密码。命令自动生成密码，不会要求输入自定义新密码，也不会将它写回 `initial_password.txt`。
+3. 启动或重启实例，用所选账号和临时密码登录；页面会要求立即改成自己的新密码。
+
+重置会修改所选账号的密码并清除其数据库中保存的登录令牌，保留站点配置和其他业务数据。请对准需要恢复的实例操作；若出现 `No accounts found in database.`，先检查程序路径、数据目录和数据库配置是否属于正确实例。
+
 ### 手动下载、自定义目录与卸载
 
 所有二进制、安装脚本和校验清单都在 [GitHub Releases](https://github.com/user1121114685/HomeWaf/releases)。Windows 解压后可直接运行 `HomeWaf64.exe`；Linux/macOS 解压后运行对应的 `HomeWafLinux64`、`HomeWafLinuxArm64`、`HomeWafDarwin64` 或 `HomeWafDarwinArm64`。
@@ -165,7 +208,7 @@ Windows 双击仓库根目录的 **`dev.bat`**，或在 PowerShell 执行：
 
 Linux/macOS 执行 `sh dev.sh`。三种系统也都可以使用 `node scripts/dev.mjs`。环境要求与源码构建相同；使用 Node 自带的文件监听，无需安装 Air 或 GoFrame。
 
-脚本同时启动后端和 Vite 前端，缺少前端依赖时自动执行 `npm ci --prefix web`。启动完成后访问 **http://127.0.0.1:3001**。仅需后端时执行 `dev.bat --backend-only`、`sh dev.sh --backend-only` 或 `node scripts/dev.mjs --backend-only`。
+脚本同时启动后端和 Vite 前端；Vite 入口文件缺失时（包括安装中断后仅残留目录的情况），自动执行 `npm ci --include=dev --prefix web`，并在启动后端前验证 Vite 能否运行。依赖检查失败时按提示重新安装后重试。启动完成后访问 **http://127.0.0.1:3001**。仅需后端时执行 `dev.bat --backend-only`、`sh dev.sh --backend-only` 或 `node scripts/dev.mjs --backend-only`。
 
 保存 Go 文件后自动执行：
 
@@ -177,12 +220,40 @@ Linux/macOS 执行 `sh dev.sh`。三种系统也都可以使用 `node scripts/de
 编译错误会显示在终端，当前服务继续运行；修正后保存即可重试。新 Worker 就绪失败时保留旧 Worker，并恢复旧二进制启动路径。Windows 用唯一备份文件名移开运行中的映像，避免连续重编译时覆盖被占用的 `.exe`。
 
 - 开发配置、数据库、密钥和日志：`.cache/dev/runtime/`；退出和重启时保留，与仓库根目录和已安装实例分开。
-- 初始密码：`.cache/dev/runtime/data/initial_password.txt`；首次初始化后生成。
+- 初始密码：`.cache/dev/runtime/data/initial_password.txt`；首次初始化后生成，查看及重置步骤见[开发实例的账号与密码](#开发实例的账号与密码)。
 - 后端默认端口：`26666`。如被占用，可预先创建或修改 `.cache/dev/runtime/conf/config.yml` 中的 `local_port`；一键启动的前端代理自动使用该端口。前端固定使用 `3001`，占用时明确报错。
 - 监听 Go 文件的修改、新增、删除和重命名，以及 `go.mod`、`go.sum`、Go workspace 文件和已有内嵌资源目录；仅修改 `_test.go` 不触发编译。前端改动交给 Vite 热更新。
 - 停止：在启动终端按 `Ctrl+C`，脚本清理自己启动的前后端进程；不会操作已安装的系统服务。
 
 Worker 业务代码自动生效；**修改常驻 Supervisor、IPC 协议或开发脚本本身后，请停止脚本并重新启动**。开发期平滑重启沿用下节的连接排空期限与 Windows 端口接管限制。它不保留进程内存或调用栈，也不提供 Delve/IDE 断点会话自动重连；断点调试需另行通过 IDE 配置。
+
+#### 开发实例的账号与密码
+
+`dev.bat` / `dev.sh` 使用 `.cache/dev/runtime/` 内的独立配置和账号数据库，不会自动沿用仓库根目录或正式安装实例的密码。默认账号为 `admin`；在仓库根目录查看开发实例的初始密码：
+
+```powershell
+Get-Content .\.cache\dev\runtime\data\initial_password.txt -Encoding UTF8
+```
+
+Linux/macOS 使用 `cat .cache/dev/runtime/data/initial_password.txt`。开发页面入口是 **http://127.0.0.1:3001**；`26666` 是后端 API 端口，开发模式下不提供管理首页。
+
+如果初始密码已失效或忘记当前密码，先在开发终端按 `Ctrl+C` 并等待进程退出，再从仓库根目录执行：
+
+```powershell
+Push-Location .cache\dev\runtime
+.\homewaf.exe resetpwd
+Pop-Location
+.\dev.bat
+```
+
+Linux/macOS 从仓库根目录执行：
+
+```sh
+(cd .cache/dev/runtime && ./homewaf resetpwd)
+sh dev.sh
+```
+
+按提示选择账号（回车默认选择 `admin`），保存命令显示的新随机临时密码，确认重置成功后再启动开发脚本。到 `3001` 登录并完成强制改密；账号选择和重置行为与上方[忘记密码与重置密码](#忘记密码与重置密码)一致。
 
 ### 手动平滑重启
 
