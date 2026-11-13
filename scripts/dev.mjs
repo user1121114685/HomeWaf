@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+const webDir = path.join(root, "web");
+const viteCli = path.join(webDir, "node_modules", "vite", "bin", "vite.js");
 const args = process.argv.slice(2);
 const windows = process.platform === "win32";
 const devDir = path.join(root, ".cache", "dev");
@@ -136,8 +138,8 @@ async function rebuild() {
   log(`Ready: Worker ${readState()?.active_pid}, ${version}`);
   if (!args.includes("--backend-only") && !frontend && !stopping) {
     // Run Vite directly so Windows has no extra npm/cmd process intercepting Ctrl+C.
-    frontend = start(process.execPath, [path.join(root, "web", "node_modules", "vite", "bin", "vite.js"), "--host", "127.0.0.1", "--strictPort", "--clearScreen", "false"], {
-      cwd: path.join(root, "web"),
+    frontend = start(process.execPath, [viteCli, "--host", "127.0.0.1", "--strictPort", "--clearScreen", "false"], {
+      cwd: webDir,
       // Vite's terminal shortcuts use raw stdin, which would swallow Ctrl+C
       // before Windows can broadcast it to the Node/Go development processes.
       stdio: ["ignore", "inherit", "inherit"],
@@ -206,13 +208,15 @@ async function stopTree(child, grace = false) {
     });
   }
 }
-async function shutdown(code = 0) {
+async function shutdown(code = 0, consoleInterrupt = false) {
   if (stopping) return;
   stopping = true;
   clearTimeout(timer);
   for (const watcher of watchers.values()) watcher.close();
   log("Stopping development processes...");
-  await Promise.allSettled([...children].map(child => stopTree(child, child === supervisor)));
+  // On Windows only console Ctrl+C has already signalled the Supervisor.
+  // An internal startup failure must not wait for a signal that was never sent.
+  await Promise.allSettled([...children].map(child => stopTree(child, child === supervisor && (!windows || consoleInterrupt))));
   if (lock !== undefined) { fs.closeSync(lock); fs.unlinkSync(lockPath); lock = undefined; }
   cleanBinaries();
   process.exit(code);
@@ -233,7 +237,7 @@ async function main() {
   }
   lock = fs.openSync(lockPath, "wx");
   fs.writeFileSync(lock, String(process.pid));
-  process.on("SIGINT", () => void shutdown());
+  process.on("SIGINT", () => void shutdown(0, true));
   process.on("SIGTERM", () => void shutdown());
   const host = spawnSync("go", ["env", "GOHOSTOS", "GOHOSTARCH"], { cwd: root, encoding: "utf8", windowsHide: true });
   if (host.error || host.status !== 0) throw host.error || new Error(host.stderr);
@@ -243,11 +247,16 @@ async function main() {
   await checkPort(backendPort());
   if (!args.includes("--backend-only")) {
     await checkPort(3001);
-    if (!fs.existsSync(path.join(root, "web", "node_modules", "vite"))) {
+    // Interrupted installs can leave the package directory without its CLI.
+    if (!fs.existsSync(viteCli)) {
       log("Installing frontend dependencies...");
-      const result = await npm(["ci", "--prefix", "web"]).done;
+      const result = await npm(["ci", "--include=dev", "--prefix", "web"]).done;
       if (result.code !== 0) throw new Error("Frontend dependency installation failed");
     }
+    if (!fs.existsSync(viteCli)) throw new Error(`Vite CLI is missing after installation: ${viteCli}`);
+    // Detect an incomplete dependency tree before starting the Go Supervisor.
+    try { await run(process.execPath, [viteCli, "--version"], { cwd: webDir, stdio: ["ignore", "inherit", "inherit"] }); }
+    catch (error) { throw new Error(`Frontend dependency check failed: ${error.message}. Run npm ci --include=dev --prefix web and retry.`); }
   }
   log(`Runtime data: ${runtimeDir}`);
   const watcher = fs.watch(root, (_event, file) => {
