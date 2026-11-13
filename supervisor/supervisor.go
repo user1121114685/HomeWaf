@@ -76,13 +76,15 @@ type Supervisor struct {
 	ctrlAddr string
 	token    string
 
-	mu            sync.Mutex
-	workers       map[int]*workerState
-	activePID     int
-	upgrading     bool
-	shuttingDown  bool
-	crashTimes    []time.Time
-	lastUpgradeAt time.Time // 上次升级切换到新版本的时刻；仅在此后"观察期"内连续崩溃才判坏版本回滚
+	mu              sync.Mutex
+	stateMu         sync.Mutex // 串行化状态快照和落盘，避免并发写覆盖较新的交接状态。
+	workers         map[int]*workerState
+	activePID       int
+	upgrading       bool
+	upgradeSequence uint64 // 每次接受滚动重启时递增，供开发工具等待一次完整交接。
+	shuttingDown    bool
+	crashTimes      []time.Time
+	lastUpgradeAt   time.Time // 上次升级切换到新版本的时刻；仅在此后"观察期"内连续崩溃才判坏版本回滚
 
 	readyMu sync.Mutex
 	readyCh map[int]chan struct{} // 按 pid 的 READY 通知
@@ -173,6 +175,10 @@ func (s *Supervisor) Shutdown() {
 	s.mu.Lock()
 	if s.shuttingDown {
 		s.mu.Unlock()
+		// Windows console shutdown can reach both service.Stop and the signal
+		// handler. The second caller must not return early and os.Exit while
+		// the first caller is still draining Workers.
+		<-s.done
 		return
 	}
 	s.shuttingDown = true
@@ -219,6 +225,8 @@ func (s *Supervisor) clearState() {
 	if s.opts.DataDir == "" {
 		return
 	}
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
 	_ = os.Remove(filepath.Join(s.opts.DataDir, "supervisor.state"))
 }
 
@@ -312,6 +320,7 @@ func (s *Supervisor) onWorkerMsg(w *workerState, m wafipc.Message) {
 		w.state = "active-candidate"
 		s.mu.Unlock()
 		zlog.Info("[Supervisor] Worker pid=" + strconv.Itoa(w.pid) + " 上报 READY")
+		s.writeState()
 		s.signalReady(w.pid)
 	case wafipc.MsgReadyFailed:
 		s.mu.Lock()
@@ -520,13 +529,16 @@ func (s *Supervisor) doUpgrade(replaceBinary bool) {
 		return
 	}
 	s.upgrading = true
+	s.upgradeSequence++
 	oldPID := s.activePID
 	s.mu.Unlock()
+	s.writeState()
 
 	defer func() {
 		s.mu.Lock()
 		s.upgrading = false
 		s.mu.Unlock()
+		s.writeState()
 	}()
 
 	zlog.Info("[Supervisor] 开始滚动升级，旧 Worker pid=" + strconv.Itoa(oldPID))
@@ -938,24 +950,40 @@ func (s *Supervisor) rollbackBinary() {
 
 // stateFile 持久化的监护状态（供 Supervisor 自升级后重连认领，Phase 3.5）。
 type stateFile struct {
-	CtrlAddr  string   `json:"ctrl_addr"`
-	Token     string   `json:"token"`
-	ActivePID int      `json:"active_pid"`
-	PIDs      []int    `json:"pids"`
-	Versions  []string `json:"versions"`
-	UpdatedAt string   `json:"updated_at"`
+	CtrlAddr        string   `json:"ctrl_addr"`
+	Token           string   `json:"token"`
+	ActivePID       int      `json:"active_pid"`
+	PIDs            []int    `json:"pids"`
+	Versions        []string `json:"versions"`
+	UpdatedAt       string   `json:"updated_at"`
+	ActiveState     string   `json:"active_state"`
+	Upgrading       bool     `json:"upgrading"`
+	UpgradeSequence uint64   `json:"upgrade_sequence"`
 }
 
 func (s *Supervisor) writeState() {
 	if s.opts.DataDir == "" {
 		return
 	}
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
 	s.mu.Lock()
+	// Late READY/upgrade completion callbacks must not recreate a state file
+	// after shutdown has drained the final Worker and removed it.
+	if s.shuttingDown && len(s.workers) == 0 {
+		s.mu.Unlock()
+		return
+	}
 	st := stateFile{
-		CtrlAddr:  s.ctrlAddr,
-		Token:     s.token,
-		ActivePID: s.activePID,
-		UpdatedAt: time.Now().Format(time.RFC3339),
+		CtrlAddr:        s.ctrlAddr,
+		Token:           s.token,
+		ActivePID:       s.activePID,
+		UpdatedAt:       time.Now().Format(time.RFC3339),
+		Upgrading:       s.upgrading,
+		UpgradeSequence: s.upgradeSequence,
+	}
+	if active := s.workers[s.activePID]; active != nil {
+		st.ActiveState = active.state
 	}
 	for pid, w := range s.workers {
 		st.PIDs = append(st.PIDs, pid)

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"HomeWaf/global"
+	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 
 	mysqldriver "HomeWaf/internal/mysql"
@@ -24,6 +25,33 @@ type tenantScopeTestModel struct {
 }
 
 func (tenantScopeTestModel) TableName() string { return "samwaf_tenant_scope_test" }
+
+func TestTenantScopeAllowsInstancePipelineTables(t *testing.T) {
+	db := openTenantTestDB(t, "sqlite")
+	models := []any{&model.PipelinePortMigration{}, &model.GateRuntime{}, &model.PipelineState{}, &model.PipelineDailyMetrics{}, &model.PipelineLog{}}
+	if err := db.AutoMigrate(models...); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.PipelinePortMigration{Port: 5300, State: "active"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range models {
+		var count int64
+		if err := db.Model(item).Count(&count).Error; err != nil {
+			t.Fatalf("instance table %T received nonexistent tenant fields: %v", item, err)
+		}
+	}
+	var owners []model.PipelinePortMigration
+	if err := db.Where("state = ?", "active").Find(&owners).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(owners) != 1 || owners[0].Port != 5300 {
+		t.Fatalf("startup lost instance port ownership: %+v", owners)
+	}
+}
 
 // openTenantTestDB 打开测试 DB（暂不注册租户回调，注册时机与生产一致：迁移之后）。
 //   - sqlite：临时文件库，测试结束自动清理
