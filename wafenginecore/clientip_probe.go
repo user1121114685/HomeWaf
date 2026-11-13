@@ -297,13 +297,10 @@ func IsIPSourceTrustedPeer(host model.Hosts, netIP string) bool {
 			return true
 		}
 		return ipInCIDRList(netIP, host.IPTrustProxies)
-	case "header", "xff_depth":
-		if strings.TrimSpace(host.IPTrustProxies) == "" {
-			return true //没配可信网段 = 不做来源校验
-		}
+	case "", "header", "xff_depth":
 		return ipInCIDRList(netIP, host.IPTrustProxies)
 	default:
-		return true
+		return false
 	}
 }
 

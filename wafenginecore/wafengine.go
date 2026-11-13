@@ -11,6 +11,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/internal/logsanitize"
+	"HomeWaf/internal/proxyidentity"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/detection"
@@ -235,7 +236,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
-		// 取出客户IP（按 host 的真实IP来源模式加固；IPSourceMode 为空时保持旧行为——取配置头最左第一个）
+		// 仅从经过可信来源校验的请求头提取客户端身份。
 		ipErr, clientIP, clientPort := waf.getBizClientIP(r, hostTarget.Host)
 		if ipErr != nil {
 			zlog.Error("get client error", ipErr.Error())
@@ -348,6 +349,17 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			weblogbean.HOST = "https://" + weblogbean.HOST
 		} else {
 			weblogbean.HOST = "http://" + weblogbean.HOST
+		}
+
+		// h2c/other upgrades must not turn a checked request into an unchecked
+		// tunnel, even when a site disables detection or allows a health path.
+		if proxyidentity.UnsupportedUpgrade(r.Header) {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			weblogbean.RULE, weblogbean.ACTION, weblogbean.STATUS = "不支持的协议升级", "阻止", "阻止访问"
+			weblogbean.STATUS_CODE, weblogbean.RISK_LEVEL, weblogbean.TASK_FLAG = 403, 1, 1
+			weblogbean.RES_BODY = "Forbidden\n"
+			global.GQEQUE_LOG_DB.Enqueue(&weblogbean)
+			return
 		}
 
 		// ── ACME(HTTP-01) 证书校验快速通道 ──
@@ -927,21 +939,8 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (waf *WafEngine) getClientIP(r *http.Request, headers ...string) (error, string, string) {
-	for _, header := range headers {
-		ip := r.Header.Get(header)
-		if ip != "" {
-			// 处理可能的多个 IP 地址，以逗号分隔，取第一个有效的
-			ips := strings.Split(ip, ",")
-			trimmedIP := strings.TrimSpace(ips[0])
-			if utils.IsValidIPv4(trimmedIP) {
-				return nil, trimmedIP, "0"
-			}
-			if utils.IsValidIPv6(trimmedIP) {
-				return nil, trimmedIP, "0"
-			}
-			return errors.New("invalid IP address from header: " + header + " value:" + ip), "", ""
-		}
-	}
+	// No site/trust context exists here (e.g. unmatched Host). Header names
+	// alone are never authority; keep the peer for reliable incident searches.
 
 	// 如果没有找到，使用 r.RemoteAddr
 	ip, port, err := net.SplitHostPort(r.RemoteAddr)
@@ -2095,12 +2094,8 @@ func (waf *WafEngine) checkWithPlugins(r *http.Request, weblogbean *innerbean.We
 		return detection.Result{IsBlock: false}
 	}
 
-	// 提取请求信息 - 使用已有的 getClientIP 方法
-	_, clientIP, _ := waf.getClientIP(r, strings.Split(requestSettings(r).GCONFIG_RECORD_PROXY_HEADER, ",")...)
-	if clientIP == "" {
-		// 如果获取 IP 失败，从 RemoteAddr 获取
-		clientIP = strings.Split(r.RemoteAddr, ":")[0]
-	}
+	// Plugins must use the same identity as the access-control checks.
+	clientIP := model.GetClientIPByMode(hostTarget.Host.IPMode, weblogbean.NetSrcIp, weblogbean.SRC_IP)
 	requestPath := r.URL.Path
 	userAgent := r.UserAgent()
 

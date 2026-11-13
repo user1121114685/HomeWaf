@@ -133,9 +133,8 @@ export default defineComponent({
     // 只有会做来源校验的模式，标"来源可信/不可信"才有意义
     needTrustCheck(): boolean {
       if (!this.probeData) return false;
-      if (this.probeData.ip_source_mode === 'cdn_preset') return true;
-      return ['header', 'xff_depth'].indexOf(this.probeData.ip_source_mode) >= 0
-        && !!(this.probeData.ip_trust_proxies || '').trim();
+      return this.probeData.ip_mode === 'proxy' &&
+        ['', 'header', 'xff_depth', 'cdn_preset'].indexOf(this.probeData.ip_source_mode || '') >= 0;
     },
   },
   watch: {
@@ -196,7 +195,7 @@ export default defineComponent({
       if (data.compat_header_unset) {
         tips.push({ type: 'warn', text: this.$t('page.host.ip_probe_tip_compat_unset') });
       }
-      if (data.ip_source_mode === 'cdn_preset' && !sample.net_ip_trusted) {
+      if (this.needTrustCheck && !sample.net_ip_trusted) {
         tips.push({ type: 'warn', text: this.$t('page.host.ip_probe_tip_untrusted') });
       }
       if (data.effective_header && !sample.config_header_present) {

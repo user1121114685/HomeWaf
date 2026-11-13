@@ -6,9 +6,10 @@ import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/utils"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -46,17 +47,13 @@ func acmeChallengeFilePath(hostCode, token string) string {
 // acmeTokenFromURL 从 /.well-known/acme-challenge/<token> 中取出 token；
 // 取不到或不合法返回空串。
 //
-// 只服务于诊断日志，不参与任何放行判定 —— 放行判定仍在各调用点原有的校验里，
-// 这里放宽或收紧都不会影响安全边界。
-func acmeTokenFromURL(url string) string {
-	urls := strings.Split(url, "/")
-	if len(urls) != 4 {
+// Response fallback uses the same strict request-path boundary as the fast path.
+func acmeTokenFromURL(rawURL string) string {
+	u, err := url.ParseRequestURI(rawURL)
+	if err != nil {
 		return ""
 	}
-	if !utils.IsValidChallengeFile(urls[3]) {
-		return ""
-	}
-	return urls[3]
+	return acmeChallengeToken(&http.Request{Method: http.MethodGet, URL: u})
 }
 
 // acmeDiagAllowed 判断当前站点是否允许再打一条诊断日志。

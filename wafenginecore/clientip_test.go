@@ -20,8 +20,8 @@ func newReq(remoteAddr string, headers map[string]string) *http.Request {
 	return r
 }
 
-// TestCompatModeTakesLeftmost 验证 IPSourceMode="" 保持旧行为：取 X-Forwarded-For 最左第一个(向后兼容硬约束)
-func TestCompatModeTakesLeftmost(t *testing.T) {
+// Empty mode no longer grants trust merely because a global header is set.
+func TestCompatModeRequiresTrustedPeer(t *testing.T) {
 	old := global.CurrentSettings().GCONFIG_RECORD_PROXY_HEADER
 	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_PROXY_HEADER = "X-Forwarded-For" })
 	defer func() {
@@ -35,8 +35,13 @@ func TestCompatModeTakesLeftmost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ip != "1.1.1.1" {
-		t.Errorf("兼容模式应取最左 1.1.1.1，实际 %s", ip)
+	if ip != "10.0.0.1" {
+		t.Errorf("未配信任来源应回退网络层，实际 %s", ip)
+	}
+	host.IPTrustProxies = "10.0.0.1/32"
+	_, ip, _ = waf.getBizClientIP(r, host)
+	if ip != "3.3.3.3" {
+		t.Errorf("可信来源应取最右非可信地址，实际 %s", ip)
 	}
 }
 
@@ -50,13 +55,13 @@ func TestNicMode(t *testing.T) {
 	}
 }
 
-// TestHeaderModeNoTrustList header 模式未填可信网段：保持原行为，无条件取指定头
+// Header mode without a trust list fails closed to the direct peer.
 func TestHeaderModeNoTrustList(t *testing.T) {
 	waf := &WafEngine{}
 	r := newReq("8.8.8.8:1234", map[string]string{"X-Real-IP": "1.2.3.4"})
 	_, ip, _ := waf.getBizClientIP(r, model.Hosts{IPSourceMode: "header", IPRealHeader: "X-Real-IP"})
-	if ip != "1.2.3.4" {
-		t.Errorf("未填可信网段时应直接取头 1.2.3.4，实际 %s", ip)
+	if ip != "8.8.8.8" {
+		t.Errorf("未填可信网段时应回退网络层，实际 %s", ip)
 	}
 }
 
@@ -139,14 +144,14 @@ func TestXFFDepthTrusted(t *testing.T) {
 	}
 }
 
-// TestXFFDepthByDepth 无可信网段：按 depth 从右取第 N 个
+// Hop depth cannot authenticate a proxy; require an explicit trusted peer.
 func TestXFFDepthByDepth(t *testing.T) {
 	waf := &WafEngine{}
 	r := newReq("172.16.0.1:80", map[string]string{"X-Forwarded-For": "1.1.1.1, 2.2.2.2, 3.3.3.3"})
-	// depth=2 → 从右起第2个 = 2.2.2.2
+	// depth alone must not let a direct attacker choose their identity.
 	_, ip, _ := waf.getBizClientIP(r, model.Hosts{IPSourceMode: "xff_depth", IPTrustDepth: 2})
-	if ip != "2.2.2.2" {
-		t.Errorf("depth=2 应取 2.2.2.2，实际 %s", ip)
+	if ip != "172.16.0.1" {
+		t.Errorf("无可信代理应回退网络层，实际 %s", ip)
 	}
 }
 

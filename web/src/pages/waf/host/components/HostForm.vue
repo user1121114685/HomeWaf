@@ -566,16 +566,13 @@
                 </div>
               </div>
             </hw-form-item>
-            <hw-form-item v-if="formData.ip_mode === 'proxy' && formData.ip_source_mode === 'xff_depth'" :label="$t('page.host.ip_trust_depth')" name="ip_trust_depth">
-              <hw-input-number :style="{ width: '150px' }" v-model="formData.ip_trust_depth" :min="1" theme="column" />
-            </hw-form-item>
             <!-- 可信代理网段：三种加固模式都用得上(header 校验来源、xff_depth 跳过可信 hop、
                  cdn_preset 在厂商无法自动拉取回源段时手填兜底) -->
             <hw-form-item v-if="showIpTrustProxies"
                          :label="$t('page.host.ip_trust_proxies')" name="ip_trust_proxies">
               <div>
                 <hw-textarea :style="{ width: '320px' }" v-model="formData.ip_trust_proxies"
-                            placeholder="172.16.0.0/12,10.0.0.0/8"></hw-textarea>
+                            placeholder="192.0.2.10/32,2001:db8::10/128"></hw-textarea>
                 <!-- cdn_preset 且中心库没拉到回源段时，这里就是唯一的可信来源，必须填 -->
                 <div v-if="cdnTrustProxiesRequired" style="color: var(--td-error-color);">
                   {{ $t('page.host.ip_trust_proxies_required') }}
@@ -1259,7 +1256,7 @@ import {defineComponent} from 'vue';
       // 可信代理网段输入框：三种加固模式都需要
       showIpTrustProxies() {
         return this.formData.ip_mode === 'proxy' &&
-          ['header', 'xff_depth', 'cdn_preset'].indexOf(this.formData.ip_source_mode) >= 0;
+          ['', 'header', 'xff_depth', 'cdn_preset'].indexOf(this.formData.ip_source_mode) >= 0;
       },
       // cdn_preset 且中心库没拉到该厂商回源段时，可信代理网段是唯一可用的可信来源，
       // 两个都空后端会拒绝保存(否则所有请求都只能取到 CDN 回源节点IP)，提前标红提示

@@ -63,9 +63,9 @@ type Hosts struct {
 	IPMode                    string `gorm:"size:20" json:"ip_mode"`                             //IP提取模式: "nic" 网卡模式 或 "proxy" 代理模式
 	DisableHTTP2              int    `json:"disable_http2"`                                      //对外HTTP/2开关 0启用(默认/现状) 1关闭(该站点ALPN只提供http/1.1,兼容安卓等原生WebSocket客户端)
 	IsEnableResponseBuffering int    `json:"is_enable_response_buffering"`                       //响应缓冲 1开启(默认) 0关闭(类似 nginx proxy_buffering off，边收边推，利于流式/SSE/大文件)
-	// 真实客户端 IP 提取加固（向后兼容：IPSourceMode 为空时行为与旧版完全一致——取 X-Forwarded-For 最左第一个）
-	IPSourceMode   string `gorm:"size:20" json:"ip_source_mode"`     //真实IP来源模式: ""(兼容,取最左) | nic | header | xff_depth | cdn_preset
-	IPTrustDepth   int    `json:"ip_trust_depth"`                    //xff_depth 模式：从右往左取第 N 个非可信 hop(默认1)
+	// 真实IP头必须校验可信代理来源；空模式仅沿用全局头名。
+	IPSourceMode   string `gorm:"size:20" json:"ip_source_mode"`     //真实IP来源模式: ""(全局头,校验来源) | nic | header | xff_depth | cdn_preset
+	IPTrustDepth   int    `json:"ip_trust_depth"`                    //保留兼容字段；层数不再作为独立可信依据
 	IPRealHeader   string `gorm:"size:64" json:"ip_real_header"`     //header/cdn_preset 模式指定的真实IP头，如 CF-Connecting-IP
 	IPTrustProxies string `gorm:"type:text" json:"ip_trust_proxies"` //可信代理网段(CIDR/IP，逗号分隔)，用于 xff_depth 跳过可信 hop
 	CDNProvider    string `gorm:"size:32" json:"cdn_provider"`       //cdn_preset 模式选择的 CDN 厂商: cloudflare|fastly|cloudfront|edgeone|aliyun|akamai

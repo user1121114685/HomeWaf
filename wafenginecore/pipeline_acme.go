@@ -1,7 +1,6 @@
 package wafenginecore
 
 import (
-	"HomeWaf/utils"
 	"HomeWaf/wafacme"
 	"HomeWaf/wafpipeline"
 	"net/url"
@@ -10,12 +9,8 @@ import (
 
 func PipelineCertificateChallenge(s *wafpipeline.Snapshot, c *wafpipeline.RequestContext) (string, bool) {
 	r := c.Request
-	const prefix = "/.well-known/acme-challenge/"
-	if r.Method != "GET" && r.Method != "HEAD" || !strings.HasPrefix(r.URL.Path, prefix) || r.URL.EscapedPath() != r.URL.Path || r.URL.RawQuery != "" {
-		return "", false
-	}
-	token := strings.TrimPrefix(r.URL.Path, prefix)
-	if !utils.IsValidChallengeFile(token) || strings.ContainsAny(token, "./\\") {
+	token := acmeChallengeToken(r)
+	if token == "" {
 		return "", false
 	}
 	u, err := url.Parse("http://" + r.Host)

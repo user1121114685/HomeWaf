@@ -1,0 +1,3090 @@
+{
+  "description": "Sanitized reconstruction of 123 security events, not raw HTTP bytes. Domains, share path, login name and public Host IP changed; forged-IP payload values retained. JSON and CRLF header encodings decoded. Replay locally only.",
+  "source_sha256": "a67e158d19249ad5bc47c38ef78c81d932842a389186e0cdeecd05787526c135",
+  "requests": [
+    {
+      "sequence": 1,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 2,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/sharetest0",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 3,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "Upgrade-Insecure-Requests": [
+          "1"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        ],
+        "Accept": [
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        ],
+        "Accept-Language": [
+          "zh-CN,zh;q=0.9,en;q=0.8"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 4,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        ],
+        "X-Forwarded-For": [
+          "127.0.0.1"
+        ],
+        "X-Real-Ip": [
+          "127.0.0.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 5,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/favicon.ico",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 6,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/robots.txt",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 7,
+      "method": "GET",
+      "host": "203.0.113.10:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 8,
+      "method": "POST",
+      "host": "cqh.example.test:15000",
+      "path": "/api/v2/core/auth/login",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Content-Type": [
+          "application/json"
+        ]
+      },
+      "body": "{\"name\":\"incident-fixture\",\"password\":\"x\",\"ignoreCaptcha\":true,\"captcha\":\"\",\"captchaID\":\"\",\"authMethod\":\"session\",\"language\":\"zh\"}",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 9,
+      "method": "GET",
+      "host": "localhost",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 10,
+      "method": "GET",
+      "host": "127.0.0.1",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 11,
+      "method": "GET",
+      "host": "example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 12,
+      "method": "GET",
+      "host": "panel.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 13,
+      "method": "GET",
+      "host": "hkt.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 14,
+      "method": "GET",
+      "host": "lede.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 15,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-For": [
+          "114.114.114.114"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 16,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Real-Ip": [
+          "114.114.114.114"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 17,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Cf-Connecting-Ip": [
+          "114.114.114.114"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 18,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "True-Client-Ip": [
+          "114.114.114.114"
+        ],
+        "X-Client-Ip": [
+          "114.114.114.114"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 19,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Forwarded": [
+          "for=114.114.114.114;proto=https"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 20,
+      "method": "HEAD",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 21,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/sharetest0",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 22,
+      "method": "GET",
+      "host": "admin.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 23,
+      "method": "GET",
+      "host": "api.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 24,
+      "method": "GET",
+      "host": "www.cqh.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 25,
+      "method": "GET",
+      "host": "cqh.example.test.",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 26,
+      "method": "GET",
+      "host": "CQH.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 27,
+      "method": "GET",
+      "host": "blog.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 28,
+      "method": "GET",
+      "host": "nas.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 29,
+      "method": "GET",
+      "host": "pan.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 30,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 31,
+      "method": "GET",
+      "host": "cqh.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "127.0.0.1:15000"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 32,
+      "method": "GET",
+      "host": "cqh.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Original-Url": [
+          "/"
+        ],
+        "X-Rewrite-Url": [
+          "/"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 33,
+      "method": "GET",
+      "host": "cqh.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "cqh.example.test"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 34,
+      "method": "GET",
+      "host": "cqh.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "cqh.example.test:15000"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 35,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "cqh.example.test"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 36,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Client-Ip": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 37,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Originating-Ip": [
+          "127.0.0.1"
+        ],
+        "X-Remote-Ip": [
+          "127.0.0.1"
+        ],
+        "X-Remote-Addr": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 38,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Proxy-Client-Ip": [
+          "127.0.0.1"
+        ],
+        "Wl-Proxy-Client-Ip": [
+          "127.0.0.1"
+        ],
+        "X-Proxyuser-Ip": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 39,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/sharetest0",
+      "headers": {
+        "Accept": [
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+        ],
+        "Sec-Ch-Ua": [
+          "\"Chromium\";v=\"126\", \"Google Chrome\";v=\"126\", \"Not-A.Brand\";v=\"24\""
+        ],
+        "Sec-Fetch-Dest": [
+          "document"
+        ],
+        "Sec-Fetch-User": [
+          "?1"
+        ],
+        "Accept-Language": [
+          "zh-CN,zh;q=0.9"
+        ],
+        "Cache-Control": [
+          "max-age=0"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br"
+        ],
+        "Sec-Ch-Ua-Mobile": [
+          "?0"
+        ],
+        "Sec-Ch-Ua-Platform": [
+          "\"Windows\""
+        ],
+        "Sec-Fetch-Mode": [
+          "navigate"
+        ],
+        "Sec-Fetch-Site": [
+          "none"
+        ],
+        "Upgrade-Insecure-Requests": [
+          "1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 40,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "cqh.example.test"
+        ],
+        "X-Forwarded-Proto": [
+          "https"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 41,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "cqh.example.test:15000"
+        ],
+        "X-Forwarded-Proto": [
+          "https"
+        ],
+        "Accept": [
+          "*/*"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 42,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "cqh.example.test"
+        ],
+        "X-Forwarded-Proto": [
+          "http"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 43,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/sharetest0",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "Accept": [
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        ],
+        "Accept-Language": [
+          "zh-CN,zh;q=0.9"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 44,
+      "method": "GET",
+      "host": "192.168.1.216:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 45,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "192.168.1.216:15000"
+        ],
+        "X-Forwarded-Proto": [
+          "https"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 46,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-Host": [
+          "192.168.1.216"
+        ],
+        "X-Forwarded-Proto": [
+          "https"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 47,
+      "method": "GET",
+      "host": "192.168.1.163:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 48,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Upgrade": [
+          "websocket"
+        ],
+        "Sec-Websocket-Key": [
+          "dGhlIHNhbXBsZSBub25jZQ=="
+        ],
+        "Sec-Websocket-Version": [
+          "13"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Connection": [
+          "Upgrade"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 49,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/websocket",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Connection": [
+          "Upgrade"
+        ],
+        "Upgrade": [
+          "websocket"
+        ],
+        "Sec-Websocket-Key": [
+          "dGhlIHNhbXBsZSBub25jZQ=="
+        ],
+        "Sec-Websocket-Version": [
+          "13"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 50,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Connection": [
+          "Upgrade"
+        ],
+        "Upgrade": [
+          "h2c"
+        ],
+        "Http2-Settings": [
+          "AAMAAABkAAQAAP__"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 51,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/.well-known/acme-challenge/abcdef123",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 52,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/.well-known/security.txt",
+      "headers": {
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 53,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/sitemap.xml",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 54,
+      "method": "OPTIONS",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 55,
+      "method": "PUT",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 56,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 57,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        ],
+        "Accept": [
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 58,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/sharetest0",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        ],
+        "Accept": [
+          "*/*"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 59,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-For": [
+          "1.2.3.4"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 60,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "X-Forwarded-For": [
+          "1.2.3.4, 5.6.7.8"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Real-Ip": [
+          "1.2.3.4"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 61,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-For": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 62,
+      "method": "GET",
+      "host": "203.0.113.10",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 63,
+      "method": "GET",
+      "host": "localhost",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 64,
+      "method": "GET",
+      "host": "example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 65,
+      "method": "GET",
+      "host": "127.0.0.1:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 66,
+      "method": "GET",
+      "host": "CQH.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 67,
+      "method": "GET",
+      "host": "cqh.example.test.",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 68,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 69,
+      "method": "GET",
+      "host": "www.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 70,
+      "method": "GET",
+      "host": "admin.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 71,
+      "method": "GET",
+      "host": "api.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 72,
+      "method": "GET",
+      "host": "devinggo.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 73,
+      "method": "GET",
+      "host": "panel.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 74,
+      "method": "GET",
+      "host": "1panel.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 75,
+      "method": "GET",
+      "host": "blog.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 76,
+      "method": "GET",
+      "host": "hkt.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 77,
+      "method": "GET",
+      "host": "lede.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 78,
+      "method": "GET",
+      "host": "test.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 79,
+      "method": "GET",
+      "host": "nas.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 80,
+      "method": "GET",
+      "host": "cqhs.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 81,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+        ],
+        "Sec-Ch-Ua": [
+          "\"Not A(Brand\";v=\"99\", \"Chromium\";v=\"154\""
+        ],
+        "Sec-Ch-Ua-Mobile": [
+          "?0"
+        ],
+        "Sec-Ch-Ua-Platform": [
+          "\"Linux\""
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Upgrade-Insecure-Requests": [
+          "1"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 82,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/favicon.ico",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 83,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/robots.txt",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 84,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/index.html",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 85,
+      "method": "HEAD",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 86,
+      "method": "OPTIONS",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 87,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 88,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/health",
+      "headers": {
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 89,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/healthz",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 90,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/ping",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 91,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/notify",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 92,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/callback",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 93,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/api/notify",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 94,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/api/health",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 95,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/.well-known/acme-challenge/test",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 96,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Forwarded": [
+          "for=127.0.0.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 97,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Client-Ip": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 98,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Client-Ip": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 99,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Cf-Connecting-Ip": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 100,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "True-Client-Ip": [
+          "127.0.0.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 101,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Originating-Ip": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 102,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Remote-Ip": [
+          "127.0.0.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 103,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Real-Ip": [
+          "127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 104,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-For": [
+          "114.114.114.114"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 105,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Real-Ip": [
+          "127.0.0.1"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "X-Forwarded-For": [
+          "127.0.0.1"
+        ],
+        "X-Client-Ip": [
+          "127.0.0.1"
+        ],
+        "Forwarded": [
+          "for=127.0.0.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 106,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 107,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 108,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 109,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ],
+        "Accept": [
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        ],
+        "Accept-Language": [
+          "zh-CN,zh;q=0.9"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 110,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "X-Forwarded-For": [
+          "123.147.251.205"
+        ],
+        "X-Real-Ip": [
+          "123.147.251.205"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 111,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/assets/index.js",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 112,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/api/v2/auth/login",
+      "headers": {
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 113,
+      "method": "GET",
+      "host": "127.0.0.1",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 114,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/sharetest0/",
+      "headers": {
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 115,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 116,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/.well-known/acme-challenge/test",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 117,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 118,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/",
+      "headers": {
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ],
+        "X-Forwarded-For": [
+          "127.0.0.1"
+        ],
+        "X-Real-Ip": [
+          "127.0.0.1"
+        ],
+        "Cf-Connecting-Ip": [
+          "127.0.0.1"
+        ],
+        "Forwarded": [
+          "for=127.0.0.1"
+        ],
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "Client-Ip": [
+          "127.0.0.1"
+        ],
+        "True-Client-Ip": [
+          "127.0.0.1"
+        ],
+        "X-Originating-Ip": [
+          "127.0.0.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    },
+    {
+      "sequence": 119,
+      "method": "GET",
+      "host": "hkt.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 120,
+      "method": "GET",
+      "host": "example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 121,
+      "method": "GET",
+      "host": "lede.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 122,
+      "method": "GET",
+      "host": "blog.example.test",
+      "path": "/",
+      "headers": {
+        "Accept": [
+          "*/*"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ],
+        "User-Agent": [
+          "python-httpx/0.28.1"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": false
+    },
+    {
+      "sequence": 123,
+      "method": "GET",
+      "host": "cqh.example.test:15000",
+      "path": "/sharetest0/",
+      "headers": {
+        "Accept": [
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+        ],
+        "Accept-Language": [
+          "zh-CN,zh;q=0.9"
+        ],
+        "User-Agent": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ],
+        "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+        ],
+        "Connection": [
+          "keep-alive"
+        ]
+      },
+      "body": "",
+      "observed_status": 403,
+      "observed_matched_host": true
+    }
+  ]
+}
