@@ -146,15 +146,9 @@ func (waf *WafEngine) DoAccessGate(w http.ResponseWriter, r *http.Request,
 		return accessPass
 	}
 
-	// ④ ACME 校验路径放行，且必须排在所有配置型白名单之前。
-	//    漏了这一条，HTTP-01 证书签发与续期会全线失败，而这个故障要等到续期那天才暴露。
-	//
-	//    用归一化后的 p 判定：若用 r.URL.Path，一个
-	//    /.well-known/acme-challenge/../../admin 就能命中前缀直接放行，
-	//    而点号段会被原样转发给后端，后端按 RFC 3986 归一化成 /admin —— 整个网关就废了。
-	if isACMEChallengePath(p, r.URL.Path) {
-		return accessPass
-	}
+	// Active, site-bound ACME challenges have already been answered locally by
+	// tryServeACMEChallenge. Merely naming that directory must not bypass Access.
+	// External certbot setups must explicitly authorize their challenge route.
 
 	// ⑤ 路径白名单（全局 + 站点级），给健康检查、webhook 回调这类无法登录的调用方留口子
 	if accessgate.MatchPathPrefix(p, cfg.GlobalExcludePaths) ||

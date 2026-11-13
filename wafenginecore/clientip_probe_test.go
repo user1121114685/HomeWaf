@@ -157,8 +157,8 @@ func TestIsIPSourceTrustedPeer(t *testing.T) {
 	if IsIPSourceTrustedPeer(withTrust, "1.2.3.4") {
 		t.Fatal("不在可信网段内不应判为可信")
 	}
-	// header 模式留空可信网段 = 不校验来源，保持既有行为
-	if !IsIPSourceTrustedPeer(model.Hosts{IPSourceMode: "header"}, "1.2.3.4") {
-		t.Fatal("header 模式未填可信网段时应视为不校验")
+	// Diagnostics must agree with fail-closed request processing.
+	if IsIPSourceTrustedPeer(model.Hosts{IPSourceMode: "header"}, "1.2.3.4") {
+		t.Fatal("header 模式未填可信网段时不得标为可信")
 	}
 }

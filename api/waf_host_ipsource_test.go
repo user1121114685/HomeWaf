@@ -23,6 +23,10 @@ func TestCheckIPSourceConfigRejectsBadInput(t *testing.T) {
 		{"层数越界", ipSourceConfig{Mode: "xff_depth", Depth: 99}},
 		{"header模式没填头名", ipSourceConfig{Mode: "header"}},
 		{"cdn_preset没选厂商", ipSourceConfig{Mode: "cdn_preset"}},
+		{"header模式缺少可信来源", ipSourceConfig{Mode: "header", Header: "X-Real-IP"}},
+		{"仅靠层数不能认证代理", ipSourceConfig{Mode: "xff_depth", Depth: 2}},
+		{"不能信任整个IPv4互联网", ipSourceConfig{Mode: "header", Header: "X-Real-IP", TrustProxies: "0.0.0.0/0"}},
+		{"不能信任整个IPv6互联网", ipSourceConfig{Mode: "xff_depth", TrustProxies: "::/0"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

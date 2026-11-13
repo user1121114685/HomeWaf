@@ -37,14 +37,14 @@ func TestUnmatchedHostServeHTTP(t *testing.T) {
 		if w.Code != 403 || !strings.Contains(w.Header().Get("Content-Type"), "text/html") {
 			t.Fatalf("unexpected response: %d %v", w.Code, w.Header())
 		}
-		if !strings.Contains(w.Body.String(), r.Host) {
-			t.Fatal("response missing original host")
+		if custom && !strings.Contains(w.Body.String(), r.Host) {
+			t.Fatal("custom response missing original host")
 		}
 		if custom && !strings.Contains(w.Body.String(), "自定义") {
 			t.Fatal("global unmatched page was not used")
 		}
-		if !custom && (!strings.Contains(w.Body.String(), "网站防护") || !strings.Contains(w.Body.String(), "新建")) {
-			t.Fatal("default response missing setup instructions")
+		if !custom && (strings.Contains(w.Body.String(), r.Host) || strings.Contains(w.Body.String(), "SamWaf") || strings.Contains(w.Body.String(), "新建")) {
+			t.Fatal("default response exposes routing or setup details")
 		}
 		entry, ok := global.GQEQUE_LOG_DB.Dequeue()
 		if !ok {
@@ -63,7 +63,7 @@ func TestUnmatchedHostPageTypeIsolation(t *testing.T) {
 	writeUnmatchedHostResponse(w, r, &wafenginmodel.HostSafe{BlockingPage: map[string]model.BlockingPage{
 		"not_match_website": {BlockingType: "other_block", ResponseContent: "ordinary page", ResponseCode: "not_match_website"},
 	}})
-	if !strings.Contains(w.Body.String(), "网站尚未接入") {
+	if !strings.Contains(w.Body.String(), "访问被拒绝") {
 		t.Fatal("ordinary page selected as unmatched website response")
 	}
 }
@@ -78,7 +78,7 @@ func TestUnmatchedHostPageFallbackAndEscaping(t *testing.T) {
 		r.Host = `<b>example</b>:80`
 		w := httptest.NewRecorder()
 		writeUnmatchedHostResponse(w, r, host)
-		if !strings.Contains(w.Body.String(), "网站尚未接入") || !strings.Contains(w.Body.String(), html.EscapeString(r.Host)) || strings.Contains(w.Body.String(), r.Host) {
+		if !strings.Contains(w.Body.String(), "访问被拒绝") || strings.Contains(w.Body.String(), r.Host) || strings.Contains(w.Body.String(), html.EscapeString(r.Host)) {
 			t.Fatalf("fallback or host escaping failed for %q: %s", content, w.Body.String())
 		}
 	}

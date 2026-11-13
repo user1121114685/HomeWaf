@@ -41,7 +41,7 @@ type ipSourceConfig struct {
 	Provider     string
 }
 
-// validIPSourceModes 真实IP来源模式白名单（""=兼容模式，取 X-Forwarded-For 最左）
+// validIPSourceModes: empty mode inherits header names, never implicit trust.
 var validIPSourceModes = map[string]struct{}{
 	"": {}, "nic": {}, "header": {}, "xff_depth": {}, "cdn_preset": {},
 }
@@ -85,8 +85,12 @@ func checkIPSourceConfig(cfg *ipSourceConfig) error {
 			continue
 		}
 		if strings.Contains(item, "/") {
-			if _, _, err := net.ParseCIDR(item); err != nil {
+			_, network, err := net.ParseCIDR(item)
+			if err != nil {
 				return errors.New("可信代理网段不合法: " + item)
+			}
+			if ones, _ := network.Mask.Size(); ones == 0 {
+				return errors.New("可信代理网段不能覆盖整个互联网: " + item)
 			}
 		} else if net.ParseIP(item) == nil {
 			return errors.New("可信代理网段不合法: " + item)
@@ -99,6 +103,13 @@ func checkIPSourceConfig(cfg *ipSourceConfig) error {
 	case "header":
 		if cfg.Header == "" {
 			return errors.New("指定HTTP头模式必须填写真实IP头名")
+		}
+		if cfg.TrustProxies == "" {
+			return errors.New("指定HTTP头模式必须填写可信代理网段；无代理时请选择网络层IP")
+		}
+	case "xff_depth":
+		if cfg.TrustProxies == "" {
+			return errors.New("XFF模式必须填写可信代理网段，代理层数不能替代来源校验")
 		}
 	case "cdn_preset":
 		if cfg.Provider == "" {

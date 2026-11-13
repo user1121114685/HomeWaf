@@ -5,6 +5,7 @@ package wafenginecore
 import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/innerbean"
+	"HomeWaf/internal/proxyidentity"
 	"HomeWaf/model"
 	"HomeWaf/model/wafenginmodel"
 	"HomeWaf/wafproxy"
@@ -21,6 +22,7 @@ import (
 )
 
 func (waf *WafEngine) ProxyHTTP(w http.ResponseWriter, r *http.Request, host string, remoteUrl *url.URL, clientIp string, ctx context.Context, weblog *innerbean.WebLog, hostTarget *wafenginmodel.HostSafe) {
+	ctx = legacyForwardIdentity(ctx, r, hostTarget.Host, clientIp)
 
 	// 在 director 修改请求头之前，将客户端原始 Accept-Encoding 存入 context，
 	// 供响应压缩逻辑使用（自定义头可能把转发请求的 Accept-Encoding 清空）
@@ -140,6 +142,7 @@ func (waf *WafEngine) pickLoadBalanceProxy(w http.ResponseWriter, r *http.Reques
 
 // ProxyHTTPWithPathRule 根据路径规则将请求代理到指定后端
 func (waf *WafEngine) ProxyHTTPWithPathRule(w http.ResponseWriter, r *http.Request, host string, rule *model.HostPathRule, clientIP string, ctx context.Context, weblog *innerbean.WebLog, hostTarget *wafenginmodel.HostSafe) {
+	ctx = legacyForwardIdentity(ctx, r, hostTarget.Host, clientIP)
 	ctx = context.WithValue(ctx, "original_accept_encoding", r.Header.Get("Accept-Encoding"))
 
 	// 构建后端 URL（后端协议可显式选择，修复 #857：与客户端协议解耦）
@@ -209,6 +212,26 @@ func (waf *WafEngine) ProxyHTTPWithPathRule(w http.ResponseWriter, r *http.Reque
 	}
 
 	proxy.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// legacyForwardIdentity is attached per request, including cached load-balanced
+// proxies. Never cache a previous visitor's identity in a proxy Director.
+func legacyForwardIdentity(ctx context.Context, r *http.Request, host model.Hosts, clientIP string) context.Context {
+	_, peer, _ := splitRemoteAddr(r.RemoteAddr)
+	proto := "http"
+	if r.TLS != nil {
+		proto = "https"
+	} else if IsIPSourceTrustedPeer(host, peer) {
+		values := r.Header.Values("X-Forwarded-Proto")
+		if len(values) == 1 && (values[0] == "http" || values[0] == "https") {
+			proto = values[0]
+		}
+	}
+	sourceHeaders := append(strings.Split(requestSettings(r).GCONFIG_RECORD_PROXY_HEADER, ","), host.IPRealHeader)
+	return proxyidentity.WithIdentity(ctx, proxyidentity.Identity{
+		IP: model.GetClientIPByMode(host.IPMode, peer, clientIP), Proto: proto, Host: r.Host,
+		Port: strconv.Itoa(host.Port), SourceHeaders: sourceHeaders,
+	})
 }
 
 // applyResponseBuffering 按站点配置设置反向代理响应缓冲。

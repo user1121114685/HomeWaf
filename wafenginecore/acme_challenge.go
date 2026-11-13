@@ -45,10 +45,10 @@ import (
 // 抽成独立函数是为了让回归测试能直接钉住这个判定本身，
 // 而不是去测 path.Clean 的语义——后者即使有人把实现改回 rawPath 也照样是绿的。
 func isACMEChallengePath(cleanPath, rawPath string) bool {
-	if strings.Contains(rawPath, "..") {
+	if rawPath != path.Clean(rawPath) || cleanPath != strings.ToLower(rawPath) || !strings.HasPrefix(rawPath, global.GSSL_HTTP_CHANGLE_PATH) {
 		return false
 	}
-	return strings.HasPrefix(cleanPath, strings.ToLower(global.GSSL_HTTP_CHANGLE_PATH))
+	return utils.IsValidChallengeFile(strings.TrimPrefix(rawPath, global.GSSL_HTTP_CHANGLE_PATH))
 }
 
 // acmeChallengeToken 从请求里取出合法的挑战 token，取不到返回空串。
@@ -57,16 +57,18 @@ func isACMEChallengePath(cleanPath, rawPath string) bool {
 // /.well-known/ 是互联网上被扫烂的路径，非法请求必须在最便宜的地方就被打掉。
 func acmeChallengeToken(r *http.Request) string {
 	// CA 只会用 GET（HEAD 容错），其余方法一律不是校验请求
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead || r.URL == nil {
+		return ""
+	}
+	if r.URL.RawQuery != "" || r.URL.ForceQuery || r.URL.EscapedPath() != r.URL.Path || len(r.Header.Values("Upgrade")) > 0 {
 		return ""
 	}
 	cleanPath := strings.ToLower(path.Clean(r.URL.Path))
 	if !isACMEChallengePath(cleanPath, r.URL.Path) {
 		return ""
 	}
-	// 用 Base 而不是按 "/" 切成固定 4 段：带多余斜杠、层级不符的变体都能被正确处理，
-	// 且不会像固定切分那样在不匹配时静默什么都不做
-	token := path.Base(r.URL.Path)
+	// Only the exact canonical path is eligible for the local exception.
+	token := strings.TrimPrefix(r.URL.Path, global.GSSL_HTTP_CHANGLE_PATH)
 	if !utils.IsValidChallengeFile(token) {
 		return ""
 	}
@@ -110,8 +112,12 @@ func readChallengeFile(hostCode, token string) (string, bool) {
 
 	// 限长读取：真实 keyAuth 只有 87 字节左右，
 	// 设上限是为了万一那个目录被塞进大文件时不至于整块读进内存
-	buf, err := io.ReadAll(io.LimitReader(f, wafacme.MaxChallengeFileSize()))
-	if err != nil {
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() > wafacme.MaxChallengeFileSize() {
+		return "", false
+	}
+	buf, err := io.ReadAll(io.LimitReader(f, wafacme.MaxChallengeFileSize()+1))
+	if err != nil || int64(len(buf)) > wafacme.MaxChallengeFileSize() {
 		return "", false
 	}
 	content := string(buf)
@@ -183,7 +189,10 @@ func handleACMEChallengeResponse(resp *http.Response, weblogfrist *innerbean.Web
 		warnACMEChallenge(weblogfrist.HOST, weblogfrist.HOST_CODE, weblogfrist.URL, "", "", resp.StatusCode,
 			"URL 不是标准的挑战路径或 token 不合法，未尝试本地校验文件",
 			"标准路径形如 /.well-known/acme-challenge/<token>；多为扫描器请求，可忽略")
-		return true
+		return false
+	}
+	if resp.Request != nil && acmeChallengeToken(resp.Request) == "" {
+		return false
 	}
 	filePath := acmeChallengeFilePath(weblogfrist.HOST_CODE, token)
 

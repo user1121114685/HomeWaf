@@ -1,6 +1,7 @@
 package wafpipeline
 
 import (
+	"HomeWaf/internal/proxyidentity"
 	"HomeWaf/model"
 	"HomeWaf/wafenginecore/accessgate"
 	"HomeWaf/wafproxy"
@@ -517,9 +518,7 @@ func (t forwardTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	c, s := state.request, state.snapshot
 	// This runs after hop-by-hop removal, so an attacker cannot nominate the
 	// trusted identity headers in Connection to remove or replace them.
-	for _, h := range []string{"Forwarded", "X-Forwarded-For", "X-Real-IP", "X-Forwarded-Proto", "X-Forwarded-Host", "X-Forwarded-Port", "X-Waf-Custom-XFF-Control"} {
-		r.Header.Del(h)
-	}
+	proxyidentity.Strip(r.Header, s.Config.Policy.Network.RealIPHeader)
 	r.Header.Set("X-Forwarded-For", c.ClientIP.String())
 	r.Header.Set("X-Real-IP", c.ClientIP.String())
 	r.Header.Del("waf_req_hop")
@@ -550,6 +549,14 @@ func forwardedScheme(s *Snapshot, r *http.Request) string {
 	return "http"
 }
 func (f *Forwarder) Serve(s *Snapshot, c *RequestContext, w http.ResponseWriter) {
+	if proxyidentity.UnsupportedUpgrade(c.Request.Header) {
+		v := Verdict{Action: Deny, Stage: 5, Reason: "unsupported_protocol_upgrade", Status: http.StatusForbidden}
+		c.Values["response_verdict"] = v
+		c.Trace.Add(TraceEntry{Stage: 5, Check: "protocol_upgrade", Verdict: v})
+		c.Hit("malformed", "unsupported_protocol_upgrade", Medium, false, "unsupported protocol upgrade")
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	if s.Compiled == nil || s.Compiled.Proxy == nil {
 		http.Error(w, "Upstream is unavailable", 503)
 		return

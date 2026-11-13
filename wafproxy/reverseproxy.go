@@ -9,6 +9,7 @@
 package wafproxy
 
 import (
+	"HomeWaf/internal/proxyidentity"
 	"HomeWaf/wafproxy/inner/ascii"
 	"context"
 	"fmt"
@@ -319,6 +320,10 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if outreq.Header == nil {
 		outreq.Header = make(http.Header) // Issue 33142: historical behavior was to always allocate
 	}
+	identity, secureIdentity := proxyidentity.FromContext(ctx)
+	if secureIdentity {
+		proxyidentity.Strip(outreq.Header, identity.SourceHeaders...)
+	}
 
 	//打印处理前的header
 	// 打印处理前的请求头
@@ -366,7 +371,9 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	outreq.Header.Del("X-Waf-Custom-XFF-Control")
 
 	// 只有在用户没有自定义 X-Forwarded-For 时，才自动追加客户端 IP
-	if !skipAutoXFF {
+	if secureIdentity {
+		identity.Apply(outreq.Header)
+	} else if !skipAutoXFF {
 		if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
 			// If we aren't the first proxy retain prior
 			// X-Forwarded-For information as a comma+space
