@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -231,6 +232,10 @@ func TestRollingRestartPreservesTraffic(t *testing.T) {
 		case <-time.After(8 * time.Second):
 			t.Fatal("rolling restart did not finish")
 		}
+		state := loadPrevStateFile(s.opts.DataDir)
+		if state == nil || state.Upgrading || state.UpgradeSequence != uint64(round+1) || state.ActiveState != "active" {
+			t.Fatalf("completed handoff state was not published: %+v", state)
+		}
 		resp, err := client.Get(base)
 		if err != nil {
 			t.Fatal(err)
@@ -267,6 +272,10 @@ func TestRollingRestartKeepsOldWorkerOnReadinessFailure(t *testing.T) {
 	if active != oldPID {
 		t.Fatal("failed candidate replaced old worker")
 	}
+	state := loadPrevStateFile(s.opts.DataDir)
+	if state == nil || state.Upgrading || state.UpgradeSequence != 1 || state.ActivePID != oldPID || state.ActiveState != "active-candidate" {
+		t.Fatalf("failed handoff state was not published: %+v", state)
+	}
 	resp, err := http.Get(base)
 	if err != nil {
 		t.Fatal(err)
@@ -274,5 +283,33 @@ func TestRollingRestartKeepsOldWorkerOnReadinessFailure(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		t.Fatal(resp.Status)
+	}
+}
+
+func TestShutdownStateIsNotRecreated(t *testing.T) {
+	s := New(Options{DataDir: t.TempDir()})
+	s.writeState()
+	s.Shutdown()
+	s.writeState() // A late READY or completed-upgrade callback.
+	if _, err := os.Stat(filepath.Join(s.opts.DataDir, "supervisor.state")); !os.IsNotExist(err) {
+		t.Fatalf("shutdown state was recreated: %v", err)
+	}
+}
+
+func TestConcurrentShutdownWaitsForCompletion(t *testing.T) {
+	s := New(Options{})
+	s.shuttingDown = true // Simulate the first caller draining Workers.
+	returned := make(chan struct{})
+	go func() { s.Shutdown(); close(returned) }()
+	select {
+	case <-returned:
+		t.Fatal("second Shutdown returned before Worker drain completed")
+	case <-time.After(30 * time.Millisecond):
+	}
+	close(s.done)
+	select {
+	case <-returned:
+	case <-time.After(time.Second):
+		t.Fatal("second Shutdown did not observe completed shutdown")
 	}
 }

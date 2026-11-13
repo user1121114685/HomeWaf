@@ -155,6 +155,35 @@ npm run dev --prefix web
 
 后端地址通过 `web/.env` 中的 `HOMEWAF_BACKEND` 指定。更多构建选项、验证方式和签名工具用法见[构建与发布说明](docs/modernization/MIGRATION.md)。
 
+### 一键开发调试与热重载
+
+Windows 双击仓库根目录的 **`dev.bat`**，或在 PowerShell 执行：
+
+```powershell
+.\dev.bat
+```
+
+Linux/macOS 执行 `sh dev.sh`。三种系统也都可以使用 `node scripts/dev.mjs`。环境要求与源码构建相同；使用 Node 自带的文件监听，无需安装 Air 或 GoFrame。
+
+脚本同时启动后端和 Vite 前端，缺少前端依赖时自动执行 `npm ci --prefix web`。启动完成后访问 **http://127.0.0.1:3001**。仅需后端时执行 `dev.bat --backend-only`、`sh dev.sh --backend-only` 或 `node scripts/dev.mjs --backend-only`。
+
+保存 Go 文件后自动执行：
+
+1. 等待 600ms 合并连续保存，编译 `./cmd/homewaf` 到独立候选文件。
+2. 编译成功后替换开发实例的二进制，调用已有 `rolling-restart` 命令。
+3. Supervisor 启动新 Worker，确认 READY，再排空旧 Worker 并接管独占资源。
+4. 等待本轮交接完成后才处理下一轮修改，避免连续保存的重启请求被忽略。
+
+编译错误会显示在终端，当前服务继续运行；修正后保存即可重试。新 Worker 就绪失败时保留旧 Worker，并恢复旧二进制启动路径。Windows 用唯一备份文件名移开运行中的映像，避免连续重编译时覆盖被占用的 `.exe`。
+
+- 开发配置、数据库、密钥和日志：`.cache/dev/runtime/`；退出和重启时保留，与仓库根目录和已安装实例分开。
+- 初始密码：`.cache/dev/runtime/data/initial_password.txt`；首次初始化后生成。
+- 后端默认端口：`26666`。如被占用，可预先创建或修改 `.cache/dev/runtime/conf/config.yml` 中的 `local_port`；一键启动的前端代理自动使用该端口。前端固定使用 `3001`，占用时明确报错。
+- 监听 Go 文件的修改、新增、删除和重命名，以及 `go.mod`、`go.sum`、Go workspace 文件和已有内嵌资源目录；仅修改 `_test.go` 不触发编译。前端改动交给 Vite 热更新。
+- 停止：在启动终端按 `Ctrl+C`，脚本清理自己启动的前后端进程；不会操作已安装的系统服务。
+
+Worker 业务代码自动生效；**修改常驻 Supervisor、IPC 协议或开发脚本本身后，请停止脚本并重新启动**。开发期平滑重启沿用下节的连接排空期限与 Windows 端口接管限制。它不保留进程内存或调用栈，也不提供 Delve/IDE 断点会话自动重连；断点调试需另行通过 IDE 配置。
+
 ### 手动平滑重启
 
 HomeWaf 已在运行时，可在**当前实例的安装目录**执行以下命令，平滑重启当前版本，不下载新程序。

@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue';
 import svgLoader from 'vite-svg-loader';
 import { fileURLToPath, URL } from 'node:url';
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd());
+  const env = loadEnv(mode, process.cwd(), '');
   return {
     base: env.VITE_BASE_URL || './',
     resolve: {
@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '127.0.0.1',
       port: 3001,
-      proxy: { '/api': { target: env.HOMEWAF_BACKEND || 'http://127.0.0.1:26666', changeOrigin: true, ws: true } },
+      proxy: { '/api': { target: process.env.HOMEWAF_BACKEND || env.HOMEWAF_BACKEND || 'http://127.0.0.1:26666', changeOrigin: true, ws: true } },
     },
   };
 });
