@@ -60,3 +60,4 @@ dist/
 /docs/modernization/sbom*.json
 /docs/modernization/verification.json
 /docs/modernization/original-go.mod
+/.aider-desk
