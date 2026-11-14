@@ -7,7 +7,7 @@
     <hw-divider align="left">{{ $t('page.host.captcha.group_ability') }}</hw-divider>
     <hw-form-item :label="$t('page.host.captcha.engine_type')">
       <hw-tooltip class="placement top center" :content="$t('page.host.captcha.engine_type_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
         <hw-radio-group v-model="localCaptchaConfig.engine_type" @change="updateParent">
           <hw-radio value="traditional">{{ $t('page.host.captcha.engine_traditional') }}</hw-radio>
           <hw-radio value="capJs">{{ $t('page.host.captcha.engine_capjs') }}</hw-radio>
@@ -17,8 +17,8 @@
 
     <hw-form-item :label="$t('page.host.captcha.path_prefix')">
       <hw-tooltip class="placement top center" :content="$t('page.host.captcha.path_prefix_tips')" placement="top"
-                 :overlay-style="{ width: '300px' }" show-arrow>
-        <hw-input :style="{ width: '300px' }"
+                 :overlay-style="{ width: 'min(100%, 300px)' }" show-arrow>
+        <hw-input :style="{ width: 'min(100%, 300px)' }"
                  v-model="localCaptchaConfig.path_prefix"
                  @change="updateParent"
                  :placeholder="$t('page.host.captcha.path_prefix_placeholder')">
@@ -33,8 +33,8 @@
 
     <hw-form-item :label="$t('page.host.captcha.exclude_urls')">
       <hw-tooltip class="placement top center" :content="$t('page.host.captcha.exclude_urls_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
-        <hw-textarea :style="{ width: '480px' }"
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
+        <hw-textarea :style="{ width: 'min(100%, 480px)' }"
                     v-model="localCaptchaConfig.exclude_urls"
                     @change="updateParent"
                     :placeholder="$t('page.host.captcha.exclude_urls_placeholder')">
@@ -44,7 +44,7 @@
     </hw-form-item>
 
     <hw-form-item :label="$t('page.host.captcha.contact_info')">
-      <hw-textarea :style="{ width: '480px' }"
+      <hw-textarea :style="{ width: 'min(100%, 480px)' }"
                   v-model="localCaptchaConfig.contact_info"
                   :maxlength="200"
                   @change="updateParent"
@@ -55,7 +55,7 @@
 
     <hw-form-item :label="$t('page.host.captcha.expire_time')">
       <hw-tooltip class="placement top center" :content="$t('page.host.captcha.expire_time_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
         <hw-input-number :style="{ width: '150px' }"
                         v-model="localCaptchaConfig.expire_time"
                         @change="updateParent"
@@ -72,7 +72,7 @@
 
       <hw-form-item :label="$t('page.host.captcha.challenge_count')">
         <hw-tooltip class="placement top center" :content="$t('page.host.captcha.challenge_count_tips')" placement="top"
-                   :overlay-style="{ width: '200px' }" show-arrow>
+                   :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
           <hw-input-number :style="{ width: '150px' }"
                           v-model="localCaptchaConfig.cap_js_config.challengeCount"
                           @change="updateParent"
@@ -84,7 +84,7 @@
 
       <hw-form-item :label="$t('page.host.captcha.challenge_size')">
         <hw-tooltip class="placement top center" :content="$t('page.host.captcha.challenge_size_tips')" placement="top"
-                   :overlay-style="{ width: '200px' }" show-arrow>
+                   :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
           <hw-input-number :style="{ width: '150px' }"
                           v-model="localCaptchaConfig.cap_js_config.challengeSize"
                           @change="updateParent"
@@ -96,7 +96,7 @@
 
       <hw-form-item :label="$t('page.host.captcha.challenge_difficulty')">
         <hw-tooltip class="placement top center" :content="$t('page.host.captcha.challenge_difficulty_tips')" placement="top"
-                   :overlay-style="{ width: '200px' }" show-arrow>
+                   :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
           <hw-input-number :style="{ width: '150px' }"
                           v-model="localCaptchaConfig.cap_js_config.challengeDifficulty"
                           @change="updateParent"
@@ -108,7 +108,7 @@
 
       <hw-form-item :label="$t('page.host.captcha.capjs_expires_ms')">
         <hw-tooltip class="placement top center" :content="$t('page.host.captcha.capjs_expires_ms_tips')" placement="top"
-                   :overlay-style="{ width: '200px' }" show-arrow>
+                   :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
           <hw-input-number :style="{ width: '150px' }"
                           v-model="localCaptchaConfig.cap_js_config.expiresMs"
                           @change="updateParent"
@@ -120,8 +120,8 @@
 
       <hw-form-item :label="$t('page.host.captcha.capjs_info_title_zh')">
         <hw-tooltip class="placement top center" :content="$t('page.host.captcha.capjs_info_title_zh_tips')" placement="top"
-                   :overlay-style="{ width: '200px' }" show-arrow>
-          <hw-input :style="{ width: '300px' }"
+                   :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
+          <hw-input :style="{ width: 'min(100%, 300px)' }"
                    v-model="localCaptchaConfig.cap_js_config.infoTitle.zh"
                    @change="updateParent"
                    :placeholder="$t('page.host.captcha.capjs_info_title_zh_placeholder')">
@@ -131,8 +131,8 @@
 
       <hw-form-item :label="$t('page.host.captcha.capjs_info_text_zh')">
         <hw-tooltip class="placement top center" :content="$t('page.host.captcha.capjs_info_text_zh_tips')" placement="top"
-                   :overlay-style="{ width: '200px' }" show-arrow>
-          <hw-textarea :style="{ width: '400px' }"
+                   :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
+          <hw-textarea :style="{ width: 'min(100%, 400px)' }"
                       v-model="localCaptchaConfig.cap_js_config.infoText.zh"
                       @change="updateParent"
                       :placeholder="$t('page.host.captcha.capjs_info_text_zh_placeholder')">
@@ -142,8 +142,8 @@
 
       <hw-form-item :label="$t('page.host.captcha.capjs_info_title_en')">
         <hw-tooltip class="placement top center" :content="$t('page.host.captcha.capjs_info_title_en_tips')" placement="top"
-                   :overlay-style="{ width: '200px' }" show-arrow>
-          <hw-input :style="{ width: '300px' }"
+                   :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
+          <hw-input :style="{ width: 'min(100%, 300px)' }"
                    v-model="localCaptchaConfig.cap_js_config.infoTitle.en"
                    @change="updateParent"
                    :placeholder="$t('page.host.captcha.capjs_info_title_en_placeholder')">
@@ -153,8 +153,8 @@
 
       <hw-form-item :label="$t('page.host.captcha.capjs_info_text_en')">
         <hw-tooltip class="placement top center" :content="$t('page.host.captcha.capjs_info_text_en_tips')" placement="top"
-                   :overlay-style="{ width: '200px' }" show-arrow>
-          <hw-textarea :style="{ width: '400px' }"
+                   :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
+          <hw-textarea :style="{ width: 'min(100%, 400px)' }"
                       v-model="localCaptchaConfig.cap_js_config.infoText.en"
                       @change="updateParent"
                       :placeholder="$t('page.host.captcha.capjs_info_text_en_placeholder')">
@@ -267,14 +267,14 @@ export default {
   line-height: 1.6;
 }
 .cap-sources {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   line-height: 1.8;
   white-space: pre-line;
 }
 
 .mode-desc {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   margin-top: 4px;
 }

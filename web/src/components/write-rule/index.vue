@@ -304,12 +304,12 @@ export default {
   max-width: 460px;
 }
 .waf-hint-name {
-  color: #0052d9;
+  color: var(--hw-accent);
   font-weight: 500;
 }
 .waf-hint-desc {
-  color: #999;
-  font-size: 12px;
+  color: var(--hw-muted);
+  font-size: 13px;
   flex-shrink: 0;
 }
 li.CodeMirror-hint-active .waf-hint-name,

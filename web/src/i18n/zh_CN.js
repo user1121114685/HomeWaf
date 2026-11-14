@@ -429,10 +429,10 @@ export default {
     }
   },
   menu: {
-	  pipeline: { parent_title: '端口防护', ports: '端口总览与配置', templates: '防护模板' },
+	  pipeline: { parent_title: '服务与策略', ports: '服务接入', templates: '策略模板' },
     dashboard: {
       parent_title: "仪表盘",
-      dashboard_title: "概览仪表盘",
+      dashboard_title: "流量概览",
       screen_title: "监控大屏",
       stats_title: "系统统计监控",
       overview_title: "网站综合访问统计",
@@ -475,7 +475,7 @@ export default {
       parent_title: "防护日志",
       visit_title: "访问日志",
       visit_detail_title: "防护详情",
-      attack_title: "风险日志",
+      attack_title: "安全事件",
       logfilewrite_title: "日志文件写入",
     },
     tunnel: {

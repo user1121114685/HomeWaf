@@ -5,8 +5,13 @@
   --td-brand-color-1: var(--el-color-primary-light-9);
   --td-brand-color-2: var(--el-color-primary-light-8);
   --td-brand-color-3: var(--el-color-primary-light-7);
+  --td-brand-color-4: var(--el-color-primary-light-5);
+  --td-brand-color-5: var(--el-color-primary-light-3);
   --td-brand-color-6: var(--el-color-primary);
   --td-brand-color-7: var(--el-color-primary-dark-2);
+  --td-brand-color-8: var(--el-color-primary);
+  --td-brand-color-9: var(--el-color-primary-dark-2);
+  --td-brand-color-10: var(--el-color-primary-dark-2);
   --td-brand-color-light: var(--el-color-primary-light-9);
   --td-text-color-primary: var(--el-text-color-primary);
   --td-text-color-secondary: var(--el-text-color-regular);
@@ -61,8 +66,8 @@
   --td-comp-size-m: 32px;
   --td-comp-size-l: 40px;
   --td-font-size-body-medium: 14px;
-  --td-font-size-body-small: 12px;
-  --td-font-body-medium: 14px/1.6 system-ui, sans-serif;
+  --td-font-size-body-small: 13px;
+  --td-font-body-medium: 14px/1.6 var(--font-text);
   --td-shadow-1: var(--el-box-shadow-light);
   --td-shadow-2: var(--el-box-shadow);
 }
@@ -200,7 +205,7 @@
 }
 
 :root {
-  --td-font-family: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --td-font-family: var(--font-text);
 }
 body {
   font-family: var(--td-font-family);

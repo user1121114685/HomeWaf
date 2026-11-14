@@ -463,20 +463,20 @@ export default defineComponent({
 }
 
 .file-info-text {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: normal;
   color: rgba(0, 0, 0, 0.4);
   margin-left: 8px;
 }
 
 .preview-box {
-  background: #f5f7fa;
-  border: 1px solid #e4e7ed;
+  background: var(--hw-subtle);
+  border: 1px solid var(--hw-line);
   border-radius: 4px;
   padding: 12px;
   font-family: 'Courier New', monospace;
-  font-size: 12px;
-  color: #606266;
+  font-size: 13px;
+  color: var(--hw-muted);
   word-break: break-all;
   width: 100%;
 }
@@ -488,7 +488,7 @@ export default defineComponent({
   max-height: 400px;
   overflow-y: auto;
   font-family: 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .log-line {

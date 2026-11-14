@@ -1,122 +1,104 @@
-<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
-
 <template>
-  <div class="console-shell" @keydown.esc="closeMobileNavigation">
-    <a v-if="!$route.meta.fullscreen" class="workspace-skip" href="#console-main" @click.prevent="$el.querySelector('#console-main')?.focus()">跳到主要内容</a>
+  <div
+    class="console-shell"
+    :class="{ 'is-compact': setting.isSidebarCompact }"
+    @keydown.esc="closeMobileNavigation"
+    @keydown.tab="trapMobileFocus"
+  >
     <router-view v-if="$route.meta.fullscreen" />
     <template v-else>
-    <button v-if="!setting.isSidebarCompact && setting.layout !== 'top'" class="mobile-nav-backdrop" aria-label="关闭导航菜单" @click="closeMobileNavigation"></button>
-    <!-- HTTP 访问提示条：放在三种布局之外，side/top/mix 都能显示 -->
-    <insecure-banner />
-    <template v-if="setting.layout === 'side'">
-      <hw-layout key="side">
-        <hw-aside><layout-sidebar /></hw-aside>
-        <hw-layout>
-          <hw-header><layout-header /></hw-header>
-          <hw-content><layout-content /></hw-content>
-        </hw-layout>
-      </hw-layout>
-    </template>
-    <template v-else-if="setting.layout === 'top'">
-      <hw-layout key="top">
-        <hw-header> <layout-header /></hw-header>
-        <hw-content><layout-content /></hw-content>
-      </hw-layout>
-    </template>
-    <template v-else>
-      <hw-layout key="mix">
-        <hw-header><layout-header /></hw-header>
-        <hw-layout>
-          <hw-aside><layout-sidebar /></hw-aside>
-          <hw-content><layout-content />
-          </hw-content>
-        </hw-layout>
-      </hw-layout>
-    </template>
-    <setting />
-    <!-- AI 助手放在布局外层：三种布局(side/top/mix)下都可用 -->
-    <ai-assistant />
+      <a class="workspace-skip" href="#console-main" @click.prevent="$el.querySelector('#console-main')?.focus()"
+        >跳到主要内容</a
+      >
+      <button
+        v-if="mobile && !setting.isSidebarCompact"
+        class="mobile-nav-backdrop"
+        tabindex="-1"
+        aria-label="关闭导航菜单"
+        @click="closeMobileNavigation"
+      ></button>
+      <div class="console-layout">
+        <aside class="console-sidebar" aria-label="功能导航">
+          <side-nav :menu="menuRouters" :collapsed="setting.isSidebarCompact && !mobile" />
+        </aside>
+        <div class="console-body" :inert="mobile && !setting.isSidebarCompact">
+          <div class="console-topbar"><common-header /><insecure-banner /></div>
+          <main id="console-main" class="console-main" tabindex="-1"><common-content /></main>
+          <footer class="console-footer">
+            <span>HomeWaf · 网站与家庭服务防护</span><RouterLink to="/help">使用与许可说明</RouterLink>
+          </footer>
+        </div>
+      </div>
+      <setting />
+      <ai-assistant />
     </template>
   </div>
 </template>
-
 <script lang="ts">
-import {defineComponent} from 'vue';
-
-
+import { defineComponent } from 'vue';
 import { mapGetters } from '@/store/helpers';
 import { NotifyPlugin } from '@/ui';
 import { ElButton } from 'element-plus';
-
 import InsecureBanner from './components/InsecureBanner.vue';
-import LayoutHeader from './components/LayoutHeader.vue';
-import LayoutContent from './components/LayoutContent.vue';
-import LayoutSidebar from './components/LayoutSidebar.vue';
+import CommonHeader from './components/Header.vue';
+import CommonContent from './components/Content.vue';
+import SideNav from './components/SideNav.vue';
 import AiAssistant from './components/AiAssistant.vue';
 import Setting from './setting.vue';
-
-import { prefix } from '@/config/global';
-import { SettingType } from '@/interface';
-
-import '@/style/layout.less';
-const name = `${prefix}-base-layout`;
-
 export default defineComponent({
-  name,
-  components: {
-    InsecureBanner,
-    LayoutHeader,
-    LayoutContent,
-    LayoutSidebar,
-    Setting,
-    AiAssistant,
-  },
+  components: { InsecureBanner, CommonHeader, CommonContent, SideNav, AiAssistant, Setting },
+  data: () => ({ mobile: window.matchMedia('(max-width: 760px)').matches, media: null as MediaQueryList | null }),
   computed: {
-    ...mapGetters({
-      tabRouterList: 'tabRouter/tabRouterList',
-    }),
-    setting(): SettingType {
+    ...mapGetters({ menuRouters: 'permission/routers' }),
+    setting() {
       return this.$store.state.setting;
     },
   },
   watch: {
-    $route(newRoute) {
-      // 监听路由变化往多标签新增
-      const {
-        path,
-        meta: { title },
-        name,
-      } = newRoute;
-      this.$store.commit('tabRouter/appendTabRouterList', { path, title, name, isAlive: true });
+    '$route.path'() {
+      if (this.mobile) this.closeMobileNavigation();
+    },
+    'setting.isSidebarCompact'(closed) {
+      if (this.mobile && !closed)
+        this.$nextTick(() => this.$el.querySelector('.console-sidebar a, .console-sidebar button')?.focus());
     },
   },
-  // 如果不需要持久化标签页可以注释掉created和destroyed的内容
-  created() {
-    window.addEventListener('beforeunload', this.setTabRouterListCache);
-  },
-  unmounted() {
-    window.removeEventListener('beforeunload', this.setTabRouterListCache);
-  },
   mounted() {
-    const {
-      path,
-      meta: { title },
-      name,
-    } = this.$route;
-
-    if (localStorage.getItem('tabRouterList')) this.getTabRouterListCache();
-    this.$store.commit('tabRouter/appendTabRouterList', { path, title, name, isAlive: true });
-
+    this.media = window.matchMedia('(max-width: 760px)');
+    this.media.addEventListener('change', this.onViewportChange);
+    this.$store.commit('setting/showSidebarCompact', this.mobile);
     this.showLoginNotice();
   },
+  unmounted() {
+    this.media?.removeEventListener('change', this.onViewportChange);
+  },
   methods: {
+    onViewportChange(event: MediaQueryListEvent) {
+      this.mobile = event.matches;
+      this.$store.commit('setting/showSidebarCompact', event.matches);
+    },
     closeMobileNavigation() {
-      if (window.innerWidth > 760 || this.setting.isSidebarCompact) return;
+      if (!this.mobile || this.setting.isSidebarCompact) return;
       this.$store.commit('setting/showSidebarCompact', true);
       this.$nextTick(() => this.$el.querySelector('.sidebar-toggle')?.focus());
     },
-    // 登录来源提醒：登录页把响应里的 login_notice 存进 sessionStorage，进入布局后在右下角弹一次。
-    // 读完即删，保证刷新页面不会反复弹。
+    trapMobileFocus(event: KeyboardEvent) {
+      if (!this.mobile || this.setting.isSidebarCompact) return;
+      const controls = [
+        ...this.$el.querySelectorAll(
+          '.console-sidebar a, .console-sidebar button, .console-sidebar input, .console-sidebar summary',
+        ),
+      ].filter((item: HTMLElement) => item.getClientRects().length);
+      const first = controls[0],
+        last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    },
     showLoginNotice() {
       const raw = sessionStorage.getItem('login_notice');
       if (!raw) return;
@@ -182,7 +164,9 @@ export default defineComponent({
             h(
               ElButton,
               {
-                type: 'primary', link: true, size: 'small',
+                type: 'primary',
+                link: true,
+                size: 'small',
                 onClick: () => {
                   if (instance) NotifyPlugin.close(instance);
                   this.$router.push('/account/LoginHistory').catch(() => {});
@@ -193,12 +177,6 @@ export default defineComponent({
           ]);
       }
       instance = notice.is_changed ? NotifyPlugin.warning(options) : NotifyPlugin.success(options);
-    },
-    getTabRouterListCache() {
-      this.$store.commit('tabRouter/initTabRouterList', JSON.parse(localStorage.getItem('tabRouterList')));
-    },
-    setTabRouterListCache() {
-      localStorage.setItem('tabRouterList', JSON.stringify(this.tabRouterList));
     },
   },
 });

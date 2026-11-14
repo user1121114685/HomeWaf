@@ -37,7 +37,7 @@
             <!-- 冷却模式参数 -->
             <template v-if="form.throttle_mode === 'cooldown'">
               <hw-form-item :label="$t('page.notify_subscription.label_cooldown_steps')">
-                <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: '260px' }" />
+                <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: 'min(100%, 260px)' }" />
                 <div class="form-tip">{{ $t('page.notify_subscription.cooldown_steps_tip') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.notify_subscription.label_cooldown_reset')">
@@ -63,11 +63,11 @@
             </hw-form-item>
 
             <hw-form-item :label="$t('page.notify_subscription.label_quiet_hours')">
-              <hw-input v-model="form.throttle.quiet_hours" placeholder="23:00-07:00" :style="{ width: '200px' }" />
+              <hw-input v-model="form.throttle.quiet_hours" placeholder="23:00-07:00" :style="{ width: 'min(100%, 200px)' }" />
               <div class="form-tip">{{ $t('page.notify_subscription.quiet_hours_tip') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_subscription.label_quiet_bypass')" v-if="form.throttle.quiet_hours">
-              <hw-select v-model="form.throttle.quiet_hours_bypass_severity" :style="{ width: '200px' }">
+              <hw-select v-model="form.throttle.quiet_hours_bypass_severity" :style="{ width: 'min(100%, 200px)' }">
                 <hw-option value="" :label="$t('page.notify_subscription.severity_none')"></hw-option>
                 <hw-option value="warn" :label="$t('page.notify_subscription.severity_warn')"></hw-option>
                 <hw-option value="critical" :label="$t('page.notify_subscription.severity_critical')"></hw-option>
@@ -135,7 +135,7 @@
               <div class="form-tip">{{ $t('page.notify_subscription.filter_keywords_tip') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_subscription.label_filter_min_severity')">
-              <hw-select v-model="form.filter.min_severity" :style="{ width: '200px' }">
+              <hw-select v-model="form.filter.min_severity" :style="{ width: 'min(100%, 200px)' }">
                 <hw-option value="" :label="$t('common.all')"></hw-option>
                 <hw-option value="info" :label="$t('page.notify_subscription.severity_info')"></hw-option>
                 <hw-option value="warn" :label="$t('page.notify_subscription.severity_warn')"></hw-option>
@@ -473,15 +473,15 @@ export default defineComponent({
 }
 
 .form-tip {
-  font-size: 12px;
-  color: #888;
+  font-size: 13px;
+  color: var(--hw-muted);
   margin-top: 4px;
   line-height: 1.6;
 }
 
 .form-tip-inline {
-  font-size: 12px;
-  color: #888;
+  font-size: 13px;
+  color: var(--hw-muted);
   margin-left: 8px;
 }
 
@@ -494,7 +494,7 @@ export default defineComponent({
     cursor: pointer;
 
     .var-desc {
-      color: #888;
+      color: var(--hw-muted);
       margin-left: 4px;
     }
   }
@@ -503,18 +503,18 @@ export default defineComponent({
 .preview-box {
   margin-top: 16px;
   padding: 12px;
-  border: 1px solid #e7e7e7;
+  border: 1px solid var(--hw-line);
   border-radius: 6px;
-  background: #fafafa;
+  background: var(--hw-subtle);
 
   .preview-head {
-    font-size: 12px;
-    color: #888;
+    font-size: 13px;
+    color: var(--hw-muted);
     margin-bottom: 8px;
   }
 
   .preview-title {
-    font-weight: 600;
+    font-weight: 500;
     margin-bottom: 8px;
   }
 
@@ -528,8 +528,8 @@ export default defineComponent({
 
 .dryrun-stat {
   margin-top: 8px;
-  font-size: 12px;
-  color: #666;
+  font-size: 13px;
+  color: var(--hw-muted);
 
   span {
     margin-right: 12px;
@@ -542,8 +542,8 @@ export default defineComponent({
   left: 0;
   right: 0;
   padding: 12px 24px;
-  border-top: 1px solid #e7e7e7;
-  background: #fff;
+  border-top: 1px solid var(--hw-line);
+  background: var(--hw-panel);
   text-align: right;
 
   .t-button + .t-button {

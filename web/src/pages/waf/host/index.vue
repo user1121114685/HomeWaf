@@ -35,7 +35,7 @@
         <div class="ht-right">
           <hw-form ref="form" :data="searchformData" :label-width="80" colon layout="inline">
             <hw-form-item :label="$t('page.host.website')" name="code">
-              <hw-select v-model="searchformData.code" clearable filterable :style="{ width: '200px' }">
+              <hw-select v-model="searchformData.code" clearable filterable :style="{ width: 'min(100%, 200px)' }">
                 <hw-option v-for="(item, index) in host_dic" :value="index" :label="item" :key="index">
                   {{ item }}
                 </hw-option>
@@ -59,14 +59,14 @@
            好让它明显低于上面那排动作按钮：分组是筛选维度，不是主操作 -->
       <div class="host-group-bar">
         <span class="hg-bar-label">{{ $t('page.host.group.title') }}</span>
-        <span class="hg-gl" :class="{ on: currentGroup === 'all' }" @click="pickGroup('all')">
+        <span role="button" tabindex="0" @keydown.enter.prevent="pickGroup('all')" @keydown.space.prevent="pickGroup('all')" class="hg-gl" :class="{ on: currentGroup === 'all' }" @click="pickGroup('all')">
           <span class="hg-nm">{{ $t('page.host.group.all_hosts') }}</span><em>{{ groupAllCount }}</em>
         </span>
-        <span class="hg-gl" :class="{ on: currentGroup === '__none__' }" @click="pickGroup('__none__')">
+        <span role="button" tabindex="0" @keydown.enter.prevent="pickGroup('__none__')" @keydown.space.prevent="pickGroup('__none__')" class="hg-gl" :class="{ on: currentGroup === '__none__' }" @click="pickGroup('__none__')">
           <span class="hg-nm">{{ $t('page.host.group.ungrouped') }}</span><em>{{ groupNoneCount }}</em>
         </span>
         <span v-if="hostGroups.length" class="hg-gsep"></span>
-        <span v-for="(g, gi) in hostGroups" :key="g.group_code" class="hg-gl"
+        <span role="button" tabindex="0" @keydown.enter.prevent="pickGroup(g.group_code)" @keydown.space.prevent="pickGroup(g.group_code)" v-for="(g, gi) in hostGroups" :key="g.group_code" class="hg-gl"
               :class="{ on: currentGroup === g.group_code }" :title="g.group_name"
               @click="pickGroup(g.group_code)">
           <span class="hg-nm">{{ g.group_name }}</span><em>{{ g.host_count }}</em>
@@ -80,8 +80,8 @@
         <span class="hg-gsep"></span>
         <!-- 「新建分组」「移动到分组」都是分组域内的动作，和分组标签放一起；
              主工具栏只留网站维度的动作，主次才不会又混在一起 -->
-        <span class="hg-gl add" @click="openGroupForm(null)">＋ {{ $t('page.host.group.new_group') }}</span>
-        <span class="hg-gl add" :class="{ disabled: selectedRowKeys.length === 0 }"
+        <span role="button" tabindex="0" @keydown.enter.prevent="openGroupForm(null)" @keydown.space.prevent="openGroupForm(null)" class="hg-gl add" @click="openGroupForm(null)">＋ {{ $t('page.host.group.new_group') }}</span>
+        <span role="button" tabindex="0" @keydown.enter.prevent="selectedRowKeys.length &amp;&amp; openAssignGroup()" @keydown.space.prevent="selectedRowKeys.length &amp;&amp; openAssignGroup()" class="hg-gl add" :class="{ disabled: selectedRowKeys.length === 0 }"
               :title="selectedRowKeys.length === 0 ? $t('page.host.group.move_need_select') : ''"
               @click="selectedRowKeys.length && openAssignGroup()">
           ⇄ {{ selectedRowKeys.length ? $t('page.host.group.move_to_group_n', { n: selectedRowKeys.length }) : $t('page.host.group.move_to_group') }}
@@ -136,7 +136,7 @@
                 <span v-if="row.global_host === 1" class="hg-tag none">{{ $t('page.host.global_site') }}</span>
                 <span v-else-if="row.group_code && !groupDict[row.group_code]" class="hg-tag unknown"
                       :title="$t('page.host.group.unknown_group_tip')">{{ $t('page.host.group.unknown_group') }}</span>
-                <span v-else-if="row.group_code" class="hg-tag"
+                <span role="button" tabindex="0" @keydown.enter.prevent="pickGroup(row.group_code)" @keydown.space.prevent="pickGroup(row.group_code)" v-else-if="row.group_code" class="hg-tag"
                       :style="{ background: hexToSoft(groupDict[row.group_code].color), color: groupDict[row.group_code].color }"
                       @click="pickGroup(row.group_code)">
                   <i class="hg-dot" :style="{ background: groupDict[row.group_code].color }"></i>{{ groupDict[row.group_code].group_name }}
@@ -179,7 +179,7 @@
             <div class="run-status">
               <!-- 防护：这列的行高已经不矮，干脆把主开关做成一块可视化控件，
                    盾牌 + 状态文字 + 轨道一起表达，一眼看清防护开没开（点一下即切换） -->
-              <div
+              <div role="button" tabindex="0" @keydown.enter.prevent="changeGuardStatus(!(row.guard_status === 1), row)" @keydown.space.prevent="changeGuardStatus(!(row.guard_status === 1), row)"
                 class="guard-ctl"
                 :class="row.guard_status === 1 ? 'is-on' : 'is-off'"
                 :title="$t('page.host.guard_status')"
@@ -205,10 +205,10 @@
             <!-- 高频的「编辑」「证书申请」保持文字直出，低频的「复制」「删除」收进「更多」：
                  4 个链接平铺会折成两行且长度参差，收敛后一行、整齐，以后再加操作项也只是往「更多」里塞 -->
             <div v-if="slotProps.row.global_host!==1" class="op-cell">
-              <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
+              <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
               <!-- 表格里用短标签，全称走 title：全称 8 个字，直出会把这一列重新撑破 -->
-              <a class="t-button-link" :title="$t('page.host.ssl_auto_apply')"
-                 @click="handleClickSSLApply(slotProps)">{{ $t('page.host.ssl_auto_apply_short') }}</a>
+              <button type="button" class="t-button-link" :title="$t('page.host.ssl_auto_apply')"
+                 @click="handleClickSSLApply(slotProps)">{{ $t('page.host.ssl_auto_apply_short') }}</button>
               <span class="op-vline"></span>
               <hw-dropdown :options="rowMoreOptions()" trigger="click" @click="onRowMoreClick($event, slotProps)">
                 <span class="op-more">{{ $t('page.host.group.more') }} ▾</span>
@@ -2513,7 +2513,7 @@ export default defineComponent({
 }
 
 .ov-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 
@@ -2538,7 +2538,7 @@ export default defineComponent({
 .ov-value {
   margin-top: 8px;
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.15;
   color: var(--td-text-color-primary);
   font-variant-numeric: tabular-nums;
@@ -2546,7 +2546,7 @@ export default defineComponent({
 
 .ov-sub {
   margin-top: 5px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2591,7 +2591,7 @@ export default defineComponent({
 }
 
 .hc-nick {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 
@@ -2627,7 +2627,7 @@ export default defineComponent({
   white-space: nowrap;
   padding: 0 4px;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   background: var(--td-bg-color-secondarycontainer, #f3f3f3);
   text-decoration: none;
@@ -2666,7 +2666,7 @@ export default defineComponent({
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -2693,14 +2693,14 @@ export default defineComponent({
 }
 
 .be-health .bh-time {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   font-variant-numeric: tabular-nums;
 }
 
 .mono {
   font-family: "SFMono-Regular", "Menlo", "Consolas", monospace;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* ==================== 今日态势：迷你指标 ==================== */
@@ -2728,14 +2728,14 @@ export default defineComponent({
 }
 
 .sm-l {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   white-space: nowrap;
 }
 
 .sm-v {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -2768,7 +2768,7 @@ export default defineComponent({
 }
 
 .guard-ctl:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: none;
 }
 
 .guard-ctl .gc-shield {
@@ -2781,7 +2781,7 @@ export default defineComponent({
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   color: var(--td-text-color-placeholder);
 }
@@ -2803,7 +2803,7 @@ export default defineComponent({
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--hw-panel);
   transition: left 0.2s;
 }
 
@@ -2834,7 +2834,7 @@ export default defineComponent({
 .rs-k {
   min-width: 26px;
   flex: none;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 
@@ -2879,7 +2879,7 @@ export default defineComponent({
 }
 
 .hg-bar-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   margin-right: 8px;
 }
@@ -2906,7 +2906,7 @@ export default defineComponent({
 
   &.on {
     color: var(--td-brand-color);
-    font-weight: 600;
+    font-weight: 500;
     border-bottom-color: var(--td-brand-color);
   }
 
@@ -2919,7 +2919,7 @@ export default defineComponent({
 
   em {
     font-style: normal;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
     flex: none;
   }
@@ -2950,7 +2950,7 @@ export default defineComponent({
 }
 
 .hg-more {
-  font-weight: 700;
+  font-weight: 500;
   opacity: 0;
   padding: 0 2px;
   flex: none;
@@ -3020,7 +3020,7 @@ export default defineComponent({
   height: 22px;
   padding: 0 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   border: 1px solid transparent;
   max-width: 100%;
@@ -3097,7 +3097,7 @@ export default defineComponent({
   align-items: center;
   gap: 4px;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: normal;
   color: var(--td-text-color-secondary);
 
@@ -3186,7 +3186,7 @@ export default defineComponent({
 }
 
 .progress-count {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 

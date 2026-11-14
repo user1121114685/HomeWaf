@@ -35,9 +35,9 @@
             <hw-switch v-model="row.status" :customValue="[1, 0]" @change="handleStatusChange(row)"></hw-switch>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleTest(slotProps)">{{ $t('page.notify_channel.button_test') }}</a>
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleTest(slotProps)">{{ $t('page.notify_channel.button_test') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -53,10 +53,10 @@
              Chrome 只认 new-password（off 对密码框无效），所以两个都得给。 -->
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="120" autocomplete="off">
           <hw-form-item :label="$t('page.notify_channel.label_name')" name="name">
-            <hw-input :style="{ width: '480px' }" v-model="formData.name" :placeholder="$t('page.notify_channel.name_placeholder')" autocomplete="off"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.name" :placeholder="$t('page.notify_channel.name_placeholder')" autocomplete="off"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.notify_channel.label_type')" name="type">
-            <hw-select v-model="formData.type" :style="{ width: '480px' }" @change="handleTypeChange">
+            <hw-select v-model="formData.type" :style="{ width: 'min(100%, 480px)' }" @change="handleTypeChange">
               <hw-option v-for="item in channelTypes" :key="item.type" :value="item.type" :label="item.name" />
             </hw-select>
           </hw-form-item>
@@ -67,10 +67,10 @@
           <!-- 钉钉、飞书和企业微信配置 -->
           <template v-if="formData.type === 'dingtalk' || formData.type === 'feishu' || formData.type === 'wechatwork'">
             <hw-form-item :label="$t('page.notify_channel.label_webhook_url')" name="webhook_url">
-              <hw-input :style="{ width: '480px' }" v-model="formData.webhook_url" :placeholder="$t('page.notify_channel.webhook_placeholder')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.webhook_url" :placeholder="$t('page.notify_channel.webhook_placeholder')"></hw-input>
             </hw-form-item>
             <hw-form-item v-if="formData.type !== 'wechatwork'" :label="$t('page.notify_channel.label_secret')" name="secret">
-              <hw-input :style="{ width: '480px' }" v-model="formData.secret" type="password" :placeholder="$t('page.notify_channel.secret_placeholder')" autocomplete="new-password"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.secret" type="password" :placeholder="$t('page.notify_channel.secret_placeholder')" autocomplete="new-password"></hw-input>
             </hw-form-item>
             <hw-alert v-if="formData.type === 'wechatwork'" theme="info" style="margin-top: 12px;">
               <div style="line-height: 1.8;">
@@ -90,7 +90,7 @@
             <hw-alert theme="info" :message="$t('page.notify_channel.serverchan_config_tip')" style="margin-bottom: 16px;"></hw-alert>
 
             <hw-form-item :label="$t('page.notify_channel.serverchan_sendkey')" name="access_token">
-              <hw-input :style="{ width: '480px' }" v-model="formData.access_token" :placeholder="$t('page.notify_channel.serverchan_sendkey_placeholder')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.access_token" :placeholder="$t('page.notify_channel.serverchan_sendkey_placeholder')"></hw-input>
             </hw-form-item>
 
             <hw-alert theme="warning" style="margin-top: 12px;">
@@ -176,25 +176,25 @@
             </hw-collapse>
 
             <hw-form-item :label="$t('page.notify_channel.email_smtp_host')" name="email_smtp_host">
-              <hw-input :style="{ width: '480px' }" v-model="formData.email_smtp_host" :placeholder="$t('page.notify_channel.email_smtp_host_placeholder')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.email_smtp_host" :placeholder="$t('page.notify_channel.email_smtp_host_placeholder')"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_smtp_port')" name="email_smtp_port">
-              <hw-input :style="{ width: '480px' }" v-model="formData.email_smtp_port" :placeholder="$t('page.notify_channel.email_smtp_port_placeholder')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.email_smtp_port" :placeholder="$t('page.notify_channel.email_smtp_port_placeholder')"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_username')" name="email_username">
-              <hw-input :style="{ width: '480px' }" v-model="formData.email_username" :placeholder="$t('page.notify_channel.email_username_placeholder')" autocomplete="off"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.email_username" :placeholder="$t('page.notify_channel.email_username_placeholder')" autocomplete="off"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_password')" name="email_password">
-              <hw-input :style="{ width: '480px' }" v-model="formData.email_password" type="password" :placeholder="$t('page.notify_channel.email_password_placeholder')" autocomplete="new-password"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.email_password" type="password" :placeholder="$t('page.notify_channel.email_password_placeholder')" autocomplete="new-password"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_from')" name="email_from">
-              <hw-input :style="{ width: '480px' }" v-model="formData.email_from" :placeholder="$t('page.notify_channel.email_from_placeholder')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.email_from" :placeholder="$t('page.notify_channel.email_from_placeholder')"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_from_name')" name="email_from_name">
-              <hw-input :style="{ width: '480px' }" v-model="formData.email_from_name" :placeholder="$t('page.notify_channel.email_from_name_placeholder')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.email_from_name" :placeholder="$t('page.notify_channel.email_from_name_placeholder')"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_to')" name="email_to">
-              <hw-input :style="{ width: '480px' }" v-model="formData.email_to" :placeholder="$t('page.notify_channel.email_to_placeholder')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.email_to" :placeholder="$t('page.notify_channel.email_to_placeholder')"></hw-input>
               <div style="font-size: 12px; color: #666; margin-top: 4px;">
                 💡 <b>默认收件人</b>，订阅时可针对消息类型单独配置，未配置则使用此默认值
               </div>
@@ -207,7 +207,7 @@
               </hw-radio-group>
             </hw-form-item>
             <hw-form-item v-if="formData.email_ssl_mode !== 'none'" :label="$t('page.notify_channel.email_skip_verify')" name="email_skip_verify">
-              <div :style="{ width: '480px' }">
+              <div :style="{ width: 'min(100%, 480px)' }">
                 <hw-checkbox v-model="formData.email_skip_verify" class="skip-verify-checkbox">{{ $t('page.notify_channel.email_skip_verify_label') }}</hw-checkbox>
                 <div style="font-size: 12px; color: #666; margin-top: 4px; line-height: 1.5;">
                   ⚠️ {{ $t('page.notify_channel.email_skip_verify_tip') }}
@@ -223,7 +223,7 @@
             </hw-radio-group>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks" :rows="3"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks" :rows="3"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
@@ -239,10 +239,10 @@
         <!-- autocomplete 关闭原因见新增弹窗上方注释 -->
         <hw-form :data="formEditData" ref="formEdit" :rules="rules" @submit="onSubmitEdit" :labelWidth="120" autocomplete="off">
           <hw-form-item :label="$t('page.notify_channel.label_name')" name="name">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.name" autocomplete="off"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.name" autocomplete="off"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.notify_channel.label_type')" name="type">
-            <hw-select v-model="formEditData.type" :style="{ width: '480px' }" @change="handleEditTypeChange">
+            <hw-select v-model="formEditData.type" :style="{ width: 'min(100%, 480px)' }" @change="handleEditTypeChange">
               <hw-option v-for="item in channelTypes" :key="item.type" :value="item.type" :label="item.name" />
             </hw-select>
           </hw-form-item>
@@ -253,11 +253,11 @@
           <!-- 钉钉、飞书和企业微信配置 -->
           <template v-if="formEditData.type === 'dingtalk' || formEditData.type === 'feishu' || formEditData.type === 'wechatwork'">
             <hw-form-item :label="$t('page.notify_channel.label_webhook_url')" name="webhook_url">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.webhook_url"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.webhook_url"></hw-input>
             </hw-form-item>
             <hw-form-item v-if="formEditData.type !== 'wechatwork'" :label="$t('page.notify_channel.label_secret')" name="secret">
               <hw-input
-                :style="{ width: '480px' }"
+                :style="{ width: 'min(100%, 480px)' }"
                 v-model="formEditData.secret"
                 type="password"
                 autocomplete="new-password"
@@ -290,7 +290,7 @@
 
             <hw-form-item :label="$t('page.notify_channel.serverchan_sendkey')" name="access_token">
               <hw-input
-                :style="{ width: '480px' }"
+                :style="{ width: 'min(100%, 480px)' }"
                 v-model="formEditData.access_token"
                 type="password"
                 autocomplete="new-password"
@@ -388,25 +388,25 @@
             </hw-collapse>
 
             <hw-form-item :label="$t('page.notify_channel.email_smtp_host')" name="email_smtp_host">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.email_smtp_host"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.email_smtp_host"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_smtp_port')" name="email_smtp_port">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.email_smtp_port"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.email_smtp_port"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_username')" name="email_username">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.email_username" autocomplete="off"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.email_username" autocomplete="off"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_password')" name="email_password">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.email_password" type="password" autocomplete="new-password"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.email_password" type="password" autocomplete="new-password"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_from')" name="email_from">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.email_from"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.email_from"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_from_name')" name="email_from_name">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.email_from_name"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.email_from_name"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.email_to')" name="email_to">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.email_to"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.email_to"></hw-input>
               <div style="font-size: 12px; color: #666; margin-top: 4px;">
                 💡 <b>默认收件人</b>，订阅时可针对消息类型单独配置，未配置则使用此默认值
               </div>
@@ -419,7 +419,7 @@
               </hw-radio-group>
             </hw-form-item>
             <hw-form-item v-if="formEditData.email_ssl_mode !== 'none'" :label="$t('page.notify_channel.email_skip_verify')" name="email_skip_verify">
-              <div :style="{ width: '480px' }">
+              <div :style="{ width: 'min(100%, 480px)' }">
                 <hw-checkbox v-model="formEditData.email_skip_verify" class="skip-verify-checkbox">{{ $t('page.notify_channel.email_skip_verify_label') }}</hw-checkbox>
                 <div style="font-size: 12px; color: #666; margin-top: 4px; line-height: 1.5;">
                   ⚠️ {{ $t('page.notify_channel.email_skip_verify_tip') }}
@@ -435,7 +435,7 @@
             </hw-radio-group>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks" :rows="3"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" :rows="3"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
@@ -967,7 +967,7 @@ export default defineComponent({
 /* 弹窗内容会被 TDesign 挂到 body 下，scoped 样式命中不到，这里用全局作用域 */
 .notify-secret-tip {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   line-height: 1.5;
 }

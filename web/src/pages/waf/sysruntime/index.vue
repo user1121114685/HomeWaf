@@ -4,9 +4,9 @@
   <div>
     <hw-card class="list-card-container">
       <hw-list :split="true">
-        <hw-list-item v-for="runtime in runtimes">
+        <hw-list-item v-for="runtime in runtimes" :key="runtime.name">
           <hw-list-item-meta :title="runtime.name" >
-            <template #description="{ row }">
+            <template #description>
               <pre>{{runtime.value}}</pre>
             </template>
           </hw-list-item-meta>

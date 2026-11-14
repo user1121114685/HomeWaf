@@ -84,9 +84,9 @@
                :title="slotProps.row.syncing ? $t('page.threatip.sync_self_busy') : $t('page.threatip.sync_other_busy')">
               {{ $t('page.threatip.sync') }}
             </a>
-            <a v-else class="t-button-link" @click="handleSync(slotProps)">{{ $t('page.threatip.sync') }}</a>
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" v-else class="t-button-link" @click="handleSync(slotProps)">{{ $t('page.threatip.sync') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -97,7 +97,7 @@
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="120">
           <hw-form-item :label="$t('page.threatip.quick_fill_label')">
             <div style="width: 100%;">
-              <hw-select :style="{ width: '480px', maxWidth: '100%' }" :placeholder="$t('page.threatip.quick_fill_placeholder')"
+              <hw-select :style="{ width: 'min(100%, 480px)', maxWidth: '100%' }" :placeholder="$t('page.threatip.quick_fill_placeholder')"
                         clearable filterable @change="applyFeedPreset">
                 <hw-option v-for="p in feedPresets" :value="p.code" :label="p.optionLabel" :key="p.code" />
               </hw-select>
@@ -105,21 +105,21 @@
             </div>
           </hw-form-item>
           <hw-form-item :label="$t('page.threatip.label_code')" name="code">
-            <hw-input :style="{ width: '480px' }" v-model="formData.code" :placeholder="$t('page.threatip.code_tips')"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.code" :placeholder="$t('page.threatip.code_tips')"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.threatip.label_name')" name="name">
-            <hw-input :style="{ width: '480px' }" v-model="formData.name"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.name"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.threatip.label_url')" name="url">
-            <hw-input :style="{ width: '480px' }" v-model="formData.url"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.url"></hw-input>
           </hw-form-item>
-          <hw-form-item label="签名清单HTTPS地址" name="signature_url"><hw-input v-model="formData.signature_url" style="width:480px;max-width:100%" aria-label="签名清单HTTPS地址" /></hw-form-item>
-          <hw-form-item label="签名源标识" name="feed_id"><hw-input v-model="formData.feed_id" style="width:480px;max-width:100%" aria-label="签名源标识" /></hw-form-item>
-          <hw-form-item label="签名密钥ID" name="signing_key_id"><hw-input v-model="formData.signing_key_id" style="width:480px;max-width:100%" aria-label="签名密钥ID" /></hw-form-item>
-          <hw-form-item label="可信Ed25519公钥" name="signing_public_key"><hw-input v-model="formData.signing_public_key" style="width:480px;max-width:100%" aria-label="可信Ed25519公钥" /></hw-form-item>
+          <hw-form-item label="签名清单HTTPS地址" name="signature_url"><hw-input v-model="formData.signature_url" style="width: min(100%, 480px);max-width:100%" aria-label="签名清单HTTPS地址" /></hw-form-item>
+          <hw-form-item label="签名源标识" name="feed_id"><hw-input v-model="formData.feed_id" style="width: min(100%, 480px);max-width:100%" aria-label="签名源标识" /></hw-form-item>
+          <hw-form-item label="签名密钥ID" name="signing_key_id"><hw-input v-model="formData.signing_key_id" style="width: min(100%, 480px);max-width:100%" aria-label="签名密钥ID" /></hw-form-item>
+          <hw-form-item label="可信Ed25519公钥" name="signing_public_key"><hw-input v-model="formData.signing_public_key" style="width: min(100%, 480px);max-width:100%" aria-label="可信Ed25519公钥" /></hw-form-item>
           <p class="quick-fill-tips">公钥为Base64URL无填充；签名版本必须递增，同版本只能是相同内容。私钥保留在签名机，不上传WAF。保存关闭状态可保留尚未配齐的草稿。</p>
           <hw-form-item :label="$t('page.threatip.label_parser')" name="parser_type">
-            <hw-select v-model="formData.parser_type" :style="{ width: '480px' }">
+            <hw-select v-model="formData.parser_type" :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in parserOptions" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
           </hw-form-item>
@@ -127,7 +127,7 @@
             <hw-input-number v-model="formData.threshold" :min="0" theme="column" />
           </hw-form-item>
           <hw-form-item :label="$t('page.threatip.label_land')" name="land_target">
-            <hw-select v-model="formData.land_target" :style="{ width: '480px' }">
+            <hw-select v-model="formData.land_target" :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in landOptions" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
           </hw-form-item>
@@ -138,7 +138,7 @@
             <hw-switch v-model="formData.enable" :custom-value="[1, 0]" />
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
@@ -152,21 +152,21 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="120">
           <hw-form-item :label="$t('page.threatip.label_code')" name="code">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.code" disabled></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.code" disabled></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.threatip.label_name')" name="name">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.name"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.name"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.threatip.label_url')" name="url">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.url"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.url"></hw-input>
           </hw-form-item>
-          <hw-form-item label="签名清单HTTPS地址" name="signature_url"><hw-input v-model="formEditData.signature_url" style="width:480px;max-width:100%" aria-label="签名清单HTTPS地址" /></hw-form-item>
-          <hw-form-item label="签名源标识" name="feed_id"><hw-input v-model="formEditData.feed_id" style="width:480px;max-width:100%" aria-label="签名源标识" /></hw-form-item>
-          <hw-form-item label="签名密钥ID" name="signing_key_id"><hw-input v-model="formEditData.signing_key_id" style="width:480px;max-width:100%" aria-label="签名密钥ID" /></hw-form-item>
-          <hw-form-item label="可信Ed25519公钥" name="signing_public_key"><hw-input v-model="formEditData.signing_public_key" style="width:480px;max-width:100%" aria-label="可信Ed25519公钥" /></hw-form-item>
+          <hw-form-item label="签名清单HTTPS地址" name="signature_url"><hw-input v-model="formEditData.signature_url" style="width: min(100%, 480px);max-width:100%" aria-label="签名清单HTTPS地址" /></hw-form-item>
+          <hw-form-item label="签名源标识" name="feed_id"><hw-input v-model="formEditData.feed_id" style="width: min(100%, 480px);max-width:100%" aria-label="签名源标识" /></hw-form-item>
+          <hw-form-item label="签名密钥ID" name="signing_key_id"><hw-input v-model="formEditData.signing_key_id" style="width: min(100%, 480px);max-width:100%" aria-label="签名密钥ID" /></hw-form-item>
+          <hw-form-item label="可信Ed25519公钥" name="signing_public_key"><hw-input v-model="formEditData.signing_public_key" style="width: min(100%, 480px);max-width:100%" aria-label="可信Ed25519公钥" /></hw-form-item>
           <p class="quick-fill-tips">公钥为Base64URL无填充；签名版本必须递增，同版本只能是相同内容。私钥保留在签名机，不上传WAF。保存关闭状态可保留尚未配齐的草稿。</p>
           <hw-form-item :label="$t('page.threatip.label_parser')" name="parser_type">
-            <hw-select v-model="formEditData.parser_type" :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.parser_type" :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in parserOptions" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
           </hw-form-item>
@@ -174,7 +174,7 @@
             <hw-input-number v-model="formEditData.threshold" :min="0" theme="column" />
           </hw-form-item>
           <hw-form-item :label="$t('page.threatip.label_land')" name="land_target">
-            <hw-select v-model="formEditData.land_target" :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.land_target" :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in landOptions" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
           </hw-form-item>
@@ -185,7 +185,7 @@
             <hw-switch v-model="formEditData.enable" :custom-value="[1, 0]" />
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
@@ -536,7 +536,7 @@ import {defineComponent} from 'vue';
     margin-left: @spacer;
   }
   .quick-fill-tips {
-    font-size: 12px;
+    font-size: 13px;
     color: rgba(0, 0, 0, 0.45);
     margin-top: 6px;
     width: 100%;

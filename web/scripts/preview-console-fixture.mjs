@@ -51,6 +51,7 @@ const mime = {
   '.json': 'application/json',
   '.png': 'image/png',
   '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
 };
 const server = http.createServer((request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1:3118');
@@ -68,11 +69,25 @@ const server = http.createServer((request, response) => {
     const endpoint = url.pathname.split('/api/v1/')[1] || '';
     if (endpoint.includes('handshake') || endpoint === 'public/seckey' || endpoint === 'sysinfo/checkversion')
       return send({}, 1);
-    if (request.method !== 'GET') return send({}, 1);
+    if (request.method !== 'GET' && !endpoint.endsWith('/list')) return send({}, 1);
     if (endpoint === 'pipeline/overview') return send({ ports, issues: {}, punishment: {}, log_queue: {} });
     if (endpoint === 'pipeline/templates') return send(templates);
-    if (endpoint === 'pipeline/migration/legacy' || endpoint === 'pipeline/regions') return send([]);
-    return send({ list: [], total: 0 });
+    if (
+      [
+        'pipeline/migration/legacy',
+        'pipeline/regions',
+        'pipeline/gate/users',
+        'pipeline/gate/sessions',
+        'pipeline/state',
+        'pipeline/logs',
+        'wafhost/ipgroup/options',
+      ].includes(endpoint)
+    )
+      return send([]);
+    if (endpoint === 'pipeline/stats') return send({ port: {}, punishment: {}, log_queue: {} });
+    if (endpoint === 'threatip/landed/summary') return send([]);
+    if (endpoint.endsWith('/list')) return send({ list: [], total: 0 });
+    return send({}, 1);
   }
   const requested = path.resolve(dist, '.' + decodeURIComponent(url.pathname));
   if (requested !== dist && !requested.startsWith(dist + path.sep)) {
@@ -88,7 +103,7 @@ const server = http.createServer((request, response) => {
   }
   response.setHeader('Content-Type', mime[path.extname(file)] || 'application/octet-stream');
   if (file.endsWith('index.html')) {
-    const bootstrap = `<script>localStorage.setItem('access_token','isolated-visual-fixture');localStorage.setItem('lang','zh_CN');if(!location.hash)location.hash='/dashboard/start';</script>`;
+    const bootstrap = `<script>localStorage.setItem('access_token','isolated-visual-fixture');localStorage.setItem('lang','zh_CN');const appearance=new URLSearchParams(location.search).get('appearance');if(['light','dark','auto'].includes(appearance))localStorage.setItem('homewaf.console.preferences',JSON.stringify({mode:appearance}));if(!location.hash)location.hash='/dashboard/start';</script>`;
     response.end(fs.readFileSync(file, 'utf8').replace('<head>', '<head>' + bootstrap));
   } else fs.createReadStream(file).pipe(response);
 });

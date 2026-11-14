@@ -5,7 +5,7 @@
     <hw-alert theme="info" :message="$t('page.host.access.intro')" style="margin-bottom: 16px;" />
     <hw-form-item :label="$t('page.host.access.mode')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.mode_tips')" placement="top"
-                 :overlay-style="{ width: '380px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 380px)' }" show-arrow>
         <hw-radio-group v-model="local.mode" @change="updateParent">
           <hw-radio value="0">{{ $t('page.host.access.mode_inherit') }}</hw-radio>
           <hw-radio value="1">{{ $t('page.host.access.mode_force_on') }}</hw-radio>
@@ -15,15 +15,15 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.access.exclude_paths')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.exclude_paths_tips')" placement="top"
-                 :overlay-style="{ width: '380px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 380px)' }" show-arrow>
         <hw-textarea v-model="local.exclude_paths" :placeholder="$t('page.host.access.exclude_paths_ph')"
-                    :autosize="{ minRows: 3, maxRows: 6 }" :style="{ width: '480px' }" @blur="updateParent" />
+                    :autosize="{ minRows: 3, maxRows: 6 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
       </hw-tooltip>
     </hw-form-item>
     <hw-form-item :label="$t('page.host.access.allow_ip_group')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.allow_ip_group_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
-        <hw-select v-model="local.allow_ip_group_code" clearable :style="{ width: '480px' }"
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
+        <hw-select v-model="local.allow_ip_group_code" clearable :style="{ width: 'min(100%, 480px)' }"
                   :placeholder="$t('common.select_placeholder')" @change="updateParent">
           <hw-option v-for="g in ipGroups" :key="g.group_code" :value="g.group_code" :label="g.group_name"></hw-option>
         </hw-select>
@@ -31,7 +31,7 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.access.require_otp')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.require_otp_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-radio-group v-model="local.require_otp" @change="updateParent">
           <hw-radio value="0">{{ $t('page.host.access.mode_inherit') }}</hw-radio>
           <hw-radio value="1">{{ $t('page.host.access.otp_force') }}</hw-radio>
@@ -41,7 +41,7 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.access.unauth_action')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.unauth_action_tips')" placement="top"
-                 :overlay-style="{ width: '380px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 380px)' }" show-arrow>
         <hw-radio-group v-model="local.unauth_action" @change="updateParent">
           <hw-radio value="">{{ $t('page.host.access.mode_inherit') }}</hw-radio>
           <hw-radio value="auto">{{ $t('page.host.access.unauth_auto') }}</hw-radio>
@@ -52,30 +52,30 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.access.cors_allow_origins')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.cors_allow_origins_tips')" placement="top"
-                 :overlay-style="{ width: '420px' }" show-arrow>
-        <hw-textarea v-model="local.cors_allow_origins" :style="{ width: '480px' }"
+                 :overlay-style="{ width: 'min(100%, 420px)' }" show-arrow>
+        <hw-textarea v-model="local.cors_allow_origins" :style="{ width: 'min(100%, 480px)' }"
                     :autosize="{ minRows: 2, maxRows: 5 }" @change="updateParent"
                     placeholder="https://app.example.com"></hw-textarea>
       </hw-tooltip>
     </hw-form-item>
     <hw-form-item :label="$t('page.host.access.cors_allow_methods')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.cors_allow_methods_tips')" placement="top"
-                 :overlay-style="{ width: '380px' }" show-arrow>
-        <hw-input v-model="local.cors_allow_methods" :style="{ width: '480px' }" @change="updateParent"
+                 :overlay-style="{ width: 'min(100%, 380px)' }" show-arrow>
+        <hw-input v-model="local.cors_allow_methods" :style="{ width: 'min(100%, 480px)' }" @change="updateParent"
                  placeholder="GET,POST,PUT,PATCH,DELETE,OPTIONS"></hw-input>
       </hw-tooltip>
     </hw-form-item>
     <hw-form-item :label="$t('page.host.access.cors_allow_headers')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.cors_allow_headers_tips')" placement="top"
-                 :overlay-style="{ width: '380px' }" show-arrow>
-        <hw-input v-model="local.cors_allow_headers" :style="{ width: '480px' }" @change="updateParent"
+                 :overlay-style="{ width: 'min(100%, 380px)' }" show-arrow>
+        <hw-input v-model="local.cors_allow_headers" :style="{ width: 'min(100%, 480px)' }" @change="updateParent"
                  placeholder="Content-Type,Authorization"></hw-input>
       </hw-tooltip>
     </hw-form-item>
     <hw-form-item :label="$t('page.host.access.cors_max_age')">
       <hw-tooltip class="placement top center" :content="$t('page.host.access.cors_max_age_tips')" placement="top"
-                 :overlay-style="{ width: '380px' }" show-arrow>
-        <hw-input-number v-model="local.cors_max_age" :style="{ width: '200px' }" theme="column"
+                 :overlay-style="{ width: 'min(100%, 380px)' }" show-arrow>
+        <hw-input-number v-model="local.cors_max_age" :style="{ width: 'min(100%, 200px)' }" theme="column"
                         :min="0" :max="7200" @change="updateParent"></hw-input-number>
       </hw-tooltip>
     </hw-form-item>

@@ -239,7 +239,7 @@ export default defineComponent({
   margin-bottom: 16px;
 
   span {
-    font-weight: bold;
+    font-weight: 500;
   }
 }
 

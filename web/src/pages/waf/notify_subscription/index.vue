@@ -852,12 +852,12 @@ export default defineComponent({
   h3 {
     margin: 0 0 8px 0;
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   .page-desc {
     margin: 0;
-    color: #666;
+    color: var(--hw-muted);
     font-size: 14px;
   }
 }
@@ -867,18 +867,18 @@ export default defineComponent({
   .message-type-name {
     font-size: 14px;
     font-weight: 500;
-    color: #333;
+    color: var(--hw-ink);
     margin-bottom: 4px;
   }
 
   .message-type-code {
-    font-size: 12px;
-    color: #999;
-    font-family: monospace;
+    font-size: 13px;
+    color: var(--hw-muted);
+    font-family: var(--font-mono);
   }
 }
 </style>
 
 <style scoped>
-.event-hint { margin-top: 4px; color: var(--td-text-color-secondary); font-size: 12px; line-height: 1.5; }
+.event-hint { margin-top: 4px; color: var(--td-text-color-secondary); font-size: 13px; line-height: 1.5; }
 </style>

@@ -36,7 +36,7 @@
           </template>
 
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
           </template>
         </hw-table>
       </div>
@@ -53,7 +53,7 @@
         <hw-form :data="formEditData" ref="editForm" :rules="rules" @submit="onSubmitEdit" :labelWidth="120">
 
           <hw-form-item :label="$t('page.data_retention.table_name')" name="table_name">
-            <hw-input :style="{ width: '380px' }" v-model="formEditData.table_name" disabled />
+            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.table_name" disabled />
           </hw-form-item>
 
           <hw-form-item :label="$t('page.data_retention.db_type')" name="db_type">
@@ -62,7 +62,7 @@
 
           <hw-form-item :label="$t('page.data_retention.retain_days')" name="retain_days">
             <hw-input-number
-              :style="{ width: '200px' }"
+              :style="{ width: 'min(100%, 200px)' }"
               v-model="formEditData.retain_days"
               :min="0"
               :step="1"
@@ -72,7 +72,7 @@
 
           <hw-form-item :label="$t('page.data_retention.retain_rows')" name="retain_rows">
             <hw-input-number
-              :style="{ width: '200px' }"
+              :style="{ width: 'min(100%, 200px)' }"
               v-model="formEditData.retain_rows"
               :min="0"
               :step="10000"
@@ -89,7 +89,7 @@
           </hw-form-item>
 
           <hw-form-item :label="$t('page.data_retention.remarks')" name="remarks">
-            <hw-input :style="{ width: '380px' }" v-model="formEditData.remarks" />
+            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.remarks" />
           </hw-form-item>
 
           <!-- 只读信息 -->

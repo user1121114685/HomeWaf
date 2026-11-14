@@ -134,7 +134,7 @@
 </template>
 
 <script lang="ts">
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import { LineChart } from 'echarts/charts';
 import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -421,11 +421,13 @@ export default {
 
   .card-value {
     font-size: 28px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary);
   }
 
   .card-icon {
+    color: var(--hw-muted);
+    background: var(--hw-subtle);
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -435,19 +437,19 @@ export default {
     opacity: 0.85;
   }
 
-  &.card-blue   .card-icon { background: rgba(0, 82, 217, 0.12);  color: #0052D9; }
-  &.card-cyan   .card-icon { background: rgba(0, 168, 112, 0.12); color: #00A870; }
-  &.card-purple .card-icon { background: rgba(122, 75, 212, 0.12);color: #7A4BD4; }
-  &.card-red    .card-icon { background: rgba(227, 77, 89, 0.12);  color: #E34D59; }
-  &.card-orange .card-icon { background: rgba(232, 133, 34, 0.12); color: #E88522; }
-  &.card-green  .card-icon { background: rgba(0, 168, 112, 0.12);  color: #00A870; }
+
+
+
+
+
+
 }
 
 .site-table-card {
   margin-bottom: 16px;
 
   .table-hint {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
   }
 
@@ -460,7 +462,7 @@ export default {
   }
 
   .site-code {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
     margin-top: 2px;
     white-space: nowrap;
@@ -470,7 +472,7 @@ export default {
 
   .attack-num {
     color: #E34D59;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   :deep(tr) {
@@ -506,7 +508,7 @@ export default {
 
       .metric-value {
         font-size: 32px;
-        font-weight: 700;
+        font-weight: 500;
         color: var(--td-text-color-primary);
 
         .unit {

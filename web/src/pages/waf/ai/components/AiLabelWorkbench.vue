@@ -95,7 +95,7 @@
         <hw-alert theme="info" :message="$t('page.ai.workbench.confirm_attack_tip')" />
         <div>
           <span style="margin-right: 8px">{{ $t('page.ai.workbench.attack_category') }}:</span>
-          <hw-select v-model="batchAttackType" :options="aiCatSelectOptions" style="width: 240px" />
+          <hw-select v-model="batchAttackType" :options="aiCatSelectOptions" style="width: min(100%, 240px)" />
         </div>
       </hw-space>
     </hw-dialog>
@@ -155,7 +155,7 @@
           </hw-space>
           <div style="margin-top: 8px">
             <span style="margin-right: 8px">{{ $t('page.ai.workbench.attack_category') }}:</span>
-            <hw-select v-model="detailAttackType" :options="aiCatSelectOptions" style="width: 220px" />
+            <hw-select v-model="detailAttackType" :options="aiCatSelectOptions" style="width: min(100%, 220px)" />
           </div>
           <hw-alert theme="info" :message="$t('page.ai.workbench.kbd_hint')" style="margin-top: 10px" />
         </div>
@@ -445,7 +445,7 @@ export default {
   margin-top: 12px;
 }
 .detail-label {
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 4px;
 }
 .detail-pre {
@@ -457,7 +457,7 @@ export default {
   white-space: pre-wrap;
   word-break: break-all;
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
 }
 .break-all {
   word-break: break-all;

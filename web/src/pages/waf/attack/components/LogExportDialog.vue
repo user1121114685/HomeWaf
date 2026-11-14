@@ -321,7 +321,7 @@ export default {
 .inline-controls, .task-heading, .task-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .task-heading { justify-content: space-between; }
 .task-heading h3 { margin: 0; font-size: 16px; }
-.secondary { color: var(--td-text-color-secondary); font-size: 12px; }
+.secondary { color: var(--td-text-color-secondary); font-size: 13px; }
 .data-text { font-family: Consolas, monospace; font-variant-numeric: tabular-nums; }
 .task-table { overflow-x: auto; min-width: 0; max-width: 100%; }
 .field-stack { min-width: 0; overflow-wrap: anywhere; }

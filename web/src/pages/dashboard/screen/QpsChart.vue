@@ -8,7 +8,7 @@
 </template>
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import { LineChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -40,7 +40,7 @@ function render() {
         splitNumber: 6,
         axisLabel: {
           color: props.dark ? '#8495af' : '#7a869b',
-          fontSize: 10,
+          fontSize: 12,
           hideOverlap: true,
           formatter: '{HH}:{mm}:{ss}',
         },
@@ -50,7 +50,7 @@ function render() {
         min: 0,
         minInterval: 1,
         splitNumber: 2,
-        axisLabel: { color: props.dark ? '#8495af' : '#7a869b', fontSize: 10 },
+        axisLabel: { color: props.dark ? '#8495af' : '#7a869b', fontSize: 12 },
         splitLine: { lineStyle: { color: props.dark ? '#223049' : '#edf0f7', type: 'dashed' } },
       },
       series: [
@@ -60,8 +60,8 @@ function render() {
           showSymbol: props.points.length === 1,
           symbolSize: 6,
           connectNulls: false,
-          lineStyle: { color: '#8873f4', width: 2 },
-          itemStyle: { color: '#8873f4' },
+          lineStyle: { color: props.dark ? '#91a6ff' : '#1f2de6', width: 2 },
+          itemStyle: { color: props.dark ? '#91a6ff' : '#1f2de6' },
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
               { offset: 0, color: 'rgba(136,115,244,.25)' },

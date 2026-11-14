@@ -30,8 +30,8 @@
           :headerAffixedTop="true" :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
 
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -47,11 +47,11 @@
              会把保存的管理端 admin 账号密码填进来。Chrome 只认 new-password（off 对密码框无效）。 -->
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100" autocomplete="off">
            <hw-form-item :label="$t('page.http_auth_base.user_name')" name="user_name">
-                 <hw-input :style="{ width: '480px' }" v-model="formData.user_name" autocomplete="off"></hw-input>
+                 <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.user_name" autocomplete="off"></hw-input>
             </hw-form-item>
 
            <hw-form-item :label="$t('page.http_auth_base.password')" name="password">
-                 <hw-input type="password" :style="{ width: '480px' }" v-model="formData.password" autocomplete="new-password"></hw-input>
+                 <hw-input type="password" :style="{ width: 'min(100%, 480px)' }" v-model="formData.password" autocomplete="new-password"></hw-input>
            </hw-form-item>
 
           <hw-form-item style="float: right">
@@ -66,11 +66,11 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100" autocomplete="off">
            <hw-form-item :label="$t('page.http_auth_base.user_name')" name="user_name">
-               <hw-input :style="{ width: '480px' }" v-model="formEditData.user_name" autocomplete="off"></hw-input>
+               <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.user_name" autocomplete="off"></hw-input>
           </hw-form-item>
 
             <hw-form-item :label="$t('page.http_auth_base.password')" name="password">
-               <hw-input type="password" :style="{ width: '480px' }" v-model="formEditData.password" autocomplete="new-password"></hw-input>
+               <hw-input type="password" :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.password" autocomplete="new-password"></hw-input>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>

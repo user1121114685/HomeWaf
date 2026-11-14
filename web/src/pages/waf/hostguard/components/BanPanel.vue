@@ -75,18 +75,18 @@
       </template>
       <template #op="{ row }">
         <template v-if="row.status === 'active'">
-          <a class="t-button-link" @click="handleRelease(row)">{{ $t('page.hostguard.op_release') }}</a>
-          <a
+          <button type="button" class="t-button-link" @click="handleRelease(row)">{{ $t('page.hostguard.op_release') }}</button>
+          <button type="button"
             v-if="row.expire_time > 0"
             class="t-button-link"
             @click="handlePermanent(row)"
             style="margin-left: 8px"
           >
             {{ $t('page.hostguard.op_permanent') }}
-          </a>
-          <a class="t-button-link" @click="handleWhitelist(row)" style="margin-left: 8px">
+          </button>
+          <button type="button" class="t-button-link" @click="handleWhitelist(row)" style="margin-left: 8px">
             {{ $t('page.hostguard.op_whitelist') }}
-          </a>
+          </button>
         </template>
         <span v-else class="op-disabled">-</span>
       </template>
@@ -277,7 +277,7 @@ export default defineComponent({
 }
 .remain-permanent {
   color: #d54941;
-  font-weight: 600;
+  font-weight: 500;
 }
 .op-disabled {
   color: var(--td-text-color-placeholder);

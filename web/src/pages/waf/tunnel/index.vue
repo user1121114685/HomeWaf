@@ -45,9 +45,9 @@
             </hw-tag>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickShowConnections(slotProps)">{{ $t('page.tunnel.view_connections') }}</a>
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickShowConnections(slotProps)">{{ $t('page.tunnel.view_connections') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>

@@ -7,7 +7,7 @@
         <hw-button variant="outline" size="small" :loading="dataLoading" @click="getList('')">
           {{ $t('common.refresh') }}
         </hw-button>
-        <hw-select v-model="filterScope" size="small" :style="{ width: '220px', marginLeft: '8px' }"
+        <hw-select v-model="filterScope" size="small" :style="{ width: 'min(100%, 220px)', marginLeft: '8px' }"
                   @change="applyFilter">
           <hw-option value="" :label="$t('page.ccrule.ban_filter_all')" />
           <hw-option value="global" :label="$t('page.ccrule.ban_scope_global')" />
@@ -30,7 +30,7 @@
           </template>
 
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleRemoveBanIp(slotProps)">{{ $t('page.cc.remove_ban_ip') }}</a>
+            <button type="button" class="t-button-link" @click="handleRemoveBanIp(slotProps)">{{ $t('page.cc.remove_ban_ip') }}</button>
           </template>
         </hw-table>
       </div>
@@ -363,7 +363,7 @@ export default defineComponent({
 
   .ban-toolbar-tip {
     margin-left: 8px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
   }
 }

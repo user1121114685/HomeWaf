@@ -4,7 +4,7 @@
   <div class="transport-config">
     <hw-form-item :label="$t('page.host.transport.max_idle_conns')">
       <hw-tooltip class="placement top center" :content="$t('page.host.transport.max_idle_conns_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
         <hw-input-number :style="{ width: '150px' }"
                         v-model="localTransportConfig.max_idle_conns"
                         @change="updateParent"
@@ -16,7 +16,7 @@
 
     <hw-form-item :label="$t('page.host.transport.max_idle_conns_per_host')">
       <hw-tooltip class="placement top center" :content="$t('page.host.transport.max_idle_conns_per_host_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
         <hw-input-number :style="{ width: '150px' }"
                         v-model="localTransportConfig.max_idle_conns_per_host"
                         @change="updateParent"
@@ -28,7 +28,7 @@
 
     <hw-form-item :label="$t('page.host.transport.max_conns_per_host')">
       <hw-tooltip class="placement top center" :content="$t('page.host.transport.max_conns_per_host_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
         <hw-input-number :style="{ width: '150px' }"
                         v-model="localTransportConfig.max_conns_per_host"
                         @change="updateParent"
@@ -40,7 +40,7 @@
 
     <hw-form-item :label="$t('page.host.transport.idle_conn_timeout')">
       <hw-tooltip class="placement top center" :content="$t('page.host.transport.idle_conn_timeout_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
         <hw-input-number :style="{ width: '150px' }"
                         v-model="localTransportConfig.idle_conn_timeout"
                         @change="updateParent"
@@ -53,7 +53,7 @@
 
     <hw-form-item :label="$t('page.host.transport.tls_handshake_timeout')">
       <hw-tooltip class="placement top center" :content="$t('page.host.transport.tls_handshake_timeout_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
         <hw-input-number :style="{ width: '150px' }"
                         v-model="localTransportConfig.tls_handshake_timeout"
                         @change="updateParent"
@@ -66,7 +66,7 @@
 
     <hw-form-item :label="$t('page.host.transport.expect_continue_timeout')">
       <hw-tooltip class="placement top center" :content="$t('page.host.transport.expect_continue_timeout_tips')" placement="top"
-                 :overlay-style="{ width: '200px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
         <hw-input-number :style="{ width: '150px' }"
                         v-model="localTransportConfig.expect_continue_timeout"
                         @change="updateParent"
@@ -142,7 +142,7 @@ export default {
 .transport-config {
   .unit-text {
     margin-left: 8px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-secondary);
   }
 

@@ -11,8 +11,8 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.response_compress.prefer')">
       <hw-tooltip class="placement top center" :content="$t('page.host.response_compress.prefer_tips')" placement="top"
-                 :overlay-style="{ width: '320px' }" show-arrow>
-        <hw-select v-model="local.prefer" :style="{ width: '280px' }" @change="updateParent">
+                 :overlay-style="{ width: 'min(100%, 320px)' }" show-arrow>
+        <hw-select v-model="local.prefer" :style="{ width: 'min(100%, 280px)' }" @change="updateParent">
           <hw-option value="zstd_first" :label="$t('page.host.response_compress.prefer_zstd_first')" />
           <hw-option value="br_first" :label="$t('page.host.response_compress.prefer_br_first')" />
           <hw-option value="gzip_only" :label="$t('page.host.response_compress.prefer_gzip_only')" />
@@ -23,32 +23,32 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.response_compress.min_length')">
       <hw-tooltip class="placement top center" :content="$t('page.host.response_compress.min_length_tips')" placement="top"
-                 :overlay-style="{ width: '280px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 280px)' }" show-arrow>
         <hw-input-number v-model="local.min_length" :min="0" :style="{ width: '160px' }" @change="updateParent" />
       </hw-tooltip>
     </hw-form-item>
     <hw-form-item :label="$t('page.host.response_compress.include_types')">
       <hw-tooltip class="placement top center" :content="$t('page.host.response_compress.include_types_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-textarea v-model="local.include_types" :placeholder="$t('page.host.response_compress.include_types_ph')"
-                    :autosize="{ minRows: 2, maxRows: 6 }" :style="{ width: '480px' }" @blur="updateParent" />
+                    :autosize="{ minRows: 2, maxRows: 6 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
       </hw-tooltip>
     </hw-form-item>
     <hw-form-item :label="$t('page.host.response_compress.include_extensions')">
       <hw-textarea v-model="local.include_extensions" :placeholder="$t('page.host.response_compress.include_extensions_ph')"
-                  :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: '480px' }" @blur="updateParent" />
+                  :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
     </hw-form-item>
     <hw-form-item :label="$t('page.host.response_compress.exclude_extensions')">
       <hw-textarea v-model="local.exclude_extensions" :placeholder="$t('page.host.response_compress.exclude_extensions_ph')"
-                  :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: '480px' }" @blur="updateParent" />
+                  :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
     </hw-form-item>
     <hw-form-item :label="$t('page.host.response_compress.exclude_paths')">
       <hw-textarea v-model="local.exclude_paths" :placeholder="$t('page.host.response_compress.exclude_paths_ph')"
-                  :autosize="{ minRows: 2, maxRows: 6 }" :style="{ width: '480px' }" @blur="updateParent" />
+                  :autosize="{ minRows: 2, maxRows: 6 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
     </hw-form-item>
     <hw-form-item :label="$t('page.host.response_compress.compress_static')">
       <hw-tooltip class="placement top center" :content="$t('page.host.response_compress.compress_static_tips')" placement="top"
-                 :overlay-style="{ width: '380px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 380px)' }" show-arrow>
         <hw-radio-group v-model="local.compress_when_static_assist" @change="updateParent">
           <hw-radio value="0">{{ $t('page.host.response_compress.no') }}</hw-radio>
           <hw-radio value="1">{{ $t('page.host.response_compress.yes') }}</hw-radio>

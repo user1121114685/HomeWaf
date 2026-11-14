@@ -12,14 +12,14 @@
     <!-- 仅主机全局静态站点需要的路径字段 -->
     <hw-form-item :label="$t('page.host.static_site.static_site_path')" v-if="localConfig.is_enable_static_site == '1'">
       <hw-tooltip class="placement top center" :content="$t('page.host.static_site.static_site_path_tips')" placement="top"
-               :overlay-style="{ width: '300px' }" show-arrow>
+               :overlay-style="{ width: 'min(100%, 300px)' }" show-arrow>
         <hw-input v-model="localConfig.static_site_path" @change="updateParent" :placeholder="$t('page.host.static_site.static_site_path_placeholder')" />
       </hw-tooltip>
     </hw-form-item>
 
     <hw-form-item :label="$t('page.host.static_site.static_site_prefix')" v-if="localConfig.is_enable_static_site == '1'">
       <hw-tooltip class="placement top center" :content="$t('page.host.static_site.static_site_prefix_tips')" placement="top"
-               :overlay-style="{ width: '300px' }" show-arrow>
+               :overlay-style="{ width: 'min(100%, 300px)' }" show-arrow>
         <hw-input v-model="localConfig.static_site_prefix" @change="updateParent" :placeholder="$t('page.host.static_site.static_site_prefix_placeholder')" />
       </hw-tooltip>
     </hw-form-item>
@@ -32,28 +32,28 @@
 
     <hw-form-item :label="$t('page.host.static_site.sensitive_paths')">
       <hw-tooltip class="placement top center" :content="$t('page.host.static_site.sensitive_paths_tips')" placement="top"
-               :overlay-style="{ width: '400px' }" show-arrow>
+               :overlay-style="{ width: 'min(100%, 400px)' }" show-arrow>
         <hw-textarea v-model="localConfig.sensitive_paths" @change="updateParent" :placeholder="$t('page.host.static_site.sensitive_paths_placeholder')" :rows="3" />
       </hw-tooltip>
     </hw-form-item>
 
     <hw-form-item :label="$t('page.host.static_site.sensitive_extensions')">
       <hw-tooltip class="placement top center" :content="$t('page.host.static_site.sensitive_extensions_tips')" placement="top"
-               :overlay-style="{ width: '400px' }" show-arrow>
+               :overlay-style="{ width: 'min(100%, 400px)' }" show-arrow>
         <hw-input v-model="localConfig.sensitive_extensions" @change="updateParent" :placeholder="$t('page.host.static_site.sensitive_extensions_placeholder')" />
       </hw-tooltip>
     </hw-form-item>
 
     <hw-form-item :label="$t('page.host.static_site.allowed_extensions')">
       <hw-tooltip class="placement top center" :content="$t('page.host.static_site.allowed_extensions_tips')" placement="top"
-               :overlay-style="{ width: '400px' }" show-arrow>
+               :overlay-style="{ width: 'min(100%, 400px)' }" show-arrow>
         <hw-input v-model="localConfig.allowed_extensions" @change="updateParent" :placeholder="$t('page.host.static_site.allowed_extensions_placeholder')" />
       </hw-tooltip>
     </hw-form-item>
 
     <hw-form-item :label="$t('page.host.static_site.sensitive_patterns')">
       <hw-tooltip class="placement top center" :content="$t('page.host.static_site.sensitive_patterns_tips')" placement="top"
-               :overlay-style="{ width: '400px' }" show-arrow>
+               :overlay-style="{ width: 'min(100%, 400px)' }" show-arrow>
         <hw-textarea v-model="localConfig.sensitive_patterns" @change="updateParent" :placeholder="$t('page.host.static_site.sensitive_patterns_placeholder')" :rows="3" />
       </hw-tooltip>
     </hw-form-item>
@@ -62,7 +62,7 @@
     <hw-form-item>
       <template #label>
         <hw-tooltip :content="$t('page.host.static_site.security_headers_tips')" placement="top"
-                   :overlay-style="{ width: '420px' }" show-arrow>
+                   :overlay-style="{ width: 'min(100%, 420px)' }" show-arrow>
           <span>{{ $t('page.host.static_site.security_headers') }}</span>
         </hw-tooltip>
       </template>

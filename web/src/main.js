@@ -19,7 +19,8 @@ import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css';
 import './style/index.less';
 import './ui/theme.css';
-import './ui/workspace.css';
+import './ui/tokens.css';
+import './ui/console.css';
 import './permission';
 async function mountApp() {
   await loadAdminTitles();

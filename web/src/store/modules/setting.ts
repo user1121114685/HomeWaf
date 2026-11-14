@@ -1,104 +1,68 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
-
-/* eslint-disable no-param-reassign */
 import STYLE_CONFIG from '@/config/style';
-import { COLOR_TOKEN, ColorSeries, ColorToken, LIGHT_CHART_COLORS, DARK_CHART_COLORS } from '@/config/color';
-import { applyBrandTheme } from '@/ui/brandTheme';
+import { COLOR_TOKEN, LIGHT_CHART_COLORS, DARK_CHART_COLORS } from '@/config/color';
 
-// 定义的state初始值
+export const PREFERENCE_KEY = 'homewaf.console.preferences';
+function savedMode() {
+  try {
+    const mode = JSON.parse(localStorage.getItem(PREFERENCE_KEY) || '{}').mode;
+    return ['light', 'dark', 'auto'].includes(mode) ? mode : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
 const state = {
   ...STYLE_CONFIG,
+  mode: savedMode(),
   systemMode: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   showSettingPanel: false,
   colorList: COLOR_TOKEN,
   chartColors: LIGHT_CHART_COLORS,
 };
-
-type IInitStateType = typeof state;
-
-export interface IStateType extends IInitStateType {
-  isAsideFooter: boolean;
-  showSettingPanel: boolean;
-}
-
-// 定义的state的初始值方法，传入state或者额外的方法，然后利用 vuex 的双向数据驱动进行值的改变
-// 可通过this.$store.commit(' ')调用，但是触发的是同步事件
+export type IStateType = typeof state;
 const mutations = {
   setSystemMode(state: IStateType, mode: string) {
     state.systemMode = mode;
   },
-  update(state: IStateType, payload: IStateType) {
-    state.showBreadcrumb = payload.showBreadcrumb;
-    state.mode = payload.mode;
-    state.layout = payload.layout;
-    state.isSidebarCompact = payload.isSidebarCompact;
-    state.splitMenu = payload.splitMenu;
-    state.isFooterAside = payload.isFooterAside;
-    state.isSidebarFixed = payload.isSidebarFixed;
-    state.isHeaderFixed = payload.isHeaderFixed;
-    state.showHeader = payload.showHeader;
-    state.showFooter = payload.showFooter;
-    state.backgroundTheme = payload.backgroundTheme;
-    state.brandTheme = payload.brandTheme;
-    state.isUseTabsRouter = payload.isUseTabsRouter;
+  update(state: IStateType, payload: Partial<IStateType>) {
+    if (['light', 'dark', 'auto'].includes(payload.mode)) state.mode = payload.mode;
   },
   toggleSidebarCompact(state: IStateType) {
     state.isSidebarCompact = !state.isSidebarCompact;
   },
-  toggleUseTabsRouter(state: IStateType) {
-    state.isUseTabsRouter = !state.isUseTabsRouter;
+  showSidebarCompact(state: IStateType, value: boolean) {
+    state.isSidebarCompact = value;
   },
-  showSidebarCompact(state: IStateType, payload: boolean) {
-    state.isSidebarCompact = payload;
+  toggleSettingPanel(state: IStateType, value: boolean) {
+    state.showSettingPanel = value;
   },
-  toggleSettingPanel(state: IStateType, payload: boolean) {
-    state.showSettingPanel = payload;
-  },
-  addColor(state: IStateType, payload: ColorSeries) {
-    state.colorList = { ...state.colorList, ...payload };
-  },
-  changeChartColor(state: IStateType, payload: ColorToken) {
-    state.chartColors = { ...payload };
+  changeChartColor(state: IStateType, value: Record<string, string>) {
+    state.chartColors = value;
   },
 };
-
 const getters = {
-  showHeader: (state: IStateType) => state.showHeader,
-  showSidebar: (state: IStateType) => state.layout !== 'top',
-  showSidebarLogo: (state: IStateType) => state.layout === 'side',
-  showHeaderLogo: (state: IStateType) => state.layout !== 'side',
-  showFooter: (state: IStateType) => state.showFooter,
-  isUseTabsRouter: (state: IStateType) => state.isUseTabsRouter,
-  mode: (state: IStateType) => {
-    return state.mode === 'auto' ? state.systemMode : state.mode;
-  },
+  showHeader: () => true,
+  showSidebar: () => true,
+  showSidebarLogo: () => true,
+  showHeaderLogo: () => false,
+  showFooter: () => true,
+  isUseTabsRouter: () => false,
+  mode: (state: IStateType) => (state.mode === 'auto' ? state.systemMode : state.mode),
 };
-
 const actions = {
-  changeTheme({ commit, dispatch }, payload: IStateType) {
-    dispatch('changeMode', payload);
+  changeTheme({ commit, dispatch }, payload: Partial<IStateType>) {
     commit('update', payload);
+    try {
+      localStorage.setItem(PREFERENCE_KEY, JSON.stringify({ mode: payload.mode }));
+    } catch {
+      /* Session preference still works without storage. */
+    }
+    dispatch('changeMode');
   },
-  changeMode({ commit, state, dispatch }, payload: IStateType) {
-    const theme = payload.mode === 'auto' ? state.systemMode : payload.mode;
-    const isDarkMode = theme === 'dark';
-
-    document.documentElement.setAttribute('theme-mode', isDarkMode ? 'dark' : 'light');
-
-    commit('changeChartColor', isDarkMode ? DARK_CHART_COLORS : LIGHT_CHART_COLORS);
-    dispatch('changeBrandTheme', payload);
-  },
-  changeBrandTheme({ state, commit }, payload: IStateType) {
-    const { brandTheme } = payload;
-    const mode = payload.mode === 'auto' ? state.systemMode : payload.mode;
-    commit('addColor', applyBrandTheme(brandTheme, mode));
+  changeMode({ state, commit }) {
+    const dark = (state.mode === 'auto' ? state.systemMode : state.mode) === 'dark';
+    document.documentElement.setAttribute('theme-mode', dark ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark', dark);
+    commit('changeChartColor', dark ? DARK_CHART_COLORS : LIGHT_CHART_COLORS);
   },
 };
-
-export default {
-  namespaced: true,
-  state,
-  mutations,
-  actions,
-  getters,
-};
+export default { namespaced: true, state, mutations, actions, getters };

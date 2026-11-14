@@ -68,13 +68,13 @@
         </hw-tooltip>
       </template>
       <template #op="{ row }">
-        <a class="t-button-link" @click="handleBan(row)">{{ $t('page.hostguard.op_ban') }}</a>
-        <a class="t-button-link" @click="handleWhitelist(row)" style="margin-left: 8px">
+        <button type="button" class="t-button-link" @click="handleBan(row)">{{ $t('page.hostguard.op_ban') }}</button>
+        <button type="button" class="t-button-link" @click="handleWhitelist(row)" style="margin-left: 8px">
           {{ $t('page.hostguard.op_whitelist') }}
-        </a>
-        <a class="t-button-link" @click="handleFilterIP(row)" style="margin-left: 8px">
+        </button>
+        <button type="button" class="t-button-link" @click="handleFilterIP(row)" style="margin-left: 8px">
           {{ $t('page.hostguard.op_same_ip') }}
-        </a>
+        </button>
       </template>
     </hw-table>
 
@@ -212,7 +212,7 @@ export default defineComponent({
 }
 .raw-line {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 </style>

@@ -365,7 +365,7 @@ export default defineComponent({
 }
 
 .hb-caret {
-  font-size: 12px;
+  font-size: 13px;
   transition: transform 0.18s ease;
 }
 
@@ -419,7 +419,7 @@ export default defineComponent({
 
 .hb-docs-label {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
 }
 </style>
 
@@ -445,7 +445,7 @@ export default defineComponent({
 }
 
 .hb-detail .hb-k {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 20px;
   text-align: center;
   border-radius: 2px;
@@ -478,7 +478,7 @@ export default defineComponent({
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px dashed var(--td-component-border);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .hb-detail .hb-docs {

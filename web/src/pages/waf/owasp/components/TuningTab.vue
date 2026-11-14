@@ -279,7 +279,7 @@
             v-model="editVarDialog.key"
             :disabled="!editVarDialog.isNew"
             placeholder="allowed_methods"
-            style="width:280px"
+            style="width: min(100%, 280px)"
             prefix="tx."
           />
           <hw-tooltip v-if="editVarDialog.knownDesc" :content="editVarDialog.knownDesc" placement="top">
@@ -291,7 +291,7 @@
             v-model="editVarDialog.value"
             :placeholder="editVarDialog.placeholder || ''"
             :autosize="{ minRows: 2, maxRows: 6 }"
-            style="width:320px"
+            style="width: min(100%, 320px)"
           />
         </hw-form-item>
         <hw-form-item v-if="editVarDialog.knownDesc" :label="$t('page.owasp.tuning.crs_var_desc')">
@@ -532,7 +532,7 @@ export default defineComponent({
 .tip {
   margin-left: 12px;
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font-size: 13px;
 }
 .body-limit-field {
   display: flex;
@@ -565,7 +565,7 @@ export default defineComponent({
   border-bottom: none;
 }
 .concept-title {
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 4px;
   color: var(--td-text-color-primary);
 }
@@ -596,7 +596,7 @@ export default defineComponent({
 }
 .crs-vars-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
 }
 </style>

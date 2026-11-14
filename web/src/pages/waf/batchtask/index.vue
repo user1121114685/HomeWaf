@@ -63,9 +63,9 @@
             </p>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickManual(slotProps)">{{ $t('page.batchtask.label_btn_manual') }}</a>
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickManual(slotProps)">{{ $t('page.batchtask.label_btn_manual') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -78,10 +78,10 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="220">
          <hw-form-item :label="$t('page.batchtask.label_batch_task_name')" name="batch_task_name">
-        <hw-input v-model="formData.batch_task_name" :style="{ width: '480px' }"></hw-input>
+        <hw-input v-model="formData.batch_task_name" :style="{ width: 'min(100%, 480px)' }"></hw-input>
       </hw-form-item>
       <hw-form-item v-if="formData.batch_type !== 'ipgroup'" :label="$t('page.batchtask.label_website')" name="batch_host_code">
-            <hw-select v-model="formData.batch_host_code" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formData.batch_host_code" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                 :key="index">
                 {{ item }}
@@ -89,23 +89,23 @@
             </hw-select>
       </hw-form-item>
       <hw-form-item :label="$t('page.batchtask.label_batch_type')" name="batch_type">
-         <hw-select v-model="formData.batch_type" :style="{ width: '480px' }" @change="onBatchTypeChange">
+         <hw-select v-model="formData.batch_type" :style="{ width: 'min(100%, 480px)' }" @change="onBatchTypeChange">
           <hw-option v-for="item in batch_task_type" :value="item.value" :label="`${item.label}`"></hw-option>
         </hw-select>
       </hw-form-item>
       <!-- IP组是租户级资源、不带网站，目标组通过额外配置里的 group_code 指定 -->
       <hw-form-item v-if="formData.batch_type === 'ipgroup'" :label="$t('page.batchtask.label_ip_group')" name="ip_group_code">
         <div>
-          <hw-select v-model="formData.ip_group_code" clearable filterable :style="{ width: '480px' }">
+          <hw-select v-model="formData.ip_group_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
             <hw-option v-for="g in group_options" :key="g.group_code" :value="g.group_code"
               :label="g.group_name + ' (' + g.item_count + ')'"></hw-option>
           </hw-select>
-          <a class="t-button-link" style="margin-left: 8px" @click="handleQuickAddGroup('add')">
+          <button type="button" class="t-button-link" style="margin-left: 8px" @click="handleQuickAddGroup('add')">
             {{ $t('page.batchtask.ip_group_quick_add') }}
-          </a>
-          <a class="t-button-link" style="margin-left: 8px" @click="handleJumpIPGroup">
+          </button>
+          <button type="button" class="t-button-link" style="margin-left: 8px" @click="handleJumpIPGroup">
             {{ $t('page.batchtask.ip_group_goto_manage') }}
-          </a>
+          </button>
           <div style="margin-top: 8px; font-size: 12px; color: #666;">
             {{ group_options.length ? $t('page.batchtask.ip_group_tips') : $t('page.batchtask.ip_group_empty_tips') }}
           </div>
@@ -115,7 +115,7 @@
             <div>
               <hw-textarea
                 v-model="formData.batch_extra_config"
-                :style="{ width: '480px' }"
+                :style="{ width: 'min(100%, 480px)' }"
                 rows="6"
                 :placeholder="$t('page.batchtask.batch_extra_config_placeholder')"
               ></hw-textarea>
@@ -125,16 +125,16 @@
             </div>
           </hw-form-item>
       <hw-form-item :label="$t('page.batchtask.label_batch_source_type')" name="batch_source_type">
-        <hw-select v-model="formData.batch_source_type" :style="{ width: '480px' }">
+        <hw-select v-model="formData.batch_source_type" :style="{ width: 'min(100%, 480px)' }">
           <hw-option  v-for="item in batch_source_type" :value="item.value" :label="`${item.label}`" ></hw-option>
         </hw-select>
       </hw-form-item>
       <hw-form-item :label="$t('page.batchtask.label_batch_source')" name="batch_source">
-        <hw-input v-model="formData.batch_source" :style="{ width: '480px' }"></hw-input>
+        <hw-input v-model="formData.batch_source" :style="{ width: 'min(100%, 480px)' }"></hw-input>
       </hw-form-item>
       <hw-form-item :label="$t('page.batchtask.label_batch_execute_method')" name="batch_execute_method">
         <div>
-          <hw-select v-model="formData.batch_execute_method" :style="{ width: '480px' }">
+          <hw-select v-model="formData.batch_execute_method" :style="{ width: 'min(100%, 480px)' }">
             <hw-option  v-for="item in batch_execute_method" :value="item.value" :label="`${item.label}`" ></hw-option>
           </hw-select>
           <div v-if="formData.batch_type === 'ipgroup' && formData.batch_execute_method === 'overwrite'"
@@ -144,12 +144,12 @@
         </div>
       </hw-form-item>
       <hw-form-item :label="$t('page.batchtask.label_batch_trigger_type')" name="batch_trigger_type">
-        <hw-select v-model="formData.batch_trigger_type" :style="{ width: '480px' }">
+        <hw-select v-model="formData.batch_trigger_type" :style="{ width: 'min(100%, 480px)' }">
           <hw-option  v-for="item in batch_trigger_type" :value="item.value" :label="`${item.label}`" ></hw-option>
         </hw-select>
       </hw-form-item>
       <hw-form-item :label="$t('page.batchtask.label_remark')" name="remark">
-        <hw-textarea v-model="formData.remark" :style="{ width: '480px' }" rows="4"></hw-textarea>
+        <hw-textarea v-model="formData.remark" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
       </hw-form-item>
       <hw-form-item style="float: right">
         <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
@@ -163,10 +163,10 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="editRules" @submit="onSubmitEdit" :labelWidth="220">
           <hw-form-item :label="$t('page.batchtask.label_batch_task_name')" name="batch_task_name">
-            <hw-input v-model="formEditData.batch_task_name" :style="{ width: '480px' }"></hw-input>
+            <hw-input v-model="formEditData.batch_task_name" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
            <hw-form-item v-if="formEditData.batch_type !== 'ipgroup'" :label="$t('page.batchtask.label_website')" name="batch_host_code">
-            <hw-select v-model="formEditData.batch_host_code" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.batch_host_code" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                 :key="index">
                 {{ item }}
@@ -174,22 +174,22 @@
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.batchtask.label_batch_type')" name="batch_type">
-            <hw-select v-model="formEditData.batch_type" :style="{ width: '480px' }" @change="onBatchTypeChangeEdit">
+            <hw-select v-model="formEditData.batch_type" :style="{ width: 'min(100%, 480px)' }" @change="onBatchTypeChangeEdit">
               <hw-option v-for="item in batch_task_type" :value="item.value" :label="`${item.label}`"></hw-option>
             </hw-select>
           </hw-form-item>
           <hw-form-item v-if="formEditData.batch_type === 'ipgroup'" :label="$t('page.batchtask.label_ip_group')" name="ip_group_code">
             <div>
-              <hw-select v-model="formEditData.ip_group_code" clearable filterable :style="{ width: '480px' }">
+              <hw-select v-model="formEditData.ip_group_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
                 <hw-option v-for="g in group_options" :key="g.group_code" :value="g.group_code"
                   :label="g.group_name + ' (' + g.item_count + ')'"></hw-option>
               </hw-select>
-              <a class="t-button-link" style="margin-left: 8px" @click="handleQuickAddGroup('edit')">
+              <button type="button" class="t-button-link" style="margin-left: 8px" @click="handleQuickAddGroup('edit')">
                 {{ $t('page.batchtask.ip_group_quick_add') }}
-              </a>
-              <a class="t-button-link" style="margin-left: 8px" @click="handleJumpIPGroup">
+              </button>
+              <button type="button" class="t-button-link" style="margin-left: 8px" @click="handleJumpIPGroup">
                 {{ $t('page.batchtask.ip_group_goto_manage') }}
-              </a>
+              </button>
               <div style="margin-top: 8px; font-size: 12px; color: #666;">
                 {{ group_options.length ? $t('page.batchtask.ip_group_tips') : $t('page.batchtask.ip_group_empty_tips') }}
               </div>
@@ -199,7 +199,7 @@
             <div>
               <hw-textarea
                 v-model="formEditData.batch_extra_config"
-                :style="{ width: '480px' }"
+                :style="{ width: 'min(100%, 480px)' }"
                 rows="6"
                 :placeholder="$t('page.batchtask.batch_extra_config_placeholder')"
               ></hw-textarea>
@@ -209,16 +209,16 @@
             </div>
           </hw-form-item>
           <hw-form-item :label="$t('page.batchtask.label_batch_source_type')" name="batch_source_type">
-               <hw-select v-model="formEditData.batch_source_type" :style="{ width: '480px' }">
+               <hw-select v-model="formEditData.batch_source_type" :style="{ width: 'min(100%, 480px)' }">
                 <hw-option  v-for="item in batch_source_type" :value="item.value" :label="`${item.label}`" ></hw-option>
               </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.batchtask.label_batch_source')" name="batch_source">
-            <hw-input v-model="formEditData.batch_source" :style="{ width: '480px' }"></hw-input>
+            <hw-input v-model="formEditData.batch_source" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.batchtask.label_batch_execute_method')" name="batch_execute_method">
             <div>
-              <hw-select v-model="formEditData.batch_execute_method" :style="{ width: '480px' }">
+              <hw-select v-model="formEditData.batch_execute_method" :style="{ width: 'min(100%, 480px)' }">
                 <hw-option  v-for="item in batch_execute_method" :value="item.value" :label="`${item.label}`" ></hw-option>
               </hw-select>
               <div v-if="formEditData.batch_type === 'ipgroup' && formEditData.batch_execute_method === 'overwrite'"
@@ -228,12 +228,12 @@
             </div>
           </hw-form-item>
           <hw-form-item :label="$t('page.batchtask.label_batch_trigger_type')" name="batch_trigger_type">
-            <hw-select v-model="formEditData.batch_trigger_type" :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.batch_trigger_type" :style="{ width: 'min(100%, 480px)' }">
               <hw-option  v-for="item in batch_trigger_type" :value="item.value" :label="`${item.label}`" ></hw-option>
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.batchtask.label_remark')" name="remark">
-            <hw-textarea v-model="formEditData.remark" :style="{ width: '480px' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formEditData.remark" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
@@ -253,10 +253,10 @@
       <template #body><div >
         <hw-form :data="quickAddData" ref="quickAddForm" :rules="quickAddRules" @submit="onSubmitQuickAdd" :labelWidth="100">
           <hw-form-item :label="$t('page.ipgroup.label_name')" name="group_name">
-            <hw-input v-model="quickAddData.group_name" :style="{ width: '420px' }"></hw-input>
+            <hw-input v-model="quickAddData.group_name" :style="{ width: 'min(100%, 420px)' }"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea v-model="quickAddData.remarks" :style="{ width: '420px' }" rows="3"></hw-textarea>
+            <hw-textarea v-model="quickAddData.remarks" :style="{ width: 'min(100%, 420px)' }" rows="3"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="quickAddVisible = false">{{ $t('common.close') }}</hw-button>

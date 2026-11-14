@@ -37,9 +37,9 @@
       </hw-form-item>
       <div v-if="isBlock" class="ipd-tip" style="margin: 0 0 4px 90px">
         {{ $t('components.ip_disposal.system_layer_hint') }}
-        <a class="t-button-link" style="display:inline" @click="$router.push({ name: 'WafFirewallIPBlock' })">
+        <button type="button" class="t-button-link" style="display:inline" @click="$router.push({ name: 'WafFirewallIPBlock' })">
           {{ $t('components.ip_disposal.goto_firewall_ipblock') }}
-        </a>
+        </button>
       </div>
     </hw-form>
   </hw-dialog>
@@ -158,12 +158,12 @@ export default defineComponent({
 <style lang="less" scoped>
 .ipd-tip {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   line-height: 1.5;
 }
 .ipd-hit {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 </style>

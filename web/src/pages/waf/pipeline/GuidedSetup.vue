@@ -489,7 +489,7 @@ async function save() {
   gap: 8px 16px;
   padding: 24px;
   border: 1px solid var(--el-border-color);
-  border-radius: 12px;
+  border-radius: var(--hw-r-lg);
   cursor: pointer;
   transition:
     background 150ms,
@@ -597,7 +597,7 @@ async function save() {
   overflow-wrap: anywhere;
 }
 .connection-preview b {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-weight: 500;
   color: var(--el-color-primary);
 }

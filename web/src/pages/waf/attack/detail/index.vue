@@ -46,7 +46,7 @@
                 <hw-icon name="data" />{{ $t('page.visit_log.detail.request_identifier') }}：
                 <code>{{ detail_data.req_uuid }}</code>
                 <hw-tooltip :content="$t('common.copy')">
-                  <a class="vd-copy" @click="copyText(detail_data.req_uuid)"><hw-icon name="file-copy" /></a>
+                  <button type="button" class="vd-copy" @click="copyText(detail_data.req_uuid)"><hw-icon name="file-copy" /></button>
                 </hw-tooltip>
               </span>
             </div>
@@ -116,7 +116,7 @@
                         : $t('page.visit_log.detail.body_show_more') }}
                     </hw-link>
                     <hw-tooltip v-if="f.value" :content="$t('common.copy')">
-                      <a class="pl-copy" @click="copyText(f.value)"><hw-icon name="file-copy" /></a>
+                      <button type="button" class="pl-copy" @click="copyText(f.value)"><hw-icon name="file-copy" /></button>
                     </hw-tooltip>
                   </span>
                 </div>
@@ -152,7 +152,7 @@
                         : $t('page.visit_log.detail.body_show_more') }}
                     </hw-link>
                     <hw-tooltip v-if="f.value" :content="$t('common.copy')">
-                      <a class="pl-copy" @click="copyText(f.value)"><hw-icon name="file-copy" /></a>
+                      <button type="button" class="pl-copy" @click="copyText(f.value)"><hw-icon name="file-copy" /></button>
                     </hw-tooltip>
                   </span>
                 </div>
@@ -178,7 +178,7 @@
               </div>
               <div class="vd-ip-sub">
                 <span>{{ $t('page.visit_log.detail.visitor_port') }}：{{ detail_data.src_port || '—' }}</span>
-                <a class="vd-link" @click="handleIPExtractIssue">{{ $t('page.visit_log.detail.ip_extract_issue') }}</a>
+                <button type="button" class="vd-link" @click="handleIPExtractIssue">{{ $t('page.visit_log.detail.ip_extract_issue') }}</button>
               </div>
               <div v-if="detail_data.src_ip != detail_data.net_src_ip" class="vd-sub-block">
                 <div class="vd-sub-label vd-sub-label--warn">{{ $t('page.visit_log.detail.visitor_net_ip') }}</div>
@@ -319,10 +319,10 @@
         <hw-form :data="ipExtractFormData" ref="ipExtractForm" :rules="ipExtractRules" @submit="onSubmitIPExtract"
           :labelWidth="150">
           <hw-form-item :label="$t('page.systemconfig.label_configuration_item')" name="item">
-            <hw-input :style="{ width: '600px' }" v-model="ipExtractFormData.item" disabled></hw-input>
+            <hw-input :style="{ width: 'min(100%, 600px)' }" v-model="ipExtractFormData.item" disabled></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.systemconfig.label_configuration_value')" name="value">
-            <hw-input :style="{ width: '600px' }" v-model="ipExtractFormData.value"
+            <hw-input :style="{ width: 'min(100%, 600px)' }" v-model="ipExtractFormData.value"
               :placeholder="$t('page.visit_log.detail.ip_extract_issue_tips')"></hw-input>
             <div class="form-item-tips">{{ $t('page.visit_log.detail.ip_extract_issue_tips') }}</div>
           </hw-form-item>

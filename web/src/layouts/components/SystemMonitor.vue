@@ -143,12 +143,12 @@
       <div class="monitor-display">
         <div class="monitor-item-inline">
           <span class="label">CPU</span>
-          <span class="value" :style="{ color: getUsageColor(getCpuUsageLocal()) }">{{ getCpuUsageLocal() }}%</span>
+          <span class="value" :style="{ color: getUsageColor(getCpuUsageLocal()) }">{{ error ? '—' : `${getCpuUsageLocal()}%` }}</span>
         </div>
         <span class="monitor-divider"></span>
         <div class="monitor-item-inline">
           <span class="label">{{ $t('topNav.memory') }}</span>
-          <span class="value" :style="{ color: getUsageColor(getMemoryUsageLocal()) }">{{ getMemoryUsageLocal() }}%</span>
+          <span class="value" :style="{ color: getUsageColor(getMemoryUsageLocal()) }">{{ error ? '—' : `${getMemoryUsageLocal()}%` }}</span>
         </div>
         <template v-if="getAverageDiskUsageLocal() > 0">
           <span class="monitor-divider"></span>
@@ -318,10 +318,10 @@ export default defineComponent({
 
     // 根据使用率获取颜色
     getUsageColor(percentage) {
-      if (percentage >= 90) return '#e34d59';  // 红色
-      if (percentage >= 70) return '#ed7b2f';  // 橙色
-      if (percentage >= 50) return '#f2bd27';  // 黄色
-      return '#00a870';  // 绿色
+      if (this.error) return 'var(--hw-muted)';
+      if (percentage >= 90) return 'var(--hw-danger)';
+      if (percentage >= 50) return 'var(--hw-warning)';
+      return 'var(--hw-success)';
     },
 
     // 获取平均磁盘使用率
@@ -331,6 +331,7 @@ export default defineComponent({
 
     // 获取整体状态类
     getOverallStatusClass() {
+      if (this.error) return 'overall-unknown';
       const maxUsage = Math.max(this.getCpuUsageLocal(), this.getMemoryUsageLocal(), this.getAverageDiskUsageLocal());
       if (maxUsage >= 90) return 'overall-critical';
       if (maxUsage >= 70) return 'overall-warning';
@@ -409,7 +410,7 @@ export default defineComponent({
     align-items: center;
     gap: 6px;
     color: var(--td-text-color-secondary);
-    font-size: 12px;
+    font-size: 13px;
     z-index: 10;
     background: var(--td-bg-color-container);
     padding: 4px 8px;
@@ -482,7 +483,7 @@ export default defineComponent({
   }
 
   .env-tip {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
     line-height: 1.5;
 
@@ -514,7 +515,7 @@ export default defineComponent({
 .item-value {
   font-size: 14px;
   color: var(--td-text-color-primary);
-  font-weight: 600;
+  font-weight: 500;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
@@ -546,7 +547,7 @@ export default defineComponent({
   gap: 10px;
   height: 40px;
   padding: 0 12px;
-  border-radius: 20px;
+  border-radius: var(--hw-r-lg);
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-stroke);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -556,7 +557,7 @@ export default defineComponent({
 
   &:hover {
     border-color: var(--td-brand-color-3);
-    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.12);
+    box-shadow: none;
     transform: translateY(-1px);
   }
 }
@@ -581,14 +582,14 @@ export default defineComponent({
   gap: 4px;
 
   .label {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--td-text-color-secondary);
     font-weight: 500;
   }
 
   .value {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-variant-numeric: tabular-nums;
     min-width: 34px;
@@ -619,12 +620,12 @@ export default defineComponent({
   }
 
   &.overall-normal {
-    background: #00a870;
+    background: var(--hw-success);
     box-shadow: 0 0 0 3px rgba(0, 168, 112, 0.14);
   }
 
   &.overall-caution {
-    background: #f2bd27;
+    background: var(--hw-warning);
     box-shadow: 0 0 0 3px rgba(242, 189, 39, 0.16);
   }
 
@@ -639,7 +640,7 @@ export default defineComponent({
 
     &::after {
       opacity: 0.6;
-      animation: status-pulse 1.6s ease-out infinite;
+      animation: none;
     }
   }
 }
@@ -683,11 +684,11 @@ export default defineComponent({
   }
 
   .monitor-item-inline .label {
-    font-size: 10px;
+    font-size: 13px;
   }
 
   .monitor-item-inline .value {
-    font-size: 11px;
+    font-size: 13px;
     min-width: 26px;
   }
 

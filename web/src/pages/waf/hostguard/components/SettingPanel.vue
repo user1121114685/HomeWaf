@@ -27,12 +27,12 @@
         </hw-form-item>
 
         <hw-form-item :label="$t('page.hostguard.cfg_find_time')">
-          <hw-input-number v-model="form.host_guard_find_time" :min="1" theme="column" :style="{ width: '200px' }" />
+          <hw-input-number v-model="form.host_guard_find_time" :min="1" theme="column" :style="{ width: 'min(100%, 200px)' }" />
           <span class="unit">{{ $t('common.unit_minute') }}</span>
         </hw-form-item>
 
         <hw-form-item :label="$t('page.hostguard.cfg_max_retry')">
-          <hw-input-number v-model="form.host_guard_max_retry" :min="1" theme="column" :style="{ width: '200px' }" />
+          <hw-input-number v-model="form.host_guard_max_retry" :min="1" theme="column" :style="{ width: 'min(100%, 200px)' }" />
           <div class="desc">{{ $t('page.hostguard.cfg_max_retry_desc') }}</div>
         </hw-form-item>
 
@@ -41,7 +41,7 @@
             v-model="form.host_guard_offender_reset_day"
             :min="0"
             theme="column"
-            :style="{ width: '200px' }"
+            :style="{ width: 'min(100%, 200px)' }"
           />
           <span class="unit">{{ $t('page.hostguard.unit_day') }}</span>
           <div class="desc">{{ $t('page.hostguard.cfg_offender_reset_desc') }}</div>
@@ -58,7 +58,7 @@
           <hw-textarea
             v-model="form.host_guard_whitelist"
             :autosize="{ minRows: 2, maxRows: 5 }"
-            :style="{ width: '520px' }"
+            :style="{ width: 'min(100%, 520px)' }"
             :placeholder="$t('page.hostguard.cfg_whitelist_ph')"
           />
           <div class="desc">{{ $t('page.hostguard.cfg_whitelist_desc') }}</div>
@@ -72,7 +72,7 @@
         <hw-form-item :label="$t('page.hostguard.whitelist_test')">
           <hw-input
             v-model="testIP"
-            :style="{ width: '260px' }"
+            :style="{ width: 'min(100%, 260px)' }"
             :placeholder="$t('page.hostguard.whitelist_test_ph')"
           />
           <hw-button theme="default" @click="onTestWhitelist" style="margin-left: 8px">
@@ -89,17 +89,17 @@
         <hw-divider align="left">{{ $t('page.hostguard.group_source') }}</hw-divider>
 
         <hw-form-item :label="$t('page.hostguard.cfg_log_paths')">
-          <hw-input v-model="form.host_guard_log_paths" :style="{ width: '520px' }" />
+          <hw-input v-model="form.host_guard_log_paths" :style="{ width: 'min(100%, 520px)' }" />
           <div class="desc">{{ $t('page.hostguard.cfg_log_paths_desc') }}</div>
         </hw-form-item>
 
         <hw-form-item :label="$t('page.hostguard.cfg_ssh_ports')">
-          <hw-input v-model="form.host_guard_ssh_ports" :style="{ width: '200px' }" placeholder="22" />
+          <hw-input v-model="form.host_guard_ssh_ports" :style="{ width: 'min(100%, 200px)' }" placeholder="22" />
           <span class="unit-text">{{ $t('page.hostguard.cfg_ports_detected') }}: {{ (status.ssh_ports || []).join(', ') || '-' }}</span>
         </hw-form-item>
 
         <hw-form-item :label="$t('page.hostguard.cfg_rdp_ports')">
-          <hw-input v-model="form.host_guard_rdp_ports" :style="{ width: '200px' }" placeholder="3389" />
+          <hw-input v-model="form.host_guard_rdp_ports" :style="{ width: 'min(100%, 200px)' }" placeholder="3389" />
           <span class="unit-text">{{ $t('page.hostguard.cfg_ports_detected') }}: {{ (status.rdp_ports || []).join(', ') || '-' }}</span>
           <div class="desc">{{ $t('page.hostguard.cfg_ports_desc') }}</div>
         </hw-form-item>
@@ -121,7 +121,7 @@
         </hw-form-item>
 
         <hw-form-item :label="$t('page.hostguard.cfg_exec_mode')">
-          <hw-select v-model="form.host_guard_exec_mode" :style="{ width: '200px' }">
+          <hw-select v-model="form.host_guard_exec_mode" :style="{ width: 'min(100%, 200px)' }">
             <hw-option key="auto" value="auto" :label="$t('page.hostguard.exec_auto')" />
             <hw-option key="ipset" value="ipset" :label="$t('page.hostguard.exec_ipset')" />
             <hw-option key="rule" value="rule" :label="$t('page.hostguard.exec_rule')" />
@@ -130,7 +130,7 @@
         </hw-form-item>
 
         <hw-form-item :label="$t('page.hostguard.cfg_debounce')">
-          <hw-input-number v-model="form.host_guard_debounce_sec" :min="1" theme="column" :style="{ width: '200px' }" />
+          <hw-input-number v-model="form.host_guard_debounce_sec" :min="1" theme="column" :style="{ width: 'min(100%, 200px)' }" />
           <span class="unit">{{ $t('page.hostguard.unit_second') }}</span>
           <div class="desc">{{ $t('page.hostguard.cfg_debounce_desc') }}</div>
         </hw-form-item>
@@ -142,7 +142,7 @@
             v-model="form.host_guard_max_ban_entries"
             :min="0"
             theme="column"
-            :style="{ width: '200px' }"
+            :style="{ width: 'min(100%, 200px)' }"
           />
           <div class="desc">{{ $t('page.hostguard.cfg_max_entries_desc') }}</div>
         </hw-form-item>
@@ -152,7 +152,7 @@
             v-model="form.host_guard_ban_rate_limit"
             :min="0"
             theme="column"
-            :style="{ width: '200px' }"
+            :style="{ width: 'min(100%, 200px)' }"
           />
           <div class="desc">{{ $t('page.hostguard.cfg_rate_limit_desc') }}</div>
         </hw-form-item>
@@ -179,7 +179,7 @@
         </hw-form-item>
 
         <hw-form-item :label="$t('page.hostconn.cfg_cache_sec')">
-          <hw-input-number v-model="form.host_conn_cache_sec" :min="1" theme="column" :style="{ width: '200px' }" />
+          <hw-input-number v-model="form.host_conn_cache_sec" :min="1" theme="column" :style="{ width: 'min(100%, 200px)' }" />
           <span class="unit">{{ $t('page.hostguard.unit_second') }}</span>
           <div class="desc">{{ $t('page.hostconn.cfg_cache_sec_desc') }}</div>
         </hw-form-item>
@@ -224,7 +224,7 @@
           />
         </template>
         <template #op="{ rowIndex }">
-          <a class="t-button-link" @click="removeLadder(rowIndex)">{{ $t('common.delete') }}</a>
+          <button type="button" class="t-button-link" @click="removeLadder(rowIndex)">{{ $t('common.delete') }}</button>
         </template>
       </hw-table>
 
@@ -514,7 +514,7 @@ export default defineComponent({
 }
 .master-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
 }
 .cfg-form {
@@ -533,7 +533,7 @@ export default defineComponent({
 .desc {
   flex-basis: 100%;
   width: 100%;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   margin-top: 4px;
   line-height: 1.6;
@@ -546,7 +546,7 @@ export default defineComponent({
 }
 .unit-text {
   margin-left: 12px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 .test-result {
@@ -569,7 +569,7 @@ export default defineComponent({
   margin-top: 24px;
 }
 .rescue-title {
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 8px;
 }
 .rescue-list {
@@ -588,7 +588,7 @@ export default defineComponent({
   padding: 10px;
   margin: 6px 0 0 0;
   font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   overflow-x: auto;
 }

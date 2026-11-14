@@ -109,7 +109,7 @@
 import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components';
 import { LineChart } from 'echarts/charts';
 import { CanvasRenderer } from 'echarts/renderers';
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import { changeChartsTheme } from '@/utils/color';
 
 import {heartbeat_api} from '@/apis/common';
@@ -440,8 +440,8 @@ export default {
   mounted() {
     this.initCharts();
     // 监听主题变化
-    this.$store.watch(
-      (state) => state.setting.brandTheme,
+    this.$watch(
+      () => this.$store.getters['setting/mode'],
       () => {
         changeChartsTheme([this.qpsChart, this.queueChart, this.responseTimeChart, this.systemResourceChart]);
       }
@@ -806,7 +806,7 @@ export default {
             data: this.networkTrafficData.sent_rate,
             smooth: true,
             itemStyle: {
-              color: '#f759ab'
+              color: '#177d8c'
             },
             areaStyle: {
               color: {
@@ -1055,7 +1055,7 @@ export default {
 
   &__title {
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary);
   }
 
@@ -1130,7 +1130,7 @@ export default {
 
   &__value {
     font-size: 26px;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.2;
     color: var(--td-text-color-primary);
     font-variant-numeric: tabular-nums;
@@ -1154,7 +1154,7 @@ export default {
     align-items: center;
     gap: 6px;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary);
     font-variant-numeric: tabular-nums;
   }
@@ -1196,7 +1196,7 @@ export default {
 
   :deep(.t-card__title) {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   &--full {
@@ -1219,7 +1219,7 @@ export default {
 
   :deep(.t-card__title) {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 500;
   }
 }
 
@@ -1238,7 +1238,7 @@ export default {
   gap: 12px;
   padding: 8px 0;
   border-bottom: 1px solid var(--td-component-stroke);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
 
   &:last-child {
@@ -1255,7 +1255,7 @@ export default {
 .log-operation {
   flex: none;
   color: var(--td-brand-color);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .log-data {

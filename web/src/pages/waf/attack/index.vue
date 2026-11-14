@@ -238,14 +238,14 @@
             d: logConfig.delete_history_log_day || '-',
             a: logConfig.access_log_retention_days || '-'
           }) }}
-          <a class="t-button-link" @click="openRetentionSetting">{{ $t('page.visit_log.retention_setting') }}</a>
+          <button type="button" class="t-button-link" @click="openRetentionSetting">{{ $t('page.visit_log.retention_setting') }}</button>
         </div>
 
         <!-- 查询超出后端预算：给出「能怎么办」，而不是让人对着不完整的数字猜 -->
         <hw-alert v-if="queryMeta.partial" theme="warning" style="margin-bottom:12px">
           <template #message>
             {{ $t('page.visit_log.query_partial', { ms: queryMeta.took_ms }) }}
-            <a class="t-button-link" style="margin-left:8px" @click="narrowRange">{{ $t('page.visit_log.query_partial_narrow') }}</a>
+            <button type="button" class="t-button-link" style="margin-left:8px" @click="narrowRange">{{ $t('page.visit_log.query_partial_narrow') }}</button>
           </template>
         </hw-alert>
 
@@ -255,7 +255,7 @@
           <template #message>
             <template v-if="queryMeta.issues.length > 5 && !issExpanded">
               {{ $t('page.visit_log.shard_issue_collapsed', { n: queryMeta.issues.length }) }}
-              <a class="t-button-link" @click="issExpanded = true">{{ $t('page.visit_log.shard_issue_expand') }}</a>
+              <button type="button" class="t-button-link" @click="issExpanded = true">{{ $t('page.visit_log.shard_issue_expand') }}</button>
             </template>
             <template v-else>
               <div>{{ $t('page.visit_log.shard_issue_title') }}</div>
@@ -264,11 +264,11 @@
                   ? $t('page.visit_log.shard_issue_missing', { n: iss.registered })
                   : $t('page.visit_log.shard_issue_empty', { n: iss.registered }) }}
               </div>
-              <a v-if="queryMeta.issues.length > 5" class="t-button-link" @click="issExpanded = false">
+              <button type="button" v-if="queryMeta.issues.length > 5" class="t-button-link" @click="issExpanded = false">
                 {{ $t('page.visit_log.shard_cover_fold') }}
-              </a>
+              </button>
             </template>
-            <a v-if="attack_ip == ''" class="t-button-link" @click="openShardManage">{{ $t('page.visit_log.shard_issue_manage') }}</a>
+            <button type="button" v-if="attack_ip == ''" class="t-button-link" @click="openShardManage">{{ $t('page.visit_log.shard_issue_manage') }}</button>
           </template>
         </hw-alert>
 
@@ -290,9 +290,9 @@
             <!-- 分区多的时候全列出来就是一大堆，默认只给一行概括，要看再展开 -->
             {{ $t('page.visit_log.shard_cover', { n: queryMeta.shards.length }) }}
             <span style="color:rgba(0,0,0,.6)">{{ shardCoverSummary }}</span>
-            <a class="t-button-link" @click="covExpanded = !covExpanded">
+            <button type="button" class="t-button-link" @click="covExpanded = !covExpanded">
               {{ covExpanded ? $t('page.visit_log.shard_cover_fold') : $t('page.visit_log.shard_cover_detail') }}
-            </a>
+            </button>
             <span v-if="queryMeta.sort_forced_time" style="color:rgba(0,0,0,.6)">
               {{ $t('page.visit_log.sort_forced_time') }}
             </span>
@@ -342,7 +342,7 @@
         <template v-if="data.length === 0 && !queryMeta.uuid_lookup">
           <div class="empty-hint" style="padding:6px 0 10px;color:rgba(0,0,0,.6);font-size:12px">
             {{ $t('page.visit_log.empty_hint') }}
-            <a class="t-button-link" @click="openIpLookupForHint">{{ $t('common.ip_lookup.title') }}</a>
+            <button type="button" class="t-button-link" @click="openIpLookupForHint">{{ $t('common.ip_lookup.title') }}</button>
           </div>
         </template>
         <hw-table :columns="columns" :data="data" size="small" :rowKey="rowKey" :verticalAlign="verticalAlign"
@@ -380,22 +380,22 @@
           </template>
           <template #src_ip="{ row }">
             <hw-tooltip :content="$t('common.ip_lookup.click_tip')">
-              <a class="ipl-link" @click="openIpLookup(row.src_ip)">{{ row.src_ip }}</a>
+              <button type="button" class="ipl-link" @click="openIpLookup(row.src_ip)">{{ row.src_ip }}</button>
             </hw-tooltip>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickIPDetail(slotProps)" v-if="attack_ip == ''">{{
+            <button type="button" class="t-button-link" @click="handleClickIPDetail(slotProps)" v-if="attack_ip == ''">{{
               $t('common.search')
-              + $t('page.visit_log.source_ip') }}</a>
-            <a class="t-button-link" @click="handleClickDetail(slotProps)">{{ $t('common.details') }}</a>
-            <a class="t-button-link" style="margin-left: 8px" @click="openAiMarkDialog(slotProps.row)">
+              + $t('page.visit_log.source_ip') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDetail(slotProps)">{{ $t('common.details') }}</button>
+            <button type="button" class="t-button-link" style="margin-left: 8px" @click="openAiMarkDialog(slotProps.row)">
               <hw-tag v-if="aiMarkMap[slotProps.row.req_uuid] && aiMarkMap[slotProps.row.req_uuid].mark"
                 :theme="aiMarkMap[slotProps.row.req_uuid].mark === 'attack' ? 'danger' : (aiMarkMap[slotProps.row.req_uuid].mark === 'normal' ? 'success' : 'default')"
                 variant="light" size="small">
                 {{ aiMarkText(aiMarkMap[slotProps.row.req_uuid]) }}
               </hw-tag>
               <span v-else>{{ $t('page.visit_log.ai_mark') }}</span>
-            </a>
+            </button>
           </template>
         </hw-table>
       </div>
@@ -424,9 +424,9 @@
         </template>
         <template #op="{ row }">
           <span v-if="row.is_current" style="color:rgba(0,0,0,.4)">{{ $t('page.visit_log.shard_live') }}</span>
-          <a v-else class="t-button-link" style="color:#d54941" @click="confirmDeleteShard(row)">
+          <button type="button" v-else class="t-button-link" style="color:#d54941" @click="confirmDeleteShard(row)">
             {{ $t('common.delete') }}
-          </a>
+          </button>
         </template>
       </hw-table>
     </hw-dialog>
@@ -452,7 +452,7 @@
           </hw-radio-group>
         </hw-form-item>
         <hw-form-item v-if="aiMarkForm.verdict === 'attack'" :label="$t('page.visit_log.ai_mark_category')">
-          <hw-select v-model="aiMarkForm.attackType" :options="aiCatSelectOptions" style="width: 240px" />
+          <hw-select v-model="aiMarkForm.attackType" :options="aiCatSelectOptions" style="width: min(100%, 240px)" />
         </hw-form-item>
       </hw-form>
       <template #footer>
@@ -482,7 +482,7 @@
             <b>{{ $t('page.visit_log.detail.ip_extract_scope_title') }}</b>
             <div style="margin-top: 4px;">{{ $t('page.visit_log.detail.ip_extract_scope_desc') }}</div>
             <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <hw-select v-model="ipExtractHostCode" clearable filterable :style="{ width: '220px' }"
+              <hw-select v-model="ipExtractHostCode" clearable filterable :style="{ width: 'min(100%, 220px)' }"
                         :placeholder="$t('page.visit_log.detail.ip_extract_select_host')">
                 <hw-option v-for="item in realHostOptions" :value="item.value" :label="item.label" :key="item.value">{{ item.label }}</hw-option>
               </hw-select>
@@ -547,10 +547,10 @@
 
         <hw-form :data="ipExtractFormData" ref="ipExtractForm" :rules="ipExtractRules" @submit="onSubmitIPExtract" :labelWidth="150">
           <hw-form-item :label="$t('page.systemconfig.label_configuration_item')" name="item">
-            <hw-input :style="{ width: '600px' }" v-model="ipExtractFormData.item" disabled></hw-input>
+            <hw-input :style="{ width: 'min(100%, 600px)' }" v-model="ipExtractFormData.item" disabled></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.systemconfig.label_configuration_value')" name="value">
-            <hw-input :style="{ width: '600px' }" v-model="ipExtractFormData.value" :placeholder="$t('page.visit_log.detail.ip_extract_issue_tips')"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 600px)' }" v-model="ipExtractFormData.value" :placeholder="$t('page.visit_log.detail.ip_extract_issue_tips')"></hw-input>
             <div class="form-item-tips">{{ $t('page.visit_log.detail.ip_extract_issue_tips') }}</div>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -2167,7 +2167,7 @@ export default defineComponent({
 
 .log-config-hint {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-warning-color);
   line-height: 1.4;
 }

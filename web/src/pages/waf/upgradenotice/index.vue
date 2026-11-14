@@ -345,7 +345,7 @@ export default defineComponent({
 
 .applied-info {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
 }
 </style>
 
@@ -360,7 +360,7 @@ export default defineComponent({
 }
 
 .notice-detail .detail-head {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   margin-bottom: 4px;
 }
@@ -424,6 +424,6 @@ export default defineComponent({
 
 .notice-detail .detail-meta {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
 }
 </style>

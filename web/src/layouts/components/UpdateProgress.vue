@@ -115,7 +115,7 @@
     </hw-dialog>
 
     <!-- 后台运行时的悬浮球：升级不中断，点击还原 -->
-    <div v-if="minimized" class="upg-pill" @click="restore">
+    <div role="button" tabindex="0" @keydown.enter.prevent="restore" @keydown.space.prevent="restore" v-if="minimized" class="upg-pill" @click="restore">
       <span class="ring" :style="ringStyle"><i>{{ percent }}%</i></span>
       <span class="txt">
         {{ $t('topNav.update.progress.pill_title', { v: snap.to_version }) }}
@@ -474,16 +474,16 @@ export default defineComponent({
   gap: 10px;
   margin-bottom: 10px;
 
-  .upg-pct { font-size: 22px; font-weight: 600; }
+  .upg-pct { font-size: 22px; font-weight: 500; }
   .upg-ver { font-size: 14px; }
-  .upg-elapsed { margin-left: auto; font-size: 12px; color: rgba(0, 0, 0, .4); }
+  .upg-elapsed { margin-left: auto; font-size: 13px; color: rgba(0, 0, 0, .4); }
 }
 
 .upg-meta {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 12px;
+  font-size: 13px;
   color: rgba(0, 0, 0, .6);
   margin-top: 7px;
   flex-wrap: wrap;
@@ -514,14 +514,14 @@ export default defineComponent({
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 10px;
+      font-size: 13px;
       color: #fff;
-      background: #fff;
+      background: var(--hw-panel);
     }
 
     .nm { flex: none; min-width: 132px; }
-    .dt { flex: 1; min-width: 0; font-size: 12px; word-break: break-all; }
-    .tm { flex: none; font-size: 12px; }
+    .dt { flex: 1; min-width: 0; font-size: 13px; word-break: break-all; }
+    .tm { flex: none; font-size: 13px; }
 
     &.st-done { color: rgba(0, 0, 0, .6); }
     &.st-done .ic { background: #2ba471; border-color: #2ba471; }
@@ -555,11 +555,11 @@ export default defineComponent({
   gap: 8px;
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid #e7e7e7;
+  border-top: 1px solid var(--hw-line);
 
   .upg-foot-hint {
     margin-right: auto;
-    font-size: 12px;
+    font-size: 13px;
     color: rgba(0, 0, 0, .4);
     line-height: 1.6;
   }
@@ -570,10 +570,10 @@ export default defineComponent({
   right: 24px;
   bottom: 24px;
   z-index: 3000;
-  background: #fff;
-  border: 1px solid #e7e7e7;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, .14);
-  border-radius: 24px;
+  background: var(--hw-panel);
+  border: 1px solid var(--hw-line);
+  box-shadow: none;
+  border-radius: var(--hw-r-lg);
   padding: 8px 16px 8px 12px;
   display: flex;
   align-items: center;
@@ -591,7 +591,7 @@ export default defineComponent({
       display: block;
       width: 20px;
       height: 20px;
-      background: #fff;
+      background: var(--hw-panel);
       border-radius: 50%;
       margin: 3px;
       font-style: normal;
@@ -605,7 +605,7 @@ export default defineComponent({
   .txt em {
     display: block;
     font-style: normal;
-    font-size: 11px;
+    font-size: 13px;
     color: rgba(0, 0, 0, .4);
   }
 }

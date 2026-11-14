@@ -33,10 +33,10 @@
             </p>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
             <!--<a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>-->
-            <a class="t-button-link" @click="handleManual(slotProps)">{{ $t('page.task.button_manual_execute') }}</a>
-            <a class="t-button-link" @click="handleViewLog(slotProps)">{{ $t('page.task.button_view_log') }}</a>
+            <button type="button" class="t-button-link" @click="handleManual(slotProps)">{{ $t('page.task.button_manual_execute') }}</button>
+            <button type="button" class="t-button-link" @click="handleViewLog(slotProps)">{{ $t('page.task.button_view_log') }}</button>
           </template>
         </hw-table>
       </div>
@@ -54,11 +54,11 @@
 
 
           <hw-form-item :label="$t('page.task.task_name')" name="task_name">
-            <hw-input :style="{ width: '480px' }" v-model="formData.task_name" :placeholder="$t('common.placeholder')+$t('page.task.task_name')"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.task_name" :placeholder="$t('common.placeholder')+$t('page.task.task_name')"></hw-input>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_unit')" name="task_unit">
-            <hw-select :style="{ width: '480px' }" v-model="formData.task_unit" :placeholder="$t('common.select')+$t('page.task.task_unit')">
+            <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formData.task_unit" :placeholder="$t('common.select')+$t('page.task.task_unit')">
               <hw-option v-for="item in task_unit_type" :key="item.value" :value="item.value" :label="item.label">
                 {{ item.label }}
               </hw-option>
@@ -66,16 +66,16 @@
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_value')" name="task_value">
-            <hw-input-number :style="{ width: '480px' }" v-model="formData.task_value" :placeholder="$t('common.placeholder')+$t('page.task.task_value')">
+            <hw-input-number :style="{ width: 'min(100%, 480px)' }" v-model="formData.task_value" :placeholder="$t('common.placeholder')+$t('page.task.task_value')">
             </hw-input-number>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_at')" name="task_at">
-            <hw-input :style="{ width: '480px' }" v-model="formData.task_at" :placeholder="$t('page.task.task_at_placeholder')"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.task_at" :placeholder="$t('page.task.task_at_placeholder')"></hw-input>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_method')" name="task_method">
-            <hw-select :style="{ width: '480px' }" v-model="formData.task_method" :placeholder="$t('common.select')+$t('page.task.task_method')" filterable>
+            <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formData.task_method" :placeholder="$t('common.select')+$t('page.task.task_method')" filterable>
               <hw-option v-for="item in task_method_type" :key="item.value" :value="item.value" :label="item.label">
                 {{ item.label }}
               </hw-option>
@@ -83,7 +83,7 @@
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_days_of_week')" name="task_days_of_the_week" v-if="formData.task_unit === 'weekly'">
-            <hw-select :style="{ width: '480px' }" v-model="formData.task_days_of_the_week" :placeholder="$t('common.select')+$t('page.task.task_days_of_week')">
+            <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formData.task_days_of_the_week" :placeholder="$t('common.select')+$t('page.task.task_days_of_week')">
               <hw-option v-for="item in week_days_type" :key="item.value" :value="item.value" :label="item.label">
                 {{ item.label }}
               </hw-option>
@@ -106,11 +106,11 @@
 
 
           <hw-form-item :label="$t('page.task.task_name')" name="task_name">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.task_name" :placeholder="$t('common.placeholder')+$t('page.task.task_name')"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.task_name" :placeholder="$t('common.placeholder')+$t('page.task.task_name')"></hw-input>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_unit')" name="task_unit">
-            <hw-select :style="{ width: '480px' }" v-model="formEditData.task_unit" :placeholder="$t('common.select')+$t('page.task.task_unit')">
+            <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.task_unit" :placeholder="$t('common.select')+$t('page.task.task_unit')">
               <hw-option v-for="item in task_unit_type" :key="item.value" :value="item.value" :label="item.label">
                 {{ item.label }}
               </hw-option>
@@ -118,16 +118,16 @@
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_value')" name="task_value">
-            <hw-input-number :style="{ width: '480px' }" v-model="formEditData.task_value" :placeholder="$t('common.placeholder')+$t('page.task.task_value')">
+            <hw-input-number :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.task_value" :placeholder="$t('common.placeholder')+$t('page.task.task_value')">
             </hw-input-number>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_at')" name="task_at">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.task_at" :placeholder="$t('page.task.task_at_placeholder')"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.task_at" :placeholder="$t('page.task.task_at_placeholder')"></hw-input>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_method')" name="task_method">
-            <hw-select :style="{ width: '480px' }" v-model="formEditData.task_method" :placeholder="$t('common.select')+$t('page.task.task_method')" filterable disabled>
+            <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.task_method" :placeholder="$t('common.select')+$t('page.task.task_method')" filterable disabled>
               <hw-option v-for="item in task_method_type" :key="item.value" :value="item.value" :label="item.label">
                 {{ item.label }}
               </hw-option>
@@ -135,7 +135,7 @@
           </hw-form-item>
 
           <hw-form-item :label="$t('page.task.task_days_of_week')" name="task_days_of_the_week" v-if="formEditData.task_unit === 'weekly'">
-            <hw-select :style="{ width: '480px' }" v-model="formEditData.task_days_of_the_week" :placeholder="$t('common.select')+$t('page.task.task_days_of_week')">
+            <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.task_days_of_the_week" :placeholder="$t('common.select')+$t('page.task.task_days_of_week')">
               <hw-option v-for="item in week_days_type" :key="item.value" :value="item.value" :label="item.label">
                 {{ item.label }}
               </hw-option>
@@ -858,7 +858,7 @@ export default defineComponent({
   border-radius: 4px;
   padding: 12px;
   font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: #d4d4d4;
   white-space: pre-wrap;
@@ -872,7 +872,7 @@ export default defineComponent({
   }
 
   .log-empty {
-    color: #888;
+    color: var(--hw-muted);
     text-align: center;
     padding-top: 60px;
   }

@@ -130,7 +130,7 @@ export default defineComponent({
 .st-empty {
   display: inline-block;
   color: var(--td-text-color-placeholder);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 26px;
 }
 </style>

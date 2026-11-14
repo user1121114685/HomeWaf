@@ -32,8 +32,8 @@
           </template>
 
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -46,13 +46,13 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="220">
           <hw-form-item :label="$t('page.ssl.label_cert_content')" name="cert_content">
-            <hw-textarea v-model="formData.cert_content" :style="{ width: '480px' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formData.cert_content" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
             <hw-button theme="default" size="small" @click="importCertFile('add')" :style="{ marginTop: '8px' }">
               {{ $t('page.ssl.import_cert_file') }}
             </hw-button>
           </hw-form-item>
           <hw-form-item :label="$t('page.ssl.label_key_content')" name="key_content">
-            <hw-textarea v-model="formData.key_content" :style="{ width: '480px' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formData.key_content" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
             <hw-button theme="default" size="small" @click="importKeyFile('add')" :style="{ marginTop: '8px' }">
               {{ $t('page.ssl.import_key_file') }}
             </hw-button>
@@ -79,13 +79,13 @@
             </div>
           </hw-form-item>
           <hw-form-item :label="$t('page.ssl.label_cert_content')" name="cert_content">
-            <hw-textarea v-model="formEditData.cert_content" :style="{ width: '480px' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formEditData.cert_content" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
             <hw-button theme="default" size="small" @click="importCertFile('edit')" :style="{ marginTop: '8px' }">
               {{ $t('page.ssl.import_cert_file') }}
             </hw-button>
           </hw-form-item>
           <hw-form-item :label="$t('page.ssl.label_key_content')" name="key_content">
-            <hw-textarea v-model="formEditData.key_content" :style="{ width: '480px' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formEditData.key_content" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
             <hw-button theme="default" size="small" @click="importKeyFile('edit')" :style="{ marginTop: '8px' }">
               {{ $t('page.ssl.import_key_file') }}
             </hw-button>
@@ -101,16 +101,16 @@
             <hw-form-item :label="$t('page.ssl.label_auto_load_path_switch')" name="auto_load_path">
               <!-- 宽度写成内联样式：t-form-item 的内容区是 flex，类选择器会被框架规则盖掉，
                    导致开关被拉伸成整行、说明文字撑出边框 -->
-              <div class="cert-path-block__field" :style="{ width: '480px' }">
+              <div class="cert-path-block__field" :style="{ width: 'min(100%, 480px)' }">
                 <hw-switch v-model="formEditData.auto_load_path" :custom-value="[1, 0]"></hw-switch>
                 <div class="cert-path-block__tip">{{ $t('page.ssl.label_auto_load_path_tip') }}</div>
               </div>
             </hw-form-item>
             <hw-form-item :label="$t('page.ssl.label_auto_key_path')" name="key_path">
-              <hw-textarea v-model="formEditData.key_path" :style="{ width: '480px' }" rows="3"></hw-textarea>
+              <hw-textarea v-model="formEditData.key_path" :style="{ width: 'min(100%, 480px)' }" rows="3"></hw-textarea>
             </hw-form-item>
             <hw-form-item :label="$t('page.ssl.label_auto_crt_path')" name="cert_path">
-              <hw-textarea v-model="formEditData.cert_path" :style="{ width: '480px' }" rows="3"></hw-textarea>
+              <hw-textarea v-model="formEditData.cert_path" :style="{ width: 'min(100%, 480px)' }" rows="3"></hw-textarea>
             </hw-form-item>
           </div>
 
@@ -123,10 +123,10 @@
               <span class="cert-path-block__desc">{{ $t('page.ssl.label_export_tip') }}</span>
             </div>
             <hw-form-item :label="$t('page.ssl.label_export_crt_path')" name="export_cert_path">
-              <hw-input v-model="formEditData.export_cert_path" :style="{ width: '480px' }" clearable></hw-input>
+              <hw-input v-model="formEditData.export_cert_path" :style="{ width: 'min(100%, 480px)' }" clearable></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.ssl.label_export_key_path')" name="export_key_path">
-              <div class="cert-path-block__field" :style="{ width: '480px' }">
+              <div class="cert-path-block__field" :style="{ width: 'min(100%, 480px)' }">
                 <hw-input v-model="formEditData.export_key_path" clearable></hw-input>
                 <div class="cert-path-block__tip">{{ $t('page.ssl.label_export_path_tip') }}</div>
               </div>
@@ -519,11 +519,11 @@ export default defineComponent({
 }
 .cert-path-block--in {
   border-color: #bcd4ff;
-  background-color: #f7faff;
+  background-color: var(--hw-subtle);
 }
 .cert-path-block--out {
   border-color: #b5e2c8;
-  background-color: #f6fdf9;
+  background-color: var(--hw-subtle);
 }
 .cert-path-block__header {
   display: flex;
@@ -535,14 +535,14 @@ export default defineComponent({
   margin-right: 10px;
   padding: 2px 10px;
   border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 20px;
   color: #fff;
   white-space: nowrap;
 }
 .cert-path-block__badge--in {
-  background-color: #0052d9;
+  background-color: var(--hw-accent);
 }
 .cert-path-block__badge--out {
   background-color: #00a870;
@@ -560,9 +560,9 @@ export default defineComponent({
 }
 .cert-path-block__tip {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
-  color: #909399;
+  color: var(--hw-muted);
 }
 .cert-path-block__status {
   max-width: 480px;

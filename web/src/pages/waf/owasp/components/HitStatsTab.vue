@@ -68,7 +68,7 @@
       </template>
 
       <template #rule_id="{ row }">
-        <a class="rule-id-link" @click="$emit('go-rule', row.rule_id)">{{ row.rule_id }}</a>
+        <button type="button" class="rule-id-link" @click="$emit('go-rule', row.rule_id)">{{ row.rule_id }}</button>
       </template>
 
       <template #severity="{ row }">
@@ -104,9 +104,9 @@
       </template>
 
       <template #op="{ row }">
-        <a class="t-button-link" @click="$emit('go-rule', row.rule_id)">
+        <button type="button" class="t-button-link" @click="$emit('go-rule', row.rule_id)">
           {{ $t('page.owasp.hit_stats.op_view') }}
-        </a>
+        </button>
       </template>
     </hw-table>
   </div>
@@ -236,13 +236,13 @@ export default defineComponent({
   flex: 1;
   text-align: center;
   .summary-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-secondary);
     margin-bottom: 4px;
   }
   .summary-value {
     font-size: 24px;
-    font-weight: 600;
+    font-weight: 500;
     &.danger  { color: var(--td-error-color); }
     &.warning { color: var(--td-warning-color); }
     &.primary { color: var(--td-brand-color); }
@@ -256,11 +256,11 @@ export default defineComponent({
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   background: var(--td-bg-color-component);
   color: var(--td-text-color-secondary);
-  &.rank-1 { background: #f5a623; color: #fff; }
+  &.rank-1 { background: var(--hw-subtle); color: #fff; }
   &.rank-2 { background: #9b9b9b; color: #fff; }
   &.rank-3 { background: #c57537; color: #fff; }
 }
@@ -268,17 +268,17 @@ export default defineComponent({
 .rule-id-link {
   color: var(--td-brand-color);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
   &:hover { text-decoration: underline; }
 }
 
 .hits-cell {
   display: flex;
   align-items: center;
-  .hits-num { font-weight: 600; min-width: 40px; }
+  .hits-num { font-weight: 500; min-width: 40px; }
 }
 
-.hits-danger { color: var(--td-error-color); font-weight: 600; }
-.hits-warning { color: var(--td-warning-color); font-weight: 600; }
+.hits-danger { color: var(--td-error-color); font-weight: 500; }
+.hits-warning { color: var(--td-warning-color); font-weight: 500; }
 .hits-zero { color: var(--td-text-color-placeholder); }
 </style>

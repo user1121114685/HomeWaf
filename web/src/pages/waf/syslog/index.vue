@@ -18,7 +18,7 @@
           @page-change="rehandlePageChange" @change="rehandleChange" @select-change="rehandleSelectChange"
           :headerAffixedTop="true" :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.details') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.details') }}</button>
           </template>
         </hw-table>
       </div>
@@ -31,11 +31,11 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" :labelWidth="100">
           <hw-form-item :label="$t('page.syslog.label_op_type')" name="op_type">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.op_type" ></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.op_type" ></hw-input>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.syslog.label_op_content')" name="op_content">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.op_content"  name="op_content">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.op_content"  name="op_content">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">

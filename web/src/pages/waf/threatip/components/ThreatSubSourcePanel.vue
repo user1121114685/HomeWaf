@@ -27,7 +27,7 @@
         <span>{{ formatTs(row.last_sync_at) }}</span>
       </template>
       <template #op="{ row }">
-        <a class="t-button-link" @click="handleViewIPs(row)">{{ $t('page.threatip.view_ips') }}</a>
+        <button type="button" class="t-button-link" @click="handleViewIPs(row)">{{ $t('page.threatip.view_ips') }}</button>
       </template>
     </hw-table>
 
@@ -36,7 +36,7 @@
       <template #body><div >
         <hw-form :data="ipSearch" layout="inline" colon :style="{ marginBottom: '8px' }">
           <hw-form-item :label="'IP'" name="keyword">
-            <hw-input v-model="ipSearch.keyword" clearable :style="{ width: '260px' }"
+            <hw-input v-model="ipSearch.keyword" clearable :style="{ width: 'min(100%, 260px)' }"
               :placeholder="$t('page.threatip.view_ips_search_tip')" @enter="reloadIPs" />
           </hw-form-item>
           <hw-form-item>
@@ -61,7 +61,7 @@
           @page-change="onIPPageChange">
           <template #ip="{ row }">
             <hw-tooltip :content="$t('common.ip_lookup.click_tip')">
-              <a class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</a>
+              <button type="button" class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</button>
             </hw-tooltip>
           </template>
           <template #excluded_by="{ row }">
@@ -205,7 +205,7 @@ import {defineComponent} from 'vue';
 <style lang="less" scoped>
   .snapshot-hint {
     margin-left: 6px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
   }
 

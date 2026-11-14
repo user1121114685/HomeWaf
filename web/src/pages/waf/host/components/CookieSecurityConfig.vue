@@ -14,7 +14,7 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.cookie_security.http_only')">
       <hw-tooltip class="placement top center" :content="$t('page.host.cookie_security.http_only_tips')" placement="top"
-                 :overlay-style="{ width: '320px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 320px)' }" show-arrow>
         <hw-radio-group v-model="local.http_only" @change="updateParent">
           <hw-radio value="0">{{ $t('page.host.cookie_security.no_touch') }}</hw-radio>
           <hw-radio value="1">{{ $t('page.host.cookie_security.add_if_missing') }}</hw-radio>
@@ -23,8 +23,8 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.cookie_security.secure')">
       <hw-tooltip class="placement top center" :content="$t('page.host.cookie_security.secure_tips')" placement="top"
-                 :overlay-style="{ width: '340px' }" show-arrow>
-        <hw-select v-model="local.secure" :style="{ width: '280px' }" @change="updateParent">
+                 :overlay-style="{ width: 'min(100%, 340px)' }" show-arrow>
+        <hw-select v-model="local.secure" :style="{ width: 'min(100%, 280px)' }" @change="updateParent">
           <hw-option value="0" :label="$t('page.host.cookie_security.secure_0')" />
           <hw-option value="2" :label="$t('page.host.cookie_security.secure_2')" />
           <hw-option value="1" :label="$t('page.host.cookie_security.secure_1')" />
@@ -33,8 +33,8 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.cookie_security.same_site')">
       <hw-tooltip class="placement top center" :content="$t('page.host.cookie_security.same_site_tips')" placement="top"
-                 :overlay-style="{ width: '340px' }" show-arrow>
-        <hw-select v-model="local.same_site" :style="{ width: '280px' }" @change="updateParent">
+                 :overlay-style="{ width: 'min(100%, 340px)' }" show-arrow>
+        <hw-select v-model="local.same_site" :style="{ width: 'min(100%, 280px)' }" @change="updateParent">
           <hw-option value="" :label="$t('page.host.cookie_security.same_site_empty')" />
           <hw-option value="Lax" label="Lax" />
           <hw-option value="Strict" label="Strict" />
@@ -44,9 +44,9 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.cookie_security.exclude_cookies')">
       <hw-tooltip class="placement top center" :content="$t('page.host.cookie_security.exclude_cookies_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-textarea v-model="local.exclude_cookies" :placeholder="$t('page.host.cookie_security.exclude_cookies_ph')"
-                    :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: '480px' }" @blur="updateParent" />
+                    :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
       </hw-tooltip>
     </hw-form-item>
   </div>

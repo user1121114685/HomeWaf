@@ -11,7 +11,7 @@
               <hw-input v-model="searchformData.key_name" style="width:160px" clearable />
             </hw-form-item>
             <hw-form-item :label="$t('page.oplatform.log_path')" name="request_path">
-              <hw-input v-model="searchformData.request_path" style="width:200px" clearable />
+              <hw-input v-model="searchformData.request_path" style="width: min(100%, 200px)" clearable />
             </hw-form-item>
             <hw-form-item :label="$t('page.oplatform.log_ip')" name="client_ip">
               <hw-input v-model="searchformData.client_ip" style="width:140px" clearable />
@@ -44,8 +44,8 @@
             {{ slotProps.row.duration }} ms
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleDetail(slotProps)">{{ $t('common.details') }}</a>
-            <a class="t-button-link" style="color: #e34d59" @click="handleDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleDetail(slotProps)">{{ $t('common.details') }}</button>
+            <button type="button" class="t-button-link" style="color: #e34d59" @click="handleDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -91,10 +91,10 @@
             <span>{{ detailData.time_str }}</span>
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.log_request_body')">
-            <hw-textarea :value="detailData.request_body" readonly :style="{ width: '580px' }" :autosize="{ minRows: 3, maxRows: 8 }" />
+            <hw-textarea :value="detailData.request_body" readonly :style="{ width: 'min(100%, 580px)' }" :autosize="{ minRows: 3, maxRows: 8 }" />
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.log_response_body')">
-            <hw-textarea :value="detailData.response_body" readonly :style="{ width: '580px' }" :autosize="{ minRows: 3, maxRows: 8 }" />
+            <hw-textarea :value="detailData.response_body" readonly :style="{ width: 'min(100%, 580px)' }" :autosize="{ minRows: 3, maxRows: 8 }" />
           </hw-form-item>
         </hw-form>
       </div></template>

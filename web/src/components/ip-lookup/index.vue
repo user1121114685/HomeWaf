@@ -92,9 +92,9 @@
                   <!-- 威胁情报的误报只能在本地排除：订阅源是全量快照，手工从防火墙删掉下次同步就回来。
                        这里直接带上 hit.matched(实际命中的那条原文，可能是网段)去排除，
                        用户不必自己判断该排单IP还是整段——排错了方向是最常见的"排了没生效" -->
-                  <a v-if="hit.source === 'threat_ip'" class="ipl-exclude-link" @click="openExclude(hit)">
+                  <button type="button" v-if="hit.source === 'threat_ip'" class="ipl-exclude-link" @click="openExclude(hit)">
                     {{ $t('common.ip_lookup.exclude_btn') }}
-                  </a>
+                  </button>
                   <hw-button
                     v-if="hit.source === 'rule_ban'"
                     theme="primary"
@@ -587,7 +587,7 @@ export default defineComponent({
 
 .ipl-tip {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   line-height: 1.6;
 }
@@ -606,7 +606,7 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 
@@ -672,13 +672,13 @@ export default defineComponent({
 
 .ipl-ip {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
 }
 
 .ipl-note {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 
@@ -724,27 +724,27 @@ export default defineComponent({
 
 .ipl-matched {
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 12px;
+  font-size: 13px;
   padding: 1px 6px;
   border-radius: 2px;
   background: var(--td-bg-color-secondarycontainer);
   color: var(--td-text-color-secondary);
 }
 .ipl-exclude-link {
-  font-size: 12px;
+  font-size: 13px;
   margin-right: 10px;
   color: var(--td-brand-color);
   cursor: pointer;
 }
 
 .ipl-effect {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 
 .ipl-detail {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   line-height: 1.6;
 }
@@ -762,7 +762,7 @@ export default defineComponent({
 }
 
 .ipl-allow-hint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 
@@ -774,14 +774,14 @@ export default defineComponent({
 
 .ipl-allow-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
   margin-bottom: 12px;
 }
 
 .ipl-warn-list {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .ipl-allow-ops {

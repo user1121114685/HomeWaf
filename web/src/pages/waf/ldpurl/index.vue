@@ -48,8 +48,8 @@
             <span> {{host_dic[row.host_code]}}</span>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -62,7 +62,7 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
           <hw-form-item :label="$t('page.ldpurl.label_website')" name="host_code">
-            <hw-select v-model="formData.host_code" clearable filterable :style="{ width: '480px' }">
+            <hw-select v-model="formData.host_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                 :key="index">
                 {{ item }}
@@ -70,7 +70,7 @@
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.ldpurl.label_compare_type')" name="compare_type">
-            <hw-select v-model="formData.compare_type" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formData.compare_type" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in compare_type_options" :value="item.value" :label="item.label"
                 :key="index">
                 {{ item.label }}
@@ -78,10 +78,10 @@
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.ldpurl.label_url')" name="url">
-            <hw-input :style="{ width: '480px' }" v-model="formData.url" ></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.url" ></hw-input>
           </hw-form-item>
           <hw-form-item  :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks"   name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks"   name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -96,7 +96,7 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100">
           <hw-form-item :label="$t('page.ldpurl.label_website')" name="host_code">
-            <hw-select v-model="formEditData.host_code" clearable filterable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.host_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                 :key="index">
                 {{ item }}
@@ -104,7 +104,7 @@
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.ldpurl.label_compare_type')" name="compare_type">
-            <hw-select v-model="formEditData.compare_type" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.compare_type" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in compare_type_options" :value="item.value" :label="item.label"
                 :key="index">
                 {{ item.label }}
@@ -112,10 +112,10 @@
             </hw-select>
           </hw-form-item>
          <hw-form-item :label="$t('page.ldpurl.label_url')" name="url">
-           <hw-input :style="{ width: '480px' }" v-model="formEditData.url" ></hw-input>
+           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.url" ></hw-input>
          </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks"  name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks"  name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">

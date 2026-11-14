@@ -27,8 +27,8 @@
             <span> {{host_dic[row.host_code]}}</span>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -42,7 +42,7 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
                      <hw-form-item :label="$t('page.cache_rule.host_code')" name="host_code">
-                       <hw-select v-model="formData.host_code" clearable :style="{ width: '480px' }">
+                       <hw-select v-model="formData.host_code" clearable :style="{ width: 'min(100%, 480px)' }">
                          <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                                    :key="index">
                            {{ item }}
@@ -53,11 +53,11 @@
                     </hw-form-item>
 
                       <hw-form-item :label="$t('page.cache_rule.rule_name')" name="rule_name">
-                         <hw-input :style="{ width: '480px' }" v-model="formData.rule_name" ></hw-input>
+                         <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.rule_name" ></hw-input>
                     </hw-form-item>
 
                      <hw-form-item :label="$t('page.cache_rule.rule_type')" name="rule_type">
-                      <hw-select v-model="formData.rule_type" clearable :style="{ width: '480px' }">
+                      <hw-select v-model="formData.rule_type" clearable :style="{ width: 'min(100%, 480px)' }">
                         <hw-option v-for="item in rule_type_options" :value="item.value" :label="item.label" :key="item.value">
                           {{ item.label }}
                         </hw-option>
@@ -66,12 +66,12 @@
                      </hw-form-item>
 
                       <hw-form-item :label="$t('page.cache_rule.rule_content')" name="rule_content">
-                         <hw-input :style="{ width: '480px' }" v-model="formData.rule_content" :placeholder="$t('page.cache_rule.rule_content_placeholder')"></hw-input>
+                         <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.rule_content" :placeholder="$t('page.cache_rule.rule_content_placeholder')"></hw-input>
                          <div class="form-item-tips">{{ $t('page.cache_rule.rule_content_tips') }}</div>
                     </hw-form-item>
 
                      <hw-form-item :label="$t('page.cache_rule.param_type')" name="param_type">
-                        <hw-select v-model="formData.param_type" clearable :style="{ width: '480px' }">
+                        <hw-select v-model="formData.param_type" clearable :style="{ width: 'min(100%, 480px)' }">
                           <hw-option v-for="item in param_type_options" :value="item.value" :label="item.label" :key="item.value">
                             {{ item.label }}
                           </hw-option>
@@ -92,12 +92,12 @@
                      </hw-form-item>
 
                       <hw-form-item :label="$t('page.cache_rule.request_method')" name="request_method">
-                         <hw-input :style="{ width: '480px' }" v-model="formData.request_method" :placeholder="$t('page.cache_rule.request_method_placeholder')"></hw-input>
+                         <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.request_method" :placeholder="$t('page.cache_rule.request_method_placeholder')"></hw-input>
                          <div class="form-item-tips">{{ $t('page.cache_rule.request_method_tips') }}</div>
                     </hw-form-item>
 
                       <hw-form-item :label="$t('page.cache_rule.remarks')" name="remarks">
-                         <hw-input :style="{ width: '480px' }" v-model="formData.remarks" ></hw-input>
+                         <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks" ></hw-input>
                     </hw-form-item>
 
           <hw-form-item style="float: right">
@@ -113,7 +113,7 @@
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100">
 
                         <hw-form-item :label="$t('page.cache_rule.host_code')" name="host_code">
-                          <hw-select v-model="formEditData.host_code" clearable :style="{ width: '480px' }">
+                          <hw-select v-model="formEditData.host_code" clearable :style="{ width: 'min(100%, 480px)' }">
                             <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                                       :key="index">
                               {{ item }}
@@ -122,11 +122,11 @@
                       </hw-form-item>
 
                         <hw-form-item :label="$t('page.cache_rule.rule_name')" name="rule_name">
-                           <hw-input :style="{ width: '480px' }" v-model="formEditData.rule_name" ></hw-input>
+                           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.rule_name" ></hw-input>
                       </hw-form-item>
 
                        <hw-form-item :label="$t('page.cache_rule.rule_type')" name="rule_type">
-                        <hw-select v-model="formEditData.rule_type" clearable :style="{ width: '480px' }">
+                        <hw-select v-model="formEditData.rule_type" clearable :style="{ width: 'min(100%, 480px)' }">
                           <hw-option v-for="item in rule_type_options" :value="item.value" :label="item.label" :key="item.value">
                             {{ item.label }}
                           </hw-option>
@@ -135,12 +135,12 @@
                        </hw-form-item>
 
                         <hw-form-item :label="$t('page.cache_rule.rule_content')" name="rule_content">
-                           <hw-input :style="{ width: '480px' }" v-model="formEditData.rule_content" :placeholder="$t('page.cache_rule.rule_content_placeholder')"></hw-input>
+                           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.rule_content" :placeholder="$t('page.cache_rule.rule_content_placeholder')"></hw-input>
                            <div class="form-item-tips">{{ $t('page.cache_rule.rule_content_tips') }}</div>
                       </hw-form-item>
 
                        <hw-form-item :label="$t('page.cache_rule.param_type')" name="param_type">
-                        <hw-select v-model="formEditData.param_type" clearable :style="{ width: '480px' }">
+                        <hw-select v-model="formEditData.param_type" clearable :style="{ width: 'min(100%, 480px)' }">
                           <hw-option v-for="item in param_type_options" :value="item.value" :label="item.label" :key="item.value">
                             {{ item.label }}
                           </hw-option>
@@ -161,12 +161,12 @@
                        </hw-form-item>
 
                         <hw-form-item :label="$t('page.cache_rule.request_method')" name="request_method">
-                           <hw-input :style="{ width: '480px' }" v-model="formEditData.request_method" :placeholder="$t('page.cache_rule.request_method_placeholder')"></hw-input>
+                           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.request_method" :placeholder="$t('page.cache_rule.request_method_placeholder')"></hw-input>
                            <div class="form-item-tips">{{ $t('page.cache_rule.request_method_tips') }}</div>
                       </hw-form-item>
 
                         <hw-form-item :label="$t('page.cache_rule.remarks')" name="remarks">
-                           <hw-input :style="{ width: '480px' }" v-model="formEditData.remarks" ></hw-input>
+                           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" ></hw-input>
                       </hw-form-item>
 
           <hw-form-item style="float: right">
@@ -626,8 +626,8 @@ import {defineComponent} from 'vue';
     margin-left: @spacer;
   }
   .form-item-tips {
-  color: #999;
-  font-size: 12px;
+  color: var(--hw-muted);
+  font-size: 13px;
   margin-top: 4px;
   line-height: 1.5;
 }

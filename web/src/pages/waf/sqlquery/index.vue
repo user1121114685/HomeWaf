@@ -72,7 +72,7 @@
                       filterable
                       :disabled="!selectedTable"
                       :placeholder="$t('page.sql_query.filter_column')"
-                      style="width: 220px;"
+                      style="width: min(100%, 220px);"
                     >
                       <hw-option v-for="c in currentTableColumns" :key="c.name" :value="c.name" :label="c.name"></hw-option>
                     </hw-select>
@@ -82,7 +82,7 @@
                     <hw-input
                       v-model="f.value"
                       :placeholder="f.op === 'in' ? $t('page.sql_query.filter_in_placeholder') : $t('page.sql_query.filter_value_placeholder')"
-                      style="width: 260px;"
+                      style="width: min(100%, 260px);"
                     />
                     <hw-button theme="danger" variant="text" @click="removeFilter(i)">✕</hw-button>
                   </div>
@@ -656,7 +656,7 @@ export default defineComponent({
   margin: 12px 0 8px;
   font-size: 26px;
   line-height: 1.6;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-brand-color, #0052d9);
 }
 
@@ -672,13 +672,13 @@ export default defineComponent({
   gap: 4px;
 
   .stat-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-secondary, #888);
   }
 
   .stat-value {
     font-size: 22px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary, #333);
   }
 }
@@ -687,7 +687,7 @@ export default defineComponent({
   .detail-subtitle {
     margin: 0 0 10px 0;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary, #333);
     padding-left: 8px;
     border-left: 3px solid var(--td-brand-color, #0052d9);

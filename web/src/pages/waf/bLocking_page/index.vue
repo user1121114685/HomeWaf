@@ -41,8 +41,8 @@
              <span v-for="header in JSON.parse(row.response_header)">{{ header.name }}={{ header.value }}  </span>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -56,18 +56,18 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="180">
                     <hw-form-item :label="$t('page.blocking_page.blocking_page_name')" name="blocking_page_name">
-                         <hw-input :style="{ width: '480px' }" v-model="formData.blocking_page_name" ></hw-input>
+                         <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.blocking_page_name" ></hw-input>
                     </hw-form-item>
 
 <!--                      <hw-form-item :label="$t('page.blocking_page.blocking_type')" name="blocking_type">
-                        <hw-select v-model="formData.blocking_type" clearable :style="{ width: '480px' }">
+                        <hw-select v-model="formData.blocking_type" clearable :style="{ width: 'min(100%, 480px)' }">
                           <hw-option v-for="item in blocking_type" :value="item.value" :label="`${item.label}`">
                           </hw-option>
                         </hw-select>
                     </hw-form-item>-->
 
                       <hw-form-item :label="$t('page.blocking_page.host_code')" name="host_code">
-                        <hw-select v-model="formData.host_code" clearable :style="{ width: '480px' }">
+                        <hw-select v-model="formData.host_code" clearable :style="{ width: 'min(100%, 480px)' }">
                           <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                                     :key="index">
                             {{ item }}
@@ -77,7 +77,7 @@
                     </hw-form-item>
 
                       <hw-form-item :label="$t('page.blocking_page.attack_type')" name="attack_type">
-                        <hw-select v-model="formData.attack_type" clearable :style="{ width: '480px' }">
+                        <hw-select v-model="formData.attack_type" clearable :style="{ width: 'min(100%, 480px)' }">
                           <hw-option v-for="item in attack_type_options" :value="item.value" :label="item.label" :key="item.value">
                             {{ item.label }}
                           </hw-option>
@@ -85,11 +85,11 @@
                     </hw-form-item>
 
                       <hw-form-item :label="$t('page.blocking_page.response_code')" name="response_code">
-                        <hw-input :style="{ width: '480px' }" v-model="formData.response_code" ></hw-input>
+                        <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.response_code" ></hw-input>
                     </hw-form-item>
 
                       <hw-form-item :label="$t('page.blocking_page.content_priority')" name="content_priority">
-                        <div :style="{ width: '480px' }">
+                        <div :style="{ width: 'min(100%, 480px)' }">
                           <hw-radio-group v-model="formData.content_priority">
                             <hw-radio-button v-for="item in content_priority_options" :value="item.value" :key="item.value">
                               {{ item.label }}
@@ -131,8 +131,8 @@
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                       <div v-for="(header, index) in response_header_list" :key="index" style="display: flex; gap: 10px;">
-                        <hw-input v-model="header.name" :style="{ width: '220px' }" :placeholder="$t('common.http_header.name')" />
-                        <hw-input v-model="header.value" :style="{ width: '220px' }" :placeholder="$t('common.http_header.value')" />
+                        <hw-input v-model="header.name" :style="{ width: 'min(100%, 220px)' }" :placeholder="$t('common.http_header.name')" />
+                        <hw-input v-model="header.value" :style="{ width: 'min(100%, 220px)' }" :placeholder="$t('common.http_header.value')" />
                       </div>
                     </div>
                   </hw-form-item>
@@ -150,16 +150,16 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="180">
                        <hw-form-item :label="$t('page.blocking_page.blocking_page_name')" name="blocking_page_name">
-                           <hw-input :style="{ width: '480px' }" v-model="formEditData.blocking_page_name" ></hw-input>
+                           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.blocking_page_name" ></hw-input>
                       </hw-form-item>
 <!--                      <hw-form-item :label="$t('page.blocking_page.blocking_type')" name="blocking_type">
-                        <hw-select v-model="formEditData.blocking_type" clearable :style="{ width: '480px' }">
+                        <hw-select v-model="formEditData.blocking_type" clearable :style="{ width: 'min(100%, 480px)' }">
                           <hw-option v-for="item in blocking_type" :value="item.value" :label="`${item.label}`">
                           </hw-option>
                         </hw-select>
                       </hw-form-item>-->
                         <hw-form-item :label="$t('page.blocking_page.host_code')" name="host_code">
-                          <hw-select v-model="formEditData.host_code" clearable :style="{ width: '480px' }">
+                          <hw-select v-model="formEditData.host_code" clearable :style="{ width: 'min(100%, 480px)' }">
                             <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                                       :key="index">
                               {{ item }}
@@ -168,7 +168,7 @@
                       </hw-form-item>
 
                         <hw-form-item :label="$t('page.blocking_page.attack_type')" name="attack_type">
-                          <hw-select v-model="formEditData.attack_type" clearable :style="{ width: '480px' }">
+                          <hw-select v-model="formEditData.attack_type" clearable :style="{ width: 'min(100%, 480px)' }">
                             <hw-option v-for="item in attack_type_options" :value="item.value" :label="item.label" :key="item.value">
                               {{ item.label }}
                             </hw-option>
@@ -176,11 +176,11 @@
                         </hw-form-item>
 
                         <hw-form-item :label="$t('page.blocking_page.response_code')" name="response_code">
-                          <hw-input :style="{ width: '480px' }" v-model="formEditData.response_code" ></hw-input>
+                          <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.response_code" ></hw-input>
                         </hw-form-item>
 
                         <hw-form-item :label="$t('page.blocking_page.content_priority')" name="content_priority">
-                          <div :style="{ width: '480px' }">
+                          <div :style="{ width: 'min(100%, 480px)' }">
                             <hw-radio-group v-model="formEditData.content_priority">
                               <hw-radio-button v-for="item in content_priority_options" :value="item.value" :key="item.value">
                                 {{ item.label }}
@@ -224,8 +224,8 @@
                           </div>
                           <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                             <div v-for="(header, index) in response_header_list" :key="index" style="display: flex; gap: 10px;">
-                              <hw-input v-model="header.name" :style="{ width: '220px' }" :placeholder="$t('common.http_header.name')" />
-                              <hw-input v-model="header.value" :style="{ width: '220px' }" :placeholder="$t('common.http_header.value')" />
+                              <hw-input v-model="header.name" :style="{ width: 'min(100%, 220px)' }" :placeholder="$t('common.http_header.name')" />
+                              <hw-input v-model="header.value" :style="{ width: 'min(100%, 220px)' }" :placeholder="$t('common.http_header.value')" />
                             </div>
                           </div>
 
@@ -939,7 +939,7 @@ import {defineComponent} from 'vue';
 
   .priority-tip {
     margin-top: 8px;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 20px;
     color: var(--td-text-color-secondary);
 
@@ -965,7 +965,7 @@ import {defineComponent} from 'vue';
     height: 320px;
     border: 1px solid var(--td-component-border);
     border-radius: var(--td-radius-default);
-    background-color: #fff;
+    background-color: var(--hw-panel);
   }
 
   .unmatched-preview-frame {
@@ -973,7 +973,7 @@ import {defineComponent} from 'vue';
     height: 440px;
     border: 1px solid var(--td-component-border);
     border-radius: var(--td-radius-default);
-    background-color: #fff;
+    background-color: var(--hw-panel);
   }
 
   .t-button+.t-button {

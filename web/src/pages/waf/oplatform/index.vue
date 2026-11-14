@@ -24,7 +24,7 @@
         <div class="right-operation-container">
           <hw-form ref="searchForm" :data="searchformData" layout="inline" colon :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.oplatform.key_name')" name="key_name">
-              <hw-input v-model="searchformData.key_name" style="width:200px" clearable />
+              <hw-input v-model="searchformData.key_name" style="width: min(100%, 200px)" clearable />
             </hw-form-item>
             <hw-form-item>
               <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getList">
@@ -66,12 +66,12 @@
             {{ slotProps.row.rate_limit > 0 ? slotProps.row.rate_limit + ' ' + $t('page.oplatform.per_minute') : $t('page.oplatform.no_limit') }}
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleToggleStatus(slotProps)">
+            <button type="button" class="t-button-link" @click="handleEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleToggleStatus(slotProps)">
               {{ slotProps.row.status === 1 ? $t('page.oplatform.disable') : $t('page.oplatform.enable') }}
-            </a>
-            <a class="t-button-link" @click="handleResetSecret(slotProps)">{{ $t('page.oplatform.reset_key') }}</a>
-            <a class="t-button-link" style="color: #e34d59" @click="handleDelete(slotProps)">{{ $t('common.delete') }}</a>
+            </button>
+            <button type="button" class="t-button-link" @click="handleResetSecret(slotProps)">{{ $t('page.oplatform.reset_key') }}</button>
+            <button type="button" class="t-button-link" style="color: #e34d59" @click="handleDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -87,19 +87,19 @@
       <template #body><div >
         <hw-form :data="formData" ref="addForm" :rules="rules" @submit="onSubmitAdd" :labelWidth="120">
           <hw-form-item :label="$t('page.oplatform.key_name')" name="key_name">
-            <hw-input :style="{ width: '380px' }" v-model="formData.key_name" :placeholder="$t('page.oplatform.key_name_placeholder')" />
+            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formData.key_name" :placeholder="$t('page.oplatform.key_name_placeholder')" />
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.rate_limit')" name="rate_limit">
-            <hw-input-number :style="{ width: '380px' }" v-model="formData.rate_limit" :min="0" :placeholder="$t('page.oplatform.rate_limit_tip')" />
+            <hw-input-number :style="{ width: 'min(100%, 380px)' }" v-model="formData.rate_limit" :min="0" :placeholder="$t('page.oplatform.rate_limit_tip')" />
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.ip_whitelist')" name="ip_whitelist">
-            <hw-input :style="{ width: '380px' }" v-model="formData.ip_whitelist" :placeholder="$t('page.oplatform.ip_whitelist_placeholder')" />
+            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formData.ip_whitelist" :placeholder="$t('page.oplatform.ip_whitelist_placeholder')" />
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.expire_time')" name="expire_time">
-            <hw-input :style="{ width: '380px' }" v-model="formData.expire_time" :placeholder="$t('page.oplatform.expire_time_placeholder')" />
+            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formData.expire_time" :placeholder="$t('page.oplatform.expire_time_placeholder')" />
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remark">
-            <hw-textarea :style="{ width: '380px' }" v-model="formData.remark" />
+            <hw-textarea :style="{ width: 'min(100%, 380px)' }" v-model="formData.remark" />
           </hw-form-item>
           <hw-form-item style="float:right">
             <hw-button variant="outline" @click="addFormVisible = false">{{ $t('common.cancel') }}</hw-button>
@@ -119,7 +119,7 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="editForm" :rules="rules" @submit="onSubmitEdit" :labelWidth="120">
           <hw-form-item :label="$t('page.oplatform.key_name')" name="key_name">
-            <hw-input :style="{ width: '380px' }" v-model="formEditData.key_name" />
+            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.key_name" />
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.status')" name="status">
             <hw-radio-group v-model="formEditData.status">
@@ -128,16 +128,16 @@
             </hw-radio-group>
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.rate_limit')" name="rate_limit">
-            <hw-input-number :style="{ width: '380px' }" v-model="formEditData.rate_limit" :min="0" />
+            <hw-input-number :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.rate_limit" :min="0" />
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.ip_whitelist')" name="ip_whitelist">
-            <hw-input :style="{ width: '380px' }" v-model="formEditData.ip_whitelist" :placeholder="$t('page.oplatform.ip_whitelist_placeholder')" />
+            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.ip_whitelist" :placeholder="$t('page.oplatform.ip_whitelist_placeholder')" />
           </hw-form-item>
           <hw-form-item :label="$t('page.oplatform.expire_time')" name="expire_time">
-            <hw-input :style="{ width: '380px' }" v-model="formEditData.expire_time" :placeholder="$t('page.oplatform.expire_time_placeholder')" />
+            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.expire_time" :placeholder="$t('page.oplatform.expire_time_placeholder')" />
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remark">
-            <hw-textarea :style="{ width: '380px' }" v-model="formEditData.remark" />
+            <hw-textarea :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.remark" />
           </hw-form-item>
           <hw-form-item style="float:right">
             <hw-button variant="outline" @click="editFormVisible = false">{{ $t('common.cancel') }}</hw-button>
@@ -159,7 +159,7 @@
         <hw-alert theme="warning" :message="$t('page.oplatform.key_once_warning')" style="margin-bottom:16px" />
         <hw-form :labelWidth="120">
           <hw-form-item label="API Key">
-            <hw-input v-model="newSecret" readonly :style="{ width: '300px' }">
+            <hw-input v-model="newSecret" readonly :style="{ width: 'min(100%, 300px)' }">
               <template #suffix>
                 <hw-button size="small" variant="text" @click="copyText(newSecret)">{{ $t('page.oplatform.copy') }}</hw-button>
               </template>

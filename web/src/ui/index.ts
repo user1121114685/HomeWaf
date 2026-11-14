@@ -202,8 +202,8 @@ const HwForm = defineComponent({
           rules: rules.value,
           inline: attrs.layout === 'inline',
           class: ['hw-form', attrs.class],
-          labelWidth: attrs.labelWidth ?? (attrs.layout === 'inline' ? 'auto' : 100),
-          labelPosition: attrs.layout === 'vertical' ? 'top' : (attrs.labelAlign ?? 'right'),
+          labelWidth: 'auto',
+          labelPosition: 'top',
           onSubmit: async (e: Event) => {
             e.preventDefault();
             const result = await validate();

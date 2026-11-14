@@ -15,4 +15,4 @@ import { ElAlert, ElTable, ElTableColumn } from 'element-plus';
 import { accessReason } from './accessPolicy';
 defineProps({result:Object});
 </script>
-<style scoped>.trace-note{font-size:12px;color:var(--el-text-color-secondary);word-break:break-all}.decision-trace{display:grid;gap:12px}.decision-trace strong{color:var(--el-color-warning)}</style>
+<style scoped>.trace-note{font-size: 13px;color:var(--el-text-color-secondary);word-break:break-all}.decision-trace{display:grid;gap:12px}.decision-trace strong{color:var(--el-color-warning)}</style>

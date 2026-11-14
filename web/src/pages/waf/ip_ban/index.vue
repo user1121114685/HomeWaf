@@ -104,7 +104,7 @@ export default defineComponent({
 
   .topbar-title {
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary);
   }
 }
@@ -133,7 +133,7 @@ export default defineComponent({
   h3 {
     margin: 0 0 16px;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
   }
 }
 .config-description {

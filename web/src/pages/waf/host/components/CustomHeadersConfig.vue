@@ -27,7 +27,7 @@
     <!-- 使用说明 -->
     <hw-alert v-if="localConfig.is_enable_custom_headers == '1'" theme="info" :message="$t('page.host.custom_headers.usage_guide')" style="margin-bottom: 16px;">
       <template #operation>
-        <span @click="showVariableHelp = !showVariableHelp" style="cursor: pointer;">
+        <span role="button" tabindex="0" @keydown.enter.prevent="showVariableHelp = !showVariableHelp" @keydown.space.prevent="showVariableHelp = !showVariableHelp" @click="showVariableHelp = !showVariableHelp" style="cursor: pointer;">
           {{ showVariableHelp ? $t('page.host.custom_headers.hide_help') : $t('page.host.custom_headers.show_help') }}
         </span>
       </template>
@@ -106,7 +106,7 @@
                     v-model="header.header_name"
                     @change="updateParent"
                     :placeholder="$t('page.host.custom_headers.header_name_placeholder')"
-                    style="width: 220px;">
+                    style="width: min(100%, 220px);">
                   </hw-input>
                 </div>
 
@@ -116,7 +116,7 @@
                     v-model="header.header_value"
                     @change="updateParent"
                     :placeholder="$t('page.host.custom_headers.header_value_placeholder')"
-                    style="width: 320px;">
+                    style="width: min(100%, 320px);">
                     <template #suffix>
                       <hw-dropdown :options="variableOptions" @click="(data) => insertVariable(index, data.value)">
                         <hw-button size="small" variant="text" style="padding: 0 4px;">
@@ -310,7 +310,7 @@ export default {
       h4 {
         margin: 0 0 8px 0;
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 500;
         color: var(--td-text-color-primary);
       }
 
@@ -329,7 +329,7 @@ export default {
             background: var(--td-bg-color-component);
             border-radius: 3px;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-size: 13px;
             color: var(--td-brand-color);
           }
         }
@@ -340,7 +340,7 @@ export default {
       h4 {
         margin: 0 0 8px 0;
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 500;
         color: var(--td-text-color-primary);
       }
     }
@@ -355,7 +355,7 @@ export default {
 
     .section-title {
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--td-text-color-primary);
       margin-bottom: 12px;
       padding-left: 4px;
@@ -390,7 +390,7 @@ export default {
 
       &:hover {
         border-color: var(--td-brand-color);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        box-shadow: none;
       }
 
       &:last-child {
@@ -415,7 +415,7 @@ export default {
           gap: 6px;
 
           .field-label {
-            font-size: 12px;
+            font-size: 13px;
             color: var(--td-text-color-secondary);
             font-weight: 500;
             line-height: 1.5;

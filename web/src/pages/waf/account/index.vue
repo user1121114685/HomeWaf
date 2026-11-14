@@ -29,10 +29,10 @@
             <hw-tag theme="primary" variant="light">{{ roleLabel(row.role) }}</hw-tag>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickResetPwd(slotProps)">{{$t('page.account.reset_password')}}</a>
-            <a class="t-button-link" @click="handleClickResetOtp(slotProps)">{{$t('page.account.reset_otp')}}</a>
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{$t('common.edit')}}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{$t('common.delete')}}</a>
+            <button type="button" class="t-button-link" @click="handleClickResetPwd(slotProps)">{{$t('page.account.reset_password')}}</button>
+            <button type="button" class="t-button-link" @click="handleClickResetOtp(slotProps)">{{$t('page.account.reset_otp')}}</button>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{$t('common.edit')}}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{$t('common.delete')}}</button>
           </template>
         </hw-table>
       </div>
@@ -49,10 +49,10 @@
              会把保存的管理端 admin 账号密码填进来。Chrome 只认 new-password（off 对密码框无效）。 -->
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="150" autocomplete="off">
           <hw-form-item :label="$t('page.account.login_account_label')" name="login_account">
-              <hw-input :style="{ width: '480px' }" v-model="formData.login_account" :placeholder="$t('common.placeholder')+$t('page.account.login_account_label')" autocomplete="off"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.login_account" :placeholder="$t('common.placeholder')+$t('page.account.login_account_label')" autocomplete="off"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.account.role')" name="role">
-            <hw-select v-model="formData.role" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formData.role" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in roleType" :value="item.value" :label="item.label"
                         :key="index">
                 {{ item.label }}
@@ -60,13 +60,13 @@
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.account.login_password')" name="login_password">
-            <hw-input :style="{ width: '480px' }" type="password"  v-model="formData.login_password" :placeholder="$t('common.placeholder')+$t('page.account.login_password')" autocomplete="new-password"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" type="password"  v-model="formData.login_password" :placeholder="$t('common.placeholder')+$t('page.account.login_password')" autocomplete="new-password"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('common.status')" name="rate">
-            <hw-input-number :style="{ width: '480px' }" v-model="formData.status" :placeholder="$t('common.placeholder')+$t('common.status')"></hw-input-number>
+            <hw-input-number :style="{ width: 'min(100%, 480px)' }" v-model="formData.status" :placeholder="$t('common.placeholder')+$t('common.status')"></hw-input-number>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks" :placeholder="$t('common.placeholder')+$t('common.remarks')" name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks" :placeholder="$t('common.placeholder')+$t('common.remarks')" name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -83,10 +83,10 @@
         <!-- 表单内容 -->
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="150">
           <hw-form-item :label="$t('page.account.login_account_label')" name="login_account">
-           <hw-input :style="{ width: '480px' }" v-model="formEditData.login_account" :placeholder="$t('common.placeholder')+$t('page.account.login_account_label')"></hw-input>
+           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.login_account" :placeholder="$t('common.placeholder')+$t('page.account.login_account_label')"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.account.role')" name="role">
-            <hw-select v-model="formEditData.role" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.role" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in roleType" :value="item.value" :label="item.label"
                         :key="index">
                 {{ item.label }}
@@ -94,10 +94,10 @@
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('common.status')" name="status">
-            <hw-input-number :style="{ width: '480px' }" v-model="formEditData.status" :placeholder="$t('common.placeholder')+$t('common.status')"></hw-input-number>
+            <hw-input-number :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.status" :placeholder="$t('common.placeholder')+$t('common.status')"></hw-input-number>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks" :placeholder="$t('common.placeholder')+$t('common.remarks')" name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" :placeholder="$t('common.placeholder')+$t('common.remarks')" name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -113,16 +113,16 @@
         <!-- 表单内容 -->
         <hw-form :data="formResetPwdData" ref="form" :rules="resetPwdRules" @submit="onSubmitResetPwd" :labelWidth="150" autocomplete="off">
           <hw-form-item :label="$t('page.account.login_account_label')" name="login_account">
-            <hw-input :style="{ width: '480px' }" v-model="formResetPwdData.login_account" :placeholder="$t('common.placeholder')+$t('page.account.login_account_label')" autocomplete="off"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formResetPwdData.login_account" :placeholder="$t('common.placeholder')+$t('page.account.login_account_label')" autocomplete="off"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.account.super_admin_password')" name="login_super_password">
-            <hw-input :style="{ width: '480px' }" type="password" v-model="formResetPwdData.login_super_password" :placeholder="$t('common.placeholder')+$t('page.account.super_admin_password')" autocomplete="new-password"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" type="password" v-model="formResetPwdData.login_super_password" :placeholder="$t('common.placeholder')+$t('page.account.super_admin_password')" autocomplete="new-password"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.account.new_password')" name="login_new_password">
-            <hw-input :style="{ width: '480px' }" type="password"  v-model="formResetPwdData.login_new_password" :placeholder="$t('common.placeholder')+$t('page.account.new_password')" autocomplete="new-password"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" type="password"  v-model="formResetPwdData.login_new_password" :placeholder="$t('common.placeholder')+$t('page.account.new_password')" autocomplete="new-password"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.account.confirm_password')" name="login_new_password2">
-            <hw-input :style="{ width: '480px' }" type="password"  v-model="formResetPwdData.login_new_password2" :placeholder="$t('common.placeholder')+$t('page.account.confirm_password')" autocomplete="new-password"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" type="password"  v-model="formResetPwdData.login_new_password2" :placeholder="$t('common.placeholder')+$t('page.account.confirm_password')" autocomplete="new-password"></hw-input>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>

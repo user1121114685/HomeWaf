@@ -26,7 +26,7 @@
           <hw-input-number v-model="form.throttle.aggregate_max_detail" :min="1" :max="50" theme="normal" :style="{ width: '160px' }" />
         </hw-form-item>
         <hw-form-item :label="$t('page.notify_subscription.label_cooldown_steps')">
-          <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: '260px' }" />
+          <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: 'min(100%, 260px)' }" />
           <div class="form-tip">{{ $t('page.notify_subscription.cooldown_steps_tip') }}</div>
         </hw-form-item>
         <hw-form-item :label="$t('page.notify_subscription.label_cooldown_reset')">
@@ -152,8 +152,8 @@ export default defineComponent({
 
 <style lang="less" scoped>
 .form-tip {
-  font-size: 12px;
-  color: #888;
+  font-size: 13px;
+  color: var(--hw-muted);
   margin-top: 4px;
   line-height: 1.6;
 }

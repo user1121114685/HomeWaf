@@ -54,7 +54,7 @@
           </template>
 
           <template #op="slotProps">
-            <a v-if="slotProps.row.can_delete" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" v-if="slotProps.row.can_delete" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
             <span v-else class="t-button-link disabled">{{ $t('common.delete') }}</span>
           </template>
         </hw-table>
