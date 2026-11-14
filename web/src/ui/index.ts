@@ -630,7 +630,7 @@ const components: Record<string, any> = {
   'hw-form': HwForm,
   'hw-form-item': HwFormItem,
   'hw-input': input('HwInput', E.ElInput, (_p, a) => ({
-    showPassword: a.type === 'password',
+    showPassword: a.showPassword ?? a.type === 'password',
     maxlength: a.maxlength ?? a.maxcharacter,
     showWordLimit: a.showLimitNumber,
   })),

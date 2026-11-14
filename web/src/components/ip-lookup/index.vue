@@ -590,6 +590,8 @@ export default defineComponent({
   font-size: 13px;
   color: var(--td-text-color-placeholder);
   line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .ipl-progress {

@@ -37,6 +37,7 @@
           v-model="formData.password"
           size="large"
           :type="showPsw ? 'text' : 'password'"
+          :show-password="false"
           clearable
           key="password"
           :placeholder="$t('login.input_password_placeholder')"
