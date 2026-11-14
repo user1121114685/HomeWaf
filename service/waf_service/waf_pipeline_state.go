@@ -126,7 +126,7 @@ func (s *WafPipelineStateService) recordChange(change wafpipeline.PunishmentChan
 		global.GQEQUE_LOG_DB.Enqueue(&model.PipelineLog{ID: uuid.GenUUID(), PortID: r.PortID, TimeMillis: time.Now().UnixMilli(), Kind: "state", ClientIP: r.Prefix, Stage: 4, Verdict: r.Kind, Reason: change.Event, RuleID: r.RuleID, Category: r.Reason, DetailJSON: string(raw)})
 	}
 	// Existing notification channels remain opt-in and process this asynchronously.
-	if global.GQEQUE_MESSAGE_DB != nil && (change.Event == "lockdown_started" || change.Event == "lockdown_released" || change.Event == "released" && r.Kind == "lockdown") {
+	if global.GQEQUE_MESSAGE_DB != nil && (change.Event == "lockdown_started" || change.Event == "lockdown_released" || change.Event == "honeypot_lockdown_started" || change.Event == "honeypot_lockdown_released" || change.Event == "released" && (r.Kind == "lockdown" || r.Kind == "honeypot_lockdown")) {
 		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.SystemErrorMessageInfo{BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "HomeWaf port protection", Server: r.PortID}, ErrorType: "pipeline_lockdown", ErrorMsg: fmt.Sprintf("%s: %s", r.PortID, change.Event)})
 	}
 }
@@ -211,11 +211,27 @@ func (s *WafPipelineStateService) Manage(port uint16, id, action, operator strin
 	return nil
 }
 func (s *WafPipelineStateService) Logs(port uint16) ([]model.PipelineLog, error) {
+	return s.logs(port, false)
+}
+
+// HoneypotLogs filters before limiting, so unrelated traffic cannot hide the
+// latest twenty honeypot requests. Existing log retention remains in effect.
+func (s *WafPipelineStateService) HoneypotLogs(port uint16) ([]model.PipelineLog, error) {
+	return s.logs(port, true)
+}
+
+func (s *WafPipelineStateService) logs(port uint16, honeypotOnly bool) ([]model.PipelineLog, error) {
 	if global.GWAF_LOCAL_LOG_DB == nil {
 		return nil, errors.New("log database unavailable")
 	}
 	rows := []model.PipelineLog{}
-	err := global.GWAF_LOCAL_LOG_DB.Where("port_id = ?", wafpipeline.PortID(port)).Order("time_millis DESC").Limit(100).Find(&rows).Error
+	query := global.GWAF_LOCAL_LOG_DB.Where("port_id = ?", wafpipeline.PortID(port))
+	limit := 100
+	if honeypotOnly {
+		query = query.Where("kind = ? AND (verdict = ? OR (verdict = ? AND reason LIKE ?))", "request", string(wafpipeline.Honeypot), string(wafpipeline.Drop), "honeypot:drop:%")
+		limit = 20
+	}
+	err := query.Order("time_millis DESC").Order("id DESC").Limit(limit).Find(&rows).Error
 	return rows, err
 }
 
