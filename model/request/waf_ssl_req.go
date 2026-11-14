@@ -15,7 +15,7 @@ type SslConfigAddReq struct {
 	ExportKeyPath  string `json:"export_key_path"`  //导出key文件的完整路径
 }
 type SslConfigEditReq struct {
-	Id           string `json:"id"`
+	Id           string `json:"id" binding:"required,max=64"`
 	CertContent  string `json:"cert_content" form:"cert_content"` // 证书文件内容
 	KeyContent   string `json:"key_content" form:"key_content"`   // 密钥文件内容
 	KeyPath      string `json:"key_path"`                         //密钥文件位置
@@ -26,10 +26,10 @@ type SslConfigEditReq struct {
 	ExportKeyPath  *string `json:"export_key_path"`  //导出key文件的完整路径
 }
 type SslConfigDetailReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type SslConfigDeleteReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type SslConfigSearchReq struct {
 	Domains string `json:"domains"` // 证书适用的域名

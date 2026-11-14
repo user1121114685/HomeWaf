@@ -36,6 +36,7 @@ var coreSchemaModels = []any{
 	&model.IPTag{},
 	&model.BatchTask{},
 	&model.SslOrder{},
+	&model.SslOrderLog{},
 	&model.SslExpire{},
 	&model.HttpAuthBase{},
 	&model.Task{},
@@ -142,5 +143,40 @@ func InitializeCoreSchema(db *gorm.DB) error {
 			}
 		}
 	}
+	for _, field := range []string{"RequestID", "SubmissionHash", "ActiveKey", "RenewFrom", "Progress", "AutoRenew"} {
+		if !db.Migrator().HasColumn(&model.SslOrder{}, field) {
+			if err := db.Migrator().AddColumn(&model.SslOrder{}, field); err != nil {
+				return err
+			}
+		}
+	}
+	for _, index := range []string{"uni_ssl_order_request", "uni_ssl_order_active"} {
+		// Explicit names for unique keys are stable across table naming strategies.
+		if !db.Migrator().HasIndex(&model.SslOrder{}, index) {
+			if err := db.Migrator().CreateIndex(&model.SslOrder{}, index); err != nil {
+				return err
+			}
+		}
+	}
+	if err := initializeSSLOrderLogScope(db); err != nil {
+		return err
+	}
 	return seedCoreDefaults(db)
+}
+
+func initializeSSLOrderLogScope(db *gorm.DB) error {
+	for _, field := range []string{"TenantID", "UserCode"} {
+		if !db.Migrator().HasColumn(&model.SslOrderLog{}, field) {
+			if err := db.Migrator().AddColumn(&model.SslOrderLog{}, field); err != nil {
+				return err
+			}
+		}
+	}
+	// Recover ownership from the parent order, never from the currently logged-in
+	// tenant. Existing scoped rows and orphaned records must not be reassigned.
+	return db.Exec(`UPDATE ssl_order_logs SET
+		tenant_id = (SELECT tenant_id FROM ssl_orders WHERE ssl_orders.id = ssl_order_logs.order_id),
+		user_code = (SELECT user_code FROM ssl_orders WHERE ssl_orders.id = ssl_order_logs.order_id)
+		WHERE (tenant_id IS NULL OR tenant_id = '') AND (user_code IS NULL OR user_code = '')
+		AND EXISTS (SELECT 1 FROM ssl_orders WHERE ssl_orders.id = ssl_order_logs.order_id)`).Error
 }

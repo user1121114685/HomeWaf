@@ -16,7 +16,7 @@ type BatchTaskAddReq struct {
 	Remark             string `json:"remark"`               //备注
 }
 type BatchTaskEditReq struct {
-	Id                 string `json:"id"`
+	Id                 string `json:"id" binding:"required,max=64"`
 	BatchTaskName      string `json:"batch_task_name"`      //任务名
 	BatchType          string `json:"batch_type"`           //任务类型
 	BatchHostCode      string `json:"batch_host_code"`      //网站唯一码 是否绑定到某个主机上
@@ -28,10 +28,10 @@ type BatchTaskEditReq struct {
 	Remark             string `json:"remark"`               //备注
 }
 type BatchTaskDetailReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type BatchTaskDeleteReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type BatchTaskSearchReq struct {
 	BatchTaskName string `json:"batch_task_name"` //任务名

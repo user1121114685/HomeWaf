@@ -25,11 +25,11 @@ type WafHostGroupEditReq struct {
 // 组内网站不会被删除，只把它们的 group_code 清空回落「未分组」，
 // 因此不需要 force 这类二次确认参数。
 type WafHostGroupDelReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafHostGroupDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafHostGroupSearchReq struct {

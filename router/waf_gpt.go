@@ -4,6 +4,7 @@ package router
 
 import (
 	"HomeWaf/api"
+	"HomeWaf/enums"
 	"HomeWaf/middleware"
 	"github.com/gin-gonic/gin"
 )
@@ -22,5 +23,5 @@ func (receiver *WafGPTRouter) InitGPTRouter(group *gin.RouterGroup) {
 	// 普通 JSON 接口：GPT 参数的读取/保存（不走流式中间件）
 	router := group.Group("")
 	router.GET("/api/v1/gpt/config", api.GetGptConfigApi)
-	router.POST("/api/v1/gpt/config/save", api.SaveGptConfigApi)
+	router.POST("/api/v1/gpt/config/save", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.SaveGptConfigApi)
 }

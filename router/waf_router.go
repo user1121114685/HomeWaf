@@ -4,6 +4,8 @@ package router
 
 import (
 	"HomeWaf/api"
+	"HomeWaf/enums"
+	"HomeWaf/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,8 +17,8 @@ func (receiver *OneKeyModRouter) InitOneKeyModRouter(group *gin.RouterGroup) {
 	router := group.Group("")
 	router.POST("/api/v1/wafhost/onekeymod/list", api.GetListApi)
 	router.GET("/api/v1/wafhost/onekeymod/detail", api.GetDetailApi)
-	router.POST("/api/v1/wafhost/onekeymod/doModify", api.DoOneKeyModifyApi)
-	router.GET("/api/v1/wafhost/onekeymod/del", api.DelApi)
-	router.GET("/api/v1/wafhost/onekeymod/restore", api.RestoreApi)
+	router.POST("/api/v1/wafhost/onekeymod/doModify", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.DoOneKeyModifyApi)
+	router.GET("/api/v1/wafhost/onekeymod/del", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.DelApi)
+	router.GET("/api/v1/wafhost/onekeymod/restore", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.RestoreApi)
 	router.POST("/api/v1/wafhost/onekeymod/parseNginx", api.ParseNginxApi)
 }

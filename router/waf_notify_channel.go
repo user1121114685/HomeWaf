@@ -4,6 +4,8 @@ package router
 
 import (
 	"HomeWaf/api"
+	"HomeWaf/enums"
+	"HomeWaf/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,8 +18,8 @@ func (receiver *NotifyChannelRouter) InitNotifyChannelRouter(group *gin.RouterGr
 	router.GET("/api/v1/notify/channel/types", api.GetTypesApi)
 	router.POST("/api/v1/notify/channel/list", api.GetListApi)
 	router.GET("/api/v1/notify/channel/detail", api.GetDetailApi)
-	router.POST("/api/v1/notify/channel/add", api.AddApi)
-	router.GET("/api/v1/notify/channel/del", api.DelApi)
-	router.POST("/api/v1/notify/channel/edit", api.ModifyApi)
-	router.POST("/api/v1/notify/channel/test", api.TestApi)
+	router.POST("/api/v1/notify/channel/add", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.AddApi)
+	router.GET("/api/v1/notify/channel/del", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.DelApi)
+	router.POST("/api/v1/notify/channel/edit", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.ModifyApi)
+	router.POST("/api/v1/notify/channel/test", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.TestApi)
 }

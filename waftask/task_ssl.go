@@ -143,7 +143,7 @@ func SSLOrderReload() {
 	innerLogName := "TaskSSLOrder"
 	zlog.Info(innerLogName, "准备进行ssl证书自动续期检测")
 	//1.找出来所有得SSL得主机 2.查询是否存在自动SSL订单得最新得数据 3.查询没有到期得最后一条信息来申请延期
-	allSSLHost, _, err := wafHostService.GetAllSSLBindHost()
+	allSSLHost, err := waf_service.GetSSLRenewalHosts()
 	if err == nil {
 		for _, hostBean := range allSSLHost {
 			zlog.Info(innerLogName, fmt.Sprintf("正在检测域名: %s:%d", hostBean.Host, hostBean.Port))
@@ -151,7 +151,7 @@ func SSLOrderReload() {
 			if err != nil {
 				zlog.Error(innerLogName, "ssl order get lasted info:", err.Error())
 			} else {
-				if lastSslOrderInfo.Id == "" {
+				if lastSslOrderInfo.Id == "" || !lastSslOrderInfo.AutoRenewEnabled() {
 					//未找到关联信息
 					continue
 				}
@@ -160,7 +160,7 @@ func SSLOrderReload() {
 					zlog.Error(innerLogName, "ssl order get lasted info:", err.Error())
 				} else {
 					// 判断是IP证书还是域名证书，使用不同的过期检测天数
-					isIpSSL := utils.IsIP(hostBean.Host)
+					isIpSSL := utils.IsIP(lastSslOrderInfo.ApplyDomain)
 					var expireDays int64
 					var certType string
 					if isIpSSL {
@@ -177,7 +177,7 @@ func SSLOrderReload() {
 						// http01 续期要求 80 端口是 HTTP 明文：若被设成 HTTPS 或没有 80，
 						// 挑战必失败且会消耗 ACME 服务商的失败频率配额，这里跳过并明确告警，
 						// 不静默重试（静默重试只会让配额耗尽、真到期时也申请不下来）
-						if lastSslOrderInfo.ApplyMethod == "http01" && !hostHTTP01Ready(hostBean) {
+						if lastSslOrderInfo.ApplyMethod == "http01" && waf_service.ValidateSSLCertificateTarget(hostBean.Code, "http01", lastSslOrderInfo.ApplyDomain) != nil {
 							msg := fmt.Sprintf("站点 %s 的证书自动续期已跳过：文件验证(http01)需要 80 端口以 HTTP 明文提供服务，"+
 								"当前该站点没有 HTTP 协议的 80 端口。请在网站编辑的「监听端口」里把 80 设为 HTTP，或把该证书订单改用 DNS 验证方式",
 								hostBean.Host)
@@ -189,12 +189,14 @@ func SSLOrderReload() {
 							})
 							continue
 						}
-						//没过期 且是指定天数 就才处理
-						var chanInfo = spec.ChanSslOrder{
-							Type:    enums.ChanSslOrderrenew,
-							Content: lastSslOrderInfo,
+						renewal, created, err := wafSslOrderService.AutomaticRenew(lastSslOrderInfo)
+						if err != nil {
+							zlog.Warn(innerLogName, "自动续期未提交", err.Error())
+							continue
 						}
-						global.GWAF_CHAN_SSLOrder <- chanInfo
+						if created {
+							waf_service.WakeSSLOrderWorker(renewal)
+						}
 					}
 				}
 			}

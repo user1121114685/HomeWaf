@@ -138,6 +138,7 @@
 </template>
 
 <script lang="ts">
+import { requestAllPages } from '@/utils/allPages';
 import {defineComponent} from 'vue';
 
 
@@ -354,7 +355,7 @@ export default defineComponent({
       this.channelList = channels;
     },
     async loadSubscriptionList() {
-      const res = await getNotifySubscriptionList({ pageIndex: 1, pageSize: 100000 });
+      const res = await requestAllPages(getNotifySubscriptionList);
       if (res.code !== 0 || !Array.isArray(res.data?.list)) throw new Error(res.msg || '通知订阅读取失败');
       this.subscriptionList = res.data.list;
     },

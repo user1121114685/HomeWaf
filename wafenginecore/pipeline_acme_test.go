@@ -51,3 +51,18 @@ func TestNativeACMEOnlyServesRegisteredExactHostAndToken(t *testing.T) {
 		t.Fatal("ACME bypassed master access switch")
 	}
 }
+
+func TestNativeACMEServiceIdentityWithoutLegacyHost(t *testing.T) {
+	const token = "native_service_challenge_fixture"
+	wafacme.SetDataDir(t.TempDir())
+	wafacme.Present("pipeline-80", token, "fixture-key-authorization")
+	defer wafacme.CleanUp("pipeline-80", token)
+	snapshot := &wafpipeline.Snapshot{Config: wafpipeline.PortConfig{HostCode: "pipeline-80", HostNames: []string{"nas.example.com"}}}
+	for _, host := range []string{"nas.example.com", "other.example.com"} {
+		request := httptest.NewRequest("GET", "http://"+host+"/.well-known/acme-challenge/"+token, nil)
+		value, found := PipelineCertificateChallenge(snapshot, &wafpipeline.RequestContext{Request: request, DryRun: true})
+		if found != (host == "nas.example.com") || found && value != "fixture-key-authorization" {
+			t.Fatalf("incorrect native challenge binding for %s", host)
+		}
+	}
+}

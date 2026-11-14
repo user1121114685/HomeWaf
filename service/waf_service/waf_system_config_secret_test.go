@@ -18,6 +18,33 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+func TestSystemConfigRejectsMissingDuplicateAndSecretRename(t *testing.T) {
+	db := setupSslExportTestDB(t)
+	if err := db.AutoMigrate(&model.SystemConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	svc := WafSystemConfigServiceApp
+	for _, item := range []string{"zerossl_access_key", "custom_a", "custom_b"} {
+		if err := svc.AddApi(request.WafSystemConfigAddReq{Item: item, Value: "fixture-value"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	secret := svc.GetDetailByItem("zerossl_access_key")
+	if err := svc.ModifyApi(request.WafSystemConfigEditReq{Id: secret.Id, Item: "public_key_copy", Value: "fixture-value"}); err == nil {
+		t.Fatal("secret renamed into a plaintext setting")
+	}
+	custom := svc.GetDetailByItem("custom_a")
+	if err := svc.ModifyApi(request.WafSystemConfigEditReq{Id: custom.Id, Item: "custom_b", Value: "changed"}); err == nil {
+		t.Fatal("duplicate item accepted")
+	}
+	if err := svc.ModifyApi(request.WafSystemConfigEditReq{Id: "missing", Item: "custom_a", Value: "changed"}); err == nil {
+		t.Fatal("nonexistent update reported success")
+	}
+	if svc.GetDetailByItem("zerossl_access_key").Value != "fixture-value" || svc.GetDetailByItem("custom_b").Value != "fixture-value" {
+		t.Fatal("rejected update changed configuration")
+	}
+}
+
 // newSecretTestDB 起一个只含 system_configs 表的临时 SQLite 库，并接到 global 单例。
 // 不跑全量迁移：本用例只关心配置项的读写加解密。
 func newSecretTestDB(t *testing.T) *gorm.DB {

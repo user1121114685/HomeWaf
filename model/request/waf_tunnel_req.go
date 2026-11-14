@@ -28,7 +28,7 @@ type WafTunnelAddReq struct {
 	SSLProtocols      string `json:"ssl_protocols" form:"ssl_protocols"`
 }
 type WafTunnelEditReq struct {
-	Id string `json:"id"`
+	Id string `json:"id" binding:"required,max=64"`
 
 	Code              string `json:"code" form:"code"`
 	Name              string `json:"name" form:"name"`
@@ -53,10 +53,10 @@ type WafTunnelEditReq struct {
 	SSLProtocols      string `json:"ssl_protocols" form:"ssl_protocols"`
 }
 type WafTunnelDetailReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafTunnelDelReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafTunnelSearchReq struct {
 	request.PageInfo

@@ -71,7 +71,7 @@ func (n *Notifier) request(method, endpoint string, payload interface{}, headers
 	// Do not include url.Error or the raw provider response: both can contain
 	// device keys, bot tokens and application credentials.
 	if err != nil {
-		return nil, fmt.Errorf("通知请求失败，请检查网络、证书及代理配置")
+		return nil, utils.OutboundRequestError("通知请求", endpoint, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

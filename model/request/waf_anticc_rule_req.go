@@ -49,11 +49,11 @@ type WafAntiCCRuleSearchReq struct {
 }
 
 type WafAntiCCRuleDelReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafAntiCCRuleDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 // WafAntiCCRuleSortReq 批量调整优先级

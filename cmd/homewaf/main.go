@@ -107,7 +107,11 @@ var httpauth embed.FS
 var accessAssets embed.FS
 
 // wafSystenService 实现了 service.Service 接口
-type wafSystenService struct{ startup wafnet.Readiness }
+type wafSystenService struct {
+	startup         wafnet.Readiness
+	sslWorkerMu     sync.Mutex
+	sslWorkerCancel context.CancelFunc
+}
 
 var webmanager *wafmangeweb.WafWebManager // web管理端
 
@@ -657,6 +661,12 @@ func (m *wafSystenService) run() {
 	if err := wafpipeline.Listeners.StartAll(); err != nil {
 		zlog.Warn("部分端口监听失败，其他端口与管理入口保持可用", zap.Error(err))
 	}
+	sslCtx, sslCancel := context.WithCancel(context.Background())
+	m.sslWorkerMu.Lock()
+	m.sslWorkerCancel = sslCancel
+	m.sslWorkerMu.Unlock()
+	defer sslCancel()
+	go globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.RunSSLOrderQueue(sslCtx)
 	m.startup.Ready()
 	for {
 		select {
@@ -964,10 +974,6 @@ func (m *wafSystenService) run() {
 			zlog.Debug("远程配置", sensitive)
 			globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.ReLoadSensitive()
 			break
-		case sslOrderChan := <-global.GWAF_CHAN_SSLOrder:
-			zlog.Debug("ssl证书申请", sslOrderChan)
-			globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.ApplySSLOrder(sslOrderChan.Type, sslOrderChan.Content.(model.SslOrder))
-			break
 		case sslExpireCheck := <-global.GWAF_CHAN_SSL_EXPIRE_CHECK:
 			zlog.Debug("ssl证书到期检测", sslExpireCheck)
 			waftask.SSLExpireCheck()
@@ -1010,6 +1016,11 @@ func (m *wafSystenService) run() {
 
 // 停止要提前关闭的 是服务的主要逻辑
 func (m *wafSystenService) stopHomeWaf() {
+	m.sslWorkerMu.Lock()
+	if m.sslWorkerCancel != nil {
+		m.sslWorkerCancel()
+	}
+	m.sslWorkerMu.Unlock()
 	shutdownPortPipeline()
 	zlog.Info("Shutdown HomeWaf Engine...")
 	if globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE != nil {

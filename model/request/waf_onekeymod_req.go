@@ -5,14 +5,14 @@ package request
 import "HomeWaf/model/common/request"
 
 type WafOneKeyModDelReq struct {
-	Id string `json:"id"  form:"id"`
+	Id string `json:"id"  form:"id" binding:"required,max=64"`
 }
 
 type WafOneKeyModRestoreReq struct {
 	Id string `json:"id"  form:"id"`
 }
 type WafOneKeyModDetailReq struct {
-	Id string `json:"id"  form:"id"`
+	Id string `json:"id"  form:"id" binding:"required,max=64"`
 }
 type WafOneKeyModSearchReq struct {
 	request.PageInfo

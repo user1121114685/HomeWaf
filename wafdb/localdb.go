@@ -124,7 +124,7 @@ func InitCoreDb(currentDir string) (bool, error) {
 		}
 		// ============ 初始化代码结束 ============
 
-		global.GWAF_LOCAL_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
+		RegisterTenantQueryScope(global.GWAF_LOCAL_DB)
 		global.GWAF_LOCAL_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
 		//重启需要删除无效规则
@@ -191,7 +191,7 @@ func InitLogDb(currentDir string) (bool, error) {
 		}
 		// ============ 初始化代码结束 ============
 
-		global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
+		RegisterTenantQueryScope(global.GWAF_LOCAL_LOG_DB)
 		global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
 		ensureLiveShardRecord(global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, LiveLogName())
@@ -243,7 +243,7 @@ func InitManaulLogDb(currentDir string, custFileName string) error {
 		Logger: NewGormZLoggerForConfig(),
 	})
 
-	db.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
+	RegisterTenantQueryScope(db)
 	db.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
 	// 并发下可能已有别的协程抢先放入，这时关掉自己开的这一份
@@ -304,13 +304,19 @@ func InitStatsDb(currentDir string) (bool, error) {
 		}
 		// ============ 初始化代码结束 ============
 
-		global.GWAF_LOCAL_STATS_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
+		RegisterTenantQueryScope(global.GWAF_LOCAL_STATS_DB)
 		global.GWAF_LOCAL_STATS_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
 		return isNewDb, nil
 	} else {
 		return false, nil
 	}
+}
+
+// RegisterTenantQueryScope installs the production query isolation callback.
+// Integration fixtures use this same hook, rather than an unscoped GORM handle.
+func RegisterTenantQueryScope(db *gorm.DB) error {
+	return db.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
 }
 
 func before_query(db *gorm.DB) {

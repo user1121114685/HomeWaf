@@ -23,16 +23,16 @@ type WafAppAddReq struct {
 }
 
 type WafAppEditReq struct {
-	Id string `json:"id"`
+	Id string `json:"id" binding:"required,max=64"`
 	WafAppAddReq
 }
 
 type WafAppDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafAppDelReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafAppSearchReq struct {

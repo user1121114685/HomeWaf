@@ -31,8 +31,7 @@ func (receiver *WafCaServerInfoService) AddApi(req request.WafCaServerInfoAddReq
 		CaServerAddress: req.CaServerAddress,
 		Remarks:         req.Remarks,
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return nil
+	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
 func (receiver *WafCaServerInfoService) CheckIsExistApi(req request.WafCaServerInfoAddReq) int {

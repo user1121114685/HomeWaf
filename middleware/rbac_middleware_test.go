@@ -40,8 +40,8 @@ func TestRequireRole(t *testing.T) {
 		wantReached bool
 	}{
 		{"super always allowed", enums.ROLE_SUPER_ADMIN, false, []string{enums.ROLE_SECURITY_ADMIN}, true},
-		{"empty role falls back to super", "", false, []string{enums.ROLE_SECURITY_ADMIN}, true},
-		{"invalid role falls back to super", "garbage", false, []string{enums.ROLE_SECURITY_ADMIN}, true},
+		{"missing role denied", "", false, []string{enums.ROLE_SECURITY_ADMIN}, false},
+		{"invalid role denied", "garbage", false, []string{enums.ROLE_SECURITY_ADMIN}, false},
 		{"matching role allowed", enums.ROLE_SECURITY_ADMIN, false, []string{enums.ROLE_SECURITY_ADMIN}, true},
 		{"non-matching role denied", enums.ROLE_AUDIT_ADMIN, false, []string{enums.ROLE_SECURITY_ADMIN}, false},
 		{"system admin denied on security route", enums.ROLE_SYSTEM_ADMIN, false, []string{enums.ROLE_SECURITY_ADMIN}, false},

@@ -19,10 +19,10 @@ type WafPrivateInfoEditReq struct {
 	Remarks                 string `json:"remarks" form:"remarks"`
 }
 type WafPrivateInfoDetailReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafPrivateInfoDelReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafPrivateInfoSearchReq struct {
 	request.PageInfo

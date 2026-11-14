@@ -8,6 +8,7 @@ import (
 	"HomeWaf/model/common/response"
 	"HomeWaf/wafsec"
 	"bytes"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"io"
 	"net/http"
@@ -17,11 +18,27 @@ import (
 // SecApi 鉴权中间件
 func SecApi() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Multipart uploads are plaintext: preserve streaming and existing 200 MiB
+		// application uploads instead of buffering them during transport decryption.
+		if strings.HasPrefix(strings.ToLower(c.GetHeader("Content-Type")), "multipart/form-data") {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 210<<20)
+			c.Next()
+			return
+		}
+		// Bound ciphertext before buffering/decryption, including chunked public
+		// requests with unknown Content-Length.
+		const maxTransportBody = 32 << 20
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxTransportBody)
 		if strings.HasSuffix(c.Request.URL.Path, "/api/v1/wafhost/host/diagnostic") {
 			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32<<10)
 		}
 		bodyBytes, err := io.ReadAll(c.Request.Body)
 		if err != nil {
+			var tooLarge *http.MaxBytesError
+			if errors.As(err, &tooLarge) {
+				c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "请求内容超过允许大小"})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read request body"})
 			c.Abort()
 			return

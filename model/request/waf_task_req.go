@@ -13,7 +13,7 @@ type WafTaskAddReq struct {
 	TaskDaysOfTheWeek string `json:"task_days_of_the_week"` // 周几 在周级别的情况下才起作用
 }
 type WafTaskEditReq struct {
-	Id string `json:"id"`
+	Id string `json:"id" binding:"required,max=64"`
 
 	TaskName string `json:"task_name" form:"task_name"`
 	TaskUnit string `json:"task_unit" form:"task_unit"`
@@ -24,10 +24,10 @@ type WafTaskEditReq struct {
 	TaskDaysOfTheWeek string `json:"task_days_of_the_week"` // 周几 在周级别的情况下才起作用
 }
 type WafTaskDetailReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafTaskDelReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafTaskSearchReq struct {
 	request.PageInfo

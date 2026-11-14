@@ -18,10 +18,10 @@ type WafBlockUrlSearchReq struct {
 }
 
 type WafBlockUrlDelReq struct {
-	Id string `json:"id"  form:"id"` //Block url唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //Block url唯一键
 }
 type WafBlockUrlDetailReq struct {
-	Id string `json:"id"  form:"id"` //Block Url唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //Block Url唯一键
 }
 type WafBlockUrlEditReq struct {
 	Id          string `json:"id" binding:"required"`                               //Block url唯一键

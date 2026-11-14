@@ -13,13 +13,13 @@ type WafSystemConfigAddReq struct {
 	Remarks   string `json:"remarks" form:"remarks"`     //备注
 }
 type WafSystemConfigDelReq struct {
-	Id string `json:"id"  form:"id"` //唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //唯一键
 }
 type WafSystemConfigDetailReq struct {
-	Id string `json:"id"  form:"id"` //唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //唯一键
 }
 type WafSystemConfigEditReq struct {
-	Id        string `json:"id"`
+	Id        string `json:"id" binding:"required,max=64"`
 	ItemClass string `json:"item_class"`                 //所属分类
 	Item      string `json:"item" form:"item"`           //item
 	Value     string `json:"value" form:"value"`         //value

@@ -4,7 +4,7 @@ package ssl
 
 import (
 	"HomeWaf/common/zlog"
-	"HomeWaf/internal/dnsproviders"
+	"HomeWaf/internal/acmelog"
 	"fmt"
 	"strings"
 
@@ -22,15 +22,15 @@ import (
 type legoLogger struct{}
 
 func (legoLogger) Print(args ...any) {
-	zlog.Info(dnsproviders.Redact(acmeLogPrefix + fmt.Sprint(args...)))
+	acmeInfo(acmeLogPrefix + fmt.Sprint(args...))
 }
 
 func (legoLogger) Println(args ...any) {
-	zlog.Info(dnsproviders.Redact(acmeLogPrefix + strings.TrimRight(fmt.Sprintln(args...), "\n")))
+	acmeInfo(acmeLogPrefix + strings.TrimRight(fmt.Sprintln(args...), "\n"))
 }
 
 func (legoLogger) Printf(format string, args ...any) {
-	zlog.Info(dnsproviders.Redact(acmeLogPrefix + fmt.Sprintf(format, args...)))
+	acmeInfo(acmeLogPrefix + fmt.Sprintf(format, args...))
 }
 
 // Fatal 系列一律降级成 Error。
@@ -40,19 +40,35 @@ func (legoLogger) Printf(format string, args ...any) {
 // 当前版本的 lego 运行时路径并不调用 Fatal（只有它自带的代码生成器在用），
 // 这里是防御性写法，避免将来升级 lego 时被动踩坑。
 func (legoLogger) Fatal(args ...any) {
-	zlog.Error(dnsproviders.Redact(acmeLogPrefix + fmt.Sprint(args...)))
+	acmeError(acmeLogPrefix + fmt.Sprint(args...))
 }
 
 func (legoLogger) Fatalln(args ...any) {
-	zlog.Error(dnsproviders.Redact(acmeLogPrefix + strings.TrimRight(fmt.Sprintln(args...), "\n")))
+	acmeError(acmeLogPrefix + strings.TrimRight(fmt.Sprintln(args...), "\n"))
 }
 
 func (legoLogger) Fatalf(format string, args ...any) {
-	zlog.Error(dnsproviders.Redact(acmeLogPrefix + fmt.Sprintf(format, args...)))
+	acmeError(acmeLogPrefix + fmt.Sprintf(format, args...))
 }
 
 // init 只做变量赋值、不写日志，所以不依赖 zlog 是否已经初始化；
 // 真正产生日志要等到证书申请/续期时，那时 zlog 早已就绪。
 func init() {
 	legolog.Logger = legoLogger{}
+}
+
+func acmeInfo(message string)  { logACME("info", message) }
+func acmeWarn(message string)  { logACME("warn", message) }
+func acmeError(message string) { logACME("error", message) }
+func logACME(level, message string) {
+	message = acmelog.Sanitize(message)
+	switch level {
+	case "error":
+		zlog.Error(message)
+	case "warn":
+		zlog.Warn(message)
+	default:
+		zlog.Info(message)
+	}
+	acmelog.Emit(level, message)
 }

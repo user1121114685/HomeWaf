@@ -3,12 +3,13 @@
 package waf_service
 
 import (
-	"HomeWaf/common/uuid"
 	"HomeWaf/customtype"
 	"HomeWaf/global"
+	"HomeWaf/internal/acmelog"
 	"HomeWaf/model"
-	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
+	"errors"
+	"gorm.io/gorm"
 	"time"
 )
 
@@ -17,49 +18,23 @@ type WafSSLOrderService struct{}
 var WafSSLOrderServiceApp = new(WafSSLOrderService)
 
 func (receiver *WafSSLOrderService) AddApi(req request.WafSslorderaddReq) (model.SslOrder, error) {
-	var bean = &model.SslOrder{
-		BaseOrm: baseorm.BaseOrm{
-			Id:          uuid.GenUUID(),
-			USER_CODE:   global.GWAF_USER_CODE,
-			Tenant_ID:   global.GWAF_TENANT_ID,
-			CREATE_TIME: customtype.JsonTime(time.Now()),
-			UPDATE_TIME: customtype.JsonTime(time.Now()),
-		},
-		HostCode:         req.HostCode,
-		ApplyPlatform:    req.ApplyPlatform,
-		ApplyMethod:      req.ApplyMethod,
-		SkipDNSVerify:    req.SkipDNSVerify,
-		ApplyDns:         req.ApplyDns,
-		ApplyDomain:      req.ApplyDomain,
-		ApplyEmail:       req.ApplyEmail,
-		ApplyStatus:      "submitted",
-		PrivateGroupName: req.PrivateGroupName,
-	}
-	return *bean, global.GWAF_LOCAL_DB.Create(bean).Error
+	order, _, err := receiver.Submit(req, "")
+	return order, err
 }
 
-func (receiver *WafSSLOrderService) ModifyApi(req request.WafSslordereditReq) error {
-
-	sslOrderMap := map[string]interface{}{
-		"HostCode":         req.HostCode,
-		"ApplyPlatform":    req.ApplyPlatform,
-		"ApplyMethod":      req.ApplyMethod,
-		"SkipDNSVerify":    req.SkipDNSVerify,
-		"ApplyDns":         req.ApplyDns,
-		"ApplyDomain":      req.ApplyDomain,
-		"ApplyEmail":       req.ApplyEmail,
-		"ApplyStatus":      req.ApplyStatus,
-		"PrivateGroupName": req.PrivateGroupName,
-		"UPDATE_TIME":      customtype.JsonTime(time.Now()),
-	}
-	err := global.GWAF_LOCAL_DB.Model(model.SslOrder{}).Where("id = ?", req.Id).Updates(sslOrderMap).Error
-
-	return err
-}
 func (receiver *WafSSLOrderService) GetDetailApi(req request.WafSslorderdetailReq) model.SslOrder {
 	return receiver.GetDetailById(req.Id)
 }
 func (receiver *WafSSLOrderService) GetListApi(req request.WafSslordersearchReq) ([]model.SslOrder, int64, error) {
+	if req.PageIndex <= 0 {
+		req.PageIndex = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 10
+	}
+	if req.PageSize > 1000 {
+		return nil, 0, errors.New("每页最多 1000 条")
+	}
 	var list []model.SslOrder
 	var total int64 = 0
 
@@ -81,12 +56,33 @@ func (receiver *WafSSLOrderService) GetListApi(req request.WafSslordersearchReq)
 	if len(req.HostCode) > 0 {
 		whereValues = append(whereValues, req.HostCode)
 	}
+	if req.ApplyDomain != "" {
+		if whereField != "" {
+			whereField += " and "
+		}
+		whereField += "apply_domain LIKE ?"
+		whereValues = append(whereValues, "%"+req.ApplyDomain+"%")
+	}
+	if req.ApplyStatus != "" {
+		if whereField != "" {
+			whereField += " and "
+		}
+		whereField += "apply_status = ?"
+		whereValues = append(whereValues, req.ApplyStatus)
+	}
 
 	/**排序*/
 	orderInfo := "create_time desc"
 
-	global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Order(orderInfo).Find(&list)
-	global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where(whereField, whereValues...).Count(&total)
+	if err := global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Order(orderInfo).Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where(whereField, whereValues...).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	for i := range list {
+		list[i].RefreshHeartbeatState(time.Now())
+	}
 
 	return list, total, nil
 }
@@ -96,15 +92,25 @@ func (receiver *WafSSLOrderService) DelApi(req request.WafSslorderdeleteReq) err
 	if err != nil {
 		return err
 	}
-	err = global.GWAF_LOCAL_DB.Where("id = ?", req.Id).Delete(model.SslOrder{}).Error
-	return err
+	return global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Where("id = ? AND apply_status NOT IN ?", req.Id, []string{"submitted", "applying"}).Delete(&model.SslOrder{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("等待中或申请中的订单不能删除，请等待处理完成")
+		}
+		return tx.Where("order_id = ? AND tenant_id = ? AND user_code = ?", req.Id, bean.Tenant_ID, bean.USER_CODE).Delete(&model.SslOrderLog{}).Error
+	})
 }
 func (receiver *WafSSLOrderService) GetDetailById(id string) model.SslOrder {
 	var bean model.SslOrder
 	global.GWAF_LOCAL_DB.Where("id=?", id).Find(&bean)
+	bean.RefreshHeartbeatState(time.Now())
 	return bean
 }
 func (receiver *WafSSLOrderService) ModifyById(sslOrder model.SslOrder) error {
+	sslOrder.ResultError = acmelog.Sanitize(sslOrder.ResultError)
 
 	sslOrderMap := map[string]interface{}{
 		"HostCode":                sslOrder.HostCode,
@@ -128,51 +134,41 @@ func (receiver *WafSSLOrderService) ModifyById(sslOrder model.SslOrder) error {
 		"PrivateGroupName":        sslOrder.PrivateGroupName,
 		"UPDATE_TIME":             customtype.JsonTime(time.Now()),
 	}
-	err := global.GWAF_LOCAL_DB.Model(model.SslOrder{}).Where("id = ?", sslOrder.Id).Updates(sslOrderMap).Error
-
-	return err
-}
-
-// RenewAdd续期
-func (receiver *WafSSLOrderService) RenewAdd(orderId string) (model.SslOrder, error) {
-
-	order := receiver.GetDetailById(orderId)
-	var bean = &model.SslOrder{
-		BaseOrm: baseorm.BaseOrm{
-			Id:          uuid.GenUUID(),
-			USER_CODE:   global.GWAF_USER_CODE,
-			Tenant_ID:   global.GWAF_TENANT_ID,
-			CREATE_TIME: customtype.JsonTime(time.Now()),
-			UPDATE_TIME: customtype.JsonTime(time.Now()),
-		},
-		HostCode:                order.HostCode,
-		ApplyPlatform:           order.ApplyPlatform,
-		ApplyMethod:             order.ApplyMethod,
-		SkipDNSVerify:           order.SkipDNSVerify,
-		ApplyDns:                order.ApplyDns,
-		ApplyDomain:             order.ApplyDomain,
-		ApplyEmail:              order.ApplyEmail,
-		ApplyKey:                order.ApplyKey,
-		ApplyStatus:             "submitted",
-		ResultDomain:            order.ResultDomain,
-		ResultCertURL:           order.ResultCertURL,
-		ResultCertStableURL:     order.ResultCertStableURL,
-		ResultPrivateKey:        order.ResultPrivateKey,
-		ResultCertificate:       order.ResultCertificate,
-		ResultIssuerCertificate: order.ResultIssuerCertificate,
-		ResultCSR:               order.ResultCSR,
-		PrivateGroupName:        order.PrivateGroupName,
+	if sslOrder.ApplyStatus == "success" {
+		sslOrderMap["progress"] = "证书签发并保存成功"
 	}
-	return *bean, global.GWAF_LOCAL_DB.Create(bean).Error
+	if sslOrder.ApplyStatus == "fail" {
+		sslOrderMap["progress"] = "申请失败，请查看错误详情"
+	}
+	if sslOrder.ApplyStatus != "submitted" && sslOrder.ApplyStatus != "applying" {
+		sslOrderMap["active_key"] = nil
+	}
+	err := global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.SslOrder{}).Where("id = ?", sslOrder.Id).Updates(sslOrderMap).Error; err != nil {
+			return err
+		}
+		if sslOrder.ApplyStatus == "success" && sslOrder.RenewFrom != "" {
+			return tx.Model(&model.SslOrder{}).Where("id = ? AND apply_status = ?", sslOrder.RenewFrom, "success").Update("apply_status", "renewed").Error
+		}
+		return nil
+	})
+	if err == nil {
+		if sslOrder.ApplyStatus == "success" {
+			_ = receiver.AppendLog(sslOrder.Id, "info", "证书签发并保存成功")
+		}
+		if sslOrder.ApplyStatus == "fail" {
+			_ = receiver.AppendLog(sslOrder.Id, "error", "申请失败："+sslOrder.ResultError)
+		}
+	}
+	return err
 }
 
 // GetLastedInfo 查询最新的没有过期的
 func (receiver *WafSSLOrderService) GetLastedInfo(hostCode string) (model.SslOrder, error) {
 	var bean model.SslOrder
 
-	global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where("host_code=?", hostCode).Where("result_certificate is not null").Order("create_time desc").Limit(1).First(&bean)
-
-	return bean, nil
+	err := global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where("host_code=? AND apply_status = ?", hostCode, "success").Where("result_certificate is not null").Order("create_time desc").Limit(1).First(&bean).Error
+	return bean, err
 }
 
 // GetCAServerAddress 根据CA服务器名称获取地址

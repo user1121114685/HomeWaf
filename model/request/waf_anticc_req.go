@@ -21,10 +21,10 @@ type WafAntiCCSearchReq struct {
 	request.PageInfo
 }
 type WafAntiCCDelReq struct {
-	Id string `json:"id"  form:"id"` //Anti CC唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //Anti CC唯一键
 }
 type WafAntiCCDetailReq struct {
-	Id string `json:"id"  form:"id"` //Anti CC唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //Anti CC唯一键
 }
 type WafAntiCCEditReq struct {
 	Id            string `json:"id" binding:"required"`                                      //Anti CC唯一键

@@ -16,7 +16,7 @@ type WafCacheRuleAddReq struct {
 	Remarks       string `json:"remarks" gorm:"column:remarks" form:"remarks" gorm:"column:remarks"`
 }
 type WafCacheRuleEditReq struct {
-	Id            string `json:"id"`
+	Id            string `json:"id" binding:"required,max=64"`
 	HostCode      string `json:"host_code" gorm:"column:host_code" form:"host_code" gorm:"column:host_code"`
 	RuleName      string `json:"rule_name" gorm:"column:rule_name" form:"rule_name" gorm:"column:rule_name"`
 	RuleType      int    `json:"rule_type" gorm:"column:rule_type" form:"rule_type" gorm:"column:rule_type"`
@@ -28,10 +28,10 @@ type WafCacheRuleEditReq struct {
 	Remarks       string `json:"remarks" gorm:"column:remarks" form:"remarks" gorm:"column:remarks"`
 }
 type WafCacheRuleDetailReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafCacheRuleDelReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafCacheRuleSearchReq struct {
 	HostCode string `json:"host_code" gorm:"column:host_code" form:"host_code" gorm:"column:host_code"`

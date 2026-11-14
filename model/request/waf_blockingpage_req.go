@@ -15,7 +15,7 @@ type WafBlockingPageAddReq struct {
 	ContentPriority  string `json:"content_priority" form:"content_priority"`
 }
 type WafBlockingPageEditReq struct {
-	Id               string `json:"id"`
+	Id               string `json:"id" binding:"required,max=64"`
 	BlockingPageName string `json:"blocking_page_name" form:"blocking_page_name"`
 	BlockingType     string `json:"blocking_type" form:"blocking_type"`
 	AttackType       string `json:"attack_type" form:"attack_type"`
@@ -26,10 +26,10 @@ type WafBlockingPageEditReq struct {
 	ContentPriority  string `json:"content_priority" form:"content_priority"`
 }
 type WafBlockingPageDetailReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafBlockingPageDelReq struct {
-	Id string `json:"id"   form:"id"`
+	Id string `json:"id"   form:"id" binding:"required,max=64"`
 }
 type WafBlockingPageSearchReq struct {
 	request.PageInfo

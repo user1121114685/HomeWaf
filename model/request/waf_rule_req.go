@@ -18,7 +18,7 @@ type WafRuleDetailReq struct {
 	CODE string `json:"code" form:"code" binding:"required"`
 }
 type WafRuleEditReq struct {
-	CODE         string `json:"code"`
+	CODE         string `json:"code" binding:"required,max=64"`
 	RuleJson     string `json:"rule_json"`
 	IsManualRule int    `json:"is_manual_rule"`
 	RuleContent  string `json:"rule_content"` //规则内容

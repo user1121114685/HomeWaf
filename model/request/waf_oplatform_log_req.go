@@ -5,11 +5,11 @@ package request
 import "HomeWaf/model/common/request"
 
 type WafOPlatformLogDelReq struct {
-	Id string `json:"id" form:"id"` //唯一键
+	Id string `json:"id" form:"id" binding:"required,max=64"` //唯一键
 }
 
 type WafOPlatformLogDetailReq struct {
-	Id string `json:"id" form:"id"` //唯一键
+	Id string `json:"id" form:"id" binding:"required,max=64"` //唯一键
 }
 
 type WafOPlatformLogSearchReq struct {

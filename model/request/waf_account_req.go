@@ -23,14 +23,14 @@ type WafAccountSearchReq struct {
 	request.PageInfo
 }
 type WafAccountDelReq struct {
-	Id string `json:"id"  form:"id"` //唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //唯一键
 }
 
 type WafAccountDetailReq struct {
-	Id string `json:"id"  form:"id"` //唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //唯一键
 }
 type WafAccountEditReq struct {
-	Id            string `json:"id"`
+	Id            string `json:"id" binding:"required,max=64"`
 	LoginAccount  string `json:"login_account" form:"login_account"`   //登录账号（TODO 账号是否能随便改）
 	LoginPassword string `json:"login_password" form:"login_password"` //密码md5加密
 	Role          string `json:"role" form:"role"`                     //帐号角色（留空则不修改）

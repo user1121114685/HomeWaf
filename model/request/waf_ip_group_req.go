@@ -21,14 +21,14 @@ type WafIPGroupEditReq struct {
 }
 
 type WafIPGroupDelReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 	// Force 为 1 时级联删除引用该组的黑/白名单条目。
 	// 默认 0：有引用时拒绝删除并返回引用明细，避免静默删掉白名单条目把运维自己挡在门外。
 	Force int `json:"force" form:"force"`
 }
 
 type WafIPGroupDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafIPGroupSearchReq struct {
@@ -60,11 +60,11 @@ type WafIPGroupItemEditReq struct {
 }
 
 type WafIPGroupItemDelReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafIPGroupItemDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafIPGroupItemSearchReq struct {

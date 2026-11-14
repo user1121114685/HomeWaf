@@ -2,6 +2,40 @@
 
 import request from '@/utils/request';
 
+export interface ZeroSSLAccountStatus {
+  has_access_key: boolean;
+  has_eab_kid: boolean;
+  has_eab_hmac_key: boolean;
+  configured: boolean;
+}
+
+export function zeroSSLAccountStatusApi() {
+  return request({ url: '/wafhost/sslorder/zerossl/account', method: 'get' });
+}
+
+export function saveZeroSSLAccountApi(data: {
+  mode: string;
+  access_key?: string;
+  eab_kid?: string;
+  eab_hmac_key?: string;
+}) {
+  return request({ url: '/wafhost/sslorder/zerossl/account', method: 'post', data });
+}
+
+export interface SSLCertificateTarget {
+  value: string;
+  label: string;
+  source: 'pipeline' | 'host';
+  port: number;
+  protocol: 'http' | 'https';
+  domains: string[];
+  http01_ready: boolean;
+}
+
+export function sslCertificateTargetsApi() {
+  return request({ url: '/wafhost/sslorder/targets', method: 'get' });
+}
+
 export interface DNSProviderField {
   name: string;
   description: string;
@@ -70,4 +104,12 @@ export function sslOrderDetailApi(params: any = {}) {
     method: 'get',
     params: params,
   });
+}
+
+export function sslOrderRetryApi(data: { id: string; request_id: string }) {
+  return request({ url: '/wafhost/sslorder/retry', method: 'post', data });
+}
+
+export function sslOrderLogsApi(id: string) {
+  return request({ url: '/wafhost/sslorder/logs', method: 'get', params: { id }, background: true });
 }

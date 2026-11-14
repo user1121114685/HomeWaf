@@ -108,6 +108,7 @@
 </template>
 
 <script lang="ts">
+import { requestAllPages } from '@/utils/allPages';
 import {defineComponent} from 'vue';
 
 
@@ -170,7 +171,7 @@ import {defineComponent} from 'vue';
     },
     methods: {
       loadSslList() {
-        sslConfigListApi({ pageSize: 10000, remarks: '', code: '' })
+        requestAllPages(sslConfigListApi, { remarks: '', code: '' })
           .then((res) => {
             if (res.code === 0) {
               this.sslConfigList = res.data.list || [];

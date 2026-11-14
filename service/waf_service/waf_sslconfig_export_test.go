@@ -43,7 +43,7 @@ func setupSslExportTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("打开测试库失败: %v", err)
 	}
-	if err := db.AutoMigrate(&model.SslConfig{}, &model.Hosts{}); err != nil {
+	if err := db.AutoMigrate(&model.SslConfig{}, &model.Hosts{}, &model.SslOrderLog{}); err != nil {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
 	oldDB, oldTenant, oldUser := global.GWAF_LOCAL_DB, global.GWAF_TENANT_ID, global.GWAF_USER_CODE

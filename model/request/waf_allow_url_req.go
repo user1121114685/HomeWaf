@@ -12,11 +12,11 @@ type WafAllowUrlAddReq struct {
 	IsEnable    *int   `json:"is_enable"`                                            //启用状态：nil=新增默认启用/编辑不改动，0停用 1启用
 }
 type WafAllowUrlDelReq struct {
-	Id string `json:"id"  form:"id"` //白名单url唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //白名单url唯一键
 }
 
 type WafAllowUrlDetailReq struct {
-	Id string `json:"id"  form:"id"` //白名单Url唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //白名单Url唯一键
 }
 type WafAllowUrlEditReq struct {
 	Id          string `json:"id" binding:"required"`                               //白名单url唯一键

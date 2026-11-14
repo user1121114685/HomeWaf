@@ -13,6 +13,7 @@ import (
 	"HomeWaf/model/response"
 	"HomeWaf/utils"
 	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafpipeline"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -441,5 +442,19 @@ func (receiver *WafSslConfigService) formatBindHosts(sslId string) []string {
 		result = append(result, hostDisplay)
 	}
 
+	if global.GWAF_LOCAL_DB.Migrator().HasTable(&model.PortConfig{}) {
+		var rows []model.PortConfig
+		if err := global.GWAF_LOCAL_DB.Limit(wafpipeline.Ports.Limit()).Find(&rows).Error; err == nil {
+			for _, row := range rows {
+				snapshot, err := decodePort(row)
+				if err != nil {
+					continue
+				}
+				if _, bound := snapshot.Secrets.TLSBindings[certificateSourcePrefix+sslId]; bound {
+					result = append(result, fmt.Sprintf("%s · %s :%d", snapshot.Config.Name, strings.ToUpper(snapshot.Config.Protocol), row.Port))
+				}
+			}
+		}
+	}
 	return result
 }

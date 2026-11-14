@@ -27,8 +27,13 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			}
 		}
 
-		roleVal, _ := c.Get("userRole")
-		role, _ := roleVal.(string)
+		roleVal, exists := c.Get("userRole")
+		role, valid := roleVal.(string)
+		if !exists || !valid {
+			response.ForbiddenWithMessage("未获取到有效账号角色", c)
+			c.Abort()
+			return
+		}
 		role = enums.NormalizeRole(role)
 
 		// 超级管理员恒通过

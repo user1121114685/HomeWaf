@@ -5,8 +5,18 @@ import (
 	"HomeWaf/internal/dnsproviders"
 	"HomeWaf/model"
 	"HomeWaf/model/common/response"
+	"HomeWaf/service/waf_service"
 	"github.com/gin-gonic/gin"
 )
+
+func (w *WafSslOrderApi) CertificateTargets(c *gin.Context) {
+	targets, err := waf_service.GetSSLCertificateTargets()
+	if err != nil {
+		response.FailWithMessage("读取证书关联服务失败，请稍后重试", c)
+		return
+	}
+	response.OkWithDetailed(targets, "获取成功", c)
+}
 
 func (w *WafSslOrderApi) DNSProviders(c *gin.Context) {
 	response.OkWithDetailed(dnsproviders.List(), "获取成功", c)

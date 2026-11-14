@@ -5,7 +5,7 @@ package request
 import "HomeWaf/model/common/request"
 
 type WafDataRetentionEditReq struct {
-	Id           string `json:"id"             form:"id"`
+	Id           string `json:"id"             form:"id" binding:"required,max=64"`
 	RetainDays   int64  `json:"retain_days"    form:"retain_days"`
 	RetainRows   int64  `json:"retain_rows"    form:"retain_rows"`
 	CleanEnabled int64  `json:"clean_enabled"  form:"clean_enabled"`
@@ -13,7 +13,7 @@ type WafDataRetentionEditReq struct {
 }
 
 type WafDataRetentionDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafDataRetentionSearchReq struct {

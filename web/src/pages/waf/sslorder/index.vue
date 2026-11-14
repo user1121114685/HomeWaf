@@ -3,75 +3,58 @@
 <template>
   <div class="ssl-order-page">
     <hw-card class="list-card-container">
-      <hw-row justify="space-between">
-        <div class="left-operation-container">
-          <hw-button @click="handleAdd" theme="success"> {{ $t('common.new') }} </hw-button>
-          <hw-button theme="primary" @click="handleCaServerMaintenance" style="margin-left: 15px;">
-            {{ $t('page.ca_server_info.title') }}
-          </hw-button>
-          <span v-if="srcHostCode != ''"> {{ host_dic[srcHostCode] }} </span>
+      <div class="ssl-toolbar">
+        <div class="ssl-toolbar-actions">
+          <hw-button @click="handleAdd" theme="primary">申请证书</hw-button>
+          <hw-button variant="outline" @click="handleCaServerMaintenance">CA 服务器</hw-button>
         </div>
-        <div class="right-operation-container">
-          <hw-form ref="form" :data="searchformData" :label-width="300" layout="inline" colon
-            :style="{ marginBottom: '8px' }">
-            <hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
-              <hw-input v-model="searchformData.apply_domain" class="search-input" clearable></hw-input>
-            </hw-form-item>
-            <hw-form-item>
-              <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getList('all')">
-                {{ $t('common.search') }}
-              </hw-button>
-            </hw-form-item>
-          </hw-form>
-        </div>
-      </hw-row>
-      <help-block summary="家庭网络推荐 DNS 验证：无需公网 IP 或入站 80/443 端口。申请成功后可自动续期，请保留 DNS 凭据和验证记录。" doc="guide/SSL">
+      </div>
+      <details class="ssl-guide">
+        <summary>自动续期默认开启 · DNS 验证无需开放 80/443</summary>
+      <help-block summary="签发成功后按计划检查续期，无需添加过期检测记录。请保留 DNS 凭据和验证记录；家庭网络推荐 DNS 验证。" doc="guide/SSL">
         <template #actions>
-          <span role="button" tabindex="0" @keydown.enter.prevent="handleSslHttpCheck" @keydown.space.prevent="handleSslHttpCheck" @click="handleSslHttpCheck" class="highlight-link">{{ $t('page.sslorder.ssl_http_check_setting') }}</span>
+          <hw-button variant="text" @click="handleSslHttpCheck">HTTP 验证设置</hw-button>
         </template>
       </help-block>
-      <div class="table-container">
-        <hw-table :columns="columns" :data="data" :rowKey="rowKey" :verticalAlign="verticalAlign" :hover="hover"
-          :pagination="pagination" :selected-row-keys="selectedRowKeys" :loading="dataLoading"
-          @page-change="rehandlePageChange" :headerAffixedTop="true">
-
-          <template #host_code="{ row }">
-            <span> {{ host_dic[row.host_code] }}</span>
-          </template>
-          <template #apply_status="{ row }">
-            <p>
-              {{
-                sslorder_status_type.find(option => option.value === row.apply_status)?.label || row.apply_status
-              }}
-            </p>
-          </template>
-          <template #apply_method="{ row }">
-            <p>
-              {{
-                sslorder_apply_method_type.find(option => option.value === row.apply_method)?.label || row.apply_method
-              }}
-            </p>
-          </template>
-          <template #op="slotProps">
-            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.renew') }}</button>
-            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
-          </template>
-        </hw-table>
-      </div>
+      </details>
+      <form class="ssl-filters" @submit.prevent="getList('all')">
+        <label class="ssl-domain-filter"><span>申请域名</span><hw-input v-model="searchformData.apply_domain" class="search-input" aria-label="筛选申请域名" placeholder="输入域名搜索" clearable /></label>
+        <label class="ssl-status-filter"><span>申请状态</span><hw-select v-model="searchformData.apply_status" placeholder="全部状态" aria-label="筛选申请状态" @change="getList('all')"><hw-option value="" label="全部状态" /><hw-option v-for="item in sslorder_status_type" :key="item.value" :value="item.value" :label="item.label" /></hw-select></label>
+        <div class="ssl-filter-actions"><hw-button type="submit" theme="primary" variant="outline">查询</hw-button><hw-button variant="text" @click="resetFilters">重置</hw-button><hw-button variant="text" :loading="dataLoading" @click="getList('')">刷新</hw-button></div>
+      </form>
+      <p v-if="srcHostCode" class="ssl-scope">当前服务：{{ host_dic[srcHostCode] || srcHostCode }}</p>
+      <p v-if="listError" role="alert" class="ssl-list-error">{{ listError }} <hw-button variant="text" @click="getList('')">刷新状态</hw-button></p>
+      <div class="ssl-list-caption"><span>共 {{ pagination.total }} 条申请</span><span>每 3 秒更新申请状态</span></div>
+      <OrderTable :rows="data" :host-names="host_dic" :loading="dataLoading" :filtered="!!(searchformData.apply_domain || searchformData.apply_status)" :retrying-order-id="retryingOrderId" :pagination="pagination"
+        @logs="openOrderLogs" @retry="retryOrder" @renew="handleClickEdit({ row: $event })" @delete="handleClickDelete({ row: $event })" @page="rehandlePageChange" />
       <div>
         <router-view></router-view>
       </div>
     </hw-card>
 
-    <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="770" :footer="false">
+    <OrderLogs v-model:visible="orderLogsVisible" :order-id="orderLogsId" :retrying="!!retryingOrderId" @retry="retryOrder({ id: $event, apply_status: 'fail' })" />
+
+    <hw-dialog header="申请证书" v-model:visible="addFormVisible" :width="770" :footer="false">
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="240">
-          <hw-form-item :label="$t('page.sslorder.label_website')" name="host_code">
-            <hw-select v-model="formData.host_code" clearable :style="{ width: 'min(100%, 480px)' }" @change="changeHostCode">
-              <hw-option v-for="(item, index) in host_dic" :value="index" :label="item" :key="index">
-                {{ item }}
-              </hw-option>
+          <hw-form-item label="关联服务" name="host_code">
+            <hw-select v-model="formData.host_code" filterable clearable :loading="hostListLoading"
+              :disabled="hostListLoading || !!hostListError || host_options.length === 0" aria-label="关联服务"
+              placeholder="选择服务接入中的服务" :style="{ width: 'min(100%, 480px)' }" @change="changeHostCode">
+              <hw-option v-for="item in host_options" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
+            <p v-if="hostListLoading" role="status" class="form-item-tips">正在加载服务列表…</p>
+            <p v-else-if="hostListError" role="alert" class="form-item-tips">{{ hostListError }} <hw-button variant="text" @click="loadHostList">重试加载服务</hw-button></p>
+            <p v-else-if="host_options.length === 0" class="form-item-tips">暂无可关联服务。请先在“服务接入”添加服务，再返回申请证书。<router-link to="/waf-pipeline/ports">去添加服务</router-link></p>
+            <div v-else class="form-item-tips">
+              <span>使用服务接入中的现有服务；DNS 验证不要求开放 80/443。</span>
+              <hw-button variant="text" @click="loadHostList">刷新服务列表</hw-button>
+            </div>
+            <p v-if="selectedHostInfo(formData.host_code)?.source === 'pipeline' && selectedHostInfo(formData.host_code)?.protocol === 'http'" class="form-item-tips">签发后保存证书并关联此服务；当前 HTTP 服务不会自动切换为 HTTPS，可在服务设置中启用。</p>
+          </hw-form-item>
+          <hw-form-item label="自动续期" name="auto_renew">
+            <hw-checkbox v-model="formData.auto_renew">启用自动续期</hw-checkbox>
+            <p class="form-item-tips">签发成功后自动检查并在临近到期时续期，无需到过期检测页面另行配置。取消勾选后需手动续期。</p>
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_platform')" name="apply_platform">
             <div style="display: flex; align-items: center;">
@@ -85,6 +68,8 @@
               </hw-button>
             </div>
           </hw-form-item>
+          <ZeroSSLAccount v-if="addFormVisible && formData.apply_platform === 'zerossl'" :revision="zeroSSLRevision"
+            @status="zeroSSLAddStatus = $event" @saved="zeroSSLRevision++" />
           <hw-form-item :label="$t('page.sslorder.label_apply_method')" name="apply_method">
             <hw-select v-model="formData.apply_method" clearable :style="{ width: 'min(100%, 480px)' }" @change="handleApplyMethodChange">
               <hw-option v-for="item in sslorder_apply_method_type" :value="item.value" :label="`${item.label}`">
@@ -113,20 +98,32 @@
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
-            <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
+            <hw-button theme="primary" type="submit" :loading="addSubmitting" :disabled="addSubmitting || (formData.apply_platform === 'zerossl' && zeroSSLAddStatus !== 'configured')">{{ $t('common.confirm') }}</hw-button>
           </hw-form-item>
         </hw-form>
       </div></template>
     </hw-dialog>
-    <hw-dialog :header="$t('common.renew')" v-model:visible="editFormVisible" :width="770" :footer="false">
+    <hw-dialog header="手动续期" v-model:visible="editFormVisible" :width="770" :footer="false">
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="240">
-          <hw-form-item :label="$t('page.sslorder.label_website')" name="host_code">
-            <hw-select v-model="formEditData.host_code" clearable :style="{ width: 'min(100%, 480px)' }" @change="changeHostCodeEdit">
-              <hw-option v-for="(item, index) in host_dic" :value="index" :label="item" :key="index">
-                {{ item }}
-              </hw-option>
+          <hw-form-item label="关联服务" name="host_code">
+            <hw-select v-model="formEditData.host_code" filterable clearable :loading="hostListLoading"
+              :disabled="hostListLoading || !!hostListError || host_options.length === 0" aria-label="关联服务"
+              placeholder="选择服务接入中的服务" :style="{ width: 'min(100%, 480px)' }" @change="changeHostCodeEdit">
+              <hw-option v-for="item in host_options" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
+            <p v-if="hostListLoading" role="status" class="form-item-tips">正在加载服务列表…</p>
+            <p v-else-if="hostListError" role="alert" class="form-item-tips">{{ hostListError }} <hw-button variant="text" @click="loadHostList">重试加载服务</hw-button></p>
+            <p v-else-if="host_options.length === 0" class="form-item-tips">暂无可关联服务。请先在“服务接入”添加服务，再返回申请证书。<router-link to="/waf-pipeline/ports">去添加服务</router-link></p>
+            <div v-else class="form-item-tips">
+              <span>使用服务接入中的现有服务；DNS 验证不要求开放 80/443。</span>
+              <hw-button variant="text" @click="loadHostList">刷新服务列表</hw-button>
+            </div>
+            <p v-if="selectedHostInfo(formEditData.host_code)?.source === 'pipeline' && selectedHostInfo(formEditData.host_code)?.protocol === 'http'" class="form-item-tips">签发后保存证书并关联此服务；当前 HTTP 服务不会自动切换为 HTTPS，可在服务设置中启用。</p>
+          </hw-form-item>
+          <hw-form-item label="自动续期" name="auto_renew">
+            <hw-checkbox v-model="formEditData.auto_renew">启用自动续期</hw-checkbox>
+            <p class="form-item-tips">签发成功后自动检查并在临近到期时续期，无需到过期检测页面另行配置。取消勾选后需手动续期。</p>
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_platform')" name="apply_platform">
             <div style="display: flex; align-items: center;">
@@ -140,6 +137,8 @@
               </hw-button>
             </div>
           </hw-form-item>
+          <ZeroSSLAccount v-if="editFormVisible && formEditData.apply_platform === 'zerossl'" :revision="zeroSSLRevision"
+            @status="zeroSSLEditStatus = $event" @saved="zeroSSLRevision++" />
           <hw-form-item :label="$t('page.sslorder.label_apply_method')" name="apply_method">
             <hw-select v-model="formEditData.apply_method" clearable :style="{ width: 'min(100%, 480px)' }" @change="handleApplyMethodChangeEdit">
               <hw-option v-for="item in sslorder_apply_method_type" :value="item.value" :label="`${item.label}`">
@@ -168,7 +167,7 @@
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
-            <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
+            <hw-button theme="primary" type="submit" :loading="editSubmitting" :disabled="editSubmitting || (formEditData.apply_platform === 'zerossl' && zeroSSLEditStatus !== 'configured')">{{ $t('common.confirm') }}</hw-button>
           </hw-form-item>
         </hw-form>
       </div></template>
@@ -308,6 +307,7 @@
           <hw-form-item :label="$t('page.ca_server_info.ca_server_address')" name="ca_server_address">
             <hw-input v-model="caServerFormData.ca_server_address" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
+          <ZeroSSLAccount v-if="caServerFormVisible && caServerFormData.ca_server_name === 'zerossl'" :revision="zeroSSLRevision" @saved="zeroSSLRevision++" />
           <hw-form-item :label="$t('page.ca_server_info.ca_server_remarks')" name="remarks">
             <hw-input v-model="caServerFormData.remarks" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
@@ -322,6 +322,7 @@
 </template>
 
 <script lang="ts">
+import { v4 as uuidv4 } from 'uuid';
 import {defineComponent} from 'vue';
 
 
@@ -333,17 +334,17 @@ import {
   prefix
 } from '@/config/global';
 import DnsProviderConfig from './DnsProviderConfig.vue';
+import ZeroSSLAccount from './ZeroSSLAccount.vue';
+import OrderLogs from './OrderLogs.vue';
+import OrderTable from './OrderTable.vue';
 import { serializeHurricaneCredentials } from './hurricane';
 import {
-  sslOrderDetailApi, sslOrderAddApi, sslOrderDelApi, sslOrderEditApi, sslOrderListApi
+  sslOrderDetailApi, sslOrderAddApi, sslOrderDelApi, sslOrderEditApi, sslOrderListApi, sslOrderRetryApi, sslCertificateTargetsApi, type SSLCertificateTarget
 } from '@/apis/sslorder';
 
 import {
   wafPrivateInfoEditApi, wafPrivateInfoAddApi
 } from '@/apis/private_info.ts';
-import {
-  allhost, alldomainbyhostcode, getHostDetail
-} from '@/apis/host';
 import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemconfig';
 import {
   wafPrivateGroupAddApi
@@ -357,6 +358,7 @@ const INITIAL_DATA = {
   apply_platform: "letsencrypt",
   apply_method: "dns01",
   skip_dns_verify: 0,
+  auto_renew: true,
   apply_dns: "",
   apply_email: "",
   apply_domain: "",
@@ -371,6 +373,9 @@ export default defineComponent({
     SearchIcon,
     Trend,
     DnsProviderConfig,
+    ZeroSSLAccount,
+    OrderLogs,
+    OrderTable,
   },
   props: {
     //原主机码
@@ -381,6 +386,21 @@ export default defineComponent({
   },
   data() {
     return {
+      zeroSSLRevision: 0,
+      zeroSSLAddStatus: 'checking',
+      zeroSSLEditStatus: 'checking',
+      addSubmitting: false,
+      editSubmitting: false,
+      addSubmission: { payload: '', id: '' },
+      editSubmission: { payload: '', id: '' },
+      refreshTimer: undefined as ReturnType<typeof setInterval> | undefined,
+      listRequestSequence: 0,
+      listRequestPending: false,
+      listError: '',
+      orderLogsVisible: false,
+      orderLogsId: '',
+      retryingOrderId: '',
+      retryRequestIds: {} as Record<string, string>,
       addFormVisible: false,
       editFormVisible: false,
       confirmVisible: false,
@@ -393,7 +413,7 @@ export default defineComponent({
       rules: {
         host_code: [{
           required: true,
-          message: this.$t('common.placeholder') + this.$t('page.sslorder.label_website'),
+          message: '请选择关联服务',
           type: 'error'
         }],
         apply_email: [
@@ -454,87 +474,6 @@ export default defineComponent({
         }]
       },
       selectedRowKeys: [],
-      columns: [
-        {
-          align: 'left',
-          width: 200,
-          colKey: 'op',
-          title: this.$t('common.op'),
-        },
-
-        {
-          title: this.$t('page.sslorder.label_website'),
-          align: 'left',
-          width: 250,
-          ellipsis: true,
-          colKey: 'host_code',
-        },
-        {
-          title: this.$t('page.sslorder.label_apply_status'),
-          align: 'left',
-          width: 100,
-          ellipsis: true,
-          colKey: 'apply_status',
-        },
-        {
-          title: this.$t('page.sslorder.label_result_error'),
-          align: 'left',
-          width: 100,
-          ellipsis: true,
-          colKey: 'result_error',
-        },
-        {
-          title: this.$t('page.sslorder.label_apply_platform'),
-          align: 'left',
-          width: 250,
-          ellipsis: true,
-          colKey: 'apply_platform',
-        },
-        {
-          title: this.$t('page.sslorder.label_apply_method'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'apply_method',
-        },
-        {
-          title: this.$t('page.sslorder.label_apply_dns'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'apply_dns',
-        },
-        {
-          title: this.$t('page.sslorder.label_private_group'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'private_group_name',
-        },
-        {
-          title: this.$t('page.sslorder.label_apply_email'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'apply_email',
-        },
-        {
-          title: this.$t('page.sslorder.label_apply_domain'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'apply_domain',
-        },
-        {
-          title: this.$t('common.create_time'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'create_time',
-          sorter: true
-        },
-        {
-          title: "id",
-          align: 'left',
-          width: 250,
-          ellipsis: true,
-          colKey: 'id',
-        },
-      ],
       rowKey: 'id',
       tableLayout: 'auto',
       verticalAlign: 'top',
@@ -545,12 +484,17 @@ export default defineComponent({
         pageSize: 10
       },
       searchformData: {
+        apply_status: '',
         apply_domain: '',
         host_code: '',
       },
       deleteIdx: -1,
       //主机字典
       host_dic: {},
+      host_options: [] as SSLCertificateTarget[],
+      hostListLoading: false,
+      hostListError: '',
+      hostListRequest: 0,
       //文件验证(http01)时，所选主机是否具备80端口（主端口或绑定更多端口）
       addHost80Ok: true,
       editHost80Ok: true,
@@ -672,6 +616,13 @@ export default defineComponent({
   },
   mounted() {
     this.reloadInitData();
+    this.refreshTimer = setInterval(() => {
+      if (this.data.some((row) => ['submitted', 'applying'].includes(row.apply_status))) this.getList('', true);
+    }, 3000);
+  },
+  beforeUnmount() {
+    clearInterval(this.refreshTimer);
+    this.listRequestSequence++;
   },
   watch: {
     // 监听srcHostCode变化，重新加载数据
@@ -689,13 +640,39 @@ export default defineComponent({
     }
   },
   methods: {
+    openOrderLogs(id: string) {
+      this.orderLogsId = id;
+      this.orderLogsVisible = true;
+    },
+    async retryOrder(row) {
+      if (this.retryingOrderId || row.apply_status !== 'fail') return;
+      this.retryingOrderId = row.id;
+      this.retryRequestIds[row.id] ||= uuidv4();
+      try {
+        const result = await sslOrderRetryApi({ id: row.id, request_id: this.retryRequestIds[row.id] });
+        if (result.code !== 0) { this.$message.warning(result.msg || '重试未受理，请查看日志'); return; }
+        delete this.retryRequestIds[row.id];
+        this.pagination.current = 1;
+        this.searchformData.apply_domain = '';
+          this.searchformData.apply_status = '';
+        this.getList('');
+        this.$message.success(result.msg || '重试申请已受理');
+        this.openOrderLogs(result.data.id);
+      } catch {
+        this.$message.error('重试结果未确认，请再次点击重试；相同提交不会重复创建订单');
+      } finally {
+        this.retryingOrderId = '';
+      }
+    },
+    orderSubmissionPayload(form) {
+      const { host_code, apply_platform, apply_method, apply_dns, apply_email, apply_domain, private_group_name, skip_dns_verify, auto_renew } = form;
+      return { host_code, apply_platform, apply_method, apply_dns, apply_email, apply_domain, private_group_name, skip_dns_verify, auto_renew: auto_renew !== false };
+    },
     //初始化数据
-    reloadInitData(){
-        this.loadHostList().then(() => {
-              this.getList("");
-              // 加载CA服务器信息
-              this.loadCaServerList();
-        });
+    reloadInitData() {
+      void this.loadHostList();
+      this.getList('');
+      this.loadCaServerList();
     },
     // 处理CA服务器维护
     handleCaServerMaintenance() {
@@ -1023,30 +1000,18 @@ export default defineComponent({
         that.$message.warning(firstError);
       }
     },
-    // 检测所选主机是否具备80端口（主端口 或 绑定更多端口，逗号分隔），与后端 check80Port 保持一致
-    evalHost80(hostCode) {
-      return new Promise((resolve) => {
-        if (!hostCode) {
-          resolve(true);
-          return;
-        }
-        getHostDetail({ code: hostCode })
-          .then((res) => {
-            if (res.code === 0 && res.data) {
-              const port = res.data.port;
-              const morePort = res.data.bind_more_port || '';
-              const has80 = port === 80
-                || String(morePort).split(',').map(p => p.trim()).indexOf('80') !== -1;
-              resolve(has80);
-            } else {
-              resolve(true); // 拿不到详情时不打扰用户，交由后端提交时兜底校验
-            }
-          })
-          .catch((e) => {
-            console.log(e);
-            resolve(true);
-          });
-      });
+    selectedHostInfo(code: string) {
+      return this.host_options.find((item) => item.value === code);
+    },
+    evalHost80(hostCode: string) {
+      return Promise.resolve(this.selectedHostInfo(hostCode)?.http01_ready ?? false);
+    },
+    canSubmitForHost(code: string) {
+      if (this.hostListLoading || this.hostListError || !this.selectedHostInfo(code)) {
+        this.$message.warning(this.hostListError || '请选择有效的关联服务；列表为空时请先添加服务。');
+        return false;
+      }
+      return true;
     },
     // 新建：所选主机的80端口检测（仅驱动右侧静态提示，不弹窗）
     checkAddHost80() {
@@ -1081,56 +1046,27 @@ export default defineComponent({
       }
     },
     changeHostCode(hostCode) {
-      console.log("changeHostCode", hostCode)
-      // 同步检测该主机是否具备80端口（供文件验证方式提示）
-      if (hostCode) {
-        this.checkAddHost80();
-      } else {
-        this.addHost80Ok = true;
-      }
-      if (hostCode != "") {
-        alldomainbyhostcode({ code: hostCode })
-          .then((res) => {
-            console.log("changeHostCode ", res)
-            console.log("changeHostCode ", res.code === 0)
-            if (res.code === 0) {
-              // 提取所有的label并过滤掉空值
-              let labels = res.data
-                .map(item => item.label) // 提取所有label
-                .filter(label => label); // 过滤掉空字符串或不存在的值
-              // 将所有的非空label用逗号连接起来
-              let labelsString = labels.join(',');
-              this.formData.apply_domain = labelsString;
-            } else {
-              this.$message.warning(res.msg);
-            }
-          }).catch((error) => {
-            console.log(error)
-          })
-      }
+      const target = this.selectedHostInfo(hostCode);
+      this.formData.apply_domain = target?.domains.join(',') || '';
+      this.checkAddHost80();
     },
-    loadHostList() {
-      return new Promise((resolve, reject) => {
-        allhost()
-          .then((res) => {
-            let resdata = res;
-            console.log(resdata);
-            if (resdata.code === 0) {
-              let host_options = resdata.data;
-              for (let i = 0; i < host_options.length; i++) {
-                if (host_options[i].label == "全局网站:0") {
-                  continue
-                }
-                this.host_dic[host_options[i].value] = host_options[i].label;
-              }
-            }
-            resolve(undefined); // 调用 resolve 表示加载完成
-          })
-          .catch((e: Error) => {
-            console.log(e);
-            reject(e); // 调用 reject 表示加载失败
-          });
-      });
+    async loadHostList() {
+      const request = ++this.hostListRequest;
+      this.hostListLoading = true;
+      this.hostListError = '';
+      try {
+        const response = await sslCertificateTargetsApi();
+        if (request !== this.hostListRequest) return;
+        if (response.code !== 0 || !Array.isArray(response.data)) throw new Error('服务列表不可用');
+        this.host_options = response.data;
+        this.host_dic = Object.fromEntries(this.host_options.map((item) => [item.value, item.label]));
+      } catch {
+        if (request !== this.hostListRequest) return;
+        this.host_options = [];
+        this.hostListError = '服务列表加载失败，请重试。';
+      } finally {
+        if (request === this.hostListRequest) this.hostListLoading = false;
+      }
     },
     rehandlePageChange(curr, pageInfo) {
       this.pagination.current = curr.current
@@ -1140,7 +1076,16 @@ export default defineComponent({
       }
       this.getList("")
     },
-    getList(keyword) {
+    resetFilters() {
+      this.searchformData.apply_domain = '';
+      this.searchformData.apply_status = '';
+      this.getList('all');
+    },
+    getList(keyword, quiet = false) {
+      if (keyword === 'all') this.pagination.current = 1;
+      if (quiet && this.listRequestPending) return;
+      this.listRequestPending = true;
+      const sequence = ++this.listRequestSequence;
       let that = this;
       that.searchformData.host_code = this.srcHostCode
       sslOrderListApi({
@@ -1149,26 +1094,33 @@ export default defineComponent({
         ...that.searchformData
       })
         .then((res) => {
+          if (sequence !== this.listRequestSequence) return;
           let resdata = res;
           if (resdata.code === 0) {
+            this.listError = '';
             this.data = resdata.data.list ?? [];
             this.pagination = {
               ...this.pagination,
               total: resdata.data.total,
             };
+          } else {
+            this.listError = resdata.msg || '订单状态刷新失败，请重试';
           }
         })
         .catch((e: Error) => {
-          console.log(e);
+          if (sequence === this.listRequestSequence) this.listError = '订单状态刷新失败，当前显示的是上次结果，请检查网络后重试';
         })
         .finally(() => {
-          this.dataLoading = false;
+          if (sequence === this.listRequestSequence) { this.dataLoading = false; this.listRequestPending = false; }
         });
-      this.dataLoading = true;
+      if (!quiet) this.dataLoading = true;
     },
-    handleAdd() {
+    async handleAdd() {
+      if (this.addSubmitting) return;
+      this.addSubmission = { payload: '', id: '' };
       this.addFormVisible = true;
       this.formData = { ...INITIAL_DATA };
+      await this.loadHostList();
       console.log("mounted sslorder,srchostCode", this.srcHostCode)
       if (this.srcHostCode != "") {
         this.formData.host_code = this.srcHostCode;
@@ -1179,8 +1131,14 @@ export default defineComponent({
       result,
       firstError
     }): void {
+      if (this.addSubmitting || !this.addFormVisible) return;
       let that = this;
       if (!firstError) {
+        if (this.formData.apply_platform === 'zerossl' && this.zeroSSLAddStatus !== 'configured') {
+          this.$message.warning('请先完成 ZeroSSL 账户认证配置和状态检查');
+          return;
+        }
+        if (!this.canSubmitForHost(this.formData.host_code)) return;
 
         // 如果是http01方式,域名不能包含通配符
         if (this.formData.apply_method == "http01") {
@@ -1196,26 +1154,38 @@ export default defineComponent({
             return
           }
         }
-        sslOrderAddApi({
-          ...this.formData,
-        })
+        const payload = this.orderSubmissionPayload(this.formData);
+        const encoded = JSON.stringify(payload);
+        if (this.addSubmission.payload !== encoded) this.addSubmission = { payload: encoded, id: uuidv4() };
+        this.addSubmitting = true;
+        sslOrderAddApi({ ...payload, request_id: this.addSubmission.id })
           .then((res) => {
             if (res.code === 0) {
+              that.pagination.current = 1;
+              that.searchformData.apply_domain = '';
+              that.searchformData.apply_status = '';
               that.getList('');
-              that.$message.success('添加成功');
+              that.$message.success(res.msg || '申请已受理');
+              that.addSubmission = { payload: '', id: '' };
               that.addFormVisible = false;
             } else {
               that.$message.warning(res.msg);
             }
-          });
+          })
+          .catch(() => { this.$message.error('提交结果未确认，可重试；相同申请不会重复创建'); })
+          .finally(() => { this.addSubmitting = false; });
       }
     },
     handleClickEdit(slotProps) {
+      if (this.editSubmitting) return;
+      this.editSubmission = { payload: '', id: '' };
+      void this.loadHostList();
       const {
         row
       } = slotProps;
       this.formEditData = {
         ...row,
+        auto_renew: row.auto_renew !== false,
         skip_dns_verify: row.skip_dns_verify ?? 0
       };
       // 文件验证方式：检测该主机是否具备80端口
@@ -1229,21 +1199,34 @@ export default defineComponent({
       result,
       firstError
     }): void {
+      if (this.editSubmitting || !this.editFormVisible) return;
       let that = this;
       if (!firstError) {
-        this.formEditData.apply_status = "renewed"
-        sslOrderEditApi({
-          ...this.formEditData,
-        })
+        if (this.formEditData.apply_platform === 'zerossl' && this.zeroSSLEditStatus !== 'configured') {
+          this.$message.warning('请先完成 ZeroSSL 账户认证配置和状态检查');
+          return;
+        }
+        if (!this.canSubmitForHost(this.formEditData.host_code)) return;
+        const payload = { ...this.orderSubmissionPayload(this.formEditData), id: this.formEditData.id };
+        const encoded = JSON.stringify(payload);
+        if (this.editSubmission.payload !== encoded) this.editSubmission = { payload: encoded, id: uuidv4() };
+        this.editSubmitting = true;
+        sslOrderEditApi({ ...payload, request_id: this.editSubmission.id })
           .then((res) => {
             if (res.code === 0) {
+              that.pagination.current = 1;
+              that.searchformData.apply_domain = '';
+              that.searchformData.apply_status = '';
               that.getList('');
-              that.$message.success('已发起续期');
+              that.$message.success(res.msg || '续期申请已受理');
+              that.editSubmission = { payload: '', id: '' };
               that.editFormVisible = false;
             } else {
               that.$message.warning(res.msg);
             }
-          });
+          })
+          .catch(() => { this.$message.error('续期结果未确认，可重试；相同申请不会重复创建'); })
+          .finally(() => { this.editSubmitting = false; });
       }
     },
     handleClickDelete(slotProps) {
@@ -1282,39 +1265,29 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.list-card-container {
-  padding: 20px;
-}
-
-.table-container {
-  margin-top: 20px;
-}
-
-.search-input {
-  width: 200px;
-}
+.ssl-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.ssl-guide { font-size: 13px; color: var(--el-text-color-secondary); }
+.ssl-guide summary { cursor: pointer; padding-block: 6px; }
+.ssl-guide[open] summary { margin-bottom: 12px; }
+.ssl-guide summary:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.ssl-toolbar-actions, .ssl-filter-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ssl-toolbar-actions :deep(.el-button), .ssl-filter-actions :deep(.el-button) { margin-left: 0; }
+.ssl-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; margin-block: 24px 20px; }
+.ssl-filters label { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--el-text-color-regular); }
+.ssl-domain-filter { flex: 1 1 240px; max-width: 360px; }
+.ssl-status-filter { flex: 0 1 180px; min-width: 150px; }
+.search-input { width: 100%; }
+.ssl-list-caption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; color: var(--el-text-color-secondary); font-size: 12px; }
+.ssl-list-error { color: var(--el-color-danger); }
+.ssl-scope { font-size: 13px; color: var(--el-text-color-secondary); }
+@media (max-width: 600px) { .ssl-domain-filter { max-width: none; flex-basis: 100%; } .ssl-status-filter { flex: 1; } .ssl-toolbar-actions { width: 100%; } }
 
 .credential-replace { display: flex; align-items: center; gap: 8px; margin-block: 12px; line-height: 1.5; }
 .hurricane-credential { padding-block: 12px; border-bottom: 1px solid var(--el-border-color-lighter); margin-bottom: 12px; }
-
-.highlight-link {
-  color: #e34d59;
-  /* 红色 */
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.highlight-link:hover {
-  text-decoration: underline;
-}
 
 @media (max-width: 600px) {
   .ssl-order-page :deep(.hb-row) { flex-wrap: wrap; align-items: flex-start; }
   .ssl-order-page :deep(.hb-txt) { flex-basis: calc(100% - 30px); min-width: 0; }
   .ssl-order-page :deep(.hb-actions) { margin-left: 24px; }
-  .left-operation-container { display: flex; flex-wrap: wrap; gap: 8px; }
-  .left-operation-container :deep(.el-button) { margin-left: 0 !important; }
-  .right-operation-container { width: 100%; margin-top: 12px; }
-  .search-input { width: 100%; }
 }
 </style>

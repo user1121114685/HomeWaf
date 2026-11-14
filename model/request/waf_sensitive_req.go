@@ -11,14 +11,14 @@ type WafSensitiveAddReq struct {
 	Remarks        string `json:"remarks" form:"remarks"  ` //备注
 }
 type WafSensitiveDelReq struct {
-	Id string `json:"id"  form:"id"` //唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //唯一键
 }
 type WafSensitiveDetailReq struct {
-	Id string `json:"id"  form:"id"` //唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //唯一键
 }
 
 type WafSensitiveEditReq struct {
-	Id             string `json:"id"`
+	Id             string `json:"id" binding:"required,max=64"`
 	CheckDirection string `json:"check_direction"`          //敏感词检测方向 in ,out ,all
 	Action         string `json:"action"`                   //敏感词检测后动作 deny,replace
 	Content        string `json:"content" form:"content"  ` //内容

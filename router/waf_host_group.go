@@ -4,6 +4,8 @@ package router
 
 import (
 	"HomeWaf/api"
+	"HomeWaf/enums"
+	"HomeWaf/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,9 +19,9 @@ func (receiver *HostGroupRouter) InitHostGroupRouter(group *gin.RouterGroup) {
 	router.POST("/api/v1/wafhost/hostgroup/list", hostGroupApi.GetListApi)
 	router.GET("/api/v1/wafhost/hostgroup/all", hostGroupApi.GetAllApi) //不分页，供网站列表左栏与表单下拉
 	router.GET("/api/v1/wafhost/hostgroup/detail", hostGroupApi.GetDetailApi)
-	router.POST("/api/v1/wafhost/hostgroup/add", hostGroupApi.AddApi)
-	router.POST("/api/v1/wafhost/hostgroup/edit", hostGroupApi.ModifyApi)
-	router.GET("/api/v1/wafhost/hostgroup/del", hostGroupApi.DelApi)
-	router.POST("/api/v1/wafhost/hostgroup/sort", hostGroupApi.SortApi)
-	router.POST("/api/v1/wafhost/hostgroup/assign", hostGroupApi.AssignApi) //批量移动网站到分组
+	router.POST("/api/v1/wafhost/hostgroup/add", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), hostGroupApi.AddApi)
+	router.POST("/api/v1/wafhost/hostgroup/edit", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), hostGroupApi.ModifyApi)
+	router.GET("/api/v1/wafhost/hostgroup/del", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), hostGroupApi.DelApi)
+	router.POST("/api/v1/wafhost/hostgroup/sort", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), hostGroupApi.SortApi)
+	router.POST("/api/v1/wafhost/hostgroup/assign", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), hostGroupApi.AssignApi) //批量移动网站到分组
 }

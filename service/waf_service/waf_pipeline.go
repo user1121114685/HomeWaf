@@ -204,6 +204,7 @@ type PortSaveRequest struct {
 	ClearPrivacyConfig bool                                   `json:"clear_privacy_engine_config,omitempty"`
 	Operator           string                                 `json:"-"`
 	TLSRefresh         *pipelineTLSRefresh                    `json:"-"`
+	TLSBind            *pipelineTLSRefresh                    `json:"-"`
 	TamperUpdates      map[string]wafpipeline.TamperBaseline  `json:"-"`
 }
 
@@ -358,6 +359,11 @@ func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, 
 	}
 	if req.TLSRefresh != nil {
 		if err := refreshManagedTLS(&secrets, *req.TLSRefresh); err != nil {
+			return c, err
+		}
+	}
+	if req.TLSBind != nil {
+		if err := bindCertificateSource(&secrets, *req.TLSBind); err != nil {
 			return c, err
 		}
 	}

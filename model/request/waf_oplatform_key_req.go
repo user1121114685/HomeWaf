@@ -13,15 +13,15 @@ type WafOPlatformKeyAddReq struct {
 }
 
 type WafOPlatformKeyDelReq struct {
-	Id string `json:"id" form:"id"` //唯一键
+	Id string `json:"id" form:"id" binding:"required,max=64"` //唯一键
 }
 
 type WafOPlatformKeyDetailReq struct {
-	Id string `json:"id" form:"id"` //唯一键
+	Id string `json:"id" form:"id" binding:"required,max=64"` //唯一键
 }
 
 type WafOPlatformKeyEditReq struct {
-	Id          string `json:"id"`
+	Id          string `json:"id" binding:"required,max=64"`
 	KeyName     string `json:"key_name"`     //Key 名称
 	Status      int    `json:"status"`       //状态 1启用 0禁用
 	Remark      string `json:"remark"`       //备注

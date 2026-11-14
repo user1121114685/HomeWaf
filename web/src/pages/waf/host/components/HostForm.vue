@@ -908,6 +908,7 @@
 </template>
 
   <script lang="ts">
+import { requestAllPages } from '@/utils/allPages';
 import {defineComponent} from 'vue';
 
 
@@ -2146,8 +2147,7 @@ import {defineComponent} from 'vue';
       },
       getSslFolderList() {
         let that = this;
-        sslConfigListApi({
-          pageSize: 10000,
+        requestAllPages(sslConfigListApi, {
           remarks: "",
           code: ""
         })

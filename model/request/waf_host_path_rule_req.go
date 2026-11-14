@@ -26,7 +26,7 @@ type WafHostPathRuleAddReq struct {
 }
 
 type WafHostPathRuleEditReq struct {
-	Id              string `json:"id"`
+	Id              string `json:"id" binding:"required,max=64"`
 	HostCode        string `json:"host_code"`
 	RuleName        string `json:"rule_name"`
 	Path            string `json:"path"`
@@ -48,11 +48,11 @@ type WafHostPathRuleEditReq struct {
 }
 
 type WafHostPathRuleDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafHostPathRuleDelReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafHostPathRuleSearchReq struct {

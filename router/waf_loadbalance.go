@@ -4,6 +4,8 @@ package router
 
 import (
 	"HomeWaf/api"
+	"HomeWaf/enums"
+	"HomeWaf/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,7 +17,7 @@ func (receiver *LoadBalanceRouter) InitLoadBalanceRouter(group *gin.RouterGroup)
 	loadBalanceRouter := group.Group("")
 	loadBalanceRouter.POST("/api/v1/wafhost/loadbalance/list", loadBalanceApi.GetListApi)
 	loadBalanceRouter.GET("/api/v1/wafhost/loadbalance/detail", loadBalanceApi.GetDetailApi)
-	loadBalanceRouter.POST("/api/v1/wafhost/loadbalance/add", loadBalanceApi.AddApi)
-	loadBalanceRouter.GET("/api/v1/wafhost/loadbalance/del", loadBalanceApi.DelLoadBalanceApi)
-	loadBalanceRouter.POST("/api/v1/wafhost/loadbalance/edit", loadBalanceApi.ModifyApi)
+	loadBalanceRouter.POST("/api/v1/wafhost/loadbalance/add", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), loadBalanceApi.AddApi)
+	loadBalanceRouter.GET("/api/v1/wafhost/loadbalance/del", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), loadBalanceApi.DelLoadBalanceApi)
+	loadBalanceRouter.POST("/api/v1/wafhost/loadbalance/edit", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), loadBalanceApi.ModifyApi)
 }

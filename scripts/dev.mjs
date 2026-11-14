@@ -5,6 +5,7 @@ import net from "node:net";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
+import { BuildInputs, excludedRoots as excluded, ignoredInput } from "./dev-inputs.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const webDir = path.join(root, "web");
@@ -17,11 +18,18 @@ const binary = path.join(runtimeDir, `homewaf${windows ? ".exe" : ""}`);
 const candidate = path.join(devDir, `candidate${windows ? ".exe" : ""}`);
 const statePath = path.join(runtimeDir, "data", "supervisor.state");
 const lockPath = path.join(devDir, "session.lock");
-const excluded = new Set([".git", ".idea", ".cache", ".homewaf-keys", "artifacts", "web", "vendor", "node_modules", "conf", "data", "logs", "ssl", "download", "release", "docs"]);
+const adoptExisting = args.includes("--adopt-existing");
+const watchLog = path.join(devDir, "watch-events.log");
 const watchers = new Map();
 const children = new Set();
 let supervisor, frontend, stopping = false, busy = false, dirty = false, timer, lock;
 let generation = 0;
+let inputs, attached = false;
+const pendingEvents = new Set();
+
+function trace(event, details = {}) {
+  fs.appendFileSync(watchLog, JSON.stringify({ time: new Date().toISOString(), watcher_pid: process.pid, event, ...details }) + "\n");
+}
 
 function log(message) { console.log(`[dev] ${message}`); }
 function alive(child) { return child && child.exitCode === null && child.signalCode === null; }
@@ -100,10 +108,10 @@ async function rebuild() {
   await run("go", ["build", `-ldflags=-X HomeWaf/global.GWAF_RELEASE=false -X HomeWaf/global.GWAF_RELEASE_VERSION=${version}`, "-o", candidate, "./cmd/homewaf"]);
   if (stopping) return;
   const before = readState();
-  if (supervisor && before?.upgrading) throw new Error("Supervisor is already switching Workers; save again after it finishes");
+  if ((supervisor || attached) && before?.upgrading) throw new Error("Supervisor is already switching Workers; save again after it finishes");
   const backup = promote();
   try {
-    if (!supervisor) {
+    if (!supervisor && !attached) {
       await checkPort(backendPort());
       supervisor = start(binary, [], { cwd: runtimeDir });
       supervisor.done.then(() => { if (!stopping) void shutdown(1); }, () => { if (!stopping) void shutdown(1); });
@@ -136,8 +144,9 @@ async function rebuild() {
     throw error;
   }
   cleanBinaries();
+  trace("ready", { worker_pid: readState()?.active_pid, version });
   log(`Ready: Worker ${readState()?.active_pid}, ${version}`);
-  if (!args.includes("--backend-only") && !frontend && !stopping) {
+  if (!attached && !args.includes("--backend-only") && !frontend && !stopping) {
     // Run Vite directly so Windows has no extra npm/cmd process intercepting Ctrl+C.
     frontend = start(process.execPath, [viteCli, "--host", "127.0.0.1", "--strictPort", "--clearScreen", "false"], {
       cwd: webDir,
@@ -164,22 +173,28 @@ async function drainBuilds() {
 function changed(relative) {
   if (stopping) return;
   const name = relative.replaceAll("\\", "/");
-  const parts = name.split("/");
-  if (parts[0].startsWith(".") || excluded.has(parts[0]) || parts.includes("node_modules") || parts.includes(".git")) return;
-  const source = name.endsWith(".go") && !name.endsWith("_test.go");
-  const module = ["go.mod", "go.sum", "go.work", "go.work.sum"].includes(name);
-  const embedded = name.startsWith("cmd/homewaf/exedata/") || name.startsWith("public/dist/") || ["public/web_frontend.txt", "wafmangeweb/emergency_page.html"].includes(name);
-  // Directory rename/delete events also matter, including moving a Go package.
-  if (!source && !module && !embedded && path.extname(name)) return;
-  dirty = true;
-  clearTimeout(timer);
-  timer = setTimeout(() => { log(`Changed: ${name}`); void drainBuilds(); }, 600);
+  if (ignoredInput(name)) return;
+  pendingEvents.add(name);
+  // Do not postpone forever if unrelated filesystem notifications keep arriving.
+  timer ||= setTimeout(() => {
+    timer = undefined;
+    const events = [...pendingEvents];
+    pendingEvents.clear();
+    try {
+      const changes = inputs.scan();
+      trace(changes.length ? "inputs-changed" : "unchanged", { notifications: events, inputs: changes });
+      if (!changes.length) return;
+      log(`Content changed: ${changes.join(", ")}`);
+      dirty = true;
+      void drainBuilds();
+    } catch (error) { console.error(`[dev] Input check failed; no reload: ${error.message}`); }
+  }, 600);
 }
 function refreshWatchers() {
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name.startsWith(".") || excluded.has(entry.name) || watchers.has(entry.name)) continue;
     const watcher = fs.watch(path.join(root, entry.name), { recursive: true }, (_event, file) => {
-      if (file) changed(path.join(entry.name, String(file)));
+      changed(file ? path.join(entry.name, String(file)) : entry.name);
     });
     watcher.on("error", (error) => { console.error(`[dev] Watch error: ${error.message}`); void shutdown(1); });
     watchers.set(entry.name, watcher);
@@ -218,16 +233,20 @@ async function shutdown(code = 0, consoleInterrupt = false) {
   // On Windows only console Ctrl+C has already signalled the Supervisor.
   // An internal startup failure must not wait for a signal that was never sent.
   await Promise.allSettled([...children].map(child => stopTree(child, child === supervisor && (!windows || consoleInterrupt))));
-  if (lock !== undefined) { fs.closeSync(lock); fs.unlinkSync(lockPath); lock = undefined; }
+  if (lock !== undefined) {
+    fs.closeSync(lock);
+    if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, "utf8") === String(process.pid)) fs.unlinkSync(lockPath);
+    lock = undefined;
+  }
   cleanBinaries();
   process.exit(code);
 }
 async function main() {
   if (args.includes("--help") || args.includes("-h")) {
-    console.log("HomeWaf development: node scripts/dev.mjs [--backend-only]\nSave Go files to build and roll Workers; Ctrl+C to stop.\nRuntime data: .cache/dev/runtime (preserved).\nFrontend: http://127.0.0.1:3001; backend defaults to :26666.");
+    console.log("HomeWaf development: node scripts/dev.mjs [--backend-only] [--adopt-existing]\nChanged build input contents trigger rolling reloads; Ctrl+C stops owned processes.\n--adopt-existing attaches a new watcher after the old watcher exits, without owning the running services.\nRuntime data: .cache/dev/runtime (preserved). Trigger log: .cache/dev/watch-events.log.\nFrontend: http://127.0.0.1:3001; backend defaults to :26666.");
     return;
   }
-  if (args.some(arg => arg !== "--backend-only")) throw new Error("Unknown option; use --help");
+  if (args.some(arg => !["--backend-only", "--adopt-existing"].includes(arg))) throw new Error("Unknown option; use --help");
   fs.mkdirSync(runtimeDir, { recursive: true });
   if (fs.existsSync(lockPath)) {
     const pid = Number(fs.readFileSync(lockPath, "utf8"));
@@ -245,8 +264,14 @@ async function main() {
   const [goos, goarch] = host.stdout.trim().split(/\s+/);
   if (!goos || !goarch) throw new Error("Cannot determine native Go target");
   Object.assign(process.env, { GOOS: goos, GOARCH: goarch, CGO_ENABLED: "0", HOMEWAF_DEV: "1", SAMWAF_WORKER_HEADER: "1" });
-  await checkPort(backendPort());
-  if (!args.includes("--backend-only")) {
+  if (adoptExisting) {
+    const state = readState();
+    if (!state?.active_pid || !state.pids?.includes(state.active_pid)) throw new Error("No active development Worker to attach to");
+    process.kill(state.active_pid, 0);
+    attached = true;
+    log(`Attached to running Worker ${state.active_pid}; existing services are retained on watcher exit.`);
+  } else await checkPort(backendPort());
+  if (!attached && !args.includes("--backend-only")) {
     await checkPort(3001);
     // Interrupted installs can leave the package directory without its CLI.
     if (!fs.existsSync(viteCli)) {
@@ -260,12 +285,14 @@ async function main() {
     catch (error) { throw new Error(`Frontend dependency check failed: ${error.message}. Run npm ci --include=dev --prefix web and retry.`); }
   }
   log(`Runtime data: ${runtimeDir}`);
+  inputs = new BuildInputs(root);
   const watcher = fs.watch(root, (_event, file) => {
-    if (file) { refreshWatchers(); changed(String(file)); }
+    refreshWatchers(); changed(file ? String(file) : "");
   });
   watcher.on("error", (error) => { console.error(error.message); void shutdown(1); });
   watchers.set("", watcher);
   refreshWatchers();
+  trace("watching", { attached, worker_pid: readState()?.active_pid });
   dirty = true;
   await drainBuilds();
 }

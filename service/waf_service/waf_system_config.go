@@ -121,8 +121,20 @@ func (receiver *WafSystemConfigService) CheckIsExistApi(wafSystemConfigAddReq re
 }
 func (receiver *WafSystemConfigService) ModifyApi(req request.WafSystemConfigEditReq) error {
 	var sysConfig model.SystemConfig
-	global.GWAF_LOCAL_DB.Where("id = ?", req.Id).Find(&sysConfig)
-	if req.Id != "" && req.Item != req.Item {
+	if err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&sysConfig).Error; err != nil {
+		return errors.New("配置项不存在或读取失败")
+	}
+	if strings.TrimSpace(req.Item) == "" {
+		return errors.New("配置项名称不能为空")
+	}
+	if req.Item != sysConfig.Item && (sysConfig.IsSystem == "1" || IsSensitiveConfigItem(sysConfig.Item)) {
+		return errors.New("系统或密钥配置项不允许改名")
+	}
+	var count int64
+	if err := global.GWAF_LOCAL_DB.Model(&model.SystemConfig{}).Where("item = ? AND id <> ?", req.Item, req.Id).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
 		return errors.New("当前配置已经存在")
 	}
 	value, encryptErr := encConfigValue(req.Item, req.Value)

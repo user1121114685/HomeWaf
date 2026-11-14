@@ -10,6 +10,40 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+func TestSSLOrderAdditiveSchemaPreservesPendingDuplicates(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "legacy-orders.db")), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, _ := db.DB()
+	defer conn.Close()
+	if err := db.Exec("CREATE TABLE ssl_orders (id text PRIMARY KEY, host_code text, apply_status text, tenant_id text, user_code text)").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("INSERT INTO ssl_orders (id, host_code, apply_status) VALUES ('a','nas','submitted'), ('b','nas','submitted')").Error; err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if err := InitializeCoreSchema(db); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var count int64
+	if err := db.Table("ssl_orders").Where("apply_status = ?", "submitted").Count(&count).Error; err != nil || count != 2 {
+		t.Fatalf("migration changed pending history: %d %v", count, err)
+	}
+	for _, field := range []string{"RequestID", "ActiveKey", "SubmissionHash", "RenewFrom", "Progress"} {
+		if !db.Migrator().HasColumn(&model.SslOrder{}, field) {
+			t.Errorf("missing %s", field)
+		}
+	}
+	for _, index := range []string{"uni_ssl_order_request", "uni_ssl_order_active"} {
+		if !db.Migrator().HasIndex(&model.SslOrder{}, index) {
+			t.Errorf("missing %s", index)
+		}
+	}
+}
+
 func TestFreshSchemaAndRestartPreserveUserSettings(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(sqlite.FileDSN(filepath.Join(t.TempDir(), "fresh.db"))), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {

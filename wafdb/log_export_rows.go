@@ -343,7 +343,7 @@ func openExportSource(ctx context.Context, ident string) (*gorm.DB, string, stri
 	}
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
-	db.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
+	RegisterTenantQueryScope(db)
 	db.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 	return db, "", path, sqlDB.Close, nil
 }

@@ -4,6 +4,8 @@ package router
 
 import (
 	"HomeWaf/api"
+	"HomeWaf/enums"
+	"HomeWaf/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,20 +26,20 @@ func (receiver *HostGuardRouter) InitHostGuardRouter(group *gin.RouterGroup) {
 
 	// 封禁账本
 	router.POST("/api/v1/hostguard/ban/list", api.GetBanListApi)
-	router.POST("/api/v1/hostguard/ban/release", api.ReleaseBanApi)   // 提前解封
-	router.POST("/api/v1/hostguard/ban/permanent", api.PromoteBanApi) // 提升为永久
-	router.POST("/api/v1/hostguard/ban/manual", api.ManualBanApi)     // 手工封禁
+	router.POST("/api/v1/hostguard/ban/release", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.ReleaseBanApi)   // 提前解封
+	router.POST("/api/v1/hostguard/ban/permanent", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.PromoteBanApi) // 提升为永久
+	router.POST("/api/v1/hostguard/ban/manual", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.ManualBanApi)     // 手工封禁
 
 	// 攻击者档案
 	router.POST("/api/v1/hostguard/offender/list", api.GetOffenderListApi)
-	router.POST("/api/v1/hostguard/offender/reset", api.ResetOffenderApi) // 重置阶梯
-	router.POST("/api/v1/hostguard/offender/del", api.DelOffenderApi)
+	router.POST("/api/v1/hostguard/offender/reset", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.ResetOffenderApi) // 重置阶梯
+	router.POST("/api/v1/hostguard/offender/del", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.DelOffenderApi)
 
 	// 封禁阶梯
 	router.GET("/api/v1/hostguard/ladder/list", api.GetLadderApi)
-	router.POST("/api/v1/hostguard/ladder/save", api.SaveLadderApi)
+	router.POST("/api/v1/hostguard/ladder/save", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.SaveLadderApi)
 
 	// 白名单
 	router.POST("/api/v1/hostguard/whitelist/test", api.TestWhitelistApi) // 自测某IP会否豁免
-	router.POST("/api/v1/hostguard/whitelist/add", api.AddWhitelistApi)
+	router.POST("/api/v1/hostguard/whitelist/add", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.AddWhitelistApi)
 }

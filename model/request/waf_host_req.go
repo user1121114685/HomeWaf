@@ -73,7 +73,7 @@ type WafHostDetailReq struct {
 }
 
 type WafHostEditReq struct {
-	CODE                      string `json:"code"`
+	CODE                      string `json:"code" binding:"required,max=64"`
 	Nickname                  string `json:"nickname"`                     //网站昵称
 	Host                      string `json:"host"`                         //域名
 	Port                      int    `json:"port"`                         //端口

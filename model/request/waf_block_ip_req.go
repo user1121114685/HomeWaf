@@ -29,7 +29,7 @@ type WafBlockIpEditReq struct {
 	IsEnable        *int   `json:"is_enable"`                    //启用状态：nil=新增默认启用/编辑不改动，0停用 1启用
 }
 type WafBlockIpDelReq struct {
-	Id string `json:"id"  form:"id"` //Block IP唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //Block IP唯一键
 }
 
 type WafBlockIpSearchReq struct {
@@ -40,7 +40,7 @@ type WafBlockIpSearchReq struct {
 }
 
 type WafBlockIpDetailReq struct {
-	Id string `json:"id"  form:"id"` //Block IP唯一键
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //Block IP唯一键
 }
 
 type WafBlockIpBatchDelReq struct {

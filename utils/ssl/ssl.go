@@ -3,7 +3,6 @@
 package ssl
 
 import (
-	"HomeWaf/common/zlog"
 	"HomeWaf/customtype"
 	"HomeWaf/internal/dnsproviders"
 	"HomeWaf/model"
@@ -94,6 +93,7 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 	}
 
 	// A client facilitates communication with the CA server.
+	acmeInfo(fmt.Sprintf("%s正在连接 CA 目录 平台=%s", acmeLogPrefix, applyPlatform))
 	client, err := lego.NewClient(config)
 	if err != nil {
 		return order, err
@@ -112,18 +112,19 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 		if err = client.Challenge.SetHTTP01Provider(provider); err != nil {
 			// 原来这里的 err 被后面的注册流程覆盖掉了，设置失败会静默变成
 			// 一次"莫名其妙的校验超时"。不改控制流，但至少要留下证据。
-			zlog.Error(fmt.Sprintf("设置HTTP-01 provider失败 域名=%s 错误=%v", order.ApplyDomain, err))
+			acmeError(fmt.Sprintf("设置HTTP-01 provider失败 域名=%s 错误=%v", order.ApplyDomain, err))
 			return order, err
 		}
 	case "dns01":
 		err = setDNS01ProviderWithRetry(client, newLoggingDNSProvider(dnsProvider, order.ApplyDns), order.SkipDNSVerify)
 		if err != nil {
-			zlog.Error(fmt.Sprintf("%sDNS校验-设置provider失败 渠道=%s 错误=%v", acmeLogPrefix, order.ApplyDns, err))
+			acmeError(fmt.Sprintf("%sDNS校验-设置provider失败 渠道=%s 错误=%v", acmeLogPrefix, order.ApplyDns, err))
 			return order, err
 		}
 	}
 
 	// New users will need to register
+	acmeInfo(fmt.Sprintf("%s正在注册或恢复 CA 账户 平台=%s", acmeLogPrefix, applyPlatform))
 	var reg *registration.Resource
 	if applyPlatform == "zerossl" {
 		// ZeroSSL 需要使用 EAB (External Account Binding) 方式注册
@@ -147,7 +148,7 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 
 	certificates := &certificate.Resource{}
 	if !isIpSSL {
-		zlog.Info(fmt.Sprintf("%s开始向CA申请域名证书 域名=%s 校验方式=%s 平台=%s",
+		acmeInfo(fmt.Sprintf("%s开始向CA申请域名证书 域名=%s 校验方式=%s 平台=%s",
 			acmeLogPrefix, order.ApplyDomain, order.ApplyMethod, applyPlatform))
 		request := certificate.ObtainRequest{
 			Domains: strings.Split(order.ApplyDomain, ","),
@@ -156,7 +157,7 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 		certificatesLocal, err := client.Certificate.Obtain(request)
 
 		if err != nil {
-			zlog.Error(fmt.Sprintf("%s向CA申请域名证书失败 域名=%s 校验方式=%s 错误=%v",
+			acmeError(fmt.Sprintf("%s向CA申请域名证书失败 域名=%s 校验方式=%s 错误=%v",
 				acmeLogPrefix, order.ApplyDomain, order.ApplyMethod, err))
 			return order, err
 		}
@@ -164,13 +165,13 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 	} else {
 		// IP 证书：CA 侧走 CSR 方式，且只签发 shortlived（短周期）证书，
 		// 有效期只有几天，完全依赖自动续期，所以这条路径的日志比域名证书更重要。
-		zlog.Info(fmt.Sprintf("%sIP证书-开始申请 IP=%s 校验方式=%s(IP证书仅支持文件验证) 证书类型=shortlived(短周期) 平台=%s",
+		acmeInfo(fmt.Sprintf("%sIP证书-开始申请 IP=%s 校验方式=%s(IP证书仅支持文件验证) 证书类型=shortlived(短周期) 平台=%s",
 			acmeLogPrefix, order.ApplyDomain, order.ApplyMethod, applyPlatform))
 
 		// 1. 为证书生成新的私钥
 		certPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
-			zlog.Error(fmt.Sprintf("%sIP证书-生成私钥失败 IP=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
+			acmeError(fmt.Sprintf("%sIP证书-生成私钥失败 IP=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
 			return order, fmt.Errorf("generate cert private key failed: %w", err)
 		}
 
@@ -203,7 +204,7 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 			Profile:    "shortlived",
 		})
 		if err != nil {
-			zlog.Error(fmt.Sprintf("%sIP证书-向CA申请失败 IP=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
+			acmeError(fmt.Sprintf("%sIP证书-向CA申请失败 IP=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
 			return order, err
 		}
 		certificates = certificatesLocal
@@ -228,10 +229,10 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err == nil {
 			order.ResultValidTo = customtype.JsonTime(cert.NotAfter)
-			zlog.Info(fmt.Sprintf("%s证书签发成功 申请对象=%s 校验方式=%s 有效期至=%s",
+			acmeInfo(fmt.Sprintf("%s证书签发成功 申请对象=%s 校验方式=%s 有效期至=%s",
 				acmeLogPrefix, order.ApplyDomain, order.ApplyMethod, cert.NotAfter.Format("2006-01-02 15:04:05")))
 		} else {
-			zlog.Warn(fmt.Sprintf("%s证书已签发但解析有效期失败 申请对象=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
+			acmeWarn(fmt.Sprintf("%s证书已签发但解析有效期失败 申请对象=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
 		}
 	}
 
@@ -288,6 +289,7 @@ func ReNewSSL(order model.SslOrder, savePath string, caServerAddress string, app
 	}
 
 	// A client facilitates communication with the CA server.
+	acmeInfo(fmt.Sprintf("%s正在连接 CA 目录 平台=%s", acmeLogPrefix, applyPlatform))
 	client, err := lego.NewClient(config)
 	if err != nil {
 		return order, err
@@ -305,18 +307,19 @@ func ReNewSSL(order model.SslOrder, savePath string, caServerAddress string, app
 			return order, err
 		}
 		if err = client.Challenge.SetHTTP01Provider(provider); err != nil {
-			zlog.Error(fmt.Sprintf("续期设置HTTP-01 provider失败 域名=%s 错误=%v", order.ApplyDomain, err))
+			acmeError(fmt.Sprintf("续期设置HTTP-01 provider失败 域名=%s 错误=%v", order.ApplyDomain, err))
 			return order, err
 		}
 	} else if order.ApplyMethod == "dns01" {
 		// 与申请走同一套包装：续期是无人值守的那一次，日志比申请时更要紧
 		err = setDNS01ProviderWithRetry(client, newLoggingDNSProvider(dnsProvider, order.ApplyDns), order.SkipDNSVerify)
 		if err != nil {
-			zlog.Error(fmt.Sprintf("%s续期-DNS校验-设置provider失败 渠道=%s 错误=%v", acmeLogPrefix, order.ApplyDns, err))
+			acmeError(fmt.Sprintf("%s续期-DNS校验-设置provider失败 渠道=%s 错误=%v", acmeLogPrefix, order.ApplyDns, err))
 			return order, err
 		}
 	}
 	// New users will need to register
+	acmeInfo(fmt.Sprintf("%s正在注册或恢复 CA 账户 平台=%s", acmeLogPrefix, applyPlatform))
 	var reg *registration.Resource
 	if applyPlatform == "zerossl" {
 		// ZeroSSL 需要使用 EAB (External Account Binding) 方式注册
@@ -342,7 +345,7 @@ func ReNewSSL(order model.SslOrder, savePath string, caServerAddress string, app
 
 	if !isIpSSL {
 		// 域名证书：使用续期方式
-		zlog.Info(fmt.Sprintf("%s续期-开始向CA续期域名证书 域名=%s 校验方式=%s 平台=%s",
+		acmeInfo(fmt.Sprintf("%s续期-开始向CA续期域名证书 域名=%s 校验方式=%s 平台=%s",
 			acmeLogPrefix, order.ApplyDomain, order.ApplyMethod, applyPlatform))
 		certRes := certificate.Resource{
 			Domain:            order.ResultDomain,
@@ -358,20 +361,20 @@ func ReNewSSL(order model.SslOrder, savePath string, caServerAddress string, app
 			Bundle: true,
 		})
 		if err != nil {
-			zlog.Error(fmt.Sprintf("%s续期-向CA续期域名证书失败 域名=%s 校验方式=%s 错误=%v",
+			acmeError(fmt.Sprintf("%s续期-向CA续期域名证书失败 域名=%s 校验方式=%s 错误=%v",
 				acmeLogPrefix, order.ApplyDomain, order.ApplyMethod, err))
 			return order, err
 		}
 		certificates = certificatesLocal
 	} else {
 		// IP证书：使用CSR方式重新申请
-		zlog.Info(fmt.Sprintf("%s续期-IP证书-开始重新申请 IP=%s 校验方式=%s 证书类型=shortlived(短周期) 平台=%s",
+		acmeInfo(fmt.Sprintf("%s续期-IP证书-开始重新申请 IP=%s 校验方式=%s 证书类型=shortlived(短周期) 平台=%s",
 			acmeLogPrefix, order.ApplyDomain, order.ApplyMethod, applyPlatform))
 
 		// 1. 为证书生成新的私钥
 		certPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
-			zlog.Error(fmt.Sprintf("%s续期-IP证书-生成私钥失败 IP=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
+			acmeError(fmt.Sprintf("%s续期-IP证书-生成私钥失败 IP=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
 			return order, fmt.Errorf("generate cert private key failed: %w", err)
 		}
 
@@ -404,7 +407,7 @@ func ReNewSSL(order model.SslOrder, savePath string, caServerAddress string, app
 			Profile:    "shortlived",
 		})
 		if err != nil {
-			zlog.Error(fmt.Sprintf("%s续期-IP证书-向CA申请失败 IP=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
+			acmeError(fmt.Sprintf("%s续期-IP证书-向CA申请失败 IP=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
 			return order, err
 		}
 		certificates = certificatesLocal
@@ -430,10 +433,10 @@ func ReNewSSL(order model.SslOrder, savePath string, caServerAddress string, app
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err == nil {
 			order.ResultValidTo = customtype.JsonTime(cert.NotAfter)
-			zlog.Info(fmt.Sprintf("%s续期-证书续期成功 申请对象=%s 校验方式=%s 有效期至=%s",
+			acmeInfo(fmt.Sprintf("%s续期-证书续期成功 申请对象=%s 校验方式=%s 有效期至=%s",
 				acmeLogPrefix, order.ApplyDomain, order.ApplyMethod, cert.NotAfter.Format("2006-01-02 15:04:05")))
 		} else {
-			zlog.Warn(fmt.Sprintf("%s续期-证书已签发但解析有效期失败 申请对象=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
+			acmeWarn(fmt.Sprintf("%s续期-证书已签发但解析有效期失败 申请对象=%s 错误=%v", acmeLogPrefix, order.ApplyDomain, err))
 		}
 	}
 	return order, nil
@@ -484,49 +487,36 @@ func GetDnsProvider(dnsName string) (challenge.Provider, error) {
 	return provider, nil
 }
 
+// Certificate DNS lookups use the operator-selected domestic resolver. This
+// changes ACME DNS verification only; it does not change the host's OS DNS.
+const certificateDNSResolver = "223.5.5.5:53"
+
 func setDNS01ProviderWithRetry(client *lego.Client, dnsProvider challenge.Provider, skipDNSVerify int64) error {
-	// 默认重试10次，每次间隔30秒
-	dnsPrecheckRetry := 10
-	dnsPrecheckRetryInterval := 30 * time.Second
-
-	// DNS 传播等待时间：300秒（3分钟）
-	propagationTimeout := 180 * time.Second
-
-	if skipDNSVerify == 1 {
-		// 跳过本地DNS传播校验：固定等待后直接通知CA进行验证
-		zlog.Info(fmt.Sprintf("%sDNS校验-已按配置跳过本地传播校验，固定等待 %v 后直接通知CA", acmeLogPrefix, propagationTimeout))
-		return client.Challenge.SetDNS01Provider(dnsProvider, dns01.PropagationWait(propagationTimeout, true))
+	options := []dns01.ChallengeOption{
+		dns01.AddRecursiveNameservers([]string{certificateDNSResolver}),
+		dns01.AddDNSTimeout(5 * time.Second),
 	}
-	zlog.Info(fmt.Sprintf("%sDNS校验-启用本地传播校验 最多重试%d次 间隔%v", acmeLogPrefix, dnsPrecheckRetry, dnsPrecheckRetryInterval))
+	acmeInfo(fmt.Sprintf("%sDNS 解析器=%s，单次 DNS 网络查询超时=5秒", acmeLogPrefix, certificateDNSResolver))
+	if skipDNSVerify == 1 {
+		const propagationWait = 180 * time.Second
+		acmeInfo(fmt.Sprintf("%s已跳过本地传播检查，等待 %v 后由 CA 验证", acmeLogPrefix, propagationWait))
+		options = append(options, dns01.PropagationWait(propagationWait, true))
+	} else {
+		acmeInfo(acmeLogPrefix + "启用 DNS 传播检查，轮询间隔与总超时遵循服务商设置")
+		options = append(options, dns01.WrapPreCheck(logDNSPropagationCheck))
+	}
+	return client.Challenge.SetDNS01Provider(dnsProvider, options...)
+}
 
-	// 默认执行本地DNS传播校验，并增加重试机制
-	return client.Challenge.SetDNS01Provider(dnsProvider,
-		dns01.WrapPreCheck(func(domain, fqdn, value string, check dns01.PreCheckFunc) (bool, error) {
-			var lastErr error
-			for i := 1; i <= dnsPrecheckRetry; i++ {
-				ok, err := check(fqdn, value)
-				if ok && err == nil {
-					zlog.Info(fmt.Sprintf("%sDNS校验-传播校验通过(第%d/%d次) 域名=%s 记录=TXT %s",
-						acmeLogPrefix, i, dnsPrecheckRetry, domain, fqdn))
-					return true, nil
-				}
-				lastErr = err
-				// 这里是 DNS 方式最常卡住的一步：记录写进去了但还没传播开。
-				// 每次探测都留一行，用户能看出是"一直没生效"还是"快好了"。
-				zlog.Warn(fmt.Sprintf("%sDNS校验-传播尚未生效(第%d/%d次) 域名=%s 记录=TXT %s 期望值=%s 错误=%v",
-					acmeLogPrefix, i, dnsPrecheckRetry, domain, fqdn, value, err))
-				if i < dnsPrecheckRetry {
-					time.Sleep(dnsPrecheckRetryInterval)
-				}
-			}
-
-			if lastErr != nil {
-				zlog.Error(fmt.Sprintf("%sDNS校验-传播校验最终失败 域名=%s 记录=TXT %s 错误=%v 处置建议=用 dig txt %s 自查，或在申请时勾选跳过DNS传播校验",
-					acmeLogPrefix, domain, fqdn, lastErr, fqdn))
-				return false, lastErr
-			}
-			zlog.Error(fmt.Sprintf("%sDNS校验-传播校验重试%d次仍未通过 域名=%s 记录=TXT %s", acmeLogPrefix, dnsPrecheckRetry, domain, fqdn))
-			return false, fmt.Errorf("dns propagation precheck failed after %d retries", dnsPrecheckRetry)
-		}),
-	)
+// Lego already polls this callback within the provider's propagation timeout.
+// An inner retry/sleep loop would multiply that timeout and hide live progress.
+func logDNSPropagationCheck(domain, fqdn, value string, check dns01.PreCheckFunc) (bool, error) {
+	acmeInfo(fmt.Sprintf("%s正在检查 DNS 传播 域名=%s 记录=TXT %s", acmeLogPrefix, domain, fqdn))
+	ok, err := check(fqdn, value)
+	if ok && err == nil {
+		acmeInfo(fmt.Sprintf("%sDNS 传播检查通过 域名=%s 记录=TXT %s", acmeLogPrefix, domain, fqdn))
+	} else {
+		acmeWarn(fmt.Sprintf("%sDNS 传播本轮未通过 域名=%s 记录=TXT %s 错误=%v；将按服务商轮询设置继续检查", acmeLogPrefix, domain, fqdn, err))
+	}
+	return ok, err
 }

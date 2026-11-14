@@ -4,11 +4,14 @@ package wafcli
 
 import (
 	"HomeWaf/global"
+	"HomeWaf/internal/acmelease"
 	"HomeWaf/supervisor"
 	"HomeWaf/wafdb"
 	"HomeWaf/wafupdate"
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 	glogger "gorm.io/gorm/logger"
@@ -37,10 +40,22 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 	root.AddCommand(&cobra.Command{Use: "rolling-restart", Short: "零停机滚动重启", GroupID: "service", Args: cobra.NoArgs,
 		Example: "  samwaf rolling-restart",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := supervisor.TriggerUpgrade(deps.DataDir); err != nil {
+			ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Minute)
+			defer cancel()
+			fmt.Fprintln(cmd.OutOrStdout(), "准备滚动重载：有证书申请执行时将等待完成，期间暂停领取新申请。")
+			guard, err := acmelease.AcquireRestart(ctx, deps.DataDir)
+			if err != nil {
+				return fail(ExitFailed, fmt.Errorf("等待证书任务结束失败，未触发重载: %w", err))
+			}
+			defer guard.Release()
+			// Waiting for DNS may use almost the entire admission deadline.
+			// Give the actual handoff its own budget while retaining both locks.
+			handoffCtx, handoffCancel := context.WithTimeout(cmd.Context(), 10*time.Minute)
+			defer handoffCancel()
+			if err := supervisor.TriggerUpgradeAndWait(handoffCtx, deps.DataDir); err != nil {
 				return fail(ExitFailed, fmt.Errorf("滚动重启触发失败: %w", err))
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "已触发零停机滚动重启，请观察日志：新 Worker 就绪后旧 Worker 将优雅排空退出。")
+			fmt.Fprintln(cmd.OutOrStdout(), "滚动重载完成，新 Worker 已接管，证书任务可继续领取。")
 			return nil
 		},
 	})

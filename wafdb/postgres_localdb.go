@@ -163,7 +163,7 @@ func InitCoreDbPostgres() (bool, error) {
 		panic("task initialization failed: " + err.Error())
 	}
 
-	global.GWAF_LOCAL_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
+	RegisterTenantQueryScope(global.GWAF_LOCAL_DB)
 	global.GWAF_LOCAL_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
 	db.Where("user_code = ? and rule_status = 999", global.GWAF_USER_CODE).Delete(model.Rules{})
@@ -192,7 +192,7 @@ func InitLogDbPostgres() (bool, error) {
 		panic("log database initialization failed: " + err.Error())
 	}
 
-	global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
+	RegisterTenantQueryScope(global.GWAF_LOCAL_LOG_DB)
 	global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
 	// live 分片标识用 web_logs 表名（与 ResolveLogDB 的 live 判定一致），不能用库名，否则读取会误入历史分支
@@ -222,7 +222,7 @@ func InitStatsDbPostgres() (bool, error) {
 		panic("stats database initialization failed: " + err.Error())
 	}
 
-	global.GWAF_LOCAL_STATS_DB.Callback().Query().Before("gorm:query").Register("tenant_plugin:before_query", before_query)
+	RegisterTenantQueryScope(global.GWAF_LOCAL_STATS_DB)
 	global.GWAF_LOCAL_STATS_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
 	return false, nil

@@ -97,6 +97,11 @@ func Auth() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
+			if !enums.IsValidRole(enums.NormalizeRole(tokenInfo.Role)) {
+				response.AuthFailWithMessage("账号角色无效，请联系管理员", c)
+				c.Abort()
+				return
+			}
 
 			// IP检查逻辑
 			currentIP := utils.GetManageClientIP(c)

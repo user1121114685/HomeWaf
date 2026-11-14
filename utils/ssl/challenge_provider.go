@@ -3,7 +3,6 @@
 package ssl
 
 import (
-	"HomeWaf/common/zlog"
 	"HomeWaf/internal/dnsproviders"
 	"HomeWaf/wafacme"
 	"fmt"
@@ -50,7 +49,7 @@ func newLoggingWebrootProvider(root, hostCode string) (*loggingWebrootProvider, 
 	if err != nil {
 		// lego 这里只会在目录不存在时报错，但它的错误原文不带路径，
 		// 用户看到 "webroot path does not exist" 也不知道该去建哪个目录。
-		zlog.Error(fmt.Sprintf("%s文件校验目录不可用 路径=%s 错误=%v", acmeLogPrefix, root, err))
+		acmeError(fmt.Sprintf("%s文件校验目录不可用 路径=%s 错误=%v", acmeLogPrefix, root, err))
 		return nil, err
 	}
 	// data 目录 = <root>/../..（root 形如 <程序目录>/data/vhost/<hostCode>），
@@ -70,7 +69,7 @@ func (p *loggingWebrootProvider) Present(domain, token, keyAuth string) error {
 
 	if err := p.inner.Present(domain, token, keyAuth); err != nil {
 		err = fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
-		zlog.Error(fmt.Sprintf("%s文件校验-挑战文件写入失败 域名=%s 路径=%s 错误=%v", acmeLogPrefix, domain, path, err))
+		acmeError(fmt.Sprintf("%s文件校验-挑战文件写入失败 域名=%s 路径=%s 错误=%v", acmeLogPrefix, domain, path, err))
 		return err
 	}
 
@@ -88,7 +87,7 @@ func (p *loggingWebrootProvider) Present(domain, token, keyAuth string) error {
 		size = st.Size()
 	}
 
-	zlog.Info(fmt.Sprintf("%s文件校验-挑战文件已生成 域名=%s 路径=%s 可回读=%s 实际大小=%d 期望大小=%d CA将访问=http://%s%s",
+	acmeInfo(fmt.Sprintf("%s文件校验-挑战文件已生成 域名=%s 路径=%s 可回读=%s 实际大小=%d 期望大小=%d CA将访问=http://%s%s",
 		acmeLogPrefix, domain, path, readBack, size, len(keyAuth), domain, http01.ChallengePath(token)))
 	return nil
 }
@@ -105,11 +104,11 @@ func (p *loggingWebrootProvider) CleanUp(domain, token, keyAuth string) error {
 		err = fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
 		// 删不掉只是留下一个残留文件，不该影响签发结果，所以只告警不升级成错误。
 		// 但要留痕：残留文件会让下一次同名 token 的排查产生误判。
-		zlog.Warn(fmt.Sprintf("%s文件校验-挑战文件清理失败 域名=%s 路径=%s 错误=%v", acmeLogPrefix, domain, path, err))
+		acmeWarn(fmt.Sprintf("%s文件校验-挑战文件清理失败 域名=%s 路径=%s 错误=%v", acmeLogPrefix, domain, path, err))
 		return err
 	}
 
-	zlog.Info(fmt.Sprintf("%s文件校验-挑战文件已清理 域名=%s 路径=%s", acmeLogPrefix, domain, path))
+	acmeInfo(fmt.Sprintf("%s文件校验-挑战文件已清理 域名=%s 路径=%s", acmeLogPrefix, domain, path))
 	return nil
 }
 
@@ -130,10 +129,11 @@ type loggingDNSProvider struct {
 
 func (p *loggingDNSProvider) Present(domain, token, keyAuth string) error {
 	info := dns01.GetChallengeInfo(domain, keyAuth)
+	acmeInfo(fmt.Sprintf("%s正在写入 DNS 验证记录 域名=%s 渠道=%s 记录=TXT %s", acmeLogPrefix, domain, p.dnsName, info.FQDN))
 
 	if err := p.inner.Present(domain, token, keyAuth); err != nil {
 		err = fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
-		zlog.Error(fmt.Sprintf("%sDNS校验-记录写入失败 域名=%s 渠道=%s 记录=TXT %s 记录值=%s 错误=%v",
+		acmeError(fmt.Sprintf("%sDNS校验-记录写入失败 域名=%s 渠道=%s 记录=TXT %s 记录值=%s 错误=%v",
 			acmeLogPrefix, domain, p.dnsName, info.FQDN, info.Value, err))
 		return err
 	}
@@ -142,7 +142,7 @@ func (p *loggingDNSProvider) Present(domain, token, keyAuth string) error {
 	if info.EffectiveFQDN != info.FQDN {
 		cnameTip = fmt.Sprintf(" 实际生效FQDN=%s(存在CNAME委托)", info.EffectiveFQDN)
 	}
-	zlog.Info(fmt.Sprintf("%sDNS校验-记录已写入 域名=%s 渠道=%s 记录=TXT %s 记录值=%s%s 提示=接下来等待DNS传播，可用 dig txt %s 自行核对",
+	acmeInfo(fmt.Sprintf("%sDNS校验-记录已写入 域名=%s 渠道=%s 记录=TXT %s 记录值=%s%s 提示=接下来等待DNS传播，可用 dig txt %s 自行核对",
 		acmeLogPrefix, domain, p.dnsName, info.FQDN, info.Value, cnameTip, info.FQDN))
 	return nil
 }
@@ -154,12 +154,12 @@ func (p *loggingDNSProvider) CleanUp(domain, token, keyAuth string) error {
 		err = fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
 		// 同 HTTP-01：删不掉只是留下一条残留 TXT，不该影响签发，但必须留痕，
 		// 否则下次申请时控制台里堆着多条 _acme-challenge 记录，排查会被带偏。
-		zlog.Warn(fmt.Sprintf("%sDNS校验-记录清理失败 域名=%s 渠道=%s 记录=TXT %s 错误=%v",
+		acmeWarn(fmt.Sprintf("%sDNS校验-记录清理失败 域名=%s 渠道=%s 记录=TXT %s 错误=%v",
 			acmeLogPrefix, domain, p.dnsName, info.FQDN, err))
 		return err
 	}
 
-	zlog.Info(fmt.Sprintf("%sDNS校验-记录已清理 域名=%s 渠道=%s 记录=TXT %s", acmeLogPrefix, domain, p.dnsName, info.FQDN))
+	acmeInfo(fmt.Sprintf("%sDNS校验-记录已清理 域名=%s 渠道=%s 记录=TXT %s", acmeLogPrefix, domain, p.dnsName, info.FQDN))
 	return nil
 }
 
@@ -207,9 +207,9 @@ func newLoggingDNSProvider(inner challenge.Provider, dnsName string) challenge.P
 	}
 	if t, ok := inner.(challenge.ProviderTimeout); ok {
 		timeout, interval := t.Timeout()
-		zlog.Info(fmt.Sprintf("%sDNS校验-使用渠道 %s 自带的传播等待参数 超时=%v 间隔=%v", acmeLogPrefix, dnsName, timeout, interval))
+		acmeInfo(fmt.Sprintf("%sDNS校验-使用渠道 %s 自带的传播等待参数 超时=%v 间隔=%v", acmeLogPrefix, dnsName, timeout, interval))
 		return &loggingDNSProviderTimeout{loggingDNSProvider: base, timeout: t}
 	}
-	zlog.Info(fmt.Sprintf("%sDNS校验-渠道 %s 未提供传播等待参数，使用lego默认值", acmeLogPrefix, dnsName))
+	acmeInfo(fmt.Sprintf("%sDNS校验-渠道 %s 未提供传播等待参数，使用lego默认值", acmeLogPrefix, dnsName))
 	return base
 }

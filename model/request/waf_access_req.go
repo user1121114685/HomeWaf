@@ -35,11 +35,11 @@ type WafAccessAccountResetPwdReq struct {
 }
 
 type WafAccessAccountDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafAccessAccountDelReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 
 type WafAccessAccountSearchReq struct {

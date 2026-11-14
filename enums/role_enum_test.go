@@ -31,7 +31,7 @@ func TestNormalizeRole(t *testing.T) {
 		want string
 	}{
 		{"empty falls back to super", "", ROLE_SUPER_ADMIN},
-		{"invalid falls back to super", "garbage", ROLE_SUPER_ADMIN},
+		{"invalid role remains invalid", "garbage", "garbage"},
 		{"super kept", ROLE_SUPER_ADMIN, ROLE_SUPER_ADMIN},
 		{"system kept", ROLE_SYSTEM_ADMIN, ROLE_SYSTEM_ADMIN},
 		{"security kept", ROLE_SECURITY_ADMIN, ROLE_SECURITY_ADMIN},
@@ -47,12 +47,12 @@ func TestNormalizeRole(t *testing.T) {
 }
 
 func TestIsSuperAdmin(t *testing.T) {
-	for _, role := range []string{"", "garbage", ROLE_SUPER_ADMIN} {
+	for _, role := range []string{"", ROLE_SUPER_ADMIN} {
 		if !IsSuperAdmin(role) {
 			t.Errorf("IsSuperAdmin(%q) = false, want true (empty/invalid should fall back to super)", role)
 		}
 	}
-	for _, role := range []string{ROLE_SYSTEM_ADMIN, ROLE_SECURITY_ADMIN, ROLE_AUDIT_ADMIN} {
+	for _, role := range []string{"garbage", ROLE_SYSTEM_ADMIN, ROLE_SECURITY_ADMIN, ROLE_AUDIT_ADMIN} {
 		if IsSuperAdmin(role) {
 			t.Errorf("IsSuperAdmin(%q) = true, want false", role)
 		}

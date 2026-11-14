@@ -18,6 +18,18 @@ func PipelineCertificateChallenge(s *wafpipeline.Snapshot, c *wafpipeline.Reques
 		return "", false
 	}
 	source := s.Config.ACMEHosts[strings.ToLower(u.Hostname())]
+	if source == "" && s.Config.HostCode != "" {
+		names := append([]string{}, s.Config.HostNames...)
+		for _, route := range s.Config.Routes {
+			names = append(names, route.Hosts...)
+		}
+		for _, name := range names {
+			if strings.EqualFold(strings.TrimSuffix(name, "."), strings.TrimSuffix(u.Hostname(), ".")) {
+				source = s.Config.HostCode
+				break
+			}
+		}
+	}
 	if source == "" {
 		return "", false
 	}

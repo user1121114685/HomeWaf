@@ -13,7 +13,7 @@ type WafTamperRuleAddReq struct {
 	Remarks     string `json:"remarks" form:"remarks"`
 }
 type WafTamperRuleEditReq struct {
-	Id          string `json:"id"`
+	Id          string `json:"id" binding:"required,max=64"`
 	HostCode    string `json:"host_code" form:"host_code"`
 	Url         string `json:"url" form:"url"`
 	RuleName    string `json:"rule_name" form:"rule_name"`
@@ -22,10 +22,10 @@ type WafTamperRuleEditReq struct {
 	Remarks     string `json:"remarks" form:"remarks"`
 }
 type WafTamperRuleDetailReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 type WafTamperRuleDelReq struct {
-	Id string `json:"id" form:"id"`
+	Id string `json:"id" form:"id" binding:"required,max=64"`
 }
 type WafTamperRuleRelearnReq struct {
 	Id string `json:"id" form:"id"`

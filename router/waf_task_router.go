@@ -4,6 +4,8 @@ package router
 
 import (
 	"HomeWaf/api"
+	"HomeWaf/enums"
+	"HomeWaf/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,12 +15,12 @@ type WafTaskRouter struct {
 func (receiver *WafTaskRouter) InitWafTaskRouter(group *gin.RouterGroup) {
 	api := api.APIGroupAPP.WafTaskApi
 	router := group.Group("")
-	router.POST("/api/v1/wafhost/task/add", api.AddApi)
+	router.POST("/api/v1/wafhost/task/add", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.AddApi)
 	router.POST("/api/v1/wafhost/task/list", api.GetListApi)
 	router.GET("/api/v1/wafhost/task/detail", api.GetDetailApi)
-	router.POST("/api/v1/wafhost/task/edit", api.ModifyApi)
-	router.GET("/api/v1/wafhost/task/del", api.DelApi)
-	router.GET("/api/v1/wafhost/task/manual_exec", api.ManualExecuteApi)
+	router.POST("/api/v1/wafhost/task/edit", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.ModifyApi)
+	router.GET("/api/v1/wafhost/task/del", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.DelApi)
+	router.GET("/api/v1/wafhost/task/manual_exec", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.ManualExecuteApi)
 	router.GET("/api/v1/wafhost/task/log", api.GetTaskLogApi)
-	router.GET("/api/v1/wafhost/task/log/clear", api.ClearTaskLogApi)
+	router.GET("/api/v1/wafhost/task/log/clear", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.ClearTaskLogApi)
 }

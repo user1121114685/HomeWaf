@@ -30,6 +30,8 @@ const (
 	outboundKeepAlive   = 30 * time.Second
 )
 
+var ErrOutboundAddressDenied = errors.New("目标地址被出站安全策略拒绝")
+
 // outboundAllowEntry 允许清单里的一条：精确主机名，或 IP/CIDR。
 // 刻意不支持通配符——通配符在这种"绕过安全校验"的清单里太容易写宽。
 type outboundAllowEntry struct {
@@ -299,14 +301,14 @@ func dialOutbound(ctx context.Context, network, addr string, allowProxy bool, gu
 
 	if ip := net.ParseIP(host); ip != nil {
 		if !allowHost && !isPublicIP(ip) && !isOutboundIPAllowlisted(ip) {
-			return nil, fmt.Errorf("目标IP %s 属于内网/环回/保留地址，已拒绝", host)
+			return nil, fmt.Errorf("%w：目标IP %s 属于内网/环回/保留地址", ErrOutboundAddressDenied, host)
 		}
 		return dial(addr)
 	}
 
 	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
-		return nil, fmt.Errorf("主机名 %s 解析失败: %v", host, err)
+		return nil, fmt.Errorf("主机名 %s 解析失败: %w", host, err)
 	}
 	if len(ips) == 0 {
 		return nil, fmt.Errorf("主机名 %s 无解析结果", host)
@@ -315,7 +317,7 @@ func dialOutbound(ctx context.Context, network, addr string, allowProxy bool, gu
 	// 攻击者一个稳定的重试窗口，最终仍会连上内网。
 	for _, ia := range ips {
 		if !allowHost && !isPublicIP(ia.IP) && !isOutboundIPAllowlisted(ia.IP) {
-			return nil, fmt.Errorf("主机名 %s 解析到内网/保留地址 %s，已拒绝", host, ia.IP.String())
+			return nil, fmt.Errorf("%w：主机名 %s 解析到内网/保留地址 %s", ErrOutboundAddressDenied, host, ia.IP.String())
 		}
 	}
 	var lastErr error

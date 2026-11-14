@@ -4,6 +4,8 @@ package router
 
 import (
 	"HomeWaf/api"
+	"HomeWaf/enums"
+	"HomeWaf/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,5 +17,5 @@ func (receiver *NotifyLogRouter) InitNotifyLogRouter(group *gin.RouterGroup) {
 	router := group.Group("")
 	router.POST("/api/v1/notify/log/list", api.GetListApi)
 	router.GET("/api/v1/notify/log/detail", api.GetDetailApi)
-	router.GET("/api/v1/notify/log/del", api.DelApi)
+	router.GET("/api/v1/notify/log/del", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.DelApi)
 }

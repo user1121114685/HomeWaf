@@ -30,12 +30,9 @@ func IsValidRole(role string) bool {
 
 // NormalizeRole 归一化角色：空角色（历史账号、未赋角色）一律视为超级管理员，
 // 保证向后兼容——绝不因为引入 RBAC 把现网已存在账号锁死。
-// 非法角色同样兜底为超级管理员，避免误降权后无人可管理。
+// 非法的非空角色保留原值，鉴权必须拒绝，不能提升为超级管理员。
 func NormalizeRole(role string) string {
 	if role == "" {
-		return ROLE_SUPER_ADMIN
-	}
-	if !IsValidRole(role) {
 		return ROLE_SUPER_ADMIN
 	}
 	return role
