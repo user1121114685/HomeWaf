@@ -58,8 +58,8 @@
         </template>
       </hw-tab-panel>
     </hw-tabs>
-    <hw-content :class="`${prefix}-content-layout`">
-      <layout-breadcrumb v-if="setting.showBreadcrumb" />
+    <hw-content id="console-main" tabindex="-1" :class="`${prefix}-content-layout`">
+      <layout-breadcrumb v-if="setting.showBreadcrumb && !['DashboardStart', 'WafPipeline', 'WafPipelineTemplates'].includes($route.name)" />
       <common-content />
     </hw-content>
     <hw-footer v-if="showFooter" :class="`${prefix}-footer-layout`">

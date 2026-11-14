@@ -78,6 +78,9 @@ import (
 //go:embed exedata/ip2region.xdb
 var Ip2regionBytes []byte // 当前目录，解析为[]byte类型
 
+//go:embed exedata/ip2region_v6.xdb
+var Ip2regionV6Bytes []byte
+
 // GeoLite2-Country.mmdb 自 1.3.24-beta.6 起不再内嵌，
 // 把它编进发行的二进制等同于再分发。需要 GeoLite2 的用户可自行到 MaxMind 官网下载 mmdb
 // 放进 data/ 目录，程序会照常加载。IPv6 默认改用 ip2region（Apache-2.0，可自由分发）。
@@ -169,8 +172,8 @@ func (m *wafSystenService) run() {
 	// 创建 IP Location Manager
 	global.GIPLOCATION_MANAGER = iplocation.NewManager()
 	// 注册内置数据库，供 manager 在磁盘无文件时兜底加载。
-	// GeoLite2 已去内嵌，这里只剩 IPv4 的 ip2region 一份兜底。
-	iplocation.SetBuiltinData(Ip2regionBytes, nil)
+	// IPv4/IPv6 均有离线 ip2region 兜底；用户自备文件仍优先。
+	iplocation.SetBuiltinData(Ip2regionBytes, nil, Ip2regionV6Bytes)
 
 	// 加载优先级与热重载共用同一份实现（磁盘文件 > 内置数据 > 同类型其它来源降级）。
 	// IP 库属于「有更好、没有也得能跑」的辅助数据：任何加载失败都只告警，

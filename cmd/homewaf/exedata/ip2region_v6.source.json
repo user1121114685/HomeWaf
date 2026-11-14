@@ -1,0 +1,9 @@
+{
+  "source": "https://raw.githubusercontent.com/lionsoul2014/ip2region/200f4cc7a6452843ef515a889c72d295281e8da3/data/ip2region_v6.xdb",
+  "commit": "200f4cc7a6452843ef515a889c72d295281e8da3",
+  "git_blob_sha1": "d0eb5b3ea98589c8b6ad77e9e7d5fd5afe600971",
+  "sha256": "1f0be1ffbbc3e4eeef10f354e01355f22f57ec649a496a17fd602539f3d384c1",
+  "bytes": 37283761,
+  "license": "Apache-2.0",
+  "field_format": "opensource"
+}

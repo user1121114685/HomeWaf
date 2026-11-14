@@ -52,6 +52,7 @@ dist/
 /artifacts/
 
 /web/.cache/
+/web/.taste-skill/
 /.homewaf-keys/
 
 # Temporary migration and dependency audit reports belong in artifacts/ or .cache/.

@@ -3,5 +3,7 @@
 LICENSES/** whitespace=-blank-at-eol,-blank-at-eof
 # Keep the consolidated original texts and their SHA-256 index byte-for-byte.
 LICENSES/THIRD_PARTY.txt -text
+LICENSES/ip2region/LICENSE.txt -text
+*.xdb -text
 internal/**/LICENSE* whitespace=-blank-at-eol,-blank-at-eof
 internal/captchaassets/OFL.txt whitespace=-blank-at-eol,-blank-at-eof

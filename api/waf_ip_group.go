@@ -15,6 +15,7 @@ type WafIPGroupApi struct {
 
 // AddApi 新增IP组
 // @Summary      新增IP组
+// @Description  initial_ips 可选，与新组原子保存；任一地址无效则全部不保存
 // @Description  新增一个可跨站点复用的IP组
 // @Tags         网站防护-IP组
 // @Accept       json
@@ -122,7 +123,7 @@ func (w *WafIPGroupApi) ModifyApi(c *gin.Context) {
 
 // GetRefsApi 查询IP组的引用情况
 // @Summary      查询IP组的引用情况
-// @Description  返回该组被多少条黑/白名单引用、涉及哪些站点，供删除前确认
+// @Description  返回旧站点黑/白名单和新服务端口的引用；ports 包含 port、name、allow、block，用于展示联动与删除保护
 // @Tags         网站防护-IP组
 // @Produce      json
 // @Param        group_code  query     string  true  "组短码"
@@ -140,7 +141,7 @@ func (w *WafIPGroupApi) GetRefsApi(c *gin.Context) {
 
 // DelApi 删除IP组
 // @Summary      删除IP组
-// @Description  默认拒绝删除被引用的组；force=1 时级联删除引用它的黑/白名单条目
+// @Description  新服务引用必须先在服务配置中解除；force=1 仅适用于旧站点黑/白名单条目，不会移除服务引用
 // @Tags         网站防护-IP组
 // @Produce      json
 // @Param        id     query     string  true   "记录ID"

@@ -11,14 +11,29 @@ import (
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
 	"HomeWaf/wafenginecore/ipset"
+	"HomeWaf/wafpipeline"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"gorm.io/gorm"
 	"strings"
+	"sync"
 	"time"
 )
 
 type WafIPGroupService struct{}
 
 var WafIPGroupServiceApp = new(WafIPGroupService)
+
+// A port save must not race with removal of a newly referenced shared group.
+var pipelineGroupReferenceMu sync.RWMutex
+
+type IPGroupRefPort struct {
+	Port  uint16 `json:"port"`
+	Name  string `json:"name"`
+	Allow bool   `json:"allow"`
+	Block bool   `json:"block"`
+}
 
 // IPGroupRefHost IP 组在某个站点上的引用情况
 type IPGroupRefHost struct {
@@ -34,6 +49,7 @@ type IPGroupRefs struct {
 	BlockCount int              `json:"block_count"`
 	AllowCount int              `json:"allow_count"`
 	Hosts      []IPGroupRefHost `json:"hosts"`
+	Ports      []IPGroupRefPort `json:"ports"`
 }
 
 func (receiver *WafIPGroupService) AddApi(req request.WafIPGroupAddReq) (model.IPGroup, error) {
@@ -59,9 +75,33 @@ func (receiver *WafIPGroupService) AddApi(req request.WafIPGroupAddReq) (model.I
 		GroupCode: code,
 		Remarks:   req.Remarks,
 	}
-	if err := global.GWAF_LOCAL_DB.Create(bean).Error; err != nil {
+	if len(req.InitialIPs) > 10000 {
+		return model.IPGroup{}, errors.New("新建IP组最多包含10000条地址")
+	}
+	items := make([]*model.IPGroupItem, 0, len(req.InitialIPs))
+	seen := map[string]bool{}
+	for _, value := range req.InitialIPs {
+		value = strings.TrimSpace(value)
+		if err := validateGroupItemIP(value); err != nil {
+			return model.IPGroup{}, fmt.Errorf("IP %q：%w", value, err)
+		}
+		if !seen[value] {
+			items = append(items, newGroupItem(code, value, ""))
+			seen[value] = true
+		}
+	}
+	if err := global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(bean).Error; err != nil {
+			return err
+		}
+		if len(items) > 0 {
+			return tx.CreateInBatches(items, 100).Error
+		}
+		return nil
+	}); err != nil {
 		return model.IPGroup{}, err
 	}
+	bean.ItemCount = len(items)
 	return *bean, nil
 }
 
@@ -212,6 +252,7 @@ func (receiver *WafIPGroupService) GetRefsApi(groupCode string) IPGroupRefs {
 	if groupCode == "" {
 		return refs
 	}
+	refs.Ports, _ = pipelineGroupRefs(groupCode)
 	var blockRows []model.IPBlockList
 	global.GWAF_LOCAL_DB.Where("ip_type = ? AND group_code = ?", model.IPEntryTypeGroup, groupCode).Find(&blockRows)
 	var allowRows []model.IPAllowList
@@ -267,11 +308,20 @@ func (receiver *WafIPGroupService) GetRefsApi(groupCode string) IPGroupRefs {
 // 第 4 步不能提到第 2 步之前：那会出现「引用行还在、匹配集已空」的窗口，
 // 对白名单来说就是短暂失效导致误拦。反过来的中间态只是「按删除前的配置多生效几十毫秒」。
 func (receiver *WafIPGroupService) DelApi(req request.WafIPGroupDelReq) ([]string, error) {
+	pipelineGroupReferenceMu.Lock()
+	defer pipelineGroupReferenceMu.Unlock()
 	var bean model.IPGroup
 	if err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&bean).Error; err != nil {
 		return nil, errors.New("IP组不存在")
 	}
 	refs := receiver.GetRefsApi(bean.GroupCode)
+	ports, err := pipelineGroupRefs(bean.GroupCode)
+	if err != nil {
+		return nil, err
+	}
+	if len(ports) > 0 {
+		return nil, errors.New("该IP组正被服务引用，请先在服务访问限制中移除引用后再删除")
+	}
 	if (refs.BlockCount > 0 || refs.AllowCount > 0) && req.Force != 1 {
 		return nil, errors.New("该IP组正被引用，无法直接删除")
 	}
@@ -301,6 +351,50 @@ func (receiver *WafIPGroupService) DelApi(req request.WafIPGroupDelReq) ([]strin
 	}
 	ipset.RemoveGroupMatcher(bean.GroupCode)
 	return affected, nil
+}
+
+func pipelineGroupRefs(code string) ([]IPGroupRefPort, error) {
+	refs := []IPGroupRefPort{}
+	db := global.GWAF_LOCAL_DB
+	if !db.Migrator().HasTable(&model.PortConfig{}) {
+		return refs, nil
+	}
+	var rows []model.PortConfig
+	if err := db.Select("port", "config_json").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		var config wafpipeline.PortConfig
+		if err := json.Unmarshal([]byte(row.ConfigJSON), &config); err != nil {
+			return nil, errors.New("服务配置无法读取，请修复后再删除IP组")
+		}
+		ref := IPGroupRefPort{Port: uint16(row.Port), Name: config.Name}
+		for _, value := range config.Policy.IPGroup.AllowGroups {
+			ref.Allow = ref.Allow || value == code
+		}
+		for _, value := range config.Policy.IPGroup.DenyGroups {
+			ref.Block = ref.Block || value == code
+		}
+		if ref.Allow || ref.Block {
+			refs = append(refs, ref)
+		}
+	}
+	return refs, nil
+}
+
+func validatePipelineGroups(db *gorm.DB, group wafpipeline.IPGroupConfig) error {
+	for _, codes := range [][]string{group.AllowGroups, group.DenyGroups} {
+		for _, code := range codes {
+			var count int64
+			if err := db.Model(&model.IPGroup{}).Where("group_code = ?", code).Count(&count).Error; err != nil {
+				return err
+			}
+			if count != 1 {
+				return errors.New("所选IP组已不存在，请刷新IP组后重新选择")
+			}
+		}
+	}
+	return nil
 }
 
 // ---------- 匹配集构建与发布 ----------

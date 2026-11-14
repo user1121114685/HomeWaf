@@ -498,7 +498,7 @@ func readDBFile(dataDir, name string) []byte {
 // 这是 manager 数据源加载的唯一入口：启动后置加载、API 保存、手动 reload 都走这里。
 // format 仅对 ip2region 源有意义，geolite2/ipdb 忽略 format。
 //
-// 加载优先级：dataDir 下的磁盘文件 > 内置数据（仅 ip2region IPv4）> 同类型的其它可用来源。
+// 加载优先级：dataDir 下的磁盘文件 > 内置 ip2region IPv4/IPv6 > 同类型的其它可用来源。
 //
 // 注意 GeoLite2 自 v1.3.21 起不再随程序内置（MaxMind 商业再分发授权所限，见
 // SamWafTechDoc/Plan/2026-08-11-GeoLite2去内嵌-实施计划.md）。因此配置写着 geolite2
@@ -554,16 +554,18 @@ func (m *Manager) ReloadFromConfig(dataDir, v4Source, v6Source, v4Format, v6Form
 
 	// IPv6（非 ipdb 来源）
 	loadV6Ip2Region := func() error {
-		// IPv6 的 ip2region 无内置数据，只能来自 data/ip2region_v6.xdb
-		// （在线下载或用户自行从 Gitee/GitHub 下载放入）
 		data := readDBFile(dataDir, "ip2region_v6.xdb")
+		builtin, format := false, DBFormat(v6Format)
 		if data == nil {
+			data, builtin, format = builtinIp2RegionV6, true, FormatOpenSource
+		}
+		if len(data) == 0 {
 			return nil
 		}
-		if err := m.LoadV6Ip2Region(data, DBFormat(v6Format)); err != nil {
+		if err := m.LoadV6Ip2Region(data, format); err != nil {
 			return fmt.Errorf("重新加载 IPv6 数据库失败: %w", err)
 		}
-		m.SetV6Builtin(false)
+		m.SetV6Builtin(builtin)
 		return nil
 	}
 

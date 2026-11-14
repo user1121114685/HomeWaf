@@ -133,6 +133,42 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 		if p.Deny.Contains(ip, now) {
 			return Verdict{Action: Deny, Reason: "blacklist:custom", Status: 403}, nil
 		}
+		group := s.Config.Policy.IPGroup
+		// Resolve the shared snapshot on every request: editing a group updates all
+		// referencing services without copying its addresses into port policies.
+		groupAllowed := false
+		matchers := make(map[string]*ipset.MatchSet, len(group.DenyGroups)+len(group.AllowGroups))
+		for _, codes := range [][]string{group.DenyGroups, group.AllowGroups} {
+			for _, code := range codes {
+				if matchers[code] == nil {
+					matchers[code] = ipset.GetGroupMatcher(code)
+				}
+				if matchers[code] == nil {
+					return Verdict{Action: Deny, Reason: "ip:group_unavailable", Status: 503}, nil
+				}
+			}
+		}
+		for _, code := range group.DenyGroups {
+			if matchers[code].Contains(ip) {
+				return Verdict{Action: Deny, Reason: "blacklist:group", Status: 403}, nil
+			}
+		}
+		for _, code := range group.AllowGroups {
+			groupAllowed = groupAllowed || matchers[code].Contains(ip)
+		}
+		var geo GeoResult
+		if !protectedAddress(c.ClientIP) && (len(group.Regions)+len(group.DeniedRegions) > 0 || group.BlockOutsideMainland) {
+			if r.Geo != nil {
+				geo = r.Geo.Lookup(c.ClientIP)
+			}
+			// Explicit geographic denies also take precedence over trusted entries.
+			if group.BlockOutsideMainland && !mainlandChina(geo) {
+				return Verdict{Action: Deny, Reason: "blacklist:outside_mainland", Status: 403}, nil
+			}
+			if matchesRegion(geo, group.DeniedRegions) {
+				return Verdict{Action: Deny, Reason: "blacklist:region", Status: 403}, nil
+			}
+		}
 		trusted := p.Trusted.Contains(ip, now)
 		protected := protectedAddress(c.ClientIP)
 		if r.Protected != nil && r.Protected(c.ClientIP) {
@@ -179,18 +215,14 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 		if !protected && s.Config.Policy.Honeypot.Enabled && r.State != nil && r.State.InHoneypot(c.PortID, c.ClientIP) {
 			return Verdict{Action: Honeypot, Reason: "honeypot:state"}, nil
 		}
+		if groupAllowed {
+			return Verdict{Action: Continue, Reason: "whitelist:group", Status: 0}, nil
+		}
 		if p.AllowOnly.Contains(ip, now) {
 			return Verdict{Action: Continue, Reason: "whitelist:allow_only"}, nil
 		}
-		if !protected && r.Geo != nil && len(s.Config.Policy.IPGroup.Regions) > 0 {
-			geo := r.Geo.Lookup(c.ClientIP)
-			if geo.OK {
-				for _, allowed := range s.Config.Policy.IPGroup.Regions {
-					if strings.EqualFold(allowed.Country, geo.Country) && (allowed.Province == "" || strings.EqualFold(allowed.Province, geo.Province)) {
-						return Verdict{Action: Continue, Reason: "whitelist:region"}, nil
-					}
-				}
-			}
+		if !protected && matchesRegion(geo, group.Regions) {
+			return Verdict{Action: Continue, Reason: "whitelist:region"}, nil
 		}
 		action := s.Config.Policy.IPGroup.UnlistedAction
 		status := 0

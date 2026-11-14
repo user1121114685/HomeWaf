@@ -70,7 +70,7 @@ export const getSafeRedirectUrl = (): string => {
   }
 
   // 默认跳转到dashboard首页，而不是根路径
-  return '/dashboard/base';
+  return '/dashboard/start';
 };
 
 interface IOption {

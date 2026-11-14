@@ -3,6 +3,9 @@
 # HomeWaf source build with pinned base images; update digests deliberately.
 FROM node:26.13.0-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS web
 WORKDIR /src
+COPY scripts/prepare-ip-databases.mjs ./scripts/
+COPY cmd/homewaf/exedata/ip2region_v6.xdb cmd/homewaf/exedata/ip2region_v6.source.json ./cmd/homewaf/exedata/
+RUN node scripts/prepare-ip-databases.mjs --check
 COPY web/package*.json ./web/
 COPY web/scripts ./web/scripts
 COPY web/vendor ./web/vendor

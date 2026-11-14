@@ -71,6 +71,8 @@ func BuiltinTemplates() []Template {
 func TemplateFromPort(id, name string, c PortConfig) Template {
 	p := CloneConfig(c).Policy
 	p.IPGroup.Entries = []IPEntry{}
+	p.IPGroup.AllowGroups = nil
+	p.IPGroup.DenyGroups = nil
 	p.Network.TrustedProxies = []string{}
 	p.Gate.ExemptIPs = []string{}
 	if p.RuleSet.Callback != nil {
@@ -85,7 +87,7 @@ func ValidateTemplate(t Template) error {
 	if t.Schema != SchemaVersion || t.Version < 1 || t.ID == "" || len(t.ID) > 64 || t.Name == "" || len(t.Name) > 128 {
 		return fmt.Errorf("invalid template metadata")
 	}
-	if len(t.Policy.IPGroup.Entries) != 0 || len(t.Policy.Network.TrustedProxies) != 0 || len(t.Policy.Gate.ExemptIPs) != 0 {
+	if len(t.Policy.IPGroup.Entries) != 0 || len(t.Policy.IPGroup.AllowGroups)+len(t.Policy.IPGroup.DenyGroups) != 0 || len(t.Policy.Network.TrustedProxies) != 0 || len(t.Policy.Gate.ExemptIPs) != 0 {
 		return fmt.Errorf("templates cannot contain manually entered IP entries or proxy CIDRs")
 	}
 	if t.Policy.RuleSet.Callback != nil && len(t.Policy.RuleSet.Callback.Networks) > 0 {
@@ -150,8 +152,10 @@ func ApplyTemplate(c PortConfig, t Template, sections []string) (PortConfig, err
 			out.Policy.Access = p.Access
 		case "ip_group":
 			entries := out.Policy.IPGroup.Entries
+			allowGroups, denyGroups := out.Policy.IPGroup.AllowGroups, out.Policy.IPGroup.DenyGroups
 			out.Policy.IPGroup = p.IPGroup
 			out.Policy.IPGroup.Entries = entries
+			out.Policy.IPGroup.AllowGroups, out.Policy.IPGroup.DenyGroups = allowGroups, denyGroups
 		case "ruleset":
 			var networks []string
 			if out.Policy.RuleSet.Callback != nil {

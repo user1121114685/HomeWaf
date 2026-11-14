@@ -1,39 +1,25 @@
 <template>
   <div class="port-editor" data-testid="port-editor" :aria-busy="busy">
     <ElAlert v-if="error" :title="error" type="error" :closable="false" class="space" />
-    <template v-if="isNew">
-      <ElSteps :active="wizardStep" finish-status="success" align-center class="space"><ElStep title="端口与上游" /><ElStep title="选择模板" /><ElStep title="访问账号" /><ElStep title="解释与创建" /></ElSteps>
-      <section v-if="wizardStep === 0">
-        <Fields :model="draft" :definitions="basicFields" />
-        <ElAlert title="新端口创建后不会自动监听。上游测试只检查 TCP 可达性，不验证业务账号或 TLS 信任。" type="info" :closable="false" class="space" />
-        <div v-if="draft.protocol === 'https'" class="two-columns"><label>TLS 证书 PEM<ElInput v-model="secrets.tls_certificate" type="textarea" :rows="4" aria-label="TLS 证书 PEM" /></label><label>TLS 私钥 PEM<ElInput v-model="secrets.tls_private_key" type="textarea" :rows="4" aria-label="TLS 私钥 PEM" /><small>只提交到实例加密存储，不导出到模板。</small></label></div>
-      </section>
-      <section v-if="wizardStep === 1">
-        <label>起始模板<ElSelect v-model="selectedTemplate" aria-label="起始模板" @change="applyWizardTemplate"><ElOption label="保留当前草稿" value="" /><ElOption v-for="tpl in templates" :key="tpl.id" :label="tpl.name" :value="tpl.id" /></ElSelect></label>
-        <div class="policy-summary"><span>陌生来源：{{ draft.policy.ip_group.unlisted_action }}</span><span>认证：{{ draft.policy.gate.require_token ? '必须使用服务令牌' : draft.policy.gate.enabled ? '需要账号' : '关闭' }}</span><span>自动处罚：{{ draft.policy.hit_policy.enabled ? '开启' : '关闭' }}</span></div>
-        <p class="muted">模板应用即复制，之后独立调整；模板更新不会自动改变这个端口。</p>
-      </section>
-      <section v-if="wizardStep === 2">
-        <ElSwitch v-model="draft.policy.gate.enabled" :disabled="draft.policy.gate.require_token" active-text="启用本端口登录门" aria-label="新端口登录门" />
-        <ElAlert v-if="draft.policy.gate.require_token" title="此模板必须使用服务令牌。创建草稿后，到第3步登录门设置生成令牌，再启用监听；缺失或错误令牌返回401，不回源。" type="warning" :closable="false" class="space" />
-        <ElAlert v-if="draft.policy.gate.enabled" title="必须建立至少一个账号；口令至少10字符，不能是弱口令或与用户名相同。不同端口账号独立。" type="warning" :closable="false" class="space" />
-        <div v-if="draft.policy.gate.enabled" class="two-columns"><label>初始账号<ElInput v-model="secrets.initial_username" autocomplete="off" aria-label="初始账号" maxlength="128" /></label><label>初始口令<ElInput v-model="secrets.initial_password" type="password" show-password autocomplete="new-password" aria-label="初始口令" maxlength="72" /></label></div>
-        <p v-else-if="!draft.policy.gate.require_token" class="muted">业务将依靠 IP 组与攻击检测保护；也可稍后增加本端口账号再开启登录门。</p>
-      </section>
-      <section v-if="wizardStep === 3">
-        <p>模拟一个陌生来源访问 <code>/</code>。此操作不回源、不建立会话、不产生处罚。</p>
-        <ElButton :loading="busy" @click="explain">重新解释当前配置</ElButton><Trace :result="preview" class="space" />
-        <ElAlert title="创建后状态为「未监听」。回到总览确认预览后再启用；观察启动只放宽攻击检测与处罚，登录门和IP访问限制仍然有效。" type="info" :closable="false" class="space" />
-      </section>
-      <div class="editor-actions"><ElButton v-if="wizardStep > 0" :disabled="busy" @click="wizardStep--">上一步</ElButton><ElButton v-if="wizardStep < 3" type="primary" :loading="busy" @click="nextWizard">{{ wizardStep === 0 ? '检查并继续' : '下一步' }}</ElButton><ElButton v-else type="primary" :disabled="!preview || previewKey !== JSON.stringify(draft)" :loading="busy" @click="save">创建为未监听</ElButton></div>
-    </template>
+    <GuidedSetup v-if="isNew" :config="config" :templates="templates" @saved="emit('saved', $event)" @busy="emit('busy', $event)" />
     <template v-else>
       <div class="editor-top"><strong>{{ draft.protocol.toUpperCase() }} :{{ draft.port }} · {{ draft.name || '未命名端口' }}</strong><ElTag>{{ draft.listen_enabled ? '正在监听' : '未监听' }}</ElTag><span>配置版本 {{ draft.revision }}</span></div>
+      <div class="editor-mode"><span>日常调整从常用设置开始，详细规则按需展开。</span><ElButton :aria-expanded="advancedMode" @click="advancedMode = !advancedMode; activeTab = 'common'">{{ advancedMode ? '收起高级配置' : '显示高级配置' }}</ElButton></div>
       <ElTabs v-model="activeTab">
-        <ElTabPane label="1 · 访问开关" name="access"><Fields :model="draft.policy.access" :definitions="fields.access" /><p class="muted">最近访问开关变更：{{ timeText(config.access_changed_at) }} · {{ config.access_changed_by || '未记录操作人' }}</p><h3>端口基本信息</h3><Fields :model="draft" :definitions="basicFields.filter(f => f.path !== 'port')" /></ElTabPane>
-        <ElTabPane label="2 · IP 组" name="ip_group">
+        <ElTabPane label="常用设置" name="common">
+          <section class="common-settings"><h3>服务连接</h3><p>修改名称或现有服务地址，保存后只更新这个服务。</p><Fields :model="draft" :definitions="[{path:'name',label:'服务名称',help:'为这个服务取一个容易识别的名称。'},{path:'upstream',label:'现有服务地址',help:'填写完整的 HTTP 或 HTTPS 地址。'}]" />
+            <AccessRestrictions :policy="draft.policy" :disabled="busy" @invalid="invalid.accessRestrictions = $event" />
+            <div class="common-setting-row"><div><h3>允许业务访问</h3><p>关闭后暂停这个服务的业务请求，管理控制台仍可使用。</p></div><ElSwitch v-model="draft.policy.access.enabled" aria-label="允许业务访问" /></div>
+            <div class="common-setting-row"><div><h3>访问认证</h3><p>{{ draft.policy.gate.require_token ? '调用方需要服务令牌。首次接入请先生成令牌。' : draft.policy.gate.enabled ? '访客需要先登录，才能进入这个服务。' : '访客直接访问，继续进行防护检测。' }}</p></div><ElButton @click="openAdvanced('ruleset', ['gate'])">{{ draft.policy.gate.require_token ? '管理服务令牌' : '管理访问账号' }}</ElButton></div>
+            <div class="common-setting-row"><div><h3>验证访问规则</h3><p>输入访客 IP，检查地区、IP 组、账号认证和防护规则的实际判定。</p></div><ElButton @click="openAdvanced('explain')">验证来源与防护</ElButton></div>
+            <div class="common-setting-row"><div><h3>防护规则</h3><p>查看命中原因后，再调整具体规则或访问例外。</p></div><ElButton @click="openAdvanced('ruleset', ['controls', 'attacks'])">调整防护规则</ElButton></div>
+            <div class="common-setting-row"><div><h3>HTTPS 与代理</h3><p>证书、域名、代理与转发参数在高级配置中管理。</p></div><ElButton @click="openAdvanced('network')">设置连接参数</ElButton></div>
+          </section>
+        </ElTabPane>
+        <ElTabPane v-if="advancedMode" label="1 · 访问开关" name="access"><Fields :model="draft.policy.access" :definitions="fields.access" /><p class="muted">最近访问开关变更：{{ timeText(config.access_changed_at) }} · {{ config.access_changed_by || '未记录操作人' }}</p><h3>端口基本信息</h3><Fields :model="draft" :definitions="basicFields.filter(f => f.path !== 'port')" /></ElTabPane>
+        <ElTabPane v-if="advancedMode" label="2 · IP 组" name="ip_group">
           <Fields :model="draft.policy.ip_group" :definitions="fields.ip_group" />
-          <ElAlert title="手动 deny 优先于 trusted。trusted 免检和免自动处罚；区域白名单默认 allow_only，仍需登录并经过规则。VPN/内网应填写手动CIDR。" :closable="false" class="space" />
+          <ElAlert title="手动 deny 优先于 trusted。trusted 免检和免自动处罚；区域白名单默认 allow_only，仍需登录并经过规则。地区和共享 IP 组在常用设置中配置；所有黑名单先于 trusted。" :closable="false" class="space" />
           <ElAlert v-if="hasMixedLists" title="同时存在 deny 与 trusted 条目：若范围重叠，deny 优先。请在请求解释中验证家人的真实来源，避免误封。" type="warning" :closable="false" class="space" />
           <h3>手动名单 <ElButton size="small" @click="addIP">添加条目</ElButton></h3>
           <ElTable :data="draft.policy.ip_group.entries || []" size="small">
@@ -44,11 +30,9 @@
             <ElTableColumn label="备注" min-width="130"><template #default="{ row }"><ElInput v-model="row.remark" aria-label="名单备注" /></template></ElTableColumn>
             <ElTableColumn width="70"><template #default="{ $index }"><ElButton link type="danger" @click="draft.policy.ip_group.entries.splice($index, 1)">移除</ElButton></template></ElTableColumn>
           </ElTable>
-          <h3>区域白名单</h3><p class="muted">选项来自当前本地归属地库；归属地并不精确，私网和查不到的来源不会被区域白名单放行。</p>
-          <ElSelectV2 v-model="chosenRegions" :options="regionOptions.map(r => ({label:regionLabel(r),value:regionKey(r)}))" multiple filterable clearable placeholder="选择国家或省份" aria-label="区域白名单" @change="setRegions" />
-          <p v-if="!regions.length" class="muted">暂无可枚举地区，请先配置本地IP库。已有选中项仍保留。</p>
+          <ElButton class="space" @click="activeTab = 'common'">配置地区与共享 IP 组</ElButton>
         </ElTabPane>
-        <ElTabPane label="3 · 规则与登录门" name="ruleset">
+        <ElTabPane v-if="advancedMode" label="3 · 规则与登录门" name="ruleset">
           <ElCollapse v-model="rulePanels">
             <ElCollapseItem title="协议 / QPS / CC / BOT（先执行）" name="controls"><Fields :model="draft.policy.ruleset" :definitions="fields.ruleset" @invalid="invalid.ruleset = $event" /></ElCollapseItem>
             <ElCollapseItem title="端口登录门与账号（攻击正文检测之前）" name="gate">
@@ -72,7 +56,7 @@
             </ElCollapseItem>
           </ElCollapse>
         </ElTabPane>
-        <ElTabPane label="4 · 处罚与蜜罐" name="hit_policy">
+        <ElTabPane v-if="advancedMode" label="4 · 处罚与蜜罐" name="hit_policy">
           <ElAlert title="第4步是异步旁路：只改变后续请求。当前请求动作由第3步决定。trusted和受保护来源只告警，不被自动处罚。" :closable="false" class="space" />
           <Fields :model="draft.policy.hit_policy" :definitions="fields.hit_policy" />
           <h3>单IP累计阈值</h3><p class="muted">再次违规时长×4，上限7天，历史保留30天。以下时间单位均为秒。</p>
@@ -80,7 +64,7 @@
           <h3>内置蜜罐</h3><Fields :model="draft.policy.honeypot" :definitions="fields.honeypot" />
           <h3>可选业务登录观察（JSON）</h3><p class="muted">默认空列表。每条配置 path、method、username_field、password_field、success_statuses、可选success_location_prefix/success_body_contains、body_prefix_bytes（1–8192）。响应正文只采样，不缓存整包。</p><ElInput v-model="businessLoginJSON" type="textarea" :rows="6" aria-label="业务登录观察JSON" @change="parseBusinessLogin" /><p v-if="invalid.businessLogin" role="alert" class="error">业务登录观察必须是合法JSON数组。</p>
         </ElTabPane>
-        <ElTabPane label="5 · 业务代理" name="network">
+        <ElTabPane v-if="advancedMode" label="5 · 业务代理" name="network">
           <ElAlert title="WebSocket、SSE、Range和大文件保持流式。上游TLS默认校验；私有CA可在下方显式配置。" :closable="false" class="space" />
           <Fields :model="draft.policy.network" :definitions="fields.network" @invalid="invalid.network = $event" />
           <h3>网页防篡改基线</h3><p class="muted">响应策略的tamper数组配置id、path、hosts、mode、action（replace/alert）、ignore_query和max_bytes。每端口基线总额1MiB；只从完整200响应学习，基线加密且不随模板导出。重新学习将在保存后使用下一次合格响应，请先确认上游页面正确。</p>
@@ -91,7 +75,7 @@
           <h3>加密业务头</h3><p class="muted">默认配置引用：{{ draft.header_profile || '无' }}。路由可通过 header_profile 引用独立配置。头值可能含有上游令牌，保存后不回显、不随模板导出；留空保留。修改示例：{"配置名称":{"request":[{"header_name":"Authorization","header_value":"Bearer 新令牌"}],"response":[]}}。只更新填写的配置名称。</p><ElInput v-model="businessHeadersJSON" type="textarea" :rows="4" aria-label="加密业务头JSON" autocomplete="off" />
           <h3>响应隐私脱敏</h3><p class="muted">在响应策略的privacy对象设置mode及urls（match: exact/prefix/suffix/contains，value: URL）。复用本地DLP引擎；观察不修改正文，不输出原始识别结果。高级YAML配置加密保存、不回显、不随模板导出，留空保留；没有自定义配置时使用内置规则。</p><ElInput v-model="secrets.privacy_engine_config" type="textarea" :rows="4" aria-label="隐私引擎配置" autocomplete="off" /><ElCheckbox v-model="secrets.clear_privacy_engine_config">清除自定义隐私配置并使用内置规则</ElCheckbox>
         </ElTabPane>
-        <ElTabPane label="解释 / 模板 / 高级" name="explain">
+        <ElTabPane v-if="advancedMode" label="解释 / 模板 / 高级" name="explain">
           <h3>请求解释（不产生处罚）</h3><div class="two-columns"><label>来源IP<ElInput v-model="sample.client_ip" aria-label="解释来源IP" /></label><label>方法<ElInput v-model="sample.method" /></label><label>路径<ElInput v-model="sample.path" aria-label="解释路径" /></label><label>请求头JSON<ElInput v-model="sampleHeaders" type="textarea" :rows="3" /></label><label>样例正文<ElInput v-model="sample.body" type="textarea" :rows="4" /></label></div><ElButton class="space" :loading="busy" @click="explain">解释当前草稿</ElButton><Trace :result="preview" />
           <h3>应用模板 / 从模板更新</h3><p class="muted">来源：{{ draft.template?.id || '独立配置' }} · 版本 {{ draft.template?.version || '—' }}。先查看差异，再只覆盖选中分区；名单条目、可信代理、凭据会保留。</p>
           <ElSelect v-model="selectedTemplate" aria-label="待应用模板"><ElOption v-for="tpl in templates" :key="tpl.id" :label="`${tpl.name} · v${tpl.version}`" :value="tpl.id" /></ElSelect><ElCheckboxGroup v-model="selectedSections" class="space"><ElCheckbox v-for="section in sections" :key="section" :value="section">{{ sectionNames[section] }}</ElCheckbox></ElCheckboxGroup><ElButton @click="previewTemplate">查看模板差异</ElButton>
@@ -116,33 +100,35 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { PropType } from 'vue';
-import { ElAlert, ElButton, ElCheckbox, ElCheckboxGroup, ElCollapse, ElCollapseItem, ElDialog, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElOption, ElSelect, ElSelectV2, ElStep, ElSteps, ElSwitch, ElTable, ElTableColumn, ElTabPane, ElTabs, ElTag } from 'element-plus';
+import { ElAlert, ElButton, ElCheckbox, ElCheckboxGroup, ElCollapse, ElCollapseItem, ElDialog, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElOption, ElSelect, ElSwitch, ElTable, ElTableColumn, ElTabPane, ElTabs, ElTag } from 'element-plus';
 import { pipelineGet, pipelinePost } from '@/apis/pipeline';
 import { clone, fields, modes, parseLines, ruleHelp, ruleNames, sectionNames, sections, type Field, type PolicyTemplate, type PortConfig } from './model';
+import GuidedSetup from './GuidedSetup.vue';
+import AccessRestrictions from './AccessRestrictions.vue';
 import Fields from './Fields.vue'; import Scope from './Scope.vue'; import Trace from './Trace.vue';
 import { newTOTPSecret } from './model';
-const props = defineProps({config:{type:Object as PropType<PortConfig & {access_changed_at?:number;access_changed_by?:string}>,required:true},templates:{type:Array as PropType<PolicyTemplate[]>,required:true},isNew:Boolean});
-const emit = defineEmits(['saved','close']);
-const draft = ref<PortConfig>(clone(props.config)); const busy=ref(false), error=ref(''), activeTab=ref('access'), wizardStep=ref(0);
+const props = defineProps({config:{type:Object as PropType<PortConfig & {access_changed_at?:number;access_changed_by?:string}>,required:true},templates:{type:Array as PropType<PolicyTemplate[]>,required:true},isNew:Boolean,initialTab:{type:String,default:'common'}});
+const emit = defineEmits(['saved','close','busy']);
+const draft = ref<PortConfig>(clone(props.config)); const busy=ref(false), error=ref(''), activeTab=ref(props.initialTab);
+const advancedMode=ref(props.initialTab!=='common');
+function openAdvanced(tab:string, panels?:string[]){advancedMode.value=true;activeTab.value=tab;if(panels)rulePanels.value=panels}
+watch(busy, value => emit('busy', value), { flush: 'sync' });
 const secrets=reactive({initial_username:'',initial_password:'',tls_certificate:'',tls_private_key:'',upstream_ca:'',clear_upstream_ca:false,privacy_engine_config:'',clear_privacy_engine_config:false});
 const businessHeadersJSON=ref('');
 const pluginProfilesJSON=ref('');
 function reloadPlugins(){const plugins=draft.value.policy.ruleset.plugins;if(plugins){plugins.generation=(plugins.generation||0)+1;ElMessage.info('已标记重新加载，请保存端口配置')}}
 async function setGateLogo(event: Event) { const input=event.target as HTMLInputElement; const file=input.files?.[0]; if(!file)return; await run(async()=>{if(file.size>65536||!['image/png','image/jpeg'].includes(file.type))throw new Error('请选择64KiB以内的PNG/JPEG');const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Logo读取失败'));reader.readAsDataURL(file)});draft.value.policy.gate.logo_data=data;input.value=''}); }
 const selectedTemplate=ref(draft.value.template?.id || ''), selectedSections=ref([...sections]), templatePreview=ref<any>(null), preview=ref<any>(null), previewKey=ref('');
-const invalid=reactive<Record<string,boolean>>({}), rulePanels=ref(['controls','gate','attacks']), activeRule=ref<any>(null),ruleVisible=ref(false);
+const invalid=reactive<Record<string,boolean>>({}), rulePanels=ref(props.initialTab==='ruleset'?['gate']:['controls','gate','attacks']), activeRule=ref<any>(null),ruleVisible=ref(false);
 const sample=reactive({client_ip:'198.51.100.25',method:'GET',path:'/',body:''}),sampleHeaders=ref('{"Accept":"text/html"}');
-const accounts=ref<any[]>([]),sessions=ref<any[]>([]),regions=ref<any[]>([]),chosenRegions=ref<string[]>([]),serviceToken=ref('');
+const accounts=ref<any[]>([]),sessions=ref<any[]>([]),serviceToken=ref('');
 const accountVisible=ref(false),editingAccount=ref(false),account=reactive({username:'',password:'',totp_secret:'',clear_totp:false,totp_configured:false,enabled:true,expires_at:0,remark:''});
 const tightenRules=ref<string[]>([]),advancedJSON=ref(''),businessLoginJSON=ref('[]');
 const templatePreviewKey=ref('');
 const thresholdRows=[{key:'critical',label:'critical',ban:true},{key:'high',label:'high',ban:true},{key:'medium',label:'medium',ban:true},{key:'login_ban',label:'持续登录失败',ban:true},{key:'response_404',label:'不同路径404',ban:false},{key:'response_auth',label:'401/403异常',ban:false},{key:'response_5xx',label:'可归因5xx',ban:false}];
 const basicFields:Field[]=[{path:'port',label:'监听端口',kind:'number',min:1,max:65535,help:'每个端口独立配置，不能占用管理端口或已有站点端口。'},{path:'name',label:'端口名称',help:'例如家庭相册、NAS文件。'},{path:'protocol',label:'监听协议',kind:'select',options:[['http','HTTP'],['https','HTTPS']],help:'HTTPS需要证书与私钥。'},{path:'upstream',label:'上游地址',help:'明确填写http(s)://主机:端口，不能在URL中夹带账号密码。'},{path:'host_names',label:'允许的主机名',kind:'lines',help:'每行一个，不含端口；留空接受所有Host。同一端口的所有域名共用安全策略。'}];
-function normalize(){const p=draft.value.policy;p.ip_group.entries ||= [];p.ip_group.regions ||= [];p.ruleset.owasp_scope ||= {};for(const r of p.ruleset.rules||[]){r.scope ||= {};r.params ||= {}};const defaults={login_ban:[600,20,1800],response_404:[60,20,0],response_auth:[300,10,0],response_5xx:[300,5,0]};for(const [key,v] of Object.entries(defaults)){if(!p.hit_policy[key]?.count)p.hit_policy[key]={window_seconds:v[0],count:v[1],ban_seconds:v[2]}};businessLoginJSON.value=JSON.stringify(p.hit_policy.business_login||[],null,2);chosenRegions.value=p.ip_group.regions.map(regionKey)}
+function normalize(){const p=draft.value.policy;p.ip_group.entries ||= [];p.ip_group.regions ||= [];p.ruleset.owasp_scope ||= {};for(const r of p.ruleset.rules||[]){r.scope ||= {};r.params ||= {}};const defaults={login_ban:[600,20,1800],response_404:[60,20,0],response_auth:[300,10,0],response_5xx:[300,5,0]};for(const [key,v] of Object.entries(defaults)){if(!p.hit_policy[key]?.count)p.hit_policy[key]={window_seconds:v[0],count:v[1],ban_seconds:v[2]}};businessLoginJSON.value=JSON.stringify(p.hit_policy.business_login||[],null,2)}
 normalize();
-function regionKey(r:any){return JSON.stringify([r.country,r.province||''])}function regionLabel(r:any){return r.country+(r.province?' / '+r.province:' / 全部省份')}
-const regionOptions=computed(()=>{const map=new Map<string,any>();for(const r of [...regions.value,...draft.value.policy.ip_group.regions]){map.set(regionKey(r),r);map.set(regionKey({country:r.country}),{country:r.country})}return [...map.values()]});
-function setRegions(values:string[]){draft.value.policy.ip_group.regions=values.map(v=>{const [country,province]=JSON.parse(v);return {country,province}})}
 const hasMixedLists=computed(()=>draft.value.policy.ip_group.entries.some(e=>e.type==='deny')&&draft.value.policy.ip_group.entries.some(e=>e.type==='allow'&&e.trust==='trusted'));
 const timeText=(value:number)=>value?new Date(value*1000).toLocaleString('zh-CN'):'未记录';
 function localDate(value:number){if(!value)return '';const d=new Date(value*1000);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
@@ -154,8 +140,6 @@ async function testUpstream(){await run(async()=>{const message=await pipelinePo
 async function relearnTamper(rule:any){await run(async()=>{await ElMessageBox.confirm('保存后将重新学习下一次合格响应。请先确认上游未被篡改。','重新学习防篡改基线',{type:'warning'});rule.generation=(rule.generation||0)+1;rule.learned_at=0;ElMessage.info('已标记重新学习，请保存端口配置')})}
 async function explainNow(){const headers=JSON.parse(sampleHeaders.value);preview.value=await pipelinePost('explain',{config:draft.value,...sample,headers});previewKey.value=JSON.stringify(draft.value)}
 async function explain(){await run(explainNow)}
-async function nextWizard(){await run(async()=>{if(wizardStep.value===0){await pipelinePost('ports/check',draft.value);await pipelinePost('upstream/test',{upstream:draft.value.upstream});if(draft.value.protocol==='https'&&(!secrets.tls_certificate||!secrets.tls_private_key))throw new Error('HTTPS需要证书和私钥')}if(wizardStep.value===2&&draft.value.policy.gate.enabled){if(!secrets.initial_username.trim()||secrets.initial_password.length<10)throw new Error('请设置账号和至少10字符的口令')}wizardStep.value++;if(wizardStep.value===3)await explainNow()})}
-async function applyWizardTemplate(){if(!selectedTemplate.value)return;await run(async()=>{const result=await pipelinePost('templates/preview',{config:draft.value,template_id:selectedTemplate.value,sections:[]});draft.value=result.config;normalize()})}
 async function previewTemplate(){await run(async()=>{if(!selectedTemplate.value||!selectedSections.value.length)throw new Error('请选择模板及至少一个分区');templatePreview.value=await pipelinePost('templates/preview',{config:draft.value,template_id:selectedTemplate.value,sections:selectedSections.value});templatePreviewKey.value=JSON.stringify(draft.value)})}
 async function acceptTemplate(){await run(async()=>{if(templatePreviewKey.value!==JSON.stringify(draft.value))throw new Error('草稿已变化，请重新预览差异');await ElMessageBox.confirm('将选中分区复制到当前草稿，点击保存后才生效。','确认应用模板',{type:'warning'});draft.value=templatePreview.value.config;normalize();templatePreview.value=null;ElMessage.success('已应用到草稿')})}
 async function tighten(){await run(async()=>{if(!tightenRules.value.length)throw new Error('请选择已验证的规则');await ElMessageBox.confirm('确认这些命中不是正常业务？所选规则将对匹配请求执行拦截，保存后生效。','渐进收紧',{type:'warning'});for(const r of draft.value.policy.ruleset.rules)if(tightenRules.value.includes(r.id))r.mode='block';tightenRules.value=[]})}
@@ -171,9 +155,13 @@ async function kick(row:any){await run(async()=>{await ElMessageBox.confirm('立
 async function rotateToken(revoke:boolean){await run(async()=>{await ElMessageBox.confirm(revoke?'撤销后，使用旧服务令牌的客户端将无法登录。':'轮换后旧令牌立即失效，新令牌只显示一次。','服务令牌',{type:'warning'});const result=await pipelinePost('gate/token/rotate',{port:draft.value.port,revoke,revision:draft.value.revision});draft.value.revision=result.revision;serviceToken.value=result.token||'';ElMessage.success(revoke?'服务令牌已撤销':'服务令牌已轮换')})}
 watch(accountVisible,value=>{if(!value){account.password='';account.totp_secret=''}});
 watch([selectedTemplate,()=>selectedSections.value.join(',')],()=>{templatePreview.value=null});
-onMounted(async()=>{try{regions.value=await pipelineGet('regions')}catch{}if(!props.isNew)await loadAccounts()});
+onMounted(async()=>{if(props.isNew)return;if(!props.isNew)await loadAccounts()});
 </script>
 
 <style scoped>
 .port-editor{color:var(--el-text-color-primary)}.space{margin-top:18px;margin-bottom:18px}.two-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.two-columns label,.account-form label{display:flex;flex-direction:column;gap:8px;min-width:0}.muted,.rule-help,small{color:var(--el-text-color-secondary);line-height:1.65;font-size:12px}.rule-help{display:block;margin-top:5px}.policy-summary,.editor-top{display:flex;gap:18px;flex-wrap:wrap;margin:18px 0}.editor-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:18px 0 0;margin-top:24px;border-top:1px solid var(--el-border-color-lighter)}.editor-actions .muted{margin-right:auto}.account-form{display:grid;gap:16px}h3{margin-top:28px;font-size:17px}input[type=datetime-local]{padding:7px;border:1px solid var(--el-border-color);border-radius:4px;background:var(--el-fill-color-blank);color:var(--el-text-color-primary);max-width:100%}pre{padding:12px;background:var(--el-fill-color-light);overflow:auto;max-height:320px;font-size:12px}details{margin:12px 0}summary{cursor:pointer;font-weight:600;padding:10px 0}.error{color:var(--el-color-danger)}@media(max-width:760px){.two-columns{grid-template-columns:1fr}.editor-actions{flex-wrap:wrap}.editor-top{gap:8px}.port-editor :deep(.el-steps){font-size:12px}}
+</style>
+
+<style scoped>
+.editor-mode{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:20px 0}.editor-mode>span{font-size:13px;color:var(--el-text-color-regular)}.editor-mode .el-button,.common-settings .el-button{min-height:44px}.common-settings{max-width:880px;margin:0 auto}.common-settings h3{font-size:16px;font-weight:500;margin:16px 0 8px}.common-settings p{font-size:13px;line-height:1.8;color:var(--el-text-color-regular);margin:0 0 24px}.common-setting-row{display:flex;align-items:center;justify-content:space-between;gap:24px;border-top:1px solid var(--el-border-color-light);padding:24px 0}.common-setting-row:first-of-type{margin-top:28px}.common-setting-row h3{margin:0 0 8px}.common-setting-row p{margin:0}.common-setting-row>.el-button,.common-setting-row>.el-switch{flex-shrink:0}.common-settings :deep(.el-input__wrapper){min-height:44px}.editor-actions{position:sticky;bottom:0;background:var(--el-bg-color);z-index:2;padding:16px 0}.editor-actions .el-button{min-height:44px}@media(max-width:600px){.editor-mode{flex-wrap:wrap}.common-setting-row{flex-wrap:wrap;gap:16px}.editor-actions .muted{width:100%}}
 </style>

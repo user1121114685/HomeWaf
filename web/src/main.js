@@ -19,6 +19,7 @@ import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css';
 import './style/index.less';
 import './ui/theme.css';
+import './ui/workspace.css';
 import './permission';
 async function mountApp() {
   await loadAdminTitles();
@@ -65,6 +66,7 @@ async function mountApp() {
   if (import.meta.hot) import.meta.hot.dispose(() => systemTheme.removeEventListener('change', updateSystemTheme));
   watchEffect(() => {
     i18n.global.locale.value = store.state.language.currentLanguage;
+    document.documentElement.lang = store.state.language.currentLanguage === 'en_US' ? 'en' : 'zh-CN';
     document.title = adminTitles.admin_title || 'HomeWaf Web Application Firewall';
     document.documentElement.classList.toggle('dark', store.getters['setting/mode'] === 'dark');
   });

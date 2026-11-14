@@ -46,10 +46,14 @@ type Region struct {
 	Province string `json:"province,omitempty"`
 }
 type IPGroupConfig struct {
-	Entries        []IPEntry `json:"entries"`
-	Regions        []Region  `json:"regions"`
-	UnlistedAction Action    `json:"unlisted_action"`
-	FeedEnabled    bool      `json:"feed_enabled"`
+	Entries              []IPEntry `json:"entries"`
+	Regions              []Region  `json:"regions"`
+	AllowGroups          []string  `json:"allow_groups,omitempty"`
+	DenyGroups           []string  `json:"deny_groups,omitempty"`
+	DeniedRegions        []Region  `json:"denied_regions,omitempty"`
+	BlockOutsideMainland bool      `json:"block_outside_mainland,omitempty"`
+	UnlistedAction       Action    `json:"unlisted_action"`
+	FeedEnabled          bool      `json:"feed_enabled"`
 }
 type Scope struct {
 	Hosts         []string `json:"hosts,omitempty"`
@@ -598,8 +602,24 @@ func ValidatePolicy(p Policy) error {
 	if p.IPGroup.UnlistedAction != Continue && p.IPGroup.UnlistedAction != Deny && p.IPGroup.UnlistedAction != Honeypot {
 		return fmt.Errorf("invalid unlisted action")
 	}
-	if len(p.IPGroup.Entries) > 100000 || len(p.IPGroup.Regions) > 1000 {
+	if len(p.IPGroup.Entries) > 100000 || len(p.IPGroup.Regions) > 1000 || len(p.IPGroup.DeniedRegions) > 1000 || len(p.IPGroup.AllowGroups)+len(p.IPGroup.DenyGroups) > 256 {
 		return fmt.Errorf("IP group quota exceeded")
+	}
+	for _, codes := range [][]string{p.IPGroup.AllowGroups, p.IPGroup.DenyGroups} {
+		seen := map[string]bool{}
+		for _, code := range codes {
+			if code == "" || len(code) > 128 || strings.TrimSpace(code) != code || seen[code] {
+				return fmt.Errorf("invalid or duplicate IP group reference")
+			}
+			seen[code] = true
+		}
+	}
+	for _, regions := range [][]Region{p.IPGroup.Regions, p.IPGroup.DeniedRegions} {
+		for _, region := range regions {
+			if strings.TrimSpace(region.Country) == "" || len(region.Country) > 128 || len(region.Province) > 128 {
+				return fmt.Errorf("invalid IP region")
+			}
+		}
 	}
 	for _, e := range p.IPGroup.Entries {
 		if _, err := ipset.ParsePattern(e.Value); err != nil {

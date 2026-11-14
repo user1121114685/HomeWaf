@@ -26,6 +26,7 @@ function npm(args) {
     );
   run(process.execPath, [cli, ...args]);
 }
+run(process.execPath, ["scripts/prepare-ip-databases.mjs", "--check"]);
 if (!process.argv.includes("--skip-install")) npm(["ci", "--prefix", "web"]);
 npm(["run", "typecheck", "--prefix", "web"]);
 npm(["run", "build", "--prefix", "web"]);

@@ -47,6 +47,8 @@ IP 数据库独立于软件更新：未配置发行方数据镜像时，`/sys/IP
 
 IPv4、IPv6 的字段格式默认统一为 `opensource`（国家、省份、城市、运营商，可选国家代码），不随发行版本改变。手动选择的 legacy/full/standard/compact 格式仍可用于对应的自备数据库；下载官方开源文件后对应协议自动切换到开源版解析。语言由数据库内容决定，不能根据字段格式推断为纯中文或纯英文。
 
+程序默认内置 IPv4 和 IPv6 地区库，两个 `.xdb` 均随 Git 仓库跟踪，打包和首次运行不依赖数据库下载。IPv6 的固定上游提交、大小和 SHA-256 保存在 `cmd/homewaf/exedata/ip2region_v6.source.json`；标准构建、开发启动和验证会运行 `node scripts/prepare-ip-databases.mjs --check` 进行离线校验。若文件意外丢失可从 Git 恢复，或显式运行 `node scripts/prepare-ip-databases.mjs --download` 恢复固定版本。用户 `data/ip2region_v6.xdb` 仍优先于内置数据，缺少用户自备 GeoLite2 时可回退到内置 IPv6 数据。
+
 | 变量 | 用途 |
 |---|---|
 | HOMEWAF_UPDATE_URL | 发行方 HTTPS 清单根地址；也供公告使用 |

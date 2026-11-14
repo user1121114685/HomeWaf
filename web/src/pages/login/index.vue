@@ -14,7 +14,7 @@
 
       <login v-if="type === 'login'" />
       <register v-else @register-success="switchType('login')" />
-      <homewaf-setting />
+      <HomeWafSetting />
     </div>
 
     <!-- Upstream UI: Copyright 2022-present SamWaf authors; HomeWaf modifications are separately licensed. -->

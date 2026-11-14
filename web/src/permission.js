@@ -10,45 +10,42 @@ NProgress.configure({ showSpinner: false });
 
 const whiteListRouters = store.getters['permission/whiteListRouters'];
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to) => {
   NProgress.start();
-  if (to.path === '/help' || to.name === 'DashboardShared') { next(); return; }
+  if (to.path === '/help' || to.name === 'DashboardShared') return;
 
   const token = store.getters['user/token'];
 
   if (token) {
     if (to.path === '/login') {
-      setTimeout(() => {
-        store.dispatch('user/logout');
-        store.dispatch('permission/restore');
-      });
-      next();
+      await store.dispatch('user/logout');
+      await store.dispatch('permission/restore');
       return;
     }
 
     const roles = store.getters['user/roles'];
 
     if (roles && roles.length > 0) {
-      next();
+      return;
     } else {
       try {
         await store.dispatch('user/getUserInfo');
 
         await store.dispatch('permission/initRoutes', store.getters['user/roles']);
 
-        next({ ...to });
+        return;
       } catch (error) {
         await store.commit('user/removeToken');
-        next(`/login?redirect=${to.path}`);
         NProgress.done();
+        return { path: '/login', query: { redirect: to.fullPath } };
       }
     }
   } else {
     /* white list router */
     if (whiteListRouters.indexOf(to.path) !== -1) {
-      next();
+      return;
     } else {
-      next(`/login?redirect=${to.path}`);
+      return { path: '/login', query: { redirect: to.fullPath } };
     }
     NProgress.done();
   }
