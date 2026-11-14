@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -16,6 +17,8 @@ import (
 )
 
 type WafSystemMonitorService struct {
+	diskMonitor      diskMonitorCache
+	netStatsMu       sync.Mutex
 	lastNetStats     *net.IOCountersStat // 上次网络统计数据
 	lastNetStatsTime time.Time           // 上次统计时间
 }
@@ -43,7 +46,8 @@ func (receiver *WafSystemMonitorService) GetSystemMonitorInfo() (response.WafSys
 	// 获取磁盘信息
 	diskInfo, err := receiver.getDiskInfo()
 	if err != nil {
-		return result, fmt.Errorf("获取磁盘信息失败: %v", err)
+		// A slow or unavailable drive must not suppress fresh CPU/memory data.
+		result.DiskError = err.Error()
 	}
 	result.Disk = diskInfo
 
@@ -119,6 +123,10 @@ func (receiver *WafSystemMonitorService) getMemoryInfo() (response.WafMemoryInfo
 
 // getDiskInfo 获取磁盘信息
 func (receiver *WafSystemMonitorService) getDiskInfo() ([]response.WafDiskInfo, error) {
+	return receiver.diskMonitor.snapshot(receiver.collectDiskInfo, 500*time.Millisecond)
+}
+
+func (receiver *WafSystemMonitorService) collectDiskInfo() ([]response.WafDiskInfo, error) {
 	var diskInfos []response.WafDiskInfo
 
 	// 获取磁盘分区信息
@@ -170,6 +178,8 @@ func (receiver *WafSystemMonitorService) formatBytes(bytes uint64) string {
 
 // getNetworkInfo 获取网络信息
 func (receiver *WafSystemMonitorService) getNetworkInfo() (response.WafNetworkInfo, error) {
+	receiver.netStatsMu.Lock()
+	defer receiver.netStatsMu.Unlock()
 	var networkInfo response.WafNetworkInfo
 	currentTime := time.Now()
 

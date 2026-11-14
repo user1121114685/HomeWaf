@@ -190,6 +190,7 @@ export default defineComponent({
     return {
       loading: false,
       error: false,
+      disposed: false,
       refreshTimer: null,
       isMonitorVisible: false,
     };
@@ -230,20 +231,32 @@ export default defineComponent({
       return 'Memory';
     }
   },
+  watch: {
+    isMonitorVisible(visible: boolean) {
+      if (visible) this.fetchSystemInfo();
+    },
+  },
   mounted() {
-    this.fetchSystemInfo();/**
-    // 每10秒自动刷新一次
-    this.refreshTimer = setInterval(() => {
-      this.fetchSystemInfo();
-    }, 10*1000);*/
+    // WebSocket statistics are optional. Keep the header current even when
+    // pushes are disabled or disconnected instead of retaining a startup peak.
+    this.fetchSystemInfo();
+    this.refreshTimer = window.setInterval(this.refreshIfVisible, 10 * 1000);
+    document.addEventListener('visibilitychange', this.refreshIfVisible);
   },
   beforeUnmount() {
-    if (this.refreshTimer) {
-      clearInterval(this.refreshTimer);
+    this.disposed = true;
+    if (this.refreshTimer !== null) {
+      window.clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
     }
+    document.removeEventListener('visibilitychange', this.refreshIfVisible);
   },
   methods: {
     ...mapMutations('stats', ['setSystemMonitor']),
+
+    refreshIfVisible() {
+      if (document.visibilityState === 'visible') this.fetchSystemInfo();
+    },
 
     onPopupVisibleChange(visible: boolean, context) {
       if (context?.trigger === 'trigger-element-click') {
@@ -255,27 +268,28 @@ export default defineComponent({
 
     // 获取系统监控数据
     fetchSystemInfo() {
+      if (this.loading || this.disposed) return;
       let that = this;
       this.loading = true;
-      this.error = false;
       getSystemMonitorApi()
         .then((res) => {
-          console.log('SystemMonitor API Response:', res);
+          if (that.disposed) return;
           if (res.code === 0) {
             // 将数据存储到Vuex store
             that.setSystemMonitor(res.data);
-            console.log('SystemMonitor Data stored to Vuex:', res.data);
+            that.error = false;
           } else {
             that.error = true;
             console.error('SystemMonitor API Error:', res.msg);
           }
         })
         .catch((e) => {
+          if (that.disposed) return;
           console.error('SystemMonitor API Exception:', e);
           that.error = true;
         })
         .finally(() => {
-          that.loading = false;
+          if (!that.disposed) that.loading = false;
         });
     },
 

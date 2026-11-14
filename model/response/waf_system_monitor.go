@@ -2,10 +2,11 @@ package response
 
 // 系统监控响应结构体
 type WafSystemMonitor struct {
-	CPU     WafCPUInfo     `json:"cpu"`     // CPU信息
-	Memory  WafMemoryInfo  `json:"memory"`  // 内存信息
-	Disk    []WafDiskInfo  `json:"disk"`    // 磁盘信息
-	Network WafNetworkInfo `json:"network"` // 网络信息
+	CPU       WafCPUInfo     `json:"cpu"`                  // CPU信息
+	Memory    WafMemoryInfo  `json:"memory"`               // 内存信息
+	Disk      []WafDiskInfo  `json:"disk"`                 // 磁盘信息
+	DiskError string         `json:"disk_error,omitempty"` // 磁盘未就绪时仍返回其他实时指标
+	Network   WafNetworkInfo `json:"network"`              // 网络信息
 }
 
 // CPU信息
