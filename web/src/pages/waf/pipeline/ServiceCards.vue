@@ -37,6 +37,7 @@
       <p v-else class="service-next">通过 HomeWaf 新入口访问，可在记录中确认请求。</p>
       <footer>
         <ElButton @click="$emit('edit', row.config)">配置服务</ElButton
+        ><ElButton @click="$emit('honeypot', row.config)">蜜罐设置</ElButton
         ><ElButton v-if="!row.config.listen_enabled" type="primary" plain @click="$emit('enable', row)"
           >启用服务</ElButton
         ><ElButton v-else @click="$emit('inspect', row)">查看记录</ElButton>
@@ -62,7 +63,7 @@ import { Connection, MoreFilled } from '@element-plus/icons-vue';
 import { serviceStatus } from './onboarding';
 import { accessSourceSummary } from './accessPolicy';
 defineProps({ rows: { type: Array, required: true } });
-const emit = defineEmits(['edit', 'enable', 'inspect', 'copy', 'template', 'stop', 'remove']);
+const emit = defineEmits(['edit', 'honeypot', 'enable', 'inspect', 'copy', 'template', 'stop', 'remove']);
 function action(command: string, row: any) {
   emit(command as any, ['copy', 'template'].includes(command) ? row.config : row);
 }
@@ -154,6 +155,7 @@ function action(command: string, row: any) {
 }
 .service-card footer {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   border-top: 1px solid var(--el-border-color-lighter);

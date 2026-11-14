@@ -177,13 +177,35 @@ type LoginObservation struct {
 	BodyPrefixBytes       int    `json:"body_prefix_bytes"`
 }
 type HoneypotConfig struct {
-	Enabled               bool     `json:"enabled"`
-	TTLSeconds            int      `json:"ttl_seconds"`
-	MaxConcurrent         int      `json:"max_concurrent"`
-	MaxDelayMillis        int      `json:"max_delay_ms"`
-	TrapPaths             []string `json:"trap_paths,omitempty"`
-	AuthFailThreshold     int      `json:"auth_fail_threshold"`
-	WeakPasswordThreshold int      `json:"weak_password_threshold"`
+	Enabled               bool                    `json:"enabled"`
+	CaptureDenied         bool                    `json:"capture_denied"`
+	TTLSeconds            int                     `json:"ttl_seconds"`
+	MaxConcurrent         int                     `json:"max_concurrent"`
+	MaxDelayMillis        int                     `json:"max_delay_ms"`
+	TrapPaths             []string                `json:"trap_paths,omitempty"`
+	AuthFailThreshold     int                     `json:"auth_fail_threshold"`
+	WeakPasswordThreshold int                     `json:"weak_password_threshold"`
+	Lures                 []HoneypotLure          `json:"lures,omitempty"`
+	DropAfterHits         int                     `json:"drop_after_hits"`
+	DropWindowSeconds     int                     `json:"drop_window_seconds"`
+	DropSeconds           int                     `json:"drop_seconds"`
+	DistributedDrop       HoneypotDistributedDrop `json:"distributed_drop"`
+	ArchiveBody           bool                    `json:"archive_body"`
+	ArchiveMaxBytes       int                     `json:"archive_max_bytes"`
+}
+
+type HoneypotLure struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
+	Weight  int    `json:"weight"`
+}
+
+type HoneypotDistributedDrop struct {
+	Enabled       bool `json:"enabled"`
+	WindowSeconds int  `json:"window_seconds"`
+	DistinctIPs   int  `json:"distinct_ips"`
+	Seconds       int  `json:"seconds"`
 }
 type NetworkConfig struct {
 	MaxProxyHops          int            `json:"max_proxy_hops"`
@@ -313,7 +335,7 @@ func DefaultPolicy() Policy {
 		RuleSet:   RuleSetConfig{Rules: rules, QPS: RateConfig{Mode: ModeBlock, PerIP: 30, PerPort: 300, Burst: 100, StaticMultiplier: 4}, CC: CCConfig{Mode: ModeObserve, WindowSeconds: 10, Threshold: 150, Action: Challenge, ByPath: true, ExcludeStatic: true, ChallengeSeconds: 300}, BOT: ModeObserve, BudgetMillis: 20, View: DefaultViewLimits(), AllowedMethods: []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "PROPFIND", "MKCOL", "MOVE", "COPY", "LOCK", "UNLOCK"}, CSRFMissingOrigin: "observe", OWASP: ModeOff},
 		Gate:      GateConfig{Mode: "form", Prefix: "/__homewaf/gate", Title: "HomeWaf 访问验证", IdleSeconds: 7200, AbsoluteSeconds: 86400, BypassTrusted: true, LoginPerMinute: 10},
 		HitPolicy: HitPolicyConfig{Enabled: true, BanScope: "global", IPv6Prefix: 64, Critical: Threshold{600, 1, 3600}, High: Threshold{600, 3, 1800}, Medium: Threshold{600, 10, 600}, Lockdown: LockdownConfig{WindowSeconds: 60, DistinctIPs: 5, Seconds: 600, CooldownSeconds: 60, Action: Deny}, ProtectPrivate: true, MaxKeys: 1000, IgnorePaths: []string{"/favicon.ico", "/robots.txt"}},
-		Honeypot:  HoneypotConfig{TTLSeconds: 3600, MaxConcurrent: 32, MaxDelayMillis: 250, AuthFailThreshold: 5, WeakPasswordThreshold: 3}, Network: NetworkConfig{MaxProxyHops: 10, TrustedProxies: []string{}, RealIPHeader: "X-Forwarded-For", MaxHeaderBytes: 32 << 10, ReadHeaderSeconds: 10},
+		Honeypot:  HoneypotConfig{TTLSeconds: 3600, MaxConcurrent: 32, MaxDelayMillis: 250, AuthFailThreshold: 5, WeakPasswordThreshold: 3, DropWindowSeconds: 600, DropSeconds: 10800, DistributedDrop: HoneypotDistributedDrop{WindowSeconds: 600, DistinctIPs: 10, Seconds: 10800}, ArchiveMaxBytes: 16 << 10}, Network: NetworkConfig{MaxProxyHops: 10, TrustedProxies: []string{}, RealIPHeader: "X-Forwarded-For", MaxHeaderBytes: 32 << 10, ReadHeaderSeconds: 10},
 	}
 }
 func StrictDecode(data []byte, out any) error {
@@ -797,6 +819,9 @@ func ValidatePolicy(p Policy) error {
 	}
 	if hp.TTLSeconds < 1 || hp.TTLSeconds > 86400 || hp.MaxConcurrent < 1 || hp.MaxConcurrent > 256 || hp.MaxDelayMillis < 0 || hp.MaxDelayMillis > 2000 || hp.AuthFailThreshold < 1 || hp.WeakPasswordThreshold < 1 {
 		return fmt.Errorf("invalid honeypot configuration")
+	}
+	if err := validateHoneypotControls(hp); err != nil {
+		return err
 	}
 	if p.Network.MaxHeaderBytes < 4096 || p.Network.MaxHeaderBytes > 1<<20 || p.Network.ReadHeaderSeconds < 1 || p.Network.ReadHeaderSeconds > 60 || len(p.Network.TrustedProxies) > 256 {
 		return fmt.Errorf("invalid network limits")

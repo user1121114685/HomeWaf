@@ -130,6 +130,15 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 		ip := net.IP(c.ClientIP.AsSlice())
 		now := time.Now().Unix()
 		p := s.Compiled
+		// Apply active honeypot drops before a blacklist can route back to a lure.
+		if state, ok := r.State.(interface {
+			HoneypotDropReason(string, netip.Addr) string
+		}); ok && !protectedAddress(c.ClientIP) && !p.Trusted.Contains(ip, now) && (r.Protected == nil || !r.Protected(c.ClientIP)) {
+			if reason := state.HoneypotDropReason(c.PortID, c.ClientIP); reason != "" {
+				honeypotInteraction(c)
+				return Verdict{Action: Drop, Reason: "honeypot:drop:" + reason}, nil
+			}
+		}
 		if p.Deny.Contains(ip, now) {
 			return Verdict{Action: Deny, Reason: "blacklist:custom", Status: 403}, nil
 		}

@@ -133,6 +133,9 @@ func (r *Runtime) Prepare(s *Snapshot) error {
 	if s.Config.Policy.Network.MaxProxyHops > 0 {
 		steps = append(steps, proxyLoopStep(s))
 	}
+	for i := range steps {
+		steps[i] = captureDeniedStep(s, steps[i])
+	}
 	p, err := New(steps, r.Sink)
 	if err != nil {
 		old, _ := Ports.Get(s.Config.Port)
@@ -204,6 +207,9 @@ func (r *Runtime) Serve(s *Snapshot, w http.ResponseWriter, req *http.Request) {
 		result.Trace = c.Trace.Entries()
 		if v, ok := c.Values["response_verdict"].(Verdict); ok {
 			result.Verdict = v
+		}
+		if interaction, ok := c.Values["honeypot_interaction"].(*HoneypotInteraction); ok {
+			result.Honeypot = interaction
 		}
 		r.recordScriptFailures(s, c, result)
 		if result.Verdict.Action != Allow && result.Verdict.Action != Continue && result.Verdict.Action != Bypass {

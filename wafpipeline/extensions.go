@@ -230,25 +230,36 @@ func (r *Runtime) withExtensions(s *Snapshot, steps []Step) []Step {
 	}
 	return append(steps, additions...)
 }
+func matchesURLPolicy(rule URLRule, candidate string) bool {
+	value := strings.ToLower(rule.Value)
+	switch rule.Match {
+	case "exact":
+		return candidate == value
+	case "prefix":
+		return strings.HasPrefix(candidate, value)
+	case "suffix":
+		return strings.HasSuffix(candidate, value)
+	case "contains":
+		return strings.Contains(candidate, value)
+	}
+	return false
+}
+
 func (r *Runtime) inspectExtensions(s *Snapshot, c *RequestContext) (Verdict, error) {
 	urlValue := strings.ToLower(c.Request.URL.RequestURI())
+	canonicalURL := strings.ToLower(c.View.Path)
+	if c.Request.URL.RawQuery != "" || c.Request.URL.ForceQuery {
+		canonicalURL += "?" + strings.ToLower(c.Request.URL.RawQuery)
+	}
 	allowed := false
 	for _, rule := range s.Config.Policy.RuleSet.URLs {
 		if rule.Mode == ModeOff {
 			continue
 		}
-		value := strings.ToLower(rule.Value)
-		matched := false
-		switch rule.Match {
-		case "exact":
-			matched = urlValue == value
-		case "prefix":
-			matched = strings.HasPrefix(urlValue, value)
-		case "suffix":
-			matched = strings.HasSuffix(urlValue, value)
-		case "contains":
-			matched = strings.Contains(urlValue, value)
-		}
+		// Match denials against both views so encoded paths cannot evade them.
+		// Allow rules retain their raw-URI semantics: normalization must never
+		// create a new permission or a broader attack-detection exception.
+		matched := matchesURLPolicy(rule, urlValue) || rule.Action == Deny && matchesURLPolicy(rule, canonicalURL)
 		if !matched {
 			continue
 		}

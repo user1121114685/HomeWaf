@@ -168,11 +168,12 @@ type Step struct {
 }
 type EventSink interface{ Submit(HitEvent) bool }
 type Result struct {
-	Verdict       Verdict      `json:"verdict"`
-	Trace         []TraceEntry `json:"trace"`
-	Hits          []HitEvent   `json:"hits,omitempty"`
-	ReqID         string       `json:"req_id"`
-	BodyTruncated bool         `json:"body_truncated,omitempty"`
+	Verdict       Verdict              `json:"verdict"`
+	Trace         []TraceEntry         `json:"trace"`
+	Hits          []HitEvent           `json:"hits,omitempty"`
+	ReqID         string               `json:"req_id"`
+	BodyTruncated bool                 `json:"body_truncated,omitempty"`
+	Honeypot      *HoneypotInteraction `json:"honeypot,omitempty"`
 }
 type Pipeline struct {
 	steps []Step

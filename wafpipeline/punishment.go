@@ -49,10 +49,12 @@ type PunishmentChange struct {
 	Event  string           `json:"event"`
 }
 type punishmentView struct {
-	Bans      map[string]map[netip.Prefix]PunishmentRecord
-	Honeypots map[string]map[netip.Prefix]PunishmentRecord
-	Locks     map[string]PunishmentRecord
-	Widths    map[string][]int
+	Bans       map[string]map[netip.Prefix]PunishmentRecord
+	Honeypots  map[string]map[netip.Prefix]PunishmentRecord
+	Locks      map[string]PunishmentRecord
+	Widths     map[string][]int
+	Drops      map[string]map[netip.Prefix]PunishmentRecord
+	HoneyLocks map[string]PunishmentRecord
 }
 type hitWindow struct {
 	counts  [64]uint32
@@ -67,9 +69,11 @@ type counterEntry struct {
 	local     *list.Element
 }
 type statePort struct {
-	order    *list.List
-	distinct map[netip.Addr]time.Time
-	cooldown time.Time
+	order         *list.List
+	distinct      map[netip.Addr]time.Time
+	cooldown      time.Time
+	honeyDistinct map[netip.Addr]time.Time
+	honeyCooldown time.Time
 }
 
 // Punisher owns bounded mutable counters and publishes immutable decision
@@ -347,6 +351,13 @@ func (p *Punisher) process(s *Snapshot, e HitEvent, now time.Time) []PunishmentC
 		return nil
 	}
 	cfg := s.Config.Policy
+	if e.Category == "honeypot_visit" {
+		return p.honeypotHit(s, e, now)
+	}
+	// Configured visit thresholds replace the legacy immediate escalation ban.
+	if e.Category == "honeypot_escalation" && cfg.Honeypot.Enabled && (cfg.Honeypot.DropAfterHits > 0 || cfg.Honeypot.DistributedDrop.Enabled) {
+		return nil
+	}
 	ip := prefixFor(e.ClientIP, cfg.HitPolicy.IPv6Prefix).String()
 	changes := p.lock(s, e, now)
 	if e.Category == "custom_rule" && e.BanSeconds > 0 {
@@ -423,13 +434,17 @@ func effectiveThreshold(t, fallback Threshold) Threshold {
 }
 
 func (p *Punisher) publish() {
-	v := &punishmentView{Bans: map[string]map[netip.Prefix]PunishmentRecord{}, Honeypots: map[string]map[netip.Prefix]PunishmentRecord{}, Locks: map[string]PunishmentRecord{}, Widths: map[string][]int{}}
+	v := &punishmentView{Bans: map[string]map[netip.Prefix]PunishmentRecord{}, Honeypots: map[string]map[netip.Prefix]PunishmentRecord{}, Locks: map[string]PunishmentRecord{}, Widths: map[string][]int{}, Drops: map[string]map[netip.Prefix]PunishmentRecord{}, HoneyLocks: map[string]PunishmentRecord{}}
 	for _, r := range p.records {
+		if r.Kind == "honeypot_lockdown" {
+			v.HoneyLocks[r.PortID] = r
+			continue
+		}
 		if r.Kind == "lockdown" {
 			v.Locks[r.PortID] = r
 			continue
 		}
-		if r.Kind != "ban" && r.Kind != "honeypot" {
+		if r.Kind != "ban" && r.Kind != "honeypot" && r.Kind != "drop" {
 			continue
 		}
 		prefix, err := netip.ParsePrefix(r.Prefix)
@@ -443,6 +458,9 @@ func (p *Punisher) publish() {
 		groups := v.Bans
 		if r.Kind == "honeypot" {
 			groups = v.Honeypots
+		}
+		if r.Kind == "drop" {
+			groups = v.Drops
 		}
 		if groups[scope] == nil {
 			groups[scope] = map[netip.Prefix]PunishmentRecord{}
@@ -508,10 +526,16 @@ func (p *Punisher) InHoneypot(port string, ip netip.Addr) bool {
 // Empty state is the common household case and requires neither lookup nor clock.
 func (p *Punisher) ProtectedRestriction(port string, ip netip.Addr) bool {
 	v := p.state.Load()
-	if v == nil || len(v.Bans) == 0 && len(v.Honeypots) == 0 {
+	if v == nil || len(v.Bans) == 0 && len(v.Honeypots) == 0 && len(v.Drops) == 0 && len(v.HoneyLocks) == 0 {
 		return false
 	}
 	now := p.Now().Unix()
+	if r, ok := v.HoneyLocks[port]; ok && active(r, now) {
+		return true
+	}
+	if _, ok := lookupState(v.Drops, v.Widths, port, ip, now); ok {
+		return true
+	}
 	if record, ok := lookupState(v.Bans, v.Widths, port, ip, now); ok && record.Reason != "" {
 		return true
 	}
@@ -527,6 +551,10 @@ func (p *Punisher) expire(now time.Time) []PunishmentChange {
 	var changes []PunishmentChange
 	for id, r := range p.records {
 		if !active(r, now.Unix()) {
+			if r.Kind == "honeypot_lockdown" {
+				p.releaseHoneyLock(r, now, r.CooldownUntil)
+				changes = append(changes, PunishmentChange{r, "honeypot_lockdown_released"})
+			}
 			if r.Kind == "lockdown" {
 				p.port(r.PortID).cooldown = now.Add(time.Duration(max(0, r.CooldownUntil-now.Unix())) * time.Second)
 				p.port(r.PortID).distinct = map[netip.Addr]time.Time{}
@@ -635,13 +663,16 @@ func (p *Punisher) Restore(rows []PunishmentRecord) error {
 		return errors.New("punishment state exceeds quota")
 	}
 	for _, r := range rows {
-		if r.Kind != "ban" && r.Kind != "honeypot" && r.Kind != "history" && r.Kind != "lockdown" && r.Kind != "cooldown" {
+		if r.Kind != "ban" && r.Kind != "honeypot" && r.Kind != "history" && r.Kind != "lockdown" && r.Kind != "cooldown" && r.Kind != "drop" && r.Kind != "honeypot_lockdown" && r.Kind != "honeypot_cooldown" {
 			return errors.New("unknown punishment kind")
 		}
 		if r.Scope != "global" && r.Scope != "port" || !strings.HasPrefix(r.PortID, "port:") || r.ExpiresAt < 0 {
 			return errors.New("invalid punishment scope")
 		}
-		if r.Kind != "lockdown" && r.Kind != "cooldown" {
+		if (r.Kind == "drop" || r.Kind == "honeypot_lockdown" || r.Kind == "honeypot_cooldown") && r.Scope != "port" {
+			return errors.New("honeypot drops must be port scoped")
+		}
+		if r.Kind != "lockdown" && r.Kind != "cooldown" && r.Kind != "honeypot_lockdown" && r.Kind != "honeypot_cooldown" {
 			prefix, err := netip.ParsePrefix(r.Prefix)
 			if err != nil || prefix.Bits() < 32 {
 				return errors.New("invalid punishment prefix")
@@ -657,8 +688,13 @@ func (p *Punisher) Restore(rows []PunishmentRecord) error {
 			if r.Kind == "cooldown" {
 				p.port(r.PortID).cooldown = p.Now().Add(time.Duration(r.ExpiresAt-p.Now().Unix()) * time.Second)
 			}
+			if r.Kind == "honeypot_cooldown" {
+				p.port(r.PortID).honeyCooldown = time.Unix(r.ExpiresAt, 0)
+			}
 		} else if r.Kind == "lockdown" && r.CooldownUntil > p.Now().Unix() {
 			p.port(r.PortID).cooldown = p.Now().Add(time.Duration(r.CooldownUntil-p.Now().Unix()) * time.Second)
+		} else if r.Kind == "honeypot_lockdown" && r.CooldownUntil > p.Now().Unix() {
+			p.releaseHoneyLock(r, p.Now(), r.CooldownUntil)
 		}
 	}
 	p.publish()
@@ -669,7 +705,7 @@ func (p *Punisher) Records(port string) []PunishmentRecord {
 	defer p.mu.Unlock()
 	rows := []PunishmentRecord{}
 	for _, r := range p.records {
-		if r.Kind != "history" && r.Kind != "cooldown" && active(r, p.Now().Unix()) && (port == "" || r.PortID == port || r.Scope == "global") {
+		if r.Kind != "history" && r.Kind != "cooldown" && r.Kind != "honeypot_cooldown" && active(r, p.Now().Unix()) && (port == "" || r.PortID == port || r.Scope == "global") {
 			rows = append(rows, r)
 		}
 	}
@@ -687,7 +723,9 @@ func (p *Punisher) Manage(port, id, action string) error {
 	switch action {
 	case "release":
 		p.remove(id)
-		if r.Kind == "lockdown" {
+		if r.Kind == "honeypot_lockdown" {
+			p.releaseHoneyLock(r, p.Now(), p.Now().Add(time.Minute).Unix())
+		} else if r.Kind == "lockdown" {
 			seconds := 60
 			if s := p.Lookup(port); s != nil {
 				seconds = s.Config.Policy.HitPolicy.Lockdown.CooldownSeconds

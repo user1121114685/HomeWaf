@@ -4,7 +4,7 @@
     <GuidedSetup v-if="isNew" :config="config" :templates="templates" @saved="emit('saved', $event)" @busy="emit('busy', $event)" />
     <template v-else>
       <div class="editor-top"><strong>{{ draft.protocol.toUpperCase() }} :{{ draft.port }} · {{ draft.name || '未命名端口' }}</strong><ElTag>{{ draft.listen_enabled ? '正在监听' : '未监听' }}</ElTag><span>配置版本 {{ draft.revision }}</span></div>
-      <div class="editor-mode"><span>日常调整从常用设置开始，详细规则按需展开。</span><ElButton :aria-expanded="advancedMode" @click="advancedMode = !advancedMode; activeTab = 'common'">{{ advancedMode ? '收起高级配置' : '显示高级配置' }}</ElButton></div>
+      <div class="editor-mode"><span>常用设置和蜜罐可随时修改，详细规则按需展开。</span><ElButton :aria-expanded="advancedMode" @click="toggleAdvanced">{{ advancedMode ? '收起高级配置' : '显示高级配置' }}</ElButton></div>
       <ElTabs v-model="activeTab">
         <ElTabPane label="常用设置" name="common">
           <section class="common-settings"><h3>服务连接</h3><p>修改名称或现有服务地址，保存后只更新这个服务。</p><Fields :model="draft" :definitions="[{path:'name',label:'服务名称',help:'为这个服务取一个容易识别的名称。'},{path:'upstream',label:'现有服务地址',help:'填写完整的 HTTP 或 HTTPS 地址。'}]" />
@@ -13,9 +13,12 @@
             <div class="common-setting-row"><div><h3>访问认证</h3><p>{{ draft.policy.gate.require_token ? '调用方需要服务令牌。首次接入请先生成令牌。' : draft.policy.gate.enabled ? '访客需要先登录，才能进入这个服务。' : '访客直接访问，继续进行防护检测。' }}</p></div><ElButton @click="openAdvanced('ruleset', ['gate'])">{{ draft.policy.gate.require_token ? '管理服务令牌' : '管理访问账号' }}</ElButton></div>
             <div class="common-setting-row"><div><h3>验证访问规则</h3><p>输入访客 IP，检查地区、IP 组、账号认证和防护规则的实际判定。</p></div><ElButton @click="openAdvanced('explain')">验证来源与防护</ElButton></div>
             <div class="common-setting-row"><div><h3>防护规则</h3><p>查看命中原因后，再调整具体规则或访问例外。</p></div><ElButton @click="openAdvanced('ruleset', ['controls', 'attacks'])">调整防护规则</ElButton></div>
+            <div class="common-setting-row"><div><h3>蜜罐防护</h3><p>{{ draft.policy.honeypot.enabled ? '蜜罐已启用，可修改提示、命中阈值和归档策略。' : '配置仿真提示、命中后丢弃和请求归档。' }}</p></div><ElButton @click="activeTab = 'honeypot'">配置蜜罐</ElButton></div>
+            <div class="common-setting-row"><div><h3>自动处罚</h3><p>修改单来源封禁阈值、多来源自保锁定和业务响应观察。</p></div><ElButton @click="openAdvanced('hit_policy')">配置自动处罚</ElButton></div>
             <div class="common-setting-row"><div><h3>HTTPS 与代理</h3><p>证书、域名、代理与转发参数在高级配置中管理。</p></div><ElButton @click="openAdvanced('network')">设置连接参数</ElButton></div>
           </section>
         </ElTabPane>
+        <ElTabPane label="蜜罐设置" name="honeypot"><HoneypotSettings :model="draft.policy.honeypot" :hit-policy-enabled="draft.policy.hit_policy.enabled" @invalid="invalid.honeypot = $event" @open-punishment="openAdvanced('hit_policy')" /></ElTabPane>
         <ElTabPane v-if="advancedMode" label="1 · 访问开关" name="access"><Fields :model="draft.policy.access" :definitions="fields.access" /><p class="muted">最近访问开关变更：{{ timeText(config.access_changed_at) }} · {{ config.access_changed_by || '未记录操作人' }}</p><h3>端口基本信息</h3><Fields :model="draft" :definitions="basicFields.filter(f => f.path !== 'port')" /></ElTabPane>
         <ElTabPane v-if="advancedMode" label="2 · IP 组" name="ip_group">
           <Fields :model="draft.policy.ip_group" :definitions="fields.ip_group" />
@@ -61,7 +64,7 @@
           <Fields :model="draft.policy.hit_policy" :definitions="fields.hit_policy" />
           <h3>单IP累计阈值</h3><p class="muted">再次违规时长×4，上限7天，历史保留30天。以下时间单位均为秒。</p>
           <ElTable :data="thresholdRows" size="small"><ElTableColumn prop="label" label="类别" /><ElTableColumn label="窗口"><template #default="{ row }"><ElInputNumber v-model="draft.policy.hit_policy[row.key].window_seconds" :min="1" :max="86400" /></template></ElTableColumn><ElTableColumn label="命中次数"><template #default="{ row }"><ElInputNumber v-model="draft.policy.hit_policy[row.key].count" :min="1" :max="row.key === 'response_404' ? 128 : 100000" /></template></ElTableColumn><ElTableColumn label="首次封禁时长"><template #default="{ row }"><ElInputNumber v-if="row.ban" v-model="draft.policy.hit_policy[row.key].ban_seconds" :min="1" :max="604800" /><span v-else>导入蜜罐，使用下方TTL</span></template></ElTableColumn></ElTable>
-          <h3>内置蜜罐</h3><Fields :model="draft.policy.honeypot" :definitions="fields.honeypot" />
+          <p class="muted">提示、命中后丢弃和请求归档已移到独立的蜜罐设置。</p><ElButton @click="activeTab = 'honeypot'">配置蜜罐</ElButton>
           <h3>可选业务登录观察（JSON）</h3><p class="muted">默认空列表。每条配置 path、method、username_field、password_field、success_statuses、可选success_location_prefix/success_body_contains、body_prefix_bytes（1–8192）。响应正文只采样，不缓存整包。</p><ElInput v-model="businessLoginJSON" type="textarea" :rows="6" aria-label="业务登录观察JSON" @change="parseBusinessLogin" /><p v-if="invalid.businessLogin" role="alert" class="error">业务登录观察必须是合法JSON数组。</p>
         </ElTabPane>
         <ElTabPane v-if="advancedMode" label="5 · 业务代理" name="network">
@@ -84,7 +87,7 @@
           <details class="space"><summary>高级：编辑完整策略JSON（不含口令/私钥）</summary><p class="muted">可设置所有范围、参数和观察条件。服务端严格验证字段与数值；这里不会修改监听端口或凭据。</p><ElButton size="small" @click="advancedJSON = JSON.stringify(draft.policy, null, 2)">读取当前策略</ElButton><ElInput v-model="advancedJSON" type="textarea" :rows="12" aria-label="完整策略JSON" /><ElButton class="space" @click="applyAdvanced">校验JSON并写入草稿</ElButton></details>
         </ElTabPane>
       </ElTabs>
-      <div class="editor-actions"><span class="muted">只保存当前端口。账号操作单独即时生效。</span><ElButton @click="emit('close')">关闭</ElButton><ElButton type="primary" :loading="busy" :disabled="Object.values(invalid).some(Boolean)" @click="save">保存端口配置</ElButton></div>
+      <div class="editor-actions"><span v-if="Object.values(invalid).some(Boolean)" class="field-error" role="alert">有配置尚未通过校验。<ElButton text @click="locateInvalid">定位未完成的配置</ElButton></span><span v-else class="muted">只保存当前端口。账号操作单独即时生效。</span><ElButton @click="emit('close')">关闭</ElButton><ElButton type="primary" :loading="busy" :disabled="Object.values(invalid).some(Boolean)" @click="save">保存端口配置</ElButton></div>
     </template>
     <ElDialog v-model="accountVisible" title="端口账号" width="min(620px,94vw)" append-to-body destroy-on-close>
       <ElButton :disabled="busy" @click="account.totp_secret = newTOTPSecret(); account.clear_totp = false">生成新的动态口令密钥</ElButton>
@@ -105,13 +108,16 @@ import { pipelineGet, pipelinePost } from '@/apis/pipeline';
 import { clone, fields, modes, parseLines, ruleHelp, ruleNames, sectionNames, sections, type Field, type PolicyTemplate, type PortConfig } from './model';
 import GuidedSetup from './GuidedSetup.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
+import HoneypotSettings from './HoneypotSettings.vue';
 import Fields from './Fields.vue'; import Scope from './Scope.vue'; import Trace from './Trace.vue';
 import { newTOTPSecret } from './model';
 const props = defineProps({config:{type:Object as PropType<PortConfig & {access_changed_at?:number;access_changed_by?:string}>,required:true},templates:{type:Array as PropType<PolicyTemplate[]>,required:true},isNew:Boolean,initialTab:{type:String,default:'common'}});
 const emit = defineEmits(['saved','close','busy']);
 const draft = ref<PortConfig>(clone(props.config)); const busy=ref(false), error=ref(''), activeTab=ref(props.initialTab);
-const advancedMode=ref(props.initialTab!=='common');
+const advancedMode=ref(!['common','honeypot'].includes(props.initialTab));
 function openAdvanced(tab:string, panels?:string[]){advancedMode.value=true;activeTab.value=tab;if(panels)rulePanels.value=panels}
+function toggleAdvanced(){advancedMode.value=!advancedMode.value;if(!advancedMode.value&&!['common','honeypot'].includes(activeTab.value))activeTab.value='common'}
+function locateInvalid(){const key=Object.keys(invalid).find(key=>invalid[key]);if(key==='honeypot'){activeTab.value='honeypot';return}if(key==='accessRestrictions'){activeTab.value='common';return}openAdvanced(key==='businessLogin'?'hit_policy':['network','routes'].includes(key||'')?'network':'ruleset',['controls','gate','attacks'])}
 watch(busy, value => emit('busy', value), { flush: 'sync' });
 const secrets=reactive({initial_username:'',initial_password:'',tls_certificate:'',tls_private_key:'',upstream_ca:'',clear_upstream_ca:false,privacy_engine_config:'',clear_privacy_engine_config:false});
 const businessHeadersJSON=ref('');

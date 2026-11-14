@@ -57,7 +57,7 @@ func (w *WafPipelineApi) PipelineOverview(c *gin.Context) {
 			stats = s.Compiled.Metrics.Stats()
 		}
 		counts := local[port]
-		rows = append(rows, gin.H{"config": config, "stats": stats, "ban_count": globalBans + counts["ban"], "honeypot_count": counts["honeypot"], "locked": counts["lockdown"] > 0, "listener": wafpipeline.Listeners.Status(config.Port)})
+		rows = append(rows, gin.H{"config": config, "stats": stats, "ban_count": globalBans + counts["ban"], "honeypot_count": counts["honeypot"], "drop_count": counts["drop"], "locked": counts["lockdown"] > 0 || counts["honeypot_lockdown"] > 0, "listener": wafpipeline.Listeners.Status(config.Port)})
 	}
 	data := gin.H{"ports": rows, "issues": waf_service.WafPipelineServiceApp.Issues(), "punishment": waf_service.WafPipelineStateServiceApp.Punisher.Stats()}
 	if global.GQEQUE_LOG_DB != nil {
@@ -242,6 +242,7 @@ func (w *WafPipelineApi) ManagePipelineState(c *gin.Context) {
 // @Produce json
 // @Description Requires security-admin role. Management transport encrypts request and response data; schemas describe decrypted payloads. Check response.code (0 means success), including HTTP 200 validation errors.
 // @Param port query int true "Listener port" minimum(1) maximum(65535)
+// @Param honeypot query bool false "Return only the latest 20 honeypot requests"
 // @Success 200 {object} response.Response{data=[]model.PipelineLog} "Result envelope"
 // @Failure 401 {object} response.Response "Authentication required"
 // @Failure 403 {object} response.Response "Security-admin role required"
@@ -251,7 +252,20 @@ func (w *WafPipelineApi) PipelineLogs(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rows, err := waf_service.WafPipelineStateServiceApp.Logs(p)
+	honeypotOnly := false
+	if raw := c.Query("honeypot"); raw != "" {
+		var err error
+		honeypotOnly, err = strconv.ParseBool(raw)
+		if err != nil {
+			response.FailWithMessage("honeypot 参数必须为布尔值", c)
+			return
+		}
+	}
+	readLogs := waf_service.WafPipelineStateServiceApp.Logs
+	if honeypotOnly {
+		readLogs = waf_service.WafPipelineStateServiceApp.HoneypotLogs
+	}
+	rows, err := readLogs(p)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
