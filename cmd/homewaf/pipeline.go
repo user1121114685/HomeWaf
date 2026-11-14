@@ -78,7 +78,10 @@ func initializePortPipeline() {
 	wafpipeline.Listeners.SetEvents(punisher)
 	wafpipeline.Live.Sink = punisher
 	wafpipeline.Live.State = punisher
-	wafpipeline.Live.OnResult = stateService.LogResult
+	wafpipeline.Live.OnResult = func(s *wafpipeline.Snapshot, c *wafpipeline.RequestContext, result wafpipeline.Result) {
+		stateService.LogResult(s, c, result)
+		globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.RecordPipelineWebLog(s, c, result)
+	}
 	honey := wafpipeline.NewHoneyHandler()
 	gateStore := waf_service.WafPipelineGateServiceApp.Store
 	if err := waf_service.WafPipelineGateServiceApp.Load(); err != nil {
