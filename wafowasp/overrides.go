@@ -456,6 +456,11 @@ func (s *OverrideStore) setTuningNoLog(t TuningConfig) error {
 	if err != nil {
 		return err
 	}
+	// Numeric/engine tuning does not own the independently edited CRS variables.
+	// Preserve them under the same lock; an explicit empty map still clears them.
+	if t.CustomVars == nil {
+		t.CustomVars = reg.Global.CustomVars
+	}
 	reg.Global = t
 	if err := writeRegistryLocked(regPath, reg); err != nil {
 		return err
