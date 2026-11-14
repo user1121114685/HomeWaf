@@ -8,126 +8,28 @@
     :footer="false"
     @close="handleClose"
   >
-    <hw-tabs v-model="activeTab">
-      <!-- ===== 频率控制 ===== -->
-      <hw-tab-panel value="throttle" :label="$t('page.notify_subscription.config_tab_throttle')">
-        <div class="tab-body">
-          <hw-form :labelWidth="120">
-            <hw-form-item :label="$t('page.notify_subscription.label_throttle_mode')">
-              <hw-radio-group v-model="form.throttle_mode">
-                <hw-radio value="inherit">{{ $t('page.notify_subscription.throttle_mode_inherit') }}</hw-radio>
-                <hw-radio value="realtime">{{ $t('page.notify_subscription.throttle_mode_realtime') }}</hw-radio>
-                <hw-radio value="aggregate">{{ $t('page.notify_subscription.throttle_mode_aggregate') }}</hw-radio>
-                <hw-radio value="cooldown">{{ $t('page.notify_subscription.throttle_mode_cooldown') }}</hw-radio>
-              </hw-radio-group>
-              <div class="form-tip">{{ modeTip }}</div>
-            </hw-form-item>
-
-            <!-- 聚合模式参数 -->
-            <template v-if="form.throttle_mode === 'aggregate'">
-              <hw-form-item :label="$t('page.notify_subscription.label_aggregate_window')">
-                <hw-input-number v-model="form.throttle.aggregate_window_sec" :min="0" :max="3600" theme="normal" :style="{ width: '160px' }" />
-                <span class="form-tip-inline">0 = {{ $t('page.notify_subscription.summary_inherit') }}</span>
-              </hw-form-item>
-              <hw-form-item :label="$t('page.notify_subscription.label_aggregate_max_detail')">
-                <hw-input-number v-model="form.throttle.aggregate_max_detail" :min="0" :max="50" theme="normal" :style="{ width: '160px' }" />
-              </hw-form-item>
-            </template>
-
-            <!-- 冷却模式参数 -->
-            <template v-if="form.throttle_mode === 'cooldown'">
-              <hw-form-item :label="$t('page.notify_subscription.label_cooldown_steps')">
-                <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: 'min(100%, 260px)' }" />
-                <div class="form-tip">{{ $t('page.notify_subscription.cooldown_steps_tip') }}</div>
-              </hw-form-item>
-              <hw-form-item :label="$t('page.notify_subscription.label_cooldown_reset')">
-                <hw-input-number v-model="form.throttle.cooldown_reset_sec" :min="0" :max="86400" theme="normal" :style="{ width: '160px' }" />
-                <div class="form-tip">{{ $t('page.notify_subscription.cooldown_reset_tip') }}</div>
-              </hw-form-item>
-            </template>
-
-            <hw-form-item :label="$t('page.notify_subscription.label_max_per_hour')" v-if="form.throttle_mode !== 'inherit'">
-              <hw-input-number v-model="form.throttle.max_per_hour" :min="0" :max="10000" theme="normal" :style="{ width: '160px' }" />
-              <div class="form-tip">{{ $t('page.notify_subscription.max_per_hour_tip') }}</div>
-            </hw-form-item>
-
-            <hw-form-item :label="$t('page.notify_subscription.label_dedup_keys')" v-if="form.throttle_mode === 'aggregate' || form.throttle_mode === 'cooldown'">
-              <hw-checkbox-group v-model="form.throttle.dedup_keys">
-                <hw-checkbox value="message_type">{{ $t('page.notify_subscription.dedup_key_message_type') }}</hw-checkbox>
-                <hw-checkbox value="domain">{{ $t('page.notify_subscription.dedup_key_domain') }}</hw-checkbox>
-                <hw-checkbox value="ip">{{ $t('page.notify_subscription.dedup_key_ip') }}</hw-checkbox>
-                <hw-checkbox value="attack_type">{{ $t('page.notify_subscription.dedup_key_attack_type') }}</hw-checkbox>
-                <hw-checkbox value="rule">{{ $t('page.notify_subscription.dedup_key_rule') }}</hw-checkbox>
-              </hw-checkbox-group>
-              <div class="form-tip">{{ $t('page.notify_subscription.dedup_keys_tip') }}</div>
-            </hw-form-item>
-
-            <hw-form-item :label="$t('page.notify_subscription.label_quiet_hours')">
-              <hw-input v-model="form.throttle.quiet_hours" placeholder="23:00-07:00" :style="{ width: 'min(100%, 200px)' }" />
-              <div class="form-tip">{{ $t('page.notify_subscription.quiet_hours_tip') }}</div>
-            </hw-form-item>
-            <hw-form-item :label="$t('page.notify_subscription.label_quiet_bypass')" v-if="form.throttle.quiet_hours">
-              <hw-select v-model="form.throttle.quiet_hours_bypass_severity" :style="{ width: 'min(100%, 200px)' }">
-                <hw-option value="" :label="$t('page.notify_subscription.severity_none')"></hw-option>
-                <hw-option value="warn" :label="$t('page.notify_subscription.severity_warn')"></hw-option>
-                <hw-option value="critical" :label="$t('page.notify_subscription.severity_critical')"></hw-option>
-              </hw-select>
-              <div class="form-tip">{{ $t('page.notify_subscription.quiet_bypass_tip') }}</div>
-            </hw-form-item>
-          </hw-form>
-        </div>
-      </hw-tab-panel>
-
-      <!-- ===== 消息模板 ===== -->
-      <hw-tab-panel value="template" :label="$t('page.notify_subscription.config_tab_template')">
-        <div class="tab-body">
-          <hw-form :labelWidth="120">
-            <hw-form-item :label="$t('page.notify_subscription.label_title_template')">
-              <hw-input v-model="form.title_template" :placeholder="defaultTitle" />
-            </hw-form-item>
-            <hw-form-item :label="$t('page.notify_subscription.label_content_template')">
-              <hw-textarea ref="contentTpl" v-model="form.content_template" :placeholder="defaultContent" :autosize="{ minRows: 6, maxRows: 14 }" />
-              <div class="form-tip">{{ $t('page.notify_subscription.template_tip') }}</div>
-            </hw-form-item>
-            <hw-form-item :label="$t('page.notify_subscription.template_vars')">
-              <div class="var-list">
-                <hw-tag
-                  v-for="v in templateVars"
-                  :key="v.name"
-                  theme="primary"
-                  variant="light"
-                  class="var-tag"
-                  @click="insertVar(v.name)"
-                >{{ varLabel(v.name) }} <span class="var-desc">{{ v.desc }}</span></hw-tag>
-              </div>
-              <div class="form-tip">{{ $t('page.notify_subscription.template_insert_tip') }}</div>
-            </hw-form-item>
-            <hw-form-item>
-              <hw-button variant="outline" size="small" @click="resetTemplate">{{ $t('page.notify_subscription.template_reset') }}</hw-button>
-              <hw-button variant="outline" size="small" @click="doPreview" :style="{ marginLeft: '8px' }">{{ $t('page.notify_subscription.button_preview') }}</hw-button>
-              <hw-button variant="outline" size="small" @click="applyToAllChannels" :style="{ marginLeft: '8px' }">{{ $t('page.notify_subscription.template_apply_all') }}</hw-button>
-            </hw-form-item>
-          </hw-form>
-
-          <div class="preview-box" v-if="preview.title">
-            <div class="preview-head">{{ $t('page.notify_subscription.preview_title') }}</div>
-            <hw-alert v-if="preview.is_fallback" theme="error" :message="$t('page.notify_subscription.preview_fallback_warn')" />
-            <div class="preview-title">{{ preview.title }}</div>
-            <pre class="preview-content">{{ preview.content }}</pre>
-          </div>
-        </div>
-      </hw-tab-panel>
-
-      <!-- ===== 过滤条件 ===== -->
+    <p class="editor-context">
+      先确定消息范围，再配置频率与内容，最后验证。下方保存只更新当前订阅；“套用到全部渠道”会单独即时保存模板。
+    </p>
+    <hw-alert v-if="saveError" theme="error" :close-btn="false">{{ saveError }}</hw-alert>
+    <EditorTabs v-model="activeTab" label="订阅配置任务">
       <hw-tab-panel value="filter" :label="$t('page.notify_subscription.config_tab_filter')">
         <div class="tab-body">
           <hw-form :labelWidth="120">
             <hw-form-item :label="$t('page.notify_subscription.label_filter_domains')">
-              <hw-textarea v-model="filterText.domains" :placeholder="domainsPlaceholder" :autosize="{ minRows: 3, maxRows: 6 }" />
+              <hw-textarea
+                v-model="filterText.domains"
+                :placeholder="domainsPlaceholder"
+                :autosize="{ minRows: 3, maxRows: 6 }"
+              />
               <div class="form-tip">{{ $t('page.notify_subscription.filter_domains_tip') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_subscription.label_filter_exclude_ips')">
-              <hw-textarea v-model="filterText.exclude_ips" :placeholder="excludeIpsPlaceholder" :autosize="{ minRows: 3, maxRows: 6 }" />
+              <hw-textarea
+                v-model="filterText.exclude_ips"
+                :placeholder="excludeIpsPlaceholder"
+                :autosize="{ minRows: 3, maxRows: 6 }"
+              />
               <div class="form-tip">{{ $t('page.notify_subscription.filter_exclude_ips_tip') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_subscription.label_filter_keywords')">
@@ -145,34 +47,210 @@
           </hw-form>
         </div>
       </hw-tab-panel>
+      <hw-tab-panel value="throttle" :label="$t('page.notify_subscription.config_tab_throttle')">
+        <div class="tab-body">
+          <hw-form :labelWidth="120">
+            <hw-form-item :label="$t('page.notify_subscription.label_throttle_mode')">
+              <hw-radio-group v-model="form.throttle_mode">
+                <hw-radio value="inherit">{{ $t('page.notify_subscription.throttle_mode_inherit') }}</hw-radio>
+                <hw-radio value="realtime">{{ $t('page.notify_subscription.throttle_mode_realtime') }}</hw-radio>
+                <hw-radio value="aggregate">{{ $t('page.notify_subscription.throttle_mode_aggregate') }}</hw-radio>
+                <hw-radio value="cooldown">{{ $t('page.notify_subscription.throttle_mode_cooldown') }}</hw-radio>
+              </hw-radio-group>
+              <div class="form-tip">{{ modeTip }}</div>
+            </hw-form-item>
 
-      <!-- ===== 测试与预览 ===== -->
+            <!-- 聚合模式参数 -->
+            <template v-if="form.throttle_mode === 'aggregate'">
+              <hw-form-item :label="$t('page.notify_subscription.label_aggregate_window')">
+                <hw-input-number
+                  v-model="form.throttle.aggregate_window_sec"
+                  :min="0"
+                  :max="3600"
+                  theme="normal"
+                  :style="{ width: '160px' }"
+                />
+                <span class="form-tip-inline">0 = {{ $t('page.notify_subscription.summary_inherit') }}</span>
+              </hw-form-item>
+              <hw-form-item :label="$t('page.notify_subscription.label_aggregate_max_detail')">
+                <hw-input-number
+                  v-model="form.throttle.aggregate_max_detail"
+                  :min="0"
+                  :max="50"
+                  theme="normal"
+                  :style="{ width: '160px' }"
+                />
+              </hw-form-item>
+            </template>
+
+            <!-- 冷却模式参数 -->
+            <template v-if="form.throttle_mode === 'cooldown'">
+              <hw-form-item :label="$t('page.notify_subscription.label_cooldown_steps')">
+                <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: 'min(100%, 260px)' }" />
+                <div class="form-tip">{{ $t('page.notify_subscription.cooldown_steps_tip') }}</div>
+              </hw-form-item>
+              <hw-form-item :label="$t('page.notify_subscription.label_cooldown_reset')">
+                <hw-input-number
+                  v-model="form.throttle.cooldown_reset_sec"
+                  :min="0"
+                  :max="86400"
+                  theme="normal"
+                  :style="{ width: '160px' }"
+                />
+                <div class="form-tip">{{ $t('page.notify_subscription.cooldown_reset_tip') }}</div>
+              </hw-form-item>
+            </template>
+
+            <hw-form-item
+              :label="$t('page.notify_subscription.label_max_per_hour')"
+              v-if="form.throttle_mode !== 'inherit'"
+            >
+              <hw-input-number
+                v-model="form.throttle.max_per_hour"
+                :min="0"
+                :max="10000"
+                theme="normal"
+                :style="{ width: '160px' }"
+              />
+              <div class="form-tip">{{ $t('page.notify_subscription.max_per_hour_tip') }}</div>
+            </hw-form-item>
+
+            <hw-form-item
+              :label="$t('page.notify_subscription.label_dedup_keys')"
+              v-if="form.throttle_mode === 'aggregate' || form.throttle_mode === 'cooldown'"
+            >
+              <hw-checkbox-group v-model="form.throttle.dedup_keys">
+                <hw-checkbox value="message_type">{{
+                  $t('page.notify_subscription.dedup_key_message_type')
+                }}</hw-checkbox>
+                <hw-checkbox value="domain">{{ $t('page.notify_subscription.dedup_key_domain') }}</hw-checkbox>
+                <hw-checkbox value="ip">{{ $t('page.notify_subscription.dedup_key_ip') }}</hw-checkbox>
+                <hw-checkbox value="attack_type">{{
+                  $t('page.notify_subscription.dedup_key_attack_type')
+                }}</hw-checkbox>
+                <hw-checkbox value="rule">{{ $t('page.notify_subscription.dedup_key_rule') }}</hw-checkbox>
+              </hw-checkbox-group>
+              <div class="form-tip">{{ $t('page.notify_subscription.dedup_keys_tip') }}</div>
+            </hw-form-item>
+
+            <hw-form-item :label="$t('page.notify_subscription.label_quiet_hours')">
+              <hw-input
+                v-model="form.throttle.quiet_hours"
+                placeholder="23:00-07:00"
+                :style="{ width: 'min(100%, 200px)' }"
+              />
+              <div class="form-tip">{{ $t('page.notify_subscription.quiet_hours_tip') }}</div>
+            </hw-form-item>
+            <hw-form-item :label="$t('page.notify_subscription.label_quiet_bypass')" v-if="form.throttle.quiet_hours">
+              <hw-select v-model="form.throttle.quiet_hours_bypass_severity" :style="{ width: 'min(100%, 200px)' }">
+                <hw-option value="" :label="$t('page.notify_subscription.severity_none')"></hw-option>
+                <hw-option value="warn" :label="$t('page.notify_subscription.severity_warn')"></hw-option>
+                <hw-option value="critical" :label="$t('page.notify_subscription.severity_critical')"></hw-option>
+              </hw-select>
+              <div class="form-tip">{{ $t('page.notify_subscription.quiet_bypass_tip') }}</div>
+            </hw-form-item>
+          </hw-form>
+        </div>
+      </hw-tab-panel>
+      <hw-tab-panel value="template" :label="$t('page.notify_subscription.config_tab_template')">
+        <div class="tab-body">
+          <hw-form :labelWidth="120">
+            <hw-form-item :label="$t('page.notify_subscription.label_title_template')">
+              <hw-input v-model="form.title_template" :placeholder="defaultTitle" />
+            </hw-form-item>
+            <hw-form-item :label="$t('page.notify_subscription.label_content_template')">
+              <hw-textarea
+                ref="contentTpl"
+                v-model="form.content_template"
+                :placeholder="defaultContent"
+                :autosize="{ minRows: 6, maxRows: 14 }"
+              />
+              <div class="form-tip">{{ $t('page.notify_subscription.template_tip') }}</div>
+            </hw-form-item>
+            <hw-form-item :label="$t('page.notify_subscription.template_vars')">
+              <div class="var-list">
+                <hw-tag
+                  v-for="v in templateVars"
+                  :key="v.name"
+                  theme="primary"
+                  variant="light"
+                  class="var-tag"
+                  @click="insertVar(v.name)"
+                  >{{ varLabel(v.name) }} <span class="var-desc">{{ v.desc }}</span></hw-tag
+                >
+              </div>
+              <div class="form-tip">{{ $t('page.notify_subscription.template_insert_tip') }}</div>
+            </hw-form-item>
+            <hw-form-item>
+              <hw-button variant="outline" size="small" @click="resetTemplate">{{
+                $t('page.notify_subscription.template_reset')
+              }}</hw-button>
+              <hw-button variant="outline" size="small" @click="doPreview" :style="{ marginLeft: '8px' }">{{
+                $t('page.notify_subscription.button_preview')
+              }}</hw-button>
+              <hw-button variant="outline" size="small" @click="applyToAllChannels" :style="{ marginLeft: '8px' }">{{
+                $t('page.notify_subscription.template_apply_all')
+              }}</hw-button>
+            </hw-form-item>
+          </hw-form>
+
+          <div class="preview-box" v-if="preview.title">
+            <div class="preview-head">{{ $t('page.notify_subscription.preview_title') }}</div>
+            <hw-alert
+              v-if="preview.is_fallback"
+              theme="error"
+              :message="$t('page.notify_subscription.preview_fallback_warn')"
+            />
+            <div class="preview-title">{{ preview.title }}</div>
+            <pre class="preview-content">{{ preview.content }}</pre>
+          </div>
+        </div>
+      </hw-tab-panel>
       <hw-tab-panel value="debug" :label="$t('page.notify_subscription.config_tab_debug')">
+        <p class="editor-context">
+          规则试算使用服务端已保存的订阅；模板预览与测试发送使用当前模板输入。测试会真实发送到本渠道。
+        </p>
         <div class="tab-body">
           <hw-form :labelWidth="120">
             <hw-form-item :label="$t('page.notify_subscription.button_dryrun')">
-              <hw-button variant="outline" @click="doDryRun" :loading="dryRunLoading">{{ $t('page.notify_subscription.button_dryrun') }}</hw-button>
+              <hw-button variant="outline" @click="doDryRun" :loading="dryRunLoading">{{
+                $t('page.notify_subscription.button_dryrun')
+              }}</hw-button>
               <div class="form-tip">{{ $t('page.notify_subscription.dryrun_tip') }}</div>
             </hw-form-item>
             <hw-form-item v-if="dryRun.action">
-              <hw-alert :theme="dryRun.would_send ? 'success' : 'warning'"
-                :message="(dryRun.would_send ? $t('page.notify_subscription.dryrun_would_send') : $t('page.notify_subscription.dryrun_would_not_send')) + ' —— ' + dryRun.reason_text" />
+              <hw-alert
+                :theme="dryRun.would_send ? 'success' : 'warning'"
+                :message="
+                  (dryRun.would_send
+                    ? $t('page.notify_subscription.dryrun_would_send')
+                    : $t('page.notify_subscription.dryrun_would_not_send')) +
+                  ' —— ' +
+                  dryRun.reason_text
+                "
+              />
               <div class="dryrun-stat">
-                <span v-if="dryRun.cooldown_left > 0">{{ $t('page.notify_subscription.dryrun_cooldown_left', { sec: dryRun.cooldown_left }) }}</span>
+                <span v-if="dryRun.cooldown_left > 0">{{
+                  $t('page.notify_subscription.dryrun_cooldown_left', { sec: dryRun.cooldown_left })
+                }}</span>
                 <span>{{ $t('page.notify_subscription.dryrun_hour_used', { count: dryRun.hour_used }) }}</span>
-                <span v-if="dryRun.suppressed > 0">{{ $t('page.notify_subscription.dryrun_suppressed', { count: dryRun.suppressed }) }}</span>
+                <span v-if="dryRun.suppressed > 0">{{
+                  $t('page.notify_subscription.dryrun_suppressed', { count: dryRun.suppressed })
+                }}</span>
               </div>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_subscription.button_test_send')">
-              <hw-button theme="primary" variant="outline" @click="doTestSend" :loading="testLoading">{{ $t('page.notify_subscription.button_test_send') }}</hw-button>
+              <hw-button theme="primary" variant="outline" @click="doTestSend" :loading="testLoading">{{
+                $t('page.notify_subscription.button_test_send')
+              }}</hw-button>
               <div class="form-tip">{{ $t('page.notify_subscription.test_send_tip') }}</div>
             </hw-form-item>
           </hw-form>
         </div>
       </hw-tab-panel>
-    </hw-tabs>
+    </EditorTabs>
 
-    <div class="drawer-footer">
+    <div class="drawer-footer editor-footer">
       <hw-button variant="outline" @click="handleClose">{{ $t('common.close') }}</hw-button>
       <hw-button theme="primary" @click="handleSave" :loading="saving">{{ $t('common.confirm') }}</hw-button>
     </div>
@@ -180,8 +258,7 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
-
+import { defineComponent } from 'vue';
 
 import { MessagePlugin } from '@/ui';
 import {
@@ -231,7 +308,7 @@ export default defineComponent({
   data() {
     return {
       innerVisible: false,
-      activeTab: 'throttle',
+      activeTab: 'filter',
       form: emptyForm(),
       // 多行文本 ↔ 数组：过滤条件用文本框填更顺手，提交前再切成数组
       filterText: { domains: '', exclude_ips: '', keywords: '' },
@@ -245,6 +322,7 @@ export default defineComponent({
       preview: { title: '', content: '', is_fallback: false },
       dryRun: {} as any,
       saving: false,
+      saveError: '',
       testLoading: false,
       dryRunLoading: false,
     };
@@ -270,6 +348,7 @@ export default defineComponent({
   methods: {
     // 把订阅记录里的 JSON 字段摊开成表单
     loadFromSubscription() {
+      this.saveError = '';
       const sub: any = this.subscription || {};
       const form = emptyForm();
       form.id = sub.id;
@@ -358,7 +437,9 @@ export default defineComponent({
       };
     },
     async handleSave() {
+      if (this.saving) return;
       this.saving = true;
+      this.saveError = '';
       try {
         const res = await saveNotifySubscriptionConfig(this.buildPayload());
         if (res.code === 0) {
@@ -366,10 +447,10 @@ export default defineComponent({
           this.$emit('saved');
           this.handleClose();
         } else {
-          MessagePlugin.error(res.msg || (this.$t('page.notify_subscription.config_save_failed') as string));
+          this.saveError = res.msg || (this.$t('page.notify_subscription.config_save_failed') as string);
         }
       } catch (e) {
-        MessagePlugin.error(this.$t('page.notify_subscription.config_save_failed') as string);
+        this.saveError = this.$t('page.notify_subscription.config_save_failed') as string;
       } finally {
         this.saving = false;
       }
@@ -537,14 +618,17 @@ export default defineComponent({
 }
 
 .drawer-footer {
-  position: absolute;
+  position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
   padding: 12px 24px;
   border-top: 1px solid var(--hw-line);
   background: var(--hw-panel);
-  text-align: right;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 
   .t-button + .t-button {
     margin-left: 8px;

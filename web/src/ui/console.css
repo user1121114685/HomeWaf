@@ -1018,3 +1018,52 @@ html.dark .el-button--primary:not(.is-plain):not(.is-link):not(.is-text) {
     transform: none;
   }
 }
+
+.service-config-dialog .el-dialog__body {
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+}
+.editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  clear: both;
+  padding: 18px 0 0;
+  margin-top: 20px;
+  border-top: 1px solid var(--hw-line);
+}
+.editor-footer > .editor-footer-note {
+  margin-right: auto;
+  color: var(--hw-muted);
+  font-size: 13px;
+}
+
+.editor-context {
+  color: var(--hw-muted);
+  font-size: 13px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  margin: 0 0 16px;
+}
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+.editor-section .form-row {
+  display: contents;
+}
+.editor-section .form-row .half-width {
+  width: auto;
+  max-width: none;
+  padding: 0;
+}
+.editor-section .el-form-item__content > :is(.dir-preview, .desc, .form-tip, .form-item-tips, .tip) {
+  flex-basis: 100%;
+}

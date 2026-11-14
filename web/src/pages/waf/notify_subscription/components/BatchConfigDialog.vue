@@ -8,55 +8,88 @@
     :footer="false"
     @close="handleClose"
   >
-    <template #body><div >
-      <hw-form :labelWidth="130">
-        <hw-form-item :label="$t('page.notify_subscription.label_throttle_mode')">
-          <hw-radio-group v-model="form.throttle_mode">
-            <hw-radio value="inherit">{{ $t('page.notify_subscription.throttle_mode_inherit') }}</hw-radio>
-            <hw-radio value="realtime">{{ $t('page.notify_subscription.throttle_mode_realtime') }}</hw-radio>
-            <hw-radio value="aggregate">{{ $t('page.notify_subscription.throttle_mode_aggregate') }}</hw-radio>
-            <hw-radio value="cooldown">{{ $t('page.notify_subscription.throttle_mode_cooldown') }}</hw-radio>
-          </hw-radio-group>
-        </hw-form-item>
-
-        <hw-form-item v-if="form.throttle_mode === 'aggregate'" :label="$t('page.notify_subscription.label_aggregate_window')">
-          <hw-input-number v-model="form.throttle.aggregate_window_sec" :min="0" :max="3600" theme="normal" :style="{ width: '160px' }" />
-        </hw-form-item>
-
-        <hw-form-item v-if="form.throttle_mode === 'cooldown'" :label="$t('page.notify_subscription.label_cooldown_steps')">
-          <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: 'min(100%, 260px)' }" />
-          <div class="form-tip">{{ $t('page.notify_subscription.cooldown_steps_tip') }}</div>
-        </hw-form-item>
-
-        <hw-form-item v-if="form.throttle_mode !== 'inherit'" :label="$t('page.notify_subscription.label_max_per_hour')">
-          <hw-input-number v-model="form.throttle.max_per_hour" :min="0" :max="10000" theme="normal" :style="{ width: '160px' }" />
-          <div class="form-tip">{{ $t('page.notify_subscription.max_per_hour_tip') }}</div>
-        </hw-form-item>
-
-        <hw-form-item v-if="form.throttle_mode !== 'inherit'" :label="$t('page.notify_subscription.label_quiet_hours')">
-          <hw-input v-model="form.throttle.quiet_hours" placeholder="23:00-07:00" :style="{ width: 'min(100%, 200px)' }" />
-          <div class="form-tip">{{ $t('page.notify_subscription.quiet_hours_tip') }}</div>
-        </hw-form-item>
-
-        <hw-form-item>
-          <!-- 只套用勾选的部分：批量最怕的就是把别人配好的模板一起覆盖掉 -->
-          <hw-checkbox v-model="applyThrottle">{{ $t('page.notify_subscription.batch_config_apply_throttle') }}</hw-checkbox>
-        </hw-form-item>
-
-        <hw-form-item style="float: right">
-          <hw-button variant="outline" @click="handleClose">{{ $t('common.close') }}</hw-button>
-          <hw-button theme="primary" @click="handleSubmit" :loading="saving" :style="{ marginLeft: '8px' }">
-            {{ $t('common.confirm') }}
-          </hw-button>
-        </hw-form-item>
-      </hw-form>
-    </div></template>
+    <template #body
+      ><div>
+        <hw-form :labelWidth="130">
+          <EditorSection
+            title="所选订阅的发送策略"
+            description="本次只影响已选中的订阅；先确认模式和频率，再勾选需要应用的配置。"
+            :columns="2"
+          >
+            <hw-form-item :label="$t('page.notify_subscription.label_throttle_mode')">
+              <hw-radio-group v-model="form.throttle_mode">
+                <hw-radio value="inherit">{{ $t('page.notify_subscription.throttle_mode_inherit') }}</hw-radio>
+                <hw-radio value="realtime">{{ $t('page.notify_subscription.throttle_mode_realtime') }}</hw-radio>
+                <hw-radio value="aggregate">{{ $t('page.notify_subscription.throttle_mode_aggregate') }}</hw-radio>
+                <hw-radio value="cooldown">{{ $t('page.notify_subscription.throttle_mode_cooldown') }}</hw-radio>
+              </hw-radio-group>
+            </hw-form-item>
+            <hw-form-item
+              v-if="form.throttle_mode === 'aggregate'"
+              :label="$t('page.notify_subscription.label_aggregate_window')"
+            >
+              <hw-input-number
+                v-model="form.throttle.aggregate_window_sec"
+                :min="0"
+                :max="3600"
+                theme="normal"
+                :style="{ width: '160px' }"
+              />
+            </hw-form-item>
+            <hw-form-item
+              v-if="form.throttle_mode === 'cooldown'"
+              :label="$t('page.notify_subscription.label_cooldown_steps')"
+            >
+              <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: 'min(100%, 260px)' }" />
+              <div class="form-tip">{{ $t('page.notify_subscription.cooldown_steps_tip') }}</div>
+            </hw-form-item>
+            <hw-form-item
+              v-if="form.throttle_mode !== 'inherit'"
+              :label="$t('page.notify_subscription.label_max_per_hour')"
+            >
+              <hw-input-number
+                v-model="form.throttle.max_per_hour"
+                :min="0"
+                :max="10000"
+                theme="normal"
+                :style="{ width: '160px' }"
+              />
+              <div class="form-tip">{{ $t('page.notify_subscription.max_per_hour_tip') }}</div>
+            </hw-form-item>
+            <hw-form-item
+              v-if="form.throttle_mode !== 'inherit'"
+              :label="$t('page.notify_subscription.label_quiet_hours')"
+            >
+              <hw-input
+                v-model="form.throttle.quiet_hours"
+                placeholder="23:00-07:00"
+                :style="{ width: 'min(100%, 200px)' }"
+              />
+              <div class="form-tip">{{ $t('page.notify_subscription.quiet_hours_tip') }}</div>
+            </hw-form-item>
+          </EditorSection>
+          <EditorSection title="确认应用范围" description="" :columns="1">
+            <hw-form-item>
+              <!-- 只套用勾选的部分：批量最怕的就是把别人配好的模板一起覆盖掉 -->
+              <hw-checkbox v-model="applyThrottle">{{
+                $t('page.notify_subscription.batch_config_apply_throttle')
+              }}</hw-checkbox>
+            </hw-form-item>
+          </EditorSection>
+          <hw-form-item style="float: right">
+            <hw-button variant="outline" @click="handleClose">{{ $t('common.close') }}</hw-button>
+            <hw-button theme="primary" @click="handleSubmit" :loading="saving" :style="{ marginLeft: '8px' }">
+              {{ $t('common.confirm') }}
+            </hw-button>
+          </hw-form-item>
+        </hw-form>
+      </div></template
+    >
   </hw-dialog>
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
-
+import { defineComponent } from 'vue';
 
 import { MessagePlugin } from '@/ui';
 import { batchNotifySubscriptionConfig } from '@/apis/notify_subscription';

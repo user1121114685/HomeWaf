@@ -1,72 +1,119 @@
 <!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
 
 <template>
-  <div>
-    <hw-form :data="formData" label-align="right" :label-width="120">
-      <hw-form-item :label="$t('page.application.upload_file')">
-        <hw-upload
-          :action="''"
-          :auto-upload="false"
-          accept="*"
-          :multiple="false"
-          @change="onFileChange"
+  <div class="application-maintenance" data-testid="application-maintenance">
+    <p class="editor-context">
+      当前应用：<code>{{ appCode }}</code
+      >。更新与恢复都会作用于这个应用的文件。
+    </p>
+    <hw-alert v-if="operationError" theme="error" :close-btn="false">{{ operationError }}</hw-alert>
+    <hw-tabs v-model="activeTask">
+      <hw-tab-panel value="update" label="更新应用" :disabled="uploading">
+        <EditorSection title="更新文件" description="选择文件并核对 SHA-256，再选择仅上传或备份后升级。">
+          <hw-form :data="formData" label-align="right" :label-width="120" :inert="uploading">
+            <hw-form-item :label="$t('page.application.upload_file')">
+              <hw-upload :action="''" :auto-upload="false" accept="*" :multiple="false" @change="onFileChange">
+                <hw-button variant="outline">{{ $t('page.application.select_file') }}</hw-button>
+              </hw-upload>
+              <div v-if="selectedFile" class="editor-context">
+                {{ selectedFile.name }} ({{ formatSize(selectedFile.size) }})
+              </div>
+            </hw-form-item>
+            <hw-form-item :label="$t('page.application.hash_sha256')">
+              <hw-input
+                v-model="formData.hash"
+                :placeholder="
+                  hashComputing ? $t('page.application.hash_computing') : $t('page.application.hash_placeholder')
+                "
+                :disabled="hashComputing"
+                clearable
+              />
+            </hw-form-item>
+            <hw-form-item :label="$t('page.application.upgrade_action')">
+              <hw-radio-group v-model="upgradeMode">
+                <hw-radio value="upload">{{ $t('page.application.upload_only') }}</hw-radio>
+                <hw-radio value="upgrade">{{ $t('page.application.upload_and_upgrade') }}</hw-radio>
+              </hw-radio-group>
+            </hw-form-item>
+          </hw-form>
+        </EditorSection>
+        <p class="editor-context">升级会先等待进程停止，再备份并替换文件。完成后请检查运行状态与应用日志。</p>
+      </hw-tab-panel>
+      <hw-tab-panel value="restore" label="恢复备份" :disabled="uploading">
+        <EditorSection
+          title="可恢复的备份"
+          description="选择备份后确认恢复。恢复前会停止应用，当前文件将被所选备份替换。"
         >
-          <hw-button variant="outline">{{ $t('page.application.select_file') }}</hw-button>
-        </hw-upload>
-        <div v-if="selectedFile" style="margin-top:6px;color:#666;font-size:12px">
-          {{ selectedFile.name }} ({{ formatSize(selectedFile.size) }})
-        </div>
-      </hw-form-item>
-      <hw-form-item :label="$t('page.application.hash_sha256')">
-        <hw-input v-model="formData.hash"
-          :placeholder="hashComputing ? $t('page.application.hash_computing') : $t('page.application.hash_placeholder')"
-          :disabled="hashComputing"
-          clearable />
-      </hw-form-item>
-      <hw-form-item :label="$t('page.application.upgrade_action')">
-        <hw-radio-group v-model="upgradeMode">
-          <hw-radio value="upload">{{ $t('page.application.upload_only') }}</hw-radio>
-          <hw-radio value="upgrade">{{ $t('page.application.upload_and_upgrade') }}</hw-radio>
-        </hw-radio-group>
-      </hw-form-item>
-    </hw-form>
-
-    <!-- 备份列表 -->
-    <hw-divider>{{ $t('page.application.backups') }}</hw-divider>
-    <hw-table :data="backups" :columns="backupColumns" row-key="filename" size="small"
-      :empty="$t('page.application.no_backups')">
-      <template #op="slotProps">
-        <button type="button" class="t-button-link" @click="doRollback(slotProps.row.filename)">
-          {{ $t('page.application.rollback') }}
-        </button>
-      </template>
-    </hw-table>
-
-    <div style="text-align:right;margin-top:16px">
-      <hw-button theme="primary" :loading="uploading" @click="doUpload" :disabled="!selectedFile || hashComputing">
+          <div class="editor-toolbar">
+            <span>{{ backups.length }} 份备份</span
+            ><hw-button :loading="backupsLoading" :disabled="uploading" @click="loadBackups">刷新备份</hw-button>
+          </div>
+          <hw-alert v-if="backupsError" theme="error" :close-btn="false">{{ backupsError }}</hw-alert>
+          <hw-table
+            v-if="backupsLoaded"
+            :data="backups"
+            :columns="backupColumns"
+            row-key="filename"
+            size="small"
+            :empty="$t('page.application.no_backups')"
+          >
+            <template #op="slotProps">
+              <hw-button
+                variant="text"
+                :disabled="uploading || backupsLoading || !!backupsError"
+                @click="doRollback(slotProps.row.filename)"
+              >
+                {{ $t('page.application.rollback') }}
+              </hw-button>
+            </template>
+          </hw-table>
+        </EditorSection>
+      </hw-tab-panel>
+    </hw-tabs>
+    <p v-if="uploading" role="status" class="editor-context">{{ uploadBtnLabel }}</p>
+    <div class="editor-footer">
+      <hw-button
+        v-if="activeTask === 'update'"
+        theme="primary"
+        :loading="uploading"
+        @click="doUpload"
+        :disabled="!selectedFile || hashComputing"
+      >
         {{ uploadBtnLabel }}
       </hw-button>
-      <hw-button theme="default" @click="$emit('close')" style="margin-left:8px">{{ $t('common.cancel') }}</hw-button>
+      <hw-button theme="default" :disabled="uploading" @click="$emit('close')">{{ $t('common.cancel') }}</hw-button>
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
+import { defineComponent } from 'vue';
+import { ElMessageBox } from 'element-plus';
 
-
-import {hashBytes} from '@/utils/legacyCipher';
+import { hashBytes } from '@/utils/legacyCipher';
 import request from '@/utils/request';
-import { wafAppBackupsApi, wafAppStatusApi, buildUploadConfig, buildRollbackConfig, getAppOpPassword } from '@/apis/application';
+import {
+  wafAppBackupsApi,
+  wafAppStatusApi,
+  buildUploadConfig,
+  buildRollbackConfig,
+  getAppOpPassword,
+} from '@/apis/application';
 
 export default defineComponent({
   name: 'AppUpgrade',
+  emits: ['done', 'close'],
   props: {
-    appCode:    { type: String, default: '' },
+    appCode: { type: String, default: '' },
     opPassword: { type: String, default: '' },
   },
   data() {
     return {
+      activeTask: 'update',
+      operationError: '',
+      backupsLoading: false,
+      backupsLoaded: false,
+      backupsError: '',
       formData: { hash: '' },
       selectedFile: null as File | null,
       upgradeMode: 'upgrade',
@@ -76,10 +123,18 @@ export default defineComponent({
       backups: [],
       backupColumns: [
         { colKey: 'filename', title: this.$t('page.application.backup_filename'), ellipsis: true },
-        { colKey: 'size',     title: this.$t('page.application.backup_size'), width: 100,
-          cell: (h, { row }) => this.formatSize(row.size) },
-        { colKey: 'created_at', title: this.$t('page.application.backup_time'), width: 180,
-          cell: (h, { row }) => row.created_at || '-' },
+        {
+          colKey: 'size',
+          title: this.$t('page.application.backup_size'),
+          width: 100,
+          cell: (h, { row }) => this.formatSize(row.size),
+        },
+        {
+          colKey: 'created_at',
+          title: this.$t('page.application.backup_time'),
+          width: 180,
+          cell: (h, { row }) => row.created_at || '-',
+        },
         { colKey: 'op', title: this.$t('common.op'), width: 80, cell: 'op' },
       ],
     };
@@ -87,12 +142,13 @@ export default defineComponent({
   computed: {
     uploadBtnLabel(): string {
       if (this.uploading) {
+        if (!this.uploadPhase) return '等待确认恢复';
         if (this.uploadPhase === 'stopping') return this.$t('page.application.stopping') as string;
         return this.$t('page.application.upgrading') as string;
       }
       return this.upgradeMode === 'upgrade'
-        ? this.$t('page.application.upload_and_upgrade') as string
-        : this.$t('page.application.upload_only') as string;
+        ? (this.$t('page.application.upload_and_upgrade') as string)
+        : (this.$t('page.application.upload_only') as string);
     },
   },
   mounted() {
@@ -122,7 +178,10 @@ export default defineComponent({
           this.hashComputing = false;
         }
       };
-      reader.onerror = () => { this.formData.hash = ''; this.hashComputing = false; };
+      reader.onerror = () => {
+        this.formData.hash = '';
+        this.hashComputing = false;
+      };
       reader.readAsArrayBuffer(file);
     },
     formatSize(bytes: number): string {
@@ -140,9 +199,15 @@ export default defineComponent({
     // stop 本身不在高危组，但升级/回滚流程需要携带密码头以备路由规则变动
     stopAndWait(): Promise<void> {
       return new Promise((resolve, reject) => {
-        const pwd = this.opPassword || getAppOpPassword()
-        const headers: any = pwd ? { 'X-App-Op-Password': pwd } : {}
-        request({ url: '/application/app/stop', method: 'get', params: { code: this.appCode }, timeout: 15000, headers })
+        const pwd = this.opPassword || getAppOpPassword();
+        const headers: any = pwd ? { 'X-App-Op-Password': pwd } : {};
+        request({
+          url: '/application/app/stop',
+          method: 'get',
+          params: { code: this.appCode },
+          timeout: 15000,
+          headers,
+        })
           .then(() => {
             const deadline = Date.now() + 60000;
             const poll = () => {
@@ -150,13 +215,15 @@ export default defineComponent({
                 reject(new Error(this.$t('page.application.stop_wait_timeout') as string));
                 return;
               }
-              wafAppStatusApi({ code: this.appCode }).then(res => {
-                if (res && res.code === 0 && res.data.run_status === 0) {
-                  resolve(undefined);
-                } else {
-                  setTimeout(poll, 1000);
-                }
-              }).catch(() => setTimeout(poll, 1000));
+              wafAppStatusApi({ code: this.appCode })
+                .then((res) => {
+                  if (res && res.code === 0 && res.data.run_status === 0) {
+                    resolve(undefined);
+                  } else {
+                    setTimeout(poll, 1000);
+                  }
+                })
+                .catch(() => setTimeout(poll, 1000));
             };
             setTimeout(poll, 800);
           })
@@ -164,7 +231,8 @@ export default defineComponent({
       });
     },
     async doUpload() {
-      if (!this.selectedFile) return;
+      if (!this.selectedFile || this.uploading || this.hashComputing) return;
+      this.operationError = '';
       this.uploading = true;
       try {
         if (this.upgradeMode === 'upgrade') {
@@ -179,9 +247,7 @@ export default defineComponent({
         fd.append('code', this.appCode);
         fd.append('hash', this.formData.hash);
         fd.append('file', this.selectedFile);
-        const url = this.upgradeMode === 'upgrade'
-          ? '/application/app/upgrade'
-          : '/application/app/upload';
+        const url = this.upgradeMode === 'upgrade' ? '/application/app/upgrade' : '/application/app/upload';
         const timeout = this.calcTimeout(this.selectedFile.size);
 
         const res = await request(buildUploadConfig(url, fd, timeout, this.opPassword));
@@ -190,24 +256,45 @@ export default defineComponent({
           this.loadBackups();
           this.$emit('done');
         } else {
-          this.$message.error(res ? res.msg : this.$t('common.failed'));
+          this.operationError = res?.msg || this.$t('common.failed');
         }
       } catch (err: any) {
-        this.$message.error(err.message || this.$t('common.failed'));
+        this.operationError = err.message || this.$t('common.failed');
       } finally {
         this.uploading = false;
         this.uploadPhase = '';
       }
     },
-    loadBackups() {
-      wafAppBackupsApi({ code: this.appCode }).then(res => {
-        if (res && res.code === 0) {
-          console.log("wafAppBackupsApi",res.data)
-          this.backups = res.data.list || [];
-        }
-      });
+    async loadBackups() {
+      if (this.backupsLoading) return;
+      this.backupsLoading = true;
+      this.backupsError = '';
+      try {
+        const res = await wafAppBackupsApi({ code: this.appCode });
+        if (!res || res.code !== 0) throw new Error(res?.msg || '备份读取失败');
+        this.backups = res.data.list || [];
+        this.backupsLoaded = true;
+      } catch (error: any) {
+        this.backupsError =
+          (error.message || '备份读取失败') + (this.backupsLoaded ? '，当前保留上次结果。' : '，请重试。');
+      } finally {
+        this.backupsLoading = false;
+      }
     },
-    doRollback(filename: string) {
+    async doRollback(filename: string) {
+      if (this.uploading || this.backupsLoading || this.backupsError) return;
+      this.uploading = true;
+      try {
+        await ElMessageBox.confirm(
+          `将停止应用 ${this.appCode}，并使用 ${filename} 替换当前文件。是否继续？`,
+          '恢复应用备份',
+          { type: 'warning', confirmButtonText: '停止并恢复', cancelButtonText: '取消' },
+        );
+      } catch {
+        this.uploading = false;
+        return;
+      }
+      this.operationError = '';
       this.uploading = true;
       this.uploadPhase = 'stopping';
       this.stopAndWait()
@@ -215,21 +302,29 @@ export default defineComponent({
           this.uploadPhase = 'uploading';
           return request(buildRollbackConfig({ code: this.appCode, filename }, this.opPassword));
         })
-        .then(res => {
+        .then((res) => {
           if (res && res.code === 0) {
             this.$message.success(res.msg || this.$t('page.application.rollback_success'));
             this.$emit('done');
           } else {
-            this.$message.error(res ? res.msg : this.$t('common.failed'));
+            this.operationError = res?.msg || this.$t('common.failed');
           }
         })
-        .catch(err => { this.$message.error(err.message || this.$t('common.failed')); })
-        .finally(() => { this.uploading = false; this.uploadPhase = ''; });
+        .catch((err) => {
+          this.operationError = err.message || this.$t('common.failed');
+        })
+        .finally(() => {
+          this.uploading = false;
+          this.uploadPhase = '';
+        });
     },
   },
 });
 </script>
 
 <style scoped>
-.t-button-link { color: var(--td-brand-color); cursor: pointer; }
+.t-button-link {
+  color: var(--td-brand-color);
+  cursor: pointer;
+}
 </style>

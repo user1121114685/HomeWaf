@@ -131,7 +131,7 @@ export const taskFamilies = [
 ] as const;
 
 export const taskTitles: Record<string, [string, string]> = {
-  OPlatformDoc: ['API 接入指南', 'API guide'],
+  OPlatformDoc: ['接口文档', 'API reference'],
   WafPipeline: ['我的服务', 'My services'],
   WafPipelineTemplates: ['策略模板', 'Policy templates'],
   WafSSLOrderList: ['申请与续期', 'Issuance & renewal'],

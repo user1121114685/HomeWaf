@@ -16,6 +16,8 @@ import { setupMessageGuard } from './utils/messageguard';
 import HelpBlock from './components/help-block/index.vue';
 import IpLookup from './components/ip-lookup/index.vue';
 import PageActions from './ui/PageActions.vue';
+import EditorSection from './ui/EditorSection.vue';
+import EditorTabs from './ui/EditorTabs.vue';
 import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css';
 import './style/index.less';
@@ -56,7 +58,12 @@ async function mountApp() {
       if (!copied) throw new Error('Copy unavailable; select and copy manually.');
     },
   });
-  app.component('help-block', HelpBlock).component('ip-lookup', IpLookup).component('PageActions', PageActions);
+  app
+    .component('help-block', HelpBlock)
+    .component('ip-lookup', IpLookup)
+    .component('PageActions', PageActions)
+    .component('EditorSection', EditorSection)
+    .component('EditorTabs', EditorTabs);
   setupMessageGuard();
   const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
   const updateSystemTheme = (event) => {

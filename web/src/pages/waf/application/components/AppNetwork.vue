@@ -2,45 +2,56 @@
 
 <template>
   <div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <span style="font-size:12px;color:#999">
+    <div class="editor-toolbar">
+      <span class="editor-context">
         <span v-if="result && result.cached_at">{{ $t('page.application.net_cached_at') }}{{ result.cached_at }}</span>
-        <span v-if="result && result.pids && result.pids.length > 1" style="margin-left:12px">
+        <span v-if="result && result.pids && result.pids.length > 1" style="margin-left: 12px">
           PIDs: {{ result.pids.join(', ') }}
         </span>
       </span>
       <hw-button size="small" :loading="loading" @click="load">{{ $t('common.refresh') }}</hw-button>
     </div>
 
-    <hw-divider>{{ $t('page.application.net_ports') }}</hw-divider>
-    <hw-table :data="ports" :columns="portColumns" row-key="local_addr" size="small"
-      :empty="$t('page.application.net_no_ports')">
-    </hw-table>
-
-    <hw-divider>
-      {{ $t('page.application.net_connections') }}
-      <span v-if="connSummaryAll.length > 0" style="font-size:12px;font-weight:normal;color:#999;margin-left:8px">
-        {{ connSummaryAll.length }} IP
-      </span>
-    </hw-divider>
-    <hw-alert v-if="result && result.connections && result.connections.length >= 1000"
-      theme="warning" :message="$t('page.application.net_conn_limit')" style="margin-bottom:8px" />
-    <hw-table
-      :data="connPageData"
-      :columns="connColumns"
-      row-key="remote_ip"
-      size="small"
-      :pagination="connPagination"
-      @page-change="onConnPageChange"
-      :empty="$t('page.application.net_no_connections')"
+    <hw-alert v-if="error" theme="error" :close-btn="false">{{ error }}</hw-alert>
+    <EditorSection
+      :title="$t('page.application.net_ports')"
+      description="先确认应用实际监听的地址与进程，再查看远端连接来源。"
     >
-    </hw-table>
+      <hw-table
+        :data="ports"
+        :columns="portColumns"
+        row-key="local_addr"
+        size="small"
+        :empty="$t('page.application.net_no_ports')"
+      >
+      </hw-table>
+    </EditorSection>
+    <EditorSection
+      :title="$t('page.application.net_connections')"
+      :description="`${connSummaryAll.length} 个远端 IP，按来源汇总连接数量及本地端口。`"
+    >
+      <hw-alert
+        v-if="result && result.connections && result.connections.length >= 1000"
+        theme="warning"
+        :message="$t('page.application.net_conn_limit')"
+        style="margin-bottom: 8px"
+      />
+      <hw-table
+        :data="connPageData"
+        :columns="connColumns"
+        row-key="remote_ip"
+        size="small"
+        :pagination="connPagination"
+        @page-change="onConnPageChange"
+        :empty="$t('page.application.net_no_connections')"
+      >
+      </hw-table>
+    </EditorSection>
   </div>
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
-
+import { defineComponent } from 'vue';
 
 import { wafAppNetStatsApi } from '@/apis/application';
 
@@ -57,6 +68,7 @@ export default defineComponent({
   data() {
     return {
       loading: false,
+      error: '',
       result: null as any,
       connCurrentPage: 1,
       connPageSize: 20,
@@ -75,10 +87,10 @@ export default defineComponent({
   },
   computed: {
     ports(): any[] {
-      return (this.result && this.result.ports) ? this.result.ports : [];
+      return this.result && this.result.ports ? this.result.ports : [];
     },
     connSummaryAll(): any[] {
-      const rawConns: any[] = (this.result && this.result.connections) ? this.result.connections : [];
+      const rawConns: any[] = this.result && this.result.connections ? this.result.connections : [];
       const map: Record<string, { remote_ip: string; count: number; portSet: Set<number> }> = {};
       for (const c of rawConns) {
         const ip = c.remote_ip || c.remote_addr || '';
@@ -115,14 +127,18 @@ export default defineComponent({
   },
   methods: {
     load() {
-      if (!this.appCode) return;
+      if (!this.appCode || this.loading) return;
       this.loading = true;
+      this.error = '';
       this.connCurrentPage = 1;
       wafAppNetStatsApi({ code: this.appCode })
         .then((res) => {
           if (res && res.code === 0) {
             this.result = res.data;
-          }
+          } else throw new Error(res?.msg || '网络连接读取失败');
+        })
+        .catch((error) => {
+          this.error = (error.message || '网络连接读取失败') + (this.result ? '，当前保留上次结果。' : '，请重试。');
         })
         .finally(() => {
           this.loading = false;
@@ -136,5 +152,4 @@ export default defineComponent({
 });
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

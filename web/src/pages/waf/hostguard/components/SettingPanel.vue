@@ -2,6 +2,8 @@
 
 <template>
   <div class="panel-container">
+    <hw-alert v-if="configError" theme="error" :close-btn="false">{{ configError }}</hw-alert>
+    <hw-button v-if="!configLoaded && !loading" @click="loadConfig">重新读取设置</hw-button>
     <hw-loading :loading="loading" size="small">
       <!-- 总开关单独放在最上面，并且开启前必须二次确认：
            白名单配错会把管理员自己锁在服务器外面，这是这个功能最大的事故来源 -->
@@ -11,181 +13,201 @@
             <div class="master-title">{{ $t('page.hostguard.cfg_enabled') }}</div>
             <div class="desc">{{ $t('page.hostguard.cfg_enabled_desc') }}</div>
           </div>
-          <hw-switch v-model="masterEnabled" :loading="masterLoading" @change="onMasterChange" size="large" />
+          <hw-switch
+            v-model="masterEnabled"
+            :loading="masterLoading"
+            :disabled="!configLoaded || loading"
+            @change="onMasterChange"
+            size="large"
+          />
         </div>
       </hw-card>
 
       <hw-form :data="form" ref="form" @submit="onSave" :labelWidth="190" class="cfg-form">
-        <hw-divider align="left">{{ $t('page.hostguard.group_detect') }}</hw-divider>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_mode')">
-          <hw-radio-group v-model="form.host_guard_mode">
-            <hw-radio-button value="observe">{{ $t('page.hostguard.mode_observe') }}</hw-radio-button>
-            <hw-radio-button value="block">{{ $t('page.hostguard.mode_block') }}</hw-radio-button>
-          </hw-radio-group>
-          <div class="desc">{{ $t('page.hostguard.cfg_mode_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_find_time')">
-          <hw-input-number v-model="form.host_guard_find_time" :min="1" theme="column" :style="{ width: 'min(100%, 200px)' }" />
-          <span class="unit">{{ $t('common.unit_minute') }}</span>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_max_retry')">
-          <hw-input-number v-model="form.host_guard_max_retry" :min="1" theme="column" :style="{ width: 'min(100%, 200px)' }" />
-          <div class="desc">{{ $t('page.hostguard.cfg_max_retry_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_offender_reset')">
-          <hw-input-number
-            v-model="form.host_guard_offender_reset_day"
-            :min="0"
-            theme="column"
-            :style="{ width: 'min(100%, 200px)' }"
-          />
-          <span class="unit">{{ $t('page.hostguard.unit_day') }}</span>
-          <div class="desc">{{ $t('page.hostguard.cfg_offender_reset_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_soft_fail')">
-          <hw-switch v-model="form.host_guard_count_soft_fail" :customValue="['1', '0']" />
-          <div class="desc">{{ $t('page.hostguard.cfg_soft_fail_desc') }}</div>
-        </hw-form-item>
-
-        <hw-divider align="left">{{ $t('page.hostguard.group_whitelist') }}</hw-divider>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_whitelist')">
-          <hw-textarea
-            v-model="form.host_guard_whitelist"
-            :autosize="{ minRows: 2, maxRows: 5 }"
-            :style="{ width: 'min(100%, 520px)' }"
-            :placeholder="$t('page.hostguard.cfg_whitelist_ph')"
-          />
-          <div class="desc">{{ $t('page.hostguard.cfg_whitelist_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_auto_lan')">
-          <hw-switch v-model="form.host_guard_auto_lan" :customValue="['1', '0']" />
-          <div class="desc">{{ $t('page.hostguard.cfg_auto_lan_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.whitelist_test')">
-          <hw-input
-            v-model="testIP"
-            :style="{ width: 'min(100%, 260px)' }"
-            :placeholder="$t('page.hostguard.whitelist_test_ph')"
-          />
-          <hw-button theme="default" @click="onTestWhitelist" style="margin-left: 8px">
-            {{ $t('page.hostguard.whitelist_test_btn') }}
-          </hw-button>
-          <div v-if="testResult" class="test-result">
-            <hw-tag :theme="testResult.whitelisted ? 'success' : 'warning'" variant="light">
-              {{ testResult.whitelisted ? $t('page.hostguard.test_exempt') : $t('page.hostguard.test_not_exempt') }}
-            </hw-tag>
-            <span v-if="testResult.reason" class="test-reason">{{ testResult.reason }}</span>
-          </div>
-        </hw-form-item>
-
-        <hw-divider align="left">{{ $t('page.hostguard.group_source') }}</hw-divider>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_log_paths')">
-          <hw-input v-model="form.host_guard_log_paths" :style="{ width: 'min(100%, 520px)' }" />
-          <div class="desc">{{ $t('page.hostguard.cfg_log_paths_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_ssh_ports')">
-          <hw-input v-model="form.host_guard_ssh_ports" :style="{ width: 'min(100%, 200px)' }" placeholder="22" />
-          <span class="unit-text">{{ $t('page.hostguard.cfg_ports_detected') }}: {{ (status.ssh_ports || []).join(', ') || '-' }}</span>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_rdp_ports')">
-          <hw-input v-model="form.host_guard_rdp_ports" :style="{ width: 'min(100%, 200px)' }" placeholder="3389" />
-          <span class="unit-text">{{ $t('page.hostguard.cfg_ports_detected') }}: {{ (status.rdp_ports || []).join(', ') || '-' }}</span>
-          <div class="desc">{{ $t('page.hostguard.cfg_ports_desc') }}</div>
-        </hw-form-item>
-
-        <hw-divider align="left">{{ $t('page.hostguard.group_exec') }}</hw-divider>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_port_scope')">
-          <hw-radio-group v-model="form.host_guard_port_scope">
-            <hw-radio-button value="all">{{ $t('page.hostguard.scope_all') }}</hw-radio-button>
-            <!-- 平台不支持时禁用：选了也只会静默按全端口封，留着就是个假开关 -->
-            <hw-radio-button value="detected" :disabled="!portScopeSupported">
-              {{ $t('page.hostguard.scope_detected') }}
-            </hw-radio-button>
-          </hw-radio-group>
-          <div class="desc">{{ $t('page.hostguard.cfg_port_scope_desc') }}</div>
-          <div v-if="!portScopeSupported" class="desc warn-desc">
-            {{ $t('page.hostguard.cfg_port_scope_unsupported') }}
-          </div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_exec_mode')">
-          <hw-select v-model="form.host_guard_exec_mode" :style="{ width: 'min(100%, 200px)' }">
-            <hw-option key="auto" value="auto" :label="$t('page.hostguard.exec_auto')" />
-            <hw-option key="ipset" value="ipset" :label="$t('page.hostguard.exec_ipset')" />
-            <hw-option key="rule" value="rule" :label="$t('page.hostguard.exec_rule')" />
-          </hw-select>
-          <span class="unit-text">{{ $t('page.hostguard.cfg_exec_current') }}: {{ status.exec_mode || '-' }}</span>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_debounce')">
-          <hw-input-number v-model="form.host_guard_debounce_sec" :min="1" theme="column" :style="{ width: 'min(100%, 200px)' }" />
-          <span class="unit">{{ $t('page.hostguard.unit_second') }}</span>
-          <div class="desc">{{ $t('page.hostguard.cfg_debounce_desc') }}</div>
-        </hw-form-item>
-
-        <hw-divider align="left">{{ $t('page.hostguard.group_flood') }}</hw-divider>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_max_entries')">
-          <hw-input-number
-            v-model="form.host_guard_max_ban_entries"
-            :min="0"
-            theme="column"
-            :style="{ width: 'min(100%, 200px)' }"
-          />
-          <div class="desc">{{ $t('page.hostguard.cfg_max_entries_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_rate_limit')">
-          <hw-input-number
-            v-model="form.host_guard_ban_rate_limit"
-            :min="0"
-            theme="column"
-            :style="{ width: 'min(100%, 200px)' }"
-          />
-          <div class="desc">{{ $t('page.hostguard.cfg_rate_limit_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_subnet')">
-          <hw-switch v-model="form.host_guard_subnet_aggregate" :customValue="['1', '0']" />
-          <hw-input-number
-            v-model="form.host_guard_subnet_threshold"
-            :min="2"
-            theme="column"
-            :style="{ width: '160px', marginLeft: '12px' }"
-          />
-          <div class="desc warn-desc">{{ $t('page.hostguard.cfg_subnet_desc') }}</div>
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostguard.cfg_notify')">
-          <hw-switch v-model="form.host_guard_notify" :customValue="['1', '0']" />
-        </hw-form-item>
-
-        <hw-divider align="left">{{ $t('page.hostconn.group_conn') }}</hw-divider>
-
-        <hw-form-item :label="$t('page.hostconn.cfg_enabled')">
-          <hw-switch v-model="form.host_conn_enabled" :customValue="['1', '0']" />
-        </hw-form-item>
-
-        <hw-form-item :label="$t('page.hostconn.cfg_cache_sec')">
-          <hw-input-number v-model="form.host_conn_cache_sec" :min="1" theme="column" :style="{ width: 'min(100%, 200px)' }" />
-          <span class="unit">{{ $t('page.hostguard.unit_second') }}</span>
-          <div class="desc">{{ $t('page.hostconn.cfg_cache_sec_desc') }}</div>
-        </hw-form-item>
-
+        <EditorSection
+          title="保留管理访问"
+          description="开启或切换为拦截前，先保存可信管理来源并验证白名单。总开关单独即时生效。"
+          :columns="2"
+        >
+          <hw-form-item :label="$t('page.hostguard.cfg_whitelist')">
+            <hw-textarea
+              v-model="form.host_guard_whitelist"
+              :autosize="{ minRows: 2, maxRows: 5 }"
+              :style="{ width: 'min(100%, 520px)' }"
+              :placeholder="$t('page.hostguard.cfg_whitelist_ph')"
+            />
+            <div class="desc">{{ $t('page.hostguard.cfg_whitelist_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_auto_lan')">
+            <hw-switch v-model="form.host_guard_auto_lan" :customValue="['1', '0']" />
+            <div class="desc">{{ $t('page.hostguard.cfg_auto_lan_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.whitelist_test')">
+            <hw-input
+              v-model="testIP"
+              :style="{ width: 'min(100%, 260px)' }"
+              :placeholder="$t('page.hostguard.whitelist_test_ph')"
+            />
+            <hw-button theme="default" @click="onTestWhitelist" style="margin-left: 8px">
+              {{ $t('page.hostguard.whitelist_test_btn') }}
+            </hw-button>
+            <div v-if="testResult" class="test-result">
+              <hw-tag :theme="testResult.whitelisted ? 'success' : 'warning'" variant="light">
+                {{ testResult.whitelisted ? $t('page.hostguard.test_exempt') : $t('page.hostguard.test_not_exempt') }}
+              </hw-tag>
+              <span v-if="testResult.reason" class="test-reason">{{ testResult.reason }}</span>
+            </div>
+          </hw-form-item>
+        </EditorSection>
+        <EditorSection title="检测对象与来源" description="确认系统日志和实际监听的远程管理端口。" :columns="2">
+          <hw-form-item :label="$t('page.hostguard.cfg_log_paths')">
+            <hw-input v-model="form.host_guard_log_paths" :style="{ width: 'min(100%, 520px)' }" />
+            <div class="desc">{{ $t('page.hostguard.cfg_log_paths_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_ssh_ports')">
+            <hw-input v-model="form.host_guard_ssh_ports" :style="{ width: 'min(100%, 200px)' }" placeholder="22" />
+            <span class="unit-text"
+              >{{ $t('page.hostguard.cfg_ports_detected') }}: {{ (status.ssh_ports || []).join(', ') || '-' }}</span
+            >
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_rdp_ports')">
+            <hw-input v-model="form.host_guard_rdp_ports" :style="{ width: 'min(100%, 200px)' }" placeholder="3389" />
+            <span class="unit-text"
+              >{{ $t('page.hostguard.cfg_ports_detected') }}: {{ (status.rdp_ports || []).join(', ') || '-' }}</span
+            >
+            <div class="desc">{{ $t('page.hostguard.cfg_ports_desc') }}</div>
+          </hw-form-item>
+        </EditorSection>
+        <EditorSection
+          title="观察与触发条件"
+          description="观察模式用于确认命中；拦截模式会按下方范围执行封禁。"
+          :columns="2"
+        >
+          <hw-form-item :label="$t('page.hostguard.cfg_mode')">
+            <hw-radio-group v-model="form.host_guard_mode">
+              <hw-radio-button value="observe">{{ $t('page.hostguard.mode_observe') }}</hw-radio-button>
+              <hw-radio-button value="block">{{ $t('page.hostguard.mode_block') }}</hw-radio-button>
+            </hw-radio-group>
+            <div class="desc">{{ $t('page.hostguard.cfg_mode_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_find_time')">
+            <hw-input-number
+              v-model="form.host_guard_find_time"
+              :min="1"
+              theme="column"
+              :style="{ width: 'min(100%, 200px)' }"
+            />
+            <span class="unit">{{ $t('common.unit_minute') }}</span>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_max_retry')">
+            <hw-input-number
+              v-model="form.host_guard_max_retry"
+              :min="1"
+              theme="column"
+              :style="{ width: 'min(100%, 200px)' }"
+            />
+            <div class="desc">{{ $t('page.hostguard.cfg_max_retry_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_offender_reset')">
+            <hw-input-number
+              v-model="form.host_guard_offender_reset_day"
+              :min="0"
+              theme="column"
+              :style="{ width: 'min(100%, 200px)' }"
+            />
+            <span class="unit">{{ $t('page.hostguard.unit_day') }}</span>
+            <div class="desc">{{ $t('page.hostguard.cfg_offender_reset_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_soft_fail')">
+            <hw-switch v-model="form.host_guard_count_soft_fail" :customValue="['1', '0']" />
+            <div class="desc">{{ $t('page.hostguard.cfg_soft_fail_desc') }}</div>
+          </hw-form-item>
+        </EditorSection>
+        <EditorSection title="封禁执行范围" description="确认作用端口和当前平台支持的执行方式。" :columns="2">
+          <hw-form-item :label="$t('page.hostguard.cfg_port_scope')">
+            <hw-radio-group v-model="form.host_guard_port_scope">
+              <hw-radio-button value="all">{{ $t('page.hostguard.scope_all') }}</hw-radio-button>
+              <!-- 平台不支持时禁用：选了也只会静默按全端口封，留着就是个假开关 -->
+              <hw-radio-button value="detected" :disabled="!portScopeSupported">
+                {{ $t('page.hostguard.scope_detected') }}
+              </hw-radio-button>
+            </hw-radio-group>
+            <div class="desc">{{ $t('page.hostguard.cfg_port_scope_desc') }}</div>
+            <div v-if="!portScopeSupported" class="desc warn-desc">
+              {{ $t('page.hostguard.cfg_port_scope_unsupported') }}
+            </div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_exec_mode')">
+            <hw-select v-model="form.host_guard_exec_mode" :style="{ width: 'min(100%, 200px)' }">
+              <hw-option key="auto" value="auto" :label="$t('page.hostguard.exec_auto')" />
+              <hw-option key="ipset" value="ipset" :label="$t('page.hostguard.exec_ipset')" />
+              <hw-option key="rule" value="rule" :label="$t('page.hostguard.exec_rule')" />
+            </hw-select>
+            <span class="unit-text">{{ $t('page.hostguard.cfg_exec_current') }}: {{ status.exec_mode || '-' }}</span>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_debounce')">
+            <hw-input-number
+              v-model="form.host_guard_debounce_sec"
+              :min="1"
+              theme="column"
+              :style="{ width: 'min(100%, 200px)' }"
+            />
+            <span class="unit">{{ $t('page.hostguard.unit_second') }}</span>
+            <div class="desc">{{ $t('page.hostguard.cfg_debounce_desc') }}</div>
+          </hw-form-item>
+        </EditorSection>
+        <EditorSection title="容量、聚合与通知" description="" :columns="2">
+          <hw-form-item :label="$t('page.hostguard.cfg_max_entries')">
+            <hw-input-number
+              v-model="form.host_guard_max_ban_entries"
+              :min="0"
+              theme="column"
+              :style="{ width: 'min(100%, 200px)' }"
+            />
+            <div class="desc">{{ $t('page.hostguard.cfg_max_entries_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_rate_limit')">
+            <hw-input-number
+              v-model="form.host_guard_ban_rate_limit"
+              :min="0"
+              theme="column"
+              :style="{ width: 'min(100%, 200px)' }"
+            />
+            <div class="desc">{{ $t('page.hostguard.cfg_rate_limit_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_subnet')">
+            <hw-switch v-model="form.host_guard_subnet_aggregate" :customValue="['1', '0']" />
+            <hw-input-number
+              v-model="form.host_guard_subnet_threshold"
+              :min="2"
+              theme="column"
+              :style="{ width: '160px', marginLeft: '12px' }"
+            />
+            <div class="desc warn-desc">{{ $t('page.hostguard.cfg_subnet_desc') }}</div>
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostguard.cfg_notify')">
+            <hw-switch v-model="form.host_guard_notify" :customValue="['1', '0']" />
+          </hw-form-item>
+        </EditorSection>
+        <EditorSection title="连接观测" description="" :columns="2">
+          <hw-form-item :label="$t('page.hostconn.cfg_enabled')">
+            <hw-switch v-model="form.host_conn_enabled" :customValue="['1', '0']" />
+          </hw-form-item>
+          <hw-form-item :label="$t('page.hostconn.cfg_cache_sec')">
+            <hw-input-number
+              v-model="form.host_conn_cache_sec"
+              :min="1"
+              theme="column"
+              :style="{ width: 'min(100%, 200px)' }"
+            />
+            <span class="unit">{{ $t('page.hostguard.unit_second') }}</span>
+            <div class="desc">{{ $t('page.hostconn.cfg_cache_sec_desc') }}</div>
+          </hw-form-item>
+        </EditorSection>
         <hw-form-item>
-          <hw-button theme="primary" type="submit" :loading="saving">{{ $t('common.save') }}</hw-button>
+          <hw-button theme="primary" type="submit" :loading="saving" :disabled="!configLoaded || loading">{{
+            $t('common.save')
+          }}</hw-button>
         </hw-form-item>
       </hw-form>
 
@@ -210,11 +232,7 @@
           </hw-tag>
         </template>
         <template #enable="{ row, rowIndex }">
-          <hw-switch
-            :value="row.enable"
-            :customValue="[1, 0]"
-            @change="(v) => onLadderChange(rowIndex, 'enable', v)"
-          />
+          <hw-switch :value="row.enable" :customValue="[1, 0]" @change="(v) => onLadderChange(rowIndex, 'enable', v)" />
         </template>
         <template #remarks="{ row, rowIndex }">
           <hw-input
@@ -245,7 +263,8 @@
             <li>{{ $t('page.hostguard.rescue_3') }}</li>
             <li>
               {{ $t('page.hostguard.rescue_4') }}
-              <pre class="code-block">ipset del samwaf_hostguard &lt;IP&gt;
+              <pre class="code-block">
+ipset del samwaf_hostguard &lt;IP&gt;
 ipset flush samwaf_hostguard
 netsh advfirewall firewall delete rule name=SamWAF_Set_samwaf_hostguard_0</pre>
             </li>
@@ -275,15 +294,10 @@ netsh advfirewall firewall delete rule name=SamWAF_Set_samwaf_hostguard_0</pre>
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
-
+import { defineComponent } from 'vue';
 
 import { get_detail_by_item_api, edit_system_config_by_item_api } from '@/apis/systemconfig';
-import {
-  wafHostGuardLadderListApi,
-  wafHostGuardLadderSaveApi,
-  wafHostGuardWhitelistTestApi,
-} from '@/apis/hostguard';
+import { wafHostGuardLadderListApi, wafHostGuardLadderSaveApi, wafHostGuardWhitelistTestApi } from '@/apis/hostguard';
 
 const MASTER_ITEM = 'host_guard_enabled';
 
@@ -328,6 +342,8 @@ export default defineComponent({
   data() {
     return {
       loading: false,
+      configLoaded: false,
+      configError: '',
       saving: false,
       masterEnabled: false,
       masterLoading: false,
@@ -355,7 +371,10 @@ export default defineComponent({
       this.loadLadders();
     },
     loadConfig() {
+      if (this.loading || this.saving) return;
       this.loading = true;
+      this.configLoaded = false;
+      this.configError = '';
       const items = [MASTER_ITEM, ...NUMBER_ITEMS, ...STRING_ITEMS];
       const tasks = items.map((item) =>
         get_detail_by_item_api({ item })
@@ -369,6 +388,10 @@ export default defineComponent({
       );
       Promise.all(tasks)
         .then((results) => {
+          if (results.some((result) => !result)) {
+            this.configError = '部分设置未能读取，已禁止提交，请重新读取设置。';
+            return;
+          }
           const form = {} as any;
           results.forEach((r: any) => {
             if (!r) return;
@@ -383,6 +406,7 @@ export default defineComponent({
             }
           });
           this.form = form;
+          this.configLoaded = true;
         })
         .finally(() => {
           this.loading = false;
@@ -427,15 +451,25 @@ export default defineComponent({
         });
     },
     onSave() {
+      if (this.saving || this.loading || !this.configLoaded) return;
       this.saving = true;
+      this.configError = '';
       const tasks = [];
       Object.keys(this.form).forEach((item) => {
-        tasks.push(edit_system_config_by_item_api({ item, value: String(this.form[item]) }).catch(() => null));
+        tasks.push(
+          edit_system_config_by_item_api({ item, value: String(this.form[item]) })
+            .then((result) => ({ item, ok: result.code === 0 }))
+            .catch(() => ({ item, ok: false })),
+        );
       });
       Promise.all(tasks)
-        .then(() => {
-          this.$message.success(this.$t('page.hostguard.save_success'));
-          this.$emit('changed');
+        .then((results) => {
+          const failed = results.filter((result) => !result.ok),
+            saved = results.length - failed.length;
+          if (failed.length)
+            this.configError = `已保存 ${saved}/${results.length} 项，未保存：${failed.map((result) => result.item).join('、')}。草稿已保留，请重试；已成功的设置已经生效。`;
+          else this.$message.success(this.$t('page.hostguard.save_success'));
+          if (saved) this.$emit('changed');
         })
         .finally(() => {
           this.saving = false;

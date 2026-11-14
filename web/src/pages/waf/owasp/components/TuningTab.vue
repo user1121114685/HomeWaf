@@ -2,18 +2,25 @@
 
 <template>
   <div>
+    <hw-alert v-if="tuningError" theme="error" :close-btn="false">{{ tuningError }}</hw-alert>
+    <p v-if="tuningLoading" role="status">正在读取当前引擎配置…</p>
+    <hw-button v-if="!tuningLoaded && !tuningLoading" @click="getTuning">重试读取引擎配置</hw-button>
     <help-block :summary="$t('page.owasp.tuning.alert_message')" doc="guide/Owasp" />
     <hw-alert theme="success" style="margin-top: 8px">
       <template #message>
         {{ $t('page.owasp.tuning.whitelist_tip') }}
-        <hw-button variant="text" theme="success" size="small" style="padding: 0 4px" @click="gotoUrlWhitelist">{{ $t('page.owasp.tuning.goto_url_whitelist') }}</hw-button>
+        <hw-button variant="text" theme="success" size="small" style="padding: 0 4px" @click="gotoUrlWhitelist">{{
+          $t('page.owasp.tuning.goto_url_whitelist')
+        }}</hw-button>
         <span style="color: var(--td-text-color-secondary)">|</span>
-        <hw-button variant="text" theme="success" size="small" style="padding: 0 4px" @click="gotoIpWhitelist">{{ $t('page.owasp.tuning.goto_ip_whitelist') }}</hw-button>
+        <hw-button variant="text" theme="success" size="small" style="padding: 0 4px" @click="gotoIpWhitelist">{{
+          $t('page.owasp.tuning.goto_ip_whitelist')
+        }}</hw-button>
       </template>
     </hw-alert>
 
     <!-- 概念说明区：帮助用户理解 Paranoia / Anomaly 等核心术语 -->
-    <hw-collapse :default-value="['concepts']" expandMutex expand-icon-placement="right" class="concept-panel">
+    <hw-collapse :default-value="[]" expandMutex expand-icon-placement="right" class="concept-panel">
       <hw-collapse-panel :header="$t('page.owasp.tuning.concepts_title')" value="concepts">
         <div class="concept-block">
           <div class="concept-title">① Paranoia Level (PL) · {{ $t('page.owasp.tuning.concept_paranoia_label') }}</div>
@@ -64,140 +71,172 @@
     </hw-collapse>
 
     <hw-form :data="form" :rules="rules" :labelWidth="220" @submit="onSubmit">
-      <hw-form-item name="rule_engine">
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.rule_engine') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_engine_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <hw-radio-group v-model="form.rule_engine">
-          <hw-radio value="On">{{ $t('page.owasp.tuning.engine_on') }}</hw-radio>
-          <hw-radio value="DetectionOnly">{{ $t('page.owasp.tuning.engine_detection') }}</hw-radio>
-          <hw-radio value="Off">{{ $t('page.owasp.tuning.engine_off') }}</hw-radio>
-        </hw-radio-group>
-      </hw-form-item>
-      <hw-form-item name="blocking_paranoia">
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.blocking_paranoia') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_blocking_pl_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <hw-input-number v-model="form.blocking_paranoia" :min="1" :max="4" />
-        <span class="tip">{{ $t('page.owasp.tuning.blocking_paranoia_tip') }}</span>
-      </hw-form-item>
-      <hw-form-item name="detection_paranoia">
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.detection_paranoia') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_detection_pl_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <hw-input-number v-model="form.detection_paranoia" :min="1" :max="4" />
-        <span class="tip">{{ $t('page.owasp.tuning.detection_paranoia_tip') }}</span>
-      </hw-form-item>
-      <hw-form-item name="inbound_threshold">
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.inbound_threshold') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_inbound_threshold_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <hw-input-number v-model="form.inbound_threshold" :min="1" :max="100" />
-        <span class="tip">{{ $t('page.owasp.tuning.inbound_threshold_tip') }}</span>
-      </hw-form-item>
-      <hw-form-item name="outbound_threshold">
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.outbound_threshold') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_outbound_threshold_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <hw-input-number v-model="form.outbound_threshold" :min="1" :max="100" />
-        <span class="tip">{{ $t('page.owasp.tuning.outbound_threshold_tip') }}</span>
-      </hw-form-item>
-      <hw-form-item>
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.early_blocking') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_early_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <hw-switch v-model="earlyBool" @change="(v) => (form.early_blocking = v ? 1 : 0)" />
-        <span class="tip">{{ $t('page.owasp.tuning.early_blocking_tip') }}</span>
-      </hw-form-item>
-      <hw-form-item>
-        <hw-alert theme="warning" :message="$t('page.owasp.tuning.request_body_warn')" style="margin: 4px 0 2px" />
-      </hw-form-item>
-      <hw-form-item name="request_body_limit">
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.request_body_limit') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_request_body_limit_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <div class="body-limit-field">
-          <hw-input-number v-model="form.request_body_limit" :min="0" :step="1048576" />
-          <div class="quick-presets">
-            <hw-tag
-              v-for="p in bodyLimitPresets"
-              :key="p.value"
-              :theme="form.request_body_limit === p.value ? 'primary' : 'default'"
-              :variant="form.request_body_limit === p.value ? 'light' : 'outline'"
-              class="preset-tag"
-              @click="form.request_body_limit = p.value"
-            >{{ p.label }}</hw-tag>
+      <EditorSection
+        title="引擎模式与规则级别"
+        description="先确定观察还是拦截，再调整执行与检测的规则级别。"
+        :columns="2"
+      >
+        <hw-form-item name="rule_engine">
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.rule_engine') }}</span>
+            <hw-tooltip :content="$t('page.owasp.tuning.concept_engine_tooltip')" placement="top-left">
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <hw-radio-group v-model="form.rule_engine">
+            <hw-radio value="On">{{ $t('page.owasp.tuning.engine_on') }}</hw-radio>
+            <hw-radio value="DetectionOnly">{{ $t('page.owasp.tuning.engine_detection') }}</hw-radio>
+            <hw-radio value="Off">{{ $t('page.owasp.tuning.engine_off') }}</hw-radio>
+          </hw-radio-group>
+        </hw-form-item>
+        <hw-form-item name="blocking_paranoia">
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.blocking_paranoia') }}</span>
+            <hw-tooltip :content="$t('page.owasp.tuning.concept_blocking_pl_tooltip')" placement="top-left">
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <hw-input-number v-model="form.blocking_paranoia" :min="1" :max="4" />
+          <span class="tip">{{ $t('page.owasp.tuning.blocking_paranoia_tip') }}</span>
+        </hw-form-item>
+        <hw-form-item name="detection_paranoia">
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.detection_paranoia') }}</span>
+            <hw-tooltip :content="$t('page.owasp.tuning.concept_detection_pl_tooltip')" placement="top-left">
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <hw-input-number v-model="form.detection_paranoia" :min="1" :max="4" />
+          <span class="tip">{{ $t('page.owasp.tuning.detection_paranoia_tip') }}</span>
+        </hw-form-item>
+      </EditorSection>
+      <EditorSection title="拦截阈值" description="分别控制请求与响应的异常分数，并确认是否提前拦截。" :columns="2">
+        <hw-form-item name="inbound_threshold">
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.inbound_threshold') }}</span>
+            <hw-tooltip :content="$t('page.owasp.tuning.concept_inbound_threshold_tooltip')" placement="top-left">
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <hw-input-number v-model="form.inbound_threshold" :min="1" :max="100" />
+          <span class="tip">{{ $t('page.owasp.tuning.inbound_threshold_tip') }}</span>
+        </hw-form-item>
+        <hw-form-item name="outbound_threshold">
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.outbound_threshold') }}</span>
+            <hw-tooltip :content="$t('page.owasp.tuning.concept_outbound_threshold_tooltip')" placement="top-left">
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <hw-input-number v-model="form.outbound_threshold" :min="1" :max="100" />
+          <span class="tip">{{ $t('page.owasp.tuning.outbound_threshold_tip') }}</span>
+        </hw-form-item>
+        <hw-form-item>
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.early_blocking') }}</span>
+            <hw-tooltip :content="$t('page.owasp.tuning.concept_early_tooltip')" placement="top-left">
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <hw-switch v-model="earlyBool" @change="(v) => (form.early_blocking = v ? 1 : 0)" />
+          <span class="tip">{{ $t('page.owasp.tuning.early_blocking_tip') }}</span>
+        </hw-form-item>
+      </EditorSection>
+      <EditorSection
+        title="请求体与内存预算"
+        description="上传大小、内存缓冲和检测范围是不同限制，请结合业务请求一起检查。"
+        :columns="2"
+      >
+        <hw-form-item label="强制 URLENCODED 请求体处理" name="enforce_bodyproc_urlencoded">
+          <hw-switch
+            v-model="form.enforce_bodyproc_urlencoded"
+            :custom-value="[1, 0]"
+            aria-label="强制 URLENCODED 请求体处理"
+          />
+          <span class="tip"
+            >未匹配常规请求体处理器时强制按 URLENCODED 解析。可能增加误报，请结合业务请求在沙盒中验证。</span
+          >
+        </hw-form-item>
+        <hw-form-item>
+          <hw-alert theme="warning" :message="$t('page.owasp.tuning.request_body_warn')" style="margin: 4px 0 2px" />
+        </hw-form-item>
+        <hw-form-item name="request_body_limit">
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.request_body_limit') }}</span>
+            <hw-tooltip :content="$t('page.owasp.tuning.concept_request_body_limit_tooltip')" placement="top-left">
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <div class="body-limit-field">
+            <hw-input-number v-model="form.request_body_limit" :min="0" :step="1048576" />
+            <div class="quick-presets">
+              <hw-tag
+                v-for="p in bodyLimitPresets"
+                :key="p.value"
+                :theme="form.request_body_limit === p.value ? 'primary' : 'default'"
+                :variant="form.request_body_limit === p.value ? 'light' : 'outline'"
+                class="preset-tag"
+                @click="form.request_body_limit = p.value"
+                >{{ p.label }}</hw-tag
+              >
+            </div>
           </div>
-        </div>
-        <span class="tip">{{ $t('page.owasp.tuning.request_body_limit_tip') }}</span>
-      </hw-form-item>
-      <hw-form-item name="request_body_in_memory_limit">
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.request_body_in_memory_limit') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_request_body_in_memory_limit_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <div class="body-limit-field">
-          <hw-input-number v-model="form.request_body_in_memory_limit" :min="0" :step="131072" />
-          <div class="quick-presets">
-            <hw-tag
-              v-for="p in bodyInMemoryLimitPresets"
-              :key="p.value"
-              :theme="form.request_body_in_memory_limit === p.value ? 'primary' : 'default'"
-              :variant="form.request_body_in_memory_limit === p.value ? 'light' : 'outline'"
-              class="preset-tag"
-              @click="form.request_body_in_memory_limit = p.value"
-            >{{ p.label }}</hw-tag>
+          <span class="tip">{{ $t('page.owasp.tuning.request_body_limit_tip') }}</span>
+        </hw-form-item>
+        <hw-form-item name="request_body_in_memory_limit">
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.request_body_in_memory_limit') }}</span>
+            <hw-tooltip
+              :content="$t('page.owasp.tuning.concept_request_body_in_memory_limit_tooltip')"
+              placement="top-left"
+            >
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <div class="body-limit-field">
+            <hw-input-number v-model="form.request_body_in_memory_limit" :min="0" :step="131072" />
+            <div class="quick-presets">
+              <hw-tag
+                v-for="p in bodyInMemoryLimitPresets"
+                :key="p.value"
+                :theme="form.request_body_in_memory_limit === p.value ? 'primary' : 'default'"
+                :variant="form.request_body_in_memory_limit === p.value ? 'light' : 'outline'"
+                class="preset-tag"
+                @click="form.request_body_in_memory_limit = p.value"
+                >{{ p.label }}</hw-tag
+              >
+            </div>
           </div>
-        </div>
-        <span class="tip">{{ $t('page.owasp.tuning.request_body_in_memory_limit_tip') }}</span>
-      </hw-form-item>
-      <hw-form-item name="body_inspect_limit">
-        <template #label>
-          <span>{{ $t('page.owasp.tuning.body_inspect_limit') }}</span>
-          <hw-tooltip :content="$t('page.owasp.tuning.concept_body_inspect_limit_tooltip')" placement="top-left">
-            <hw-icon name="help-circle" class="label-icon" />
-          </hw-tooltip>
-        </template>
-        <div class="body-limit-field">
-          <hw-input-number v-model="form.body_inspect_limit" :min="0" :step="131072" />
-          <div class="quick-presets">
-            <hw-tag
-              v-for="p in bodyInspectLimitPresets"
-              :key="p.value"
-              :theme="form.body_inspect_limit === p.value ? 'primary' : 'default'"
-              :variant="form.body_inspect_limit === p.value ? 'light' : 'outline'"
-              class="preset-tag"
-              @click="form.body_inspect_limit = p.value"
-            >{{ p.label }}</hw-tag>
+          <span class="tip">{{ $t('page.owasp.tuning.request_body_in_memory_limit_tip') }}</span>
+        </hw-form-item>
+        <hw-form-item name="body_inspect_limit">
+          <template #label>
+            <span>{{ $t('page.owasp.tuning.body_inspect_limit') }}</span>
+            <hw-tooltip :content="$t('page.owasp.tuning.concept_body_inspect_limit_tooltip')" placement="top-left">
+              <hw-icon name="help-circle" class="label-icon" />
+            </hw-tooltip>
+          </template>
+          <div class="body-limit-field">
+            <hw-input-number v-model="form.body_inspect_limit" :min="0" :step="131072" />
+            <div class="quick-presets">
+              <hw-tag
+                v-for="p in bodyInspectLimitPresets"
+                :key="p.value"
+                :theme="form.body_inspect_limit === p.value ? 'primary' : 'default'"
+                :variant="form.body_inspect_limit === p.value ? 'light' : 'outline'"
+                class="preset-tag"
+                @click="form.body_inspect_limit = p.value"
+                >{{ p.label }}</hw-tag
+              >
+            </div>
           </div>
-        </div>
-        <span class="tip">{{ $t('page.owasp.tuning.body_inspect_limit_tip') }}</span>
-      </hw-form-item>
+          <span class="tip">{{ $t('page.owasp.tuning.body_inspect_limit_tip') }}</span>
+        </hw-form-item>
+      </EditorSection>
       <hw-form-item>
-        <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
+        <hw-button theme="primary" type="submit" :loading="tuningSaving" :disabled="!tuningLoaded || tuningLoading">{{
+          $t('common.confirm')
+        }}</hw-button>
         <hw-button variant="outline" @click="getTuning">{{ $t('common.refresh') }}</hw-button>
       </hw-form-item>
     </hw-form>
@@ -210,29 +249,24 @@
         <hw-tooltip :content="$t('page.owasp.tuning.crs_vars_tip')" placement="top">
           <hw-icon name="help-circle" class="label-icon" />
         </hw-tooltip>
-        <hw-button size="small" variant="outline" style="margin-left:auto" @click="onAddVar">
+        <hw-button size="small" variant="outline" style="margin-left: auto" @click="onAddVar">
           + {{ $t('page.owasp.tuning.crs_vars_add') }}
         </hw-button>
       </div>
 
-      <hw-alert theme="info" style="margin:8px 0 12px">
+      <hw-alert theme="info" style="margin: 8px 0 12px">
         <template #message>
           <span>{{ $t('page.owasp.tuning.crs_vars_hint') }}</span>
-          <span style="margin-left:8px;font-size:12px;color:var(--td-text-color-secondary)">
+          <span style="margin-left: 8px; font-size: 12px; color: var(--td-text-color-secondary)">
             💡 验证方法：在「沙盒测试」中构造一个请求（如 PATCH 方法），若相关规则不再触发，则变量已生效。
           </span>
         </template>
       </hw-alert>
 
       <!-- 常用变量说明表 -->
-      <hw-collapse :default-value="[]" expand-icon-placement="right" style="margin-bottom:12px">
+      <hw-collapse :default-value="[]" expand-icon-placement="right" style="margin-bottom: 12px">
         <hw-collapse-panel :header="$t('page.owasp.tuning.crs_vars_known_title')" value="known">
-          <hw-table
-            :columns="knownVarColumns"
-            :data="knownVars"
-            rowKey="key"
-            size="small"
-          >
+          <hw-table :columns="knownVarColumns" :data="knownVars" rowKey="key" size="small">
             <template #action="{ row }">
               <hw-button size="small" variant="outline" @click="onSetKnown(row)">
                 {{ $t('page.owasp.tuning.crs_vars_configure') }}
@@ -252,12 +286,14 @@
           :empty="$t('page.owasp.tuning.crs_vars_empty')"
         >
           <template #value="{ row }">
-            <code style="word-break:break-all">{{ row.value }}</code>
+            <code style="word-break: break-all">{{ row.value }}</code>
           </template>
           <template #op="{ row }">
             <hw-button size="small" variant="outline" @click="onEditVar(row)">{{ $t('common.edit') }}</hw-button>
             <hw-popconfirm :content="$t('page.owasp.tuning.crs_vars_delete_confirm')" @confirm="onDeleteVar(row.key)">
-              <hw-button size="small" variant="outline" theme="danger" style="margin-left:6px">{{ $t('common.delete') }}</hw-button>
+              <hw-button size="small" variant="outline" theme="danger" style="margin-left: 6px">{{
+                $t('common.delete')
+              }}</hw-button>
             </hw-popconfirm>
           </template>
         </hw-table>
@@ -271,7 +307,11 @@
       width="560px"
       :confirm-btn="{ content: $t('common.confirm'), loading: editVarDialog.saving }"
       :onConfirm="onSaveVar"
-      :onClose="() => { editVarDialog.visible = false }"
+      :onClose="
+        () => {
+          editVarDialog.visible = false;
+        }
+      "
     >
       <hw-form :data="editVarDialog" label-align="right" :label-width="120">
         <hw-form-item :label="$t('page.owasp.tuning.crs_var_key')">
@@ -295,7 +335,7 @@
           />
         </hw-form-item>
         <hw-form-item v-if="editVarDialog.knownDesc" :label="$t('page.owasp.tuning.crs_var_desc')">
-          <span style="font-size:12px;color:var(--td-text-color-secondary)">{{ editVarDialog.knownDesc }}</span>
+          <span style="font-size: 12px; color: var(--td-text-color-secondary)">{{ editVarDialog.knownDesc }}</span>
         </hw-form-item>
       </hw-form>
     </hw-dialog>
@@ -303,10 +343,15 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
+import { defineComponent } from 'vue';
 
-
-import { owaspTuningGetApi, owaspTuningSetApi, owaspCRSVarsGetApi, owaspCRSVarSetApi, owaspCRSVarDeleteApi } from '@/apis/owasp';
+import {
+  owaspTuningGetApi,
+  owaspTuningSetApi,
+  owaspCRSVarsGetApi,
+  owaspCRSVarSetApi,
+  owaspCRSVarDeleteApi,
+} from '@/apis/owasp';
 
 // 内置常用 CRS 事务变量说明（key 不含 tx. 前缀）
 //
@@ -317,13 +362,34 @@ import { owaspTuningGetApi, owaspTuningSetApi, owaspCRSVarsGetApi, owaspCRSVarSe
 //     允许列表用空格分隔即可。
 const KNOWN_CRS_VARS = [
   // input 不包裹，空格分隔即可
-  { key: 'allowed_methods', default: 'GET HEAD POST OPTIONS PATCH PUT DELETE', desc: '允许的 HTTP 方法（空格分隔）', rules: '911100' },
+  {
+    key: 'allowed_methods',
+    default: 'GET HEAD POST OPTIONS PATCH PUT DELETE',
+    desc: '允许的 HTTP 方法（空格分隔）',
+    rules: '911100',
+  },
   // input 被包裹为 |mime-type|，列表每项也必须用 |...| 包裹，项间空格分隔
-  { key: 'allowed_request_content_type', default: '|application/x-www-form-urlencoded| |multipart/form-data| |multipart/related| |text/xml| |application/xml| |application/soap+xml| |application/json| |application/ld+json| |application/x-json| |text/plain| |application/octet-stream|', desc: '允许的请求 Content-Type（每项用 | 包裹，项间空格分隔）', rules: '920420' },
+  {
+    key: 'allowed_request_content_type',
+    default:
+      '|application/x-www-form-urlencoded| |multipart/form-data| |multipart/related| |text/xml| |application/xml| |application/soap+xml| |application/json| |application/ld+json| |application/x-json| |text/plain| |application/octet-stream|',
+    desc: '允许的请求 Content-Type（每项用 | 包裹，项间空格分隔）',
+    rules: '920420',
+  },
   // input 被包裹为 |charset|，列表每项也必须用 |...| 包裹
-  { key: 'allowed_request_content_type_charset', default: '|utf-8| |utf-16| |iso-8859-1| |iso-8859-15| |windows-1252| |us-ascii| |gbk| |gb2312| |big5|', desc: '允许的 Content-Type 字符集（每项用 | 包裹，项间空格分隔）', rules: '920480' },
+  {
+    key: 'allowed_request_content_type_charset',
+    default: '|utf-8| |utf-16| |iso-8859-1| |iso-8859-15| |windows-1252| |us-ascii| |gbk| |gb2312| |big5|',
+    desc: '允许的 Content-Type 字符集（每项用 | 包裹，项间空格分隔）',
+    rules: '920480',
+  },
   // input 不包裹，空格分隔即可
-  { key: 'allowed_http_versions', default: 'HTTP/1.0 HTTP/1.1 HTTP/2 HTTP/2.0 HTTP/3 HTTP/3.0', desc: '允许的 HTTP 协议版本（空格分隔）', rules: '920430' },
+  {
+    key: 'allowed_http_versions',
+    default: 'HTTP/1.0 HTTP/1.1 HTTP/2 HTTP/2.0 HTTP/3 HTTP/3.0',
+    desc: '允许的 HTTP 协议版本（空格分隔）',
+    rules: '920430',
+  },
   { key: 'max_num_args', default: '255', desc: '请求参数最大数量', rules: '920380' },
   { key: 'arg_name_length', default: '100', desc: '单个参数名最大长度（字节）', rules: '920370' },
   { key: 'arg_length', default: '400', desc: '单个参数值最大长度（字节）', rules: '920370' },
@@ -336,6 +402,10 @@ export default defineComponent({
   name: 'OwaspTuningTab',
   data() {
     return {
+      tuningLoading: false,
+      tuningLoaded: false,
+      tuningSaving: false,
+      tuningError: '',
       form: {
         rule_engine: 'On',
         blocking_paranoia: 1,
@@ -346,6 +416,7 @@ export default defineComponent({
         request_body_limit: 0,
         request_body_in_memory_limit: 0,
         body_inspect_limit: 0,
+        enforce_bodyproc_urlencoded: 0,
       },
       earlyBool: false,
       bodyLimitPresets: [
@@ -415,25 +486,41 @@ export default defineComponent({
       this.$router.push({ name: 'WafIpWhiteList' });
     },
     getTuning() {
-      owaspTuningGetApi().then((res) => {
-        if (res.code === 0 && res.data) {
-          const d = res.data as any;
-          this.form = {
-            rule_engine: d.rule_engine || 'On',
-            blocking_paranoia: d.blocking_paranoia_level || 1,
-            detection_paranoia: d.detection_paranoia_level || 2,
-            inbound_threshold: d.inbound_anomaly_score_threshold || 7,
-            outbound_threshold: d.outbound_anomaly_score_threshold || 4,
-            early_blocking: d.early_blocking || 0,
-            request_body_limit: d.request_body_limit || 0,
-            request_body_in_memory_limit: d.request_body_in_memory_limit || 0,
-            body_inspect_limit: d.body_inspect_limit || 0,
-          };
-          this.earlyBool = this.form.early_blocking === 1;
-        }
-      });
+      if (this.tuningLoading) return;
+      this.tuningLoading = true;
+      this.tuningLoaded = false;
+      this.tuningError = '';
+      owaspTuningGetApi()
+        .then((res) => {
+          if (res.code === 0 && res.data) {
+            const d = res.data as any;
+            this.form = {
+              rule_engine: d.rule_engine || 'On',
+              blocking_paranoia: d.blocking_paranoia_level || 1,
+              detection_paranoia: d.detection_paranoia_level || 2,
+              inbound_threshold: d.inbound_anomaly_score_threshold || 7,
+              outbound_threshold: d.outbound_anomaly_score_threshold || 4,
+              early_blocking: d.early_blocking || 0,
+              request_body_limit: d.request_body_limit || 0,
+              request_body_in_memory_limit: d.request_body_in_memory_limit || 0,
+              body_inspect_limit: d.body_inspect_limit || 0,
+              enforce_bodyproc_urlencoded: d.enforce_bodyproc_urlencoded === 1 ? 1 : 0,
+            };
+            this.earlyBool = this.form.early_blocking === 1;
+            this.tuningLoaded = true;
+          } else throw new Error(res.msg || '引擎配置读取失败');
+        })
+        .catch((error) => {
+          this.tuningError = error.message || '引擎配置读取失败，请重试后再保存。';
+        })
+        .finally(() => {
+          this.tuningLoading = false;
+        });
     },
-    onSubmit() {
+    onSubmit({ validateResult }) {
+      if (validateResult !== true || this.tuningSaving || this.tuningLoading || !this.tuningLoaded) return;
+      this.tuningSaving = true;
+      this.tuningError = '';
       const payload = {
         rule_engine: this.form.rule_engine,
         blocking_paranoia_level: this.form.blocking_paranoia,
@@ -444,15 +531,23 @@ export default defineComponent({
         request_body_limit: this.form.request_body_limit,
         request_body_in_memory_limit: this.form.request_body_in_memory_limit,
         body_inspect_limit: this.form.body_inspect_limit,
+        enforce_bodyproc_urlencoded: this.form.enforce_bodyproc_urlencoded,
       };
-      owaspTuningSetApi(payload).then((res) => {
-        if (res.code === 0) {
-          this.$message.success(res.msg);
-          this.getTuning();
-        } else {
-          this.$message.warning(res.msg);
-        }
-      });
+      owaspTuningSetApi(payload)
+        .then((res) => {
+          if (res.code === 0) {
+            this.$message.success(res.msg);
+            this.getTuning();
+          } else {
+            this.tuningError = res.msg || '引擎配置保存失败，草稿已保留。';
+          }
+        })
+        .catch((error) => {
+          this.tuningError = error.message || '引擎配置保存失败，草稿已保留。';
+        })
+        .finally(() => {
+          this.tuningSaving = false;
+        });
     },
     getCRSVars() {
       this.crsVarsLoading = true;
@@ -462,10 +557,20 @@ export default defineComponent({
             this.crsVars = res.data.vars || {};
           }
         })
-        .finally(() => { this.crsVarsLoading = false; });
+        .finally(() => {
+          this.crsVarsLoading = false;
+        });
     },
     onAddVar() {
-      this.editVarDialog = { visible: true, isNew: true, saving: false, key: '', value: '', placeholder: '', knownDesc: '' };
+      this.editVarDialog = {
+        visible: true,
+        isNew: true,
+        saving: false,
+        key: '',
+        value: '',
+        placeholder: '',
+        knownDesc: '',
+      };
     },
     onSetKnown(row: any) {
       const existing = this.crsVars[row.key] || '';
@@ -509,8 +614,12 @@ export default defineComponent({
             this.$message.error(res.msg || '设置失败');
           }
         })
-        .catch(() => { this.$message.error('请求失败'); })
-        .finally(() => { this.editVarDialog.saving = false; });
+        .catch(() => {
+          this.$message.error('请求失败');
+        })
+        .finally(() => {
+          this.editVarDialog.saving = false;
+        });
     },
     onDeleteVar(key: string) {
       owaspCRSVarDeleteApi(key)
@@ -522,7 +631,9 @@ export default defineComponent({
             this.$message.error(res.msg || '删除失败');
           }
         })
-        .catch(() => { this.$message.error('请求失败'); });
+        .catch(() => {
+          this.$message.error('请求失败');
+        });
     },
   },
 });

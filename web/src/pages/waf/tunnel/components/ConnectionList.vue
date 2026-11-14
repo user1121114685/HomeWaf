@@ -1,249 +1,170 @@
-<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
-
+<!-- HomeWaf modification (2026-11-15): complete TCP/UDP connection inspection. -->
 <template>
-  <div>
-    <hw-card class="list-card-container">
-      <div class="right-operation-container">
-          <hw-form :label-width="300" layout="inline" colon
-            :style="{ marginBottom: '8px' }">
-            <hw-form-item>
-              <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getConnectionData()">
-                {{ $t('common.refresh') }}
-              </hw-button>
-            </hw-form-item>
-          </hw-form>
-        </div>
-      <div class="table-container">
-        <hw-table :columns="columns" :data="data" :rowKey="rowKey" :verticalAlign="verticalAlign" :hover="hover"
-                 :pagination="pagination" :selected-row-keys="selectedRowKeys" :loading="dataLoading"
-                 @page-change="rehandlePageChange" @change="rehandleChange" @select-change="rehandleSelectChange"
-                 @filter-change="onFilterChange"
-                 :headerAffixedTop="true" :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
-        </hw-table>
+  <section data-testid="tunnel-connections" :aria-busy="loading">
+    <div class="editor-toolbar">
+      <div>
+        <strong>{{ tunnel.name || '隧道连接' }}</strong>
+        <p class="editor-context">按监听端口核对连接数量，再查看来源；刷新不会中断连接。</p>
       </div>
-    </hw-card>
-
-    <hw-tabs v-model="activeTab">
-      <hw-tab-panel v-for="(portInfo, index) in portInfoList" :key="index" :value="portInfo.port.toString()" :label="`${$t('page.tunnel.port')} ${portInfo.port}`">
-        <hw-card>
-          <template #header>
-            <div class="port-info-header">
-              <span>{{ $t('page.tunnel.tcp_source_count') }}: {{ portInfo.tcp_source_count }}</span>
-              <span>{{ $t('page.tunnel.tcp_target_count') }}: {{ portInfo.tcp_target_count }}</span>
-              <span v-if="portInfo.udp_source_count > 0">{{ $t('page.tunnel.udp_source_count') }}: {{ portInfo.udp_source_count }}</span>
-              <span v-if="portInfo.udp_target_count > 0">{{ $t('page.tunnel.udp_target_count') }}: {{ portInfo.udp_target_count }}</span>
-            </div>
-          </template>
-
-          <hw-table :data="portInfo.tcp_source_ips" :columns="ipColumns" :pagination="{ pageSize: 10 }" :loading="dataLoading">
-            <template #ip="{ row }">
-              <span>{{ row.ip }}</span>
-            </template>
-            <template #region="{ row }">
-              <span>{{ row.region }}</span>
-            </template>
-          </hw-table>
-        </hw-card>
-      </hw-tab-panel>
-    </hw-tabs>
-  </div>
+      <hw-button :loading="loading" @click="load">刷新连接</hw-button>
+    </div>
+    <hw-alert v-if="error" theme="error" :close-btn="false">{{ error }}</hw-alert>
+    <EditorSection title="监听端口" description="分别列出 TCP / UDP 的来源连接与目标连接数量。">
+      <hw-table
+        :data="ports"
+        :columns="portColumns"
+        row-key="port"
+        :loading="loading"
+        :empty="error && !loaded ? '读取失败，请刷新重试' : '当前没有监听端口记录'"
+      />
+    </EditorSection>
+    <EditorSection title="连接来源" description="选择监听端口，按协议查看来源 IP 和地区。">
+      <div class="connection-filters">
+        <label
+          >监听端口<hw-select v-model="selectedPort" aria-label="连接来源端口"
+            ><hw-option
+              v-for="port in ports"
+              :key="port.port"
+              :value="port.port"
+              :label="String(port.port)" /></hw-select
+        ></label>
+        <label
+          >协议<hw-select v-model="protocol" aria-label="连接来源协议" placeholder="全部协议"
+            ><hw-option value="" label="全部协议" /><hw-option value="TCP" label="TCP" /><hw-option
+              value="UDP"
+              label="UDP" /></hw-select
+        ></label>
+        <label>查找来源<hw-input v-model="query" aria-label="查找连接来源" placeholder="IP 或地区" clearable /></label>
+      </div>
+      <hw-table
+        :data="pageRows"
+        :columns="sourceColumns"
+        row-key="key"
+        :empty="query || protocol ? '没有匹配的来源，请调整筛选' : '这个端口当前没有来源连接'"
+      />
+      <ElPagination
+        v-if="filtered.length > 10"
+        v-model:current-page="page"
+        :page-size="10"
+        :total="filtered.length"
+        layout="prev, pager, next"
+        :pager-count="5"
+      />
+    </EditorSection>
+  </section>
 </template>
-
-<script lang="ts">
-import {defineComponent} from 'vue';
-
-
-import { prefix } from '@/config/global';
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { ElPagination } from 'element-plus';
 import { wafTunnelConnectionApi } from '@/apis/tunnel';
-
-export default defineComponent({
-  name: 'ConnectionList',
-  props: {
-    tunnelCode: {
-      type: String,
-      default: ''
-    }
-  },
-  data() {
-    return {
-      prefix,
-      dataLoading: false,
-      data: [], // 列表数据信息
-      tunnelInfo: {}, // 隧道基本信息
-      portInfoList: [], // 端口信息列表
-      activeTab: '', // 当前激活的标签页
-      selectedRowKeys: [],
-      columns: [
-        {
-          title: this.$t('page.tunnel.port'),
-          align: 'left',
-          width: 100,
-          ellipsis: true,
-          colKey: 'port',
-        },
-        {
-          title: this.$t('page.tunnel.tcp_source_count'),
-          width: 150,
-          ellipsis: true,
-          colKey: 'tcp_source_count',
-        },
-        {
-          title: this.$t('page.tunnel.tcp_target_count'),
-          width: 150,
-          ellipsis: true,
-          colKey: 'tcp_target_count',
-        },
-        {
-          title: this.$t('page.tunnel.udp_source_count'),
-          width: 150,
-          ellipsis: true,
-          colKey: 'udp_source_count',
-        },
-        {
-          title: this.$t('page.tunnel.udp_target_count'),
-          width: 150,
-          ellipsis: true,
-          colKey: 'udp_target_count',
-        }
-      ],
-      ipColumns: [
-        {
-          title: this.$t('page.tunnel.ip_address'),
-          align: 'left',
-          width: 200,
-          ellipsis: true,
-          colKey: 'ip',
-          filter: {
-            type: 'input',
-            resetValue: '',
-            confirmEvents: ['onEnter'],
-            props: {
-              placeholder: this.$t('common.placeholder'),
-            },
-            showConfirmAndReset: true,
-          },
-        },
-        {
-          title: this.$t('page.tunnel.region'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'region',
-        }
-      ],
-      rowKey: 'port',
-      tableLayout: 'auto',
-      verticalAlign: 'top',
-      hover: true,
-      rowClassName: (rowKey: string) => `${rowKey}-class`,
-      pagination: {
-        total: 0,
-        current: 1,
-        pageSize: 10
-      },
-      searchformData: {}
-    };
-  },
-  computed: {
-    offsetTop() {
-      return this.$store.state.setting.isUseTabsRouter ? 48 : 0;
-    },
-  },
-  watch: {
-    tunnelCode: {
-      handler(val) {
-        if (val) {
-          this.getConnectionData();
-        }
-      },
-      immediate: true
-    }
-  },
-  mounted() {
-    if (this.tunnelCode) {
-      this.getConnectionData();
-    }
-  },
-  methods: {
-    getConnectionData() {
-      this.dataLoading = true;
-      wafTunnelConnectionApi({
-        id: this.tunnelCode
-      })
-        .then((res) => {
-          if (res.code === 0) {
-            this.tunnelInfo = res.data.tunnel_info || {};
-            this.portInfoList = res.data.port_info || [];
-
-            // 设置默认激活的标签页
-            if (this.portInfoList.length > 0 && !this.activeTab) {
-              this.activeTab = this.portInfoList[0].port.toString();
-            }
-
-            // 转换数据格式用于表格显示
-            this.data = this.portInfoList.map(item => ({
-              port: item.port,
-              tcp_source_count: item.tcp_source_count,
-              tcp_target_count: item.tcp_target_count,
-              udp_source_count: item.udp_source_count,
-              udp_target_count: item.udp_target_count
-            }));
-          } else {
-            this.$message.error(res.msg || '获取连接数据失败');
-          }
-        })
-        .catch((e) => {
-          console.error(e);
-          this.$message.error('获取连接数据失败');
-        })
-        .finally(() => {
-          this.dataLoading = false;
-        });
-    },
-    getContainer() {
-      return document.querySelector('.tdesign-starter-layout');
-    },
-    rehandlePageChange(curr, pageInfo) {
-      this.pagination.current = curr.current;
-      if (this.pagination.pageSize != curr.pageSize) {
-        this.pagination.current = 1;
-        this.pagination.pageSize = curr.pageSize;
-      }
-    },
-    rehandleSelectChange(selectedRowKeys) {
-      this.selectedRowKeys = selectedRowKeys;
-    },
-    rehandleChange(changeParams, triggerAndData) {
-      console.log('统一Change', changeParams, triggerAndData);
-    },
-    onFilterChange(e) {
-      if (e.ip && this.activeTab) {
-        const activePortInfo = this.portInfoList.find(item => item.port.toString() === this.activeTab);
-        if (activePortInfo) {
-          activePortInfo.tcp_source_ips = activePortInfo.tcp_source_ips.filter(item => item.ip.includes(e.ip));
-        }
-      } else {
-        this.getConnectionData();
-      }
-    },
-    refresh() {
-      this.getConnectionData();
-    }
-  },
+const props = defineProps({ tunnelCode: { type: String, default: '' } });
+const ports = ref<any[]>([]),
+  tunnel = ref<any>({}),
+  selectedPort = ref<number>(),
+  protocol = ref(''),
+  query = ref(''),
+  page = ref(1),
+  loading = ref(false),
+  loaded = ref(false),
+  error = ref('');
+const portColumns = computed(() => {
+  const protocols = tunnel.value.protocol === 'udp' ? ['udp', 'tcp'] : ['tcp', 'udp'];
+  return [
+    { colKey: 'port', title: '监听端口', width: 110 },
+    ...protocols.flatMap((protocol) => [
+      { colKey: protocol + '_source_count', title: protocol.toUpperCase() + ' 来源', minWidth: 110 },
+      { colKey: protocol + '_target_count', title: protocol.toUpperCase() + ' 目标', minWidth: 110 },
+    ]),
+  ];
 });
-</script>
-
-<style lang="less" scoped>
-.port-info-header {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 16px;
-
-  span {
-    font-weight: 500;
+const sourceColumns = [
+  { colKey: 'protocol', title: '协议', width: 85 },
+  { colKey: 'ip', title: '来源 IP', minWidth: 170 },
+  { colKey: 'region', title: '地区', minWidth: 170 },
+];
+const sources = computed(() => {
+  const port = ports.value.find((port) => port.port === selectedPort.value);
+  if (!port) return [];
+  return ['TCP', 'UDP'].flatMap((type) =>
+    (port[type.toLowerCase() + '_source_ips'] || []).map((source: any, index: number) => ({
+      ...source,
+      protocol: type,
+      key: type + ':' + index + ':' + source.ip,
+    })),
+  );
+});
+const filtered = computed(() =>
+  sources.value.filter(
+    (source) =>
+      (!protocol.value || protocol.value === source.protocol) &&
+      (!query.value || [source.ip, source.region].join(' ').toLowerCase().includes(query.value.trim().toLowerCase())),
+  ),
+);
+const pageRows = computed(() => filtered.value.slice((page.value - 1) * 10, page.value * 10));
+let sequence = 0;
+async function load() {
+  const token = ++sequence;
+  if (!props.tunnelCode) return;
+  loading.value = true;
+  error.value = '';
+  try {
+    const result = await wafTunnelConnectionApi({ id: props.tunnelCode });
+    if (token !== sequence) return;
+    if (result.code !== 0) throw new Error(result.msg || '连接读取失败');
+    ports.value = result.data.port_info || [];
+    tunnel.value = result.data.tunnel_info || {};
+    loaded.value = true;
+    if (!ports.value.some((port) => port.port === selectedPort.value)) selectedPort.value = ports.value[0]?.port;
+    if (page.value > Math.max(1, Math.ceil(filtered.value.length / 10))) page.value = 1;
+  } catch (cause: any) {
+    if (token === sequence)
+      error.value = (cause.message || '连接读取失败') + (loaded.value ? '。当前保留上次结果。' : '。请重试。');
+  } finally {
+    if (token === sequence) loading.value = false;
   }
 }
-
-.t-tabs {
-  margin-top: 20px;
+watch(
+  () => props.tunnelCode,
+  () => {
+    ports.value = [];
+    tunnel.value = {};
+    loaded.value = false;
+    selectedPort.value = undefined;
+    void load();
+  },
+  { immediate: true },
+);
+watch([selectedPort, protocol, query], () => {
+  page.value = 1;
+});
+onBeforeUnmount(() => {
+  sequence++;
+});
+defineExpose({ refresh: load });
+</script>
+<style scoped>
+.connection-filters {
+  display: grid;
+  grid-template-columns: 160px 150px minmax(160px, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.connection-filters label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+.el-pagination {
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+@media (max-width: 700px) {
+  .connection-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .connection-filters label:last-child {
+    grid-column: 1/-1;
+  }
 }
 </style>

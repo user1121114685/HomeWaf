@@ -67,6 +67,6 @@ export const pageDescriptions: Record<string, string> = {
   NotifyLog: '检查通知发送状态、失败原因和重试结果。',
   OPlatformKey: '管理 API 凭据及其有效期。',
   OPlatformLog: '审查 API 调用和认证结果。',
-  OPlatformDoc: '配置调用凭据，了解访问限制并核对调用记录。',
+  OPlatformDoc: '查看当前实例注册的接口、参数与响应示例。',
   UserIndex: '检查当前账号并管理登录安全。',
 };

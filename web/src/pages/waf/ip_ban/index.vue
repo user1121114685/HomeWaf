@@ -7,11 +7,14 @@
       <ip-lookup ref="ipLookup" />
     </div>
     <hw-tabs v-model="activeTab">
+      <hw-tab-panel value="pipeline" label="服务当前处罚" />
       <hw-tab-panel value="ban_list" :label="$t('page.ip_ban.ban_list')" />
       <hw-tab-panel value="config" :label="$t('page.ip_ban.config')" />
     </hw-tabs>
 
-    <div v-if="activeTab === 'ban_list'" class="ip-ban-content">
+    <ServicePunishments v-if="activeTab === 'pipeline'" class="ip-ban-content" />
+    <div v-else-if="activeTab === 'ban_list'" class="ip-ban-content">
+      <p class="editor-context">以下是旧站点的规则、失败与 CC 记录。原生服务请使用“服务当前处罚”，两类记录分别管理。</p>
       <div class="source-bar">
         <span>{{ $t('page.ip_ban.source') }}</span>
         <hw-radio-group v-model="source" variant="default-filled">
@@ -47,20 +50,22 @@
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
-
+import { defineComponent } from 'vue';
 
 import RuleBan from '@/pages/waf/rule_ban/index.vue';
 import IpFailure from '@/pages/waf/ip_failure/index.vue';
 import CcBanList from '@/pages/waf/anticc/component/baniplist/index.vue';
+import ServicePunishments from '@/pages/waf/pipeline/ServicePunishments.vue';
 
 export default defineComponent({
   name: 'IPBan',
-  components: { RuleBan, IpFailure, CcBanList },
+  components: { RuleBan, IpFailure, CcBanList, ServicePunishments },
   computed: {
     activeTab: {
       get(): string {
-        return this.$route.query.tab === 'config' ? 'config' : 'ban_list';
+        const tab = this.$route.query.tab;
+        if (tab === 'config' || tab === 'ban_list' || tab === 'pipeline') return tab;
+        return this.$route.query.source ? 'ban_list' : 'pipeline';
       },
       set(value: string) {
         this.updateQuery('tab', value);
@@ -89,7 +94,9 @@ export default defineComponent({
     },
     updateQuery(key: string, value: string) {
       if (this.$route.query[key] === value) return;
-      this.$router.replace({ query: { ...this.$route.query, [key]: value }, hash: this.$route.hash }).catch(() => { /* 同一位置替换 */ });
+      this.$router.replace({ query: { ...this.$route.query, [key]: value }, hash: this.$route.hash }).catch(() => {
+        /* 同一位置替换 */
+      });
     },
   },
 });

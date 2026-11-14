@@ -21,8 +21,10 @@
               </hw-button>
             </hw-tooltip>
           </div>
-          <hw-tabs v-model="activeTab" :placement="tabPlacement">
-          <hw-tab-panel :value="1">
+          <div class="legacy-config-layout" :class="{ 'is-top': tabPlacement === 'top' }">
+<nav class="legacy-config-nav" aria-label="旧站点配置分类"><section v-for="group in taskGroups" :key="group.title"><h3>{{ group.title }}</h3><button v-for="item in group.items" :key="item.value" type="button" :aria-current="activeTab === item.value ? 'page' : undefined" @click="activeTab = item.value">{{ $t(item.label) }}</button></section></nav>
+<label class="legacy-config-select">配置任务<hw-select v-model="activeTab" aria-label="旧站点配置任务"><template v-for="group in taskGroups" :key="group.title"><hw-option v-for="item in group.items" :key="item.value" :value="item.value" :label="group.title + ' · ' + $t(item.label)" /></template></hw-select></label>
+<hw-tabs v-model="activeTab" class="legacy-config-content"><hw-tab-panel :value="1">
             <template #label>
               <hw-icon name="home" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_base')}}
@@ -400,8 +402,7 @@
             </hw-form-item>
             </div>
           </hw-tab-panel>
-
-          <hw-tab-panel :value="2">
+<hw-tab-panel :value="2">
             <template #label>
               <hw-icon name="layers" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_more_domain')}}
@@ -415,8 +416,7 @@
               </hw-tooltip>
             </hw-form-item>
           </hw-tab-panel>
-
-          <hw-tab-panel :value="3">
+<hw-tab-panel :value="3">
             <template #label>
               <file-safety-icon style="margin-right: 4px;color:red"/>
               {{$t('page.host.tab_engine')}}
@@ -456,8 +456,7 @@
               </template>
             </hw-table>
           </hw-tab-panel>
-
-          <hw-tab-panel :value="4">
+<hw-tab-panel :value="4">
             <template #label>
               <hw-icon name="setting" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_other')}}
@@ -632,8 +631,7 @@
               </hw-select>
             </hw-form-item>
           </hw-tab-panel>
-
-          <hw-tab-panel :value="5">
+<hw-tab-panel :value="5">
             <template #label>
               <hw-icon name="user-password" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_password')}}
@@ -739,8 +737,7 @@
               <http-auth-session :propHostCode="formData.code"></http-auth-session>
             </hw-form-item>
           </hw-tab-panel>
-
-          <hw-tab-panel :value="6">
+<hw-tab-panel :value="6">
             <template #label>
               <hw-icon name="activity" style="margin-right: 4px;color:#00a870"/>
               {{$t('page.host.tab_health_check')}}
@@ -751,8 +748,7 @@
                             :test-expected-codes="healthTestExpectedCodes"
                             :load-balance-enabled="formData.is_enable_load_balance == '1'"></healthy-config>
           </hw-tab-panel>
-
-          <hw-tab-panel :value="7">
+<hw-tab-panel :value="7">
             <template #label>
               <hw-icon name="lock-on" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_captcha')}}
@@ -762,84 +758,84 @@
             </hw-alert>
             <captcha-config :captcha-config="captchaConfigData" @update="val => captchaConfigData = val"></captcha-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="8">
+<hw-tab-panel :value="8">
             <template #label>
               <hw-icon name="link" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_anti_leech')}}
             </template>
             <anti-leech-config :anti-leech-config="antiLeechConfigData" @update="val => antiLeechConfigData = val"></anti-leech-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="9">
+<hw-tab-panel :value="9">
             <template #label>
               <hw-icon name="hard-disk-storage" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_cache')}}
             </template>
             <cache-config :cache-config="cacheConfigData" :prop-host-code="formData.code" @update="val => cacheConfigData = val"></cache-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="10">
+<hw-tab-panel :value="10">
             <template #label>
               <hw-icon name="folder" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_static_site')}}
             </template>
             <static-site-config :static-site-config="staticSiteConfigData" @update="val => staticSiteConfigData = val"></static-site-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="11">
+<hw-tab-panel :value="11">
             <template #label>
               <hw-icon name="internet" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_transport')}}
             </template>
             <transport-config :transport-config="transportConfigData" @update="val => transportConfigData = val"></transport-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="12">
+<hw-tab-panel :value="12">
             <template #label>
               <hw-icon name="arrow-up-circle" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_custom_headers')}}
             </template>
             <custom-headers-config :custom-headers-config="customHeadersConfigData" @update="val => customHeadersConfigData = val"></custom-headers-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="13">
+<hw-tab-panel :value="13">
             <template #label>
               <hw-icon name="arrow-down-circle" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_custom_response_headers')}}
             </template>
             <custom-response-headers-config :custom-response-headers-config="customResponseHeadersConfigData" @update="val => customResponseHeadersConfigData = val"></custom-response-headers-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="14">
+<hw-tab-panel :value="14">
             <template #label>
               <hw-icon name="file-paste" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_response_compress')}}
             </template>
             <response-compress-config :response-compress-config="responseCompressConfigData" @update="val => responseCompressConfigData = val"></response-compress-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="16">
+<hw-tab-panel :value="16">
             <template #label>
               <hw-icon name="lock-on" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_cookie_security')}}
             </template>
             <cookie-security-config :cookie-security-config="cookieSecurityConfigData" @update="val => cookieSecurityConfigData = val"></cookie-security-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="17">
+<hw-tab-panel :value="17">
             <template #label>
               <hw-icon name="secured" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_csrf')}}
             </template>
             <csrf-config :csrf-config="csrfConfigData" @update="val => csrfConfigData = val"></csrf-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="18">
+<hw-tab-panel :value="18">
             <template #label>
               <hw-icon name="verify" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_tamper')}}
             </template>
             <tamper-config :tamper-config="tamperConfigData" :prop-host-code="formData.code" :prop-host="formData.host" :prop-bind-more-host="formData.bind_more_host" @update="val => tamperConfigData = val"></tamper-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="19">
+<hw-tab-panel :value="19">
             <template #label>
               <hw-icon name="file-safety" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_upload_security')}}
             </template>
             <upload-security-config :upload-security-config="uploadSecurityConfigData" @update="val => uploadSecurityConfigData = val"></upload-security-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="20">
+<hw-tab-panel :value="20">
             <template #label>
               <hw-icon name="user-safety" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_access')}}
@@ -848,14 +844,13 @@
                            :cache-enabled="cacheConfigData && String(cacheConfigData.is_enable_cache) === '1'"
                            @update="val => accessConfigData = val"></access-config>
           </hw-tab-panel>
-          <hw-tab-panel :value="15">
+<hw-tab-panel :value="15">
             <template #label>
               <hw-icon name="swap" style="margin-right: 4px;color:#0052d9"/>
               {{$t('page.host.tab_path_rule')}}
             </template>
             <path-rule-config :prop-host-code="formData.code"></path-rule-config>
-          </hw-tab-panel>
-          </hw-tabs>
+          </hw-tab-panel></hw-tabs></div>
         </div>
 
         <hw-form-item style="float: right;margin-top:5px">
@@ -944,6 +939,7 @@ import {defineComponent} from 'vue';
   import IpSourceProbeDialog from '../components/IpSourceProbeDialog.vue';
   export default defineComponent({
     name: 'HostForm',
+    emits: ['submit', 'close', 'group-changed', 'tab-placement-change', 'fullscreen-change'],
     components: {
       FileSafetyIcon,
       LoadBalance,
@@ -1084,6 +1080,7 @@ import {defineComponent} from 'vue';
         accessConfigData: { ...INITIAL_ACCESS },
         tamperConfigData: { ...INITIAL_TAMPER },
         uploadSecurityConfigData: { ...INITIAL_UPLOAD_SECURITY },
+        taskGroups: [{"title":"接入与回源","items":[{"value":1,"label":"page.host.tab_base"},{"value":2,"label":"page.host.tab_more_domain"},{"value":4,"label":"page.host.tab_other"},{"value":6,"label":"page.host.tab_health_check"}]},{"title":"身份与防护","items":[{"value":20,"label":"page.host.tab_access"},{"value":5,"label":"page.host.tab_password"},{"value":7,"label":"page.host.tab_captcha"},{"value":3,"label":"page.host.tab_engine"},{"value":16,"label":"page.host.tab_cookie_security"},{"value":17,"label":"page.host.tab_csrf"},{"value":18,"label":"page.host.tab_tamper"},{"value":19,"label":"page.host.tab_upload_security"},{"value":8,"label":"page.host.tab_anti_leech"}]},{"title":"传输与响应","items":[{"value":11,"label":"page.host.tab_transport"},{"value":12,"label":"page.host.tab_custom_headers"},{"value":13,"label":"page.host.tab_custom_response_headers"},{"value":14,"label":"page.host.tab_response_compress"}]},{"title":"内容与路由","items":[{"value":9,"label":"page.host.tab_cache"},{"value":10,"label":"page.host.tab_static_site"},{"value":15,"label":"page.host.tab_path_rule"}]}],
         activeTab: 1, // 当前激活的配置 Tab（受控，供防御总览开关「配置详情」跳转/外部深链，见 initTab watch）
         diagnosticScrollTimer: null,
         // Tab 布局：left=竖向（默认），top=横向；用户偏好持久化到 localStorage
@@ -2698,6 +2695,9 @@ import {defineComponent} from 'vue';
   </script>
 
 <style scoped>
+.legacy-config-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:24px;min-width:0}.legacy-config-nav{max-height:65vh;overflow-y:auto;padding-right:12px}.legacy-config-nav h3{font-size:12px;color:var(--hw-muted);font-weight:500;margin:20px 0 8px}.legacy-config-nav section:first-child h3{margin-top:0}.legacy-config-nav button{display:block;width:100%;min-height:40px;padding:8px 12px;text-align:left;font:inherit;font-size:13px;background:transparent;color:var(--hw-ink);border:0;border-radius:5px}.legacy-config-nav button[aria-current]{background:var(--hw-accent-soft);color:var(--el-color-primary);font-weight:600}.legacy-config-content{min-width:0}.legacy-config-content :deep(> .el-tabs__header){display:none}.legacy-config-select{display:none;font-size:13px}.legacy-config-layout.is-top{display:block}.is-top .legacy-config-nav{display:none}.is-top .legacy-config-select{display:grid;gap:8px;margin-bottom:20px}
+@media(max-width:900px){.legacy-config-layout{display:block}.legacy-config-nav{display:none}.legacy-config-select{display:grid;gap:8px;margin-bottom:20px}}
+
 /* 切换 Tab 布局按钮独占一行、右对齐，避免遮挡标签或内容 */
 .tab-placement-bar {
   display: flex;

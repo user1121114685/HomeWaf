@@ -129,7 +129,7 @@
     </hw-dialog>
 
     <!-- 升级对话框 -->
-    <hw-dialog :header="$t('page.application.upgrade')" :width="640" v-model:visible="upgradeVisible"
+    <hw-dialog :header="'更新与恢复 · ' + selectedAppName" :width="760" v-model:visible="upgradeVisible"
       :footer="false" :onCancel="()=>{upgradeVisible=false}">
       <app-upgrade :key="selectedCode" :app-code="selectedCode" :op-password="currentOpPassword" @close="upgradeVisible=false" @done="onUpgradeDone"></app-upgrade>
     </hw-dialog>
@@ -485,6 +485,7 @@ export default defineComponent({
     handleShowUpgrade(slotProps) {
       this.ensureOpPassword(() => {
         this.selectedCode = slotProps.row.code;
+        this.selectedAppName = slotProps.row.name;
         this.upgradeVisible = true;
       });
     },

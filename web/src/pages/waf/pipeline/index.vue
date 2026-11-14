@@ -1,10 +1,10 @@
 <template>
   <div class="pipeline-page" data-testid="pipeline-page">
     <PageActions>
-        <ElButton :loading="busy" @click="refresh">刷新状态</ElButton
-        ><ElButton v-if="page === 'ports'" type="primary" :disabled="!templates.length || busy" @click="create"
-          >接入服务<ArrowRight class="button-icon" aria-hidden="true"
-        /></ElButton>
+      <ElButton :loading="busy" @click="refresh">刷新状态</ElButton
+      ><ElButton v-if="page === 'ports'" type="primary" :disabled="!templates.length || busy" @click="create"
+        >接入服务<ArrowRight class="button-icon" aria-hidden="true"
+      /></ElButton>
       <ElButton v-if="page === 'templates'" type="primary" @click="importTemplate">导入JSON</ElButton>
     </PageActions>
     <div v-if="savedService" class="saved-service" role="status">
@@ -198,7 +198,7 @@
       v-model="editorVisible"
       :title="editor?.revision ? `配置服务 · ${editor.name || editor.port}` : '接入服务'"
       :width="editor?.revision ? 'min(1400px,97vw)' : 'min(880px,94vw)'"
-      :class="{ 'setup-dialog': !editor?.revision }"
+      :class="{ 'setup-dialog': !editor?.revision, 'service-config-dialog': !!editor?.revision }"
       :close-on-press-escape="!editorBusy"
       :show-close="!editorBusy"
       destroy-on-close
@@ -289,38 +289,12 @@
       <ElAlert v-if="inspectError" :title="inspectError" type="warning" :closable="false" class="space" />
       <ElTabs v-model="inspectTab"
         ><ElTabPane label="当前处罚" name="state"
-          ><ElButton @click="reloadInspection">刷新状态</ElButton
-          ><ElTable :data="stateRows" stripe class="space"
-            ><ElTableColumn prop="kind" label="状态" width="105" /><ElTableColumn
-              prop="prefix"
-              label="来源 / 网段"
-              min-width="170"
-            /><ElTableColumn prop="scope" label="作用域" width="90" /><ElTableColumn
-              prop="reason"
-              label="原因"
-              min-width="140"
-            /><ElTableColumn label="到期" min-width="170"
-              ><template #default="{ row }">{{
-                row.expires_at ? timeText(row.expires_at) : '永久'
-              }}</template></ElTableColumn
-            ><ElTableColumn label="操作" min-width="200"
-              ><template #default="{ row }"
-                ><ElButton link type="success" @click="manageState(row, 'release')">{{
-                  row.kind === 'lockdown' ? '解除锁定' : '释放'
-                }}</ElButton
-                ><ElButton v-if="row.kind === 'ban'" link type="warning" @click="manageState(row, 'permanent')"
-                  >转永久</ElButton
-                ><ElButton v-if="row.prefix" link @click="manageState(row, 'whitelist')"
-                  >转trusted白名单</ElButton
-                ></template
-              ></ElTableColumn
-            ></ElTable
-          >
-          <p class="muted">
-            释放共享ban会影响其他端口；转白名单只将当前端口设为trusted。trusted 仍受本端口 IP 组黑名单、地域黑名单、手动
-            deny 和访问总开关约束。
-          </p></ElTabPane
-        >
+          ><ServicePunishments
+            v-if="inspectVisible && inspectRow"
+            :key="inspectRow.config.port"
+            :port="inspectRow.config.port"
+            @changed="loadData"
+        /></ElTabPane>
         <ElTabPane label="最近请求 / 状态变化" name="logs"
           ><ElButton @click="reloadInspection">刷新日志</ElButton
           ><ElTable :data="logs" stripe class="space"
@@ -533,6 +507,7 @@ import {
 } from './model';
 import PortEditor from './PortEditor.vue';
 import Trace from './Trace.vue';
+import ServicePunishments from './ServicePunishments.vue';
 import { accessReason } from './accessPolicy';
 import LegacyMigration from './LegacyMigration.vue';
 import ServiceCards from './ServiceCards.vue';
@@ -576,7 +551,6 @@ const enableVisible = ref(false),
 const inspectVisible = ref(false),
   inspectRow = ref<any>(null),
   inspectTab = ref('state'),
-  stateRows = ref<any[]>([]),
   logs = ref<any[]>([]),
   trace = ref<any>(null),
   inspectStats = ref<any>({}),
@@ -686,7 +660,7 @@ function edit(config: PortConfig) {
 }
 function editToken(config: PortConfig) {
   edit(config);
-  editorTab.value = 'ruleset';
+  editorTab.value = 'gate';
 }
 function editHoneypot(config: PortConfig) {
   edit(config);
@@ -790,18 +764,13 @@ async function inspect(row: any) {
 async function reloadInspection() {
   await run(async () => {
     const port = inspectRow.value.config.port;
-    const result = await Promise.allSettled([
-      pipelineGet('state', { port }),
-      pipelineGet('logs', { port }),
-      pipelineGet('stats', { port }),
-    ]);
+    const result = await Promise.allSettled([pipelineGet('logs', { port }), pipelineGet('stats', { port })]);
     inspectError.value = result
       .filter((r) => r.status === 'rejected')
       .map((r: any) => r.reason?.message || '读取失败')
       .join('；');
-    if (result[0].status === 'fulfilled') stateRows.value = result[0].value;
-    if (result[1].status === 'fulfilled') logs.value = result[1].value;
-    if (result[2].status === 'fulfilled') inspectStats.value = result[2].value;
+    if (result[0].status === 'fulfilled') logs.value = result[0].value;
+    if (result[1].status === 'fulfilled') inspectStats.value = result[1].value;
   });
 }
 function showTrace(row: any) {
@@ -810,20 +779,6 @@ function showTrace(row: any) {
   } catch {
     trace.value = { error: '日志结构不可解析', req_id: row.req_id };
   }
-}
-async function manageState(row: any, action: string) {
-  await run(async () => {
-    const label = { release: '释放', permanent: '转为永久封禁', whitelist: '转入当前端口trusted并释放' }[action];
-    await ElMessageBox.confirm(
-      `${label} ${row.prefix || '本端口锁定'}？${row.scope === 'global' ? '这是一条共享封禁记录，释放将影响其他端口。' : ''}`,
-      '管理自动处罚',
-      { type: 'warning' },
-    );
-    await pipelinePost('state/manage', { port: inspectRow.value.config.port, id: row.id, action });
-    stateRows.value = await pipelineGet('state', { port: inspectRow.value.config.port });
-    await loadData();
-    ElMessage.success('状态已更新');
-  });
 }
 function download(value: unknown, name: string) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
@@ -1262,12 +1217,9 @@ summary {
   font-weight: 500;
   padding: 12px 0;
 }
-.pipeline-page :deep(.el-dialog__body) {
+.pipeline-page :deep(.el-dialog:not(.service-config-dialog) > .el-dialog__body) {
   max-height: 77vh;
   overflow: auto;
-}
-.pipeline-page :deep(.el-tabs__content) {
-  overflow: visible;
 }
 @media (max-width: 800px) {
   .summary-grid {
