@@ -14,7 +14,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { Monitor } from '@element-plus/icons-vue';
-import Logo from '@/assets/assets-t-logo.svg';
+import Logo from '@/assets/homewaf-logo.svg';
 import store from '@/store';
 import { SysVersionApi } from '@/apis/sysinfo';
 import WorkspaceNav from './WorkspaceNav.vue';

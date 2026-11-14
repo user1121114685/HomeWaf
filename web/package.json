@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "prebuild": "node ../scripts/sync-brand.mjs",
     "build": "vite build --mode release && node scripts/check-dist.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "test": "node --test scripts/verify-navigation.test.mjs && node scripts/verify-app-flow.mjs",

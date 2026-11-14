@@ -2,16 +2,27 @@
   <main class="login-page">
     <section class="login-intro" aria-labelledby="login-product-title">
       <RouterLink to="/help" class="login-brand"><Logo aria-hidden="true" /><span>HomeWaf</span></RouterLink>
-      <div class="login-intro-copy">
-        <span class="login-category">网站与家庭服务防护</span>
-        <h2 id="login-product-title">你的服务，<br />由你掌握。</h2>
-        <p>连接现有网站、NAS 和设备。<br />在同一个控制台管理访问、策略与运行记录。</p>
+      <div class="login-product">
+        <div class="login-intro-copy">
+          <span class="login-category">安全 · 简单 · 易用</span>
+          <h2 id="login-product-title">
+            <span class="login-title-first">首款面向家庭的</span><span>Web 应用防火墙</span>
+          </h2>
+          <p class="login-lead">多一层防护，多一份安心。</p>
+          <p class="login-detail">从 NAS 到个人网站，<br class="login-detail-break" />守好家庭服务的访问入口。</p>
+          <div class="login-license">
+            <CircleCheck aria-hidden="true" /><span>家庭非商业使用<strong>免费</strong></span>
+          </div>
+        </div>
+        <div class="login-flow" aria-label="访问请求经过 HomeWaf 防护后到达家庭服务">
+          <div class="login-flow-end"><span>访问请求</span><small>家人 · 朋友 · 自己</small></div>
+          <ArrowRight class="login-flow-arrow" aria-hidden="true" />
+          <div class="login-flow-gate"><Logo aria-hidden="true" /><strong>HomeWaf</strong></div>
+          <ArrowRight class="login-flow-arrow" aria-hidden="true" />
+          <div class="login-flow-end"><span>家庭服务</span><small>NAS · 网站 · 设备</small></div>
+        </div>
       </div>
-      <div class="login-flow" aria-label="请求经过 HomeWaf 到达现有服务">
-        <span>访问请求</span><i aria-hidden="true"></i><strong>HomeWaf</strong><i aria-hidden="true"></i
-        ><span>你的服务</span>
-      </div>
-      <span class="login-intro-foot">部署在自己的设备上</span>
+      <div class="login-intro-foot"><span>部署在自己的设备上</span><span>为家庭服务而设计</span></div>
     </section>
     <section class="login-form-side">
       <div class="login-top-actions">
@@ -37,10 +48,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ElButton } from 'element-plus';
-import { Setting } from '@element-plus/icons-vue';
+import { ArrowRight, CircleCheck, Setting } from '@element-plus/icons-vue';
 import Login from './components/components-login.vue';
 import HomeWafSetting from '@/layouts/setting.vue';
-import Logo from '@/assets/assets-t-logo.svg';
+import Logo from '@/assets/homewaf-logo.svg';
 import { adminTitles } from '@/utils/adminTitles';
 import store from '@/store';
 const loginTitle = computed(() => adminTitles.admin_title || '登录 HomeWaf');
