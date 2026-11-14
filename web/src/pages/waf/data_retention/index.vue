@@ -2,12 +2,12 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container">
           <hw-tag theme="warning" variant="light">{{ $t('page.data_retention.tip_readonly') }}</hw-tag>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="form" :data="searchformData" layout="inline" :style="{ marginBottom: '8px' }">
             <hw-form-item>
               <hw-button theme="primary" @click="getList">{{ $t('common.search') }}</hw-button>

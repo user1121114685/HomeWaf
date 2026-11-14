@@ -42,12 +42,8 @@
               <Fields :model="draft.policy.gate" :definitions="fields.gate" @invalid="invalid.gate = $event" />
               <label class="space">登录页Logo（PNG/JPEG，64KiB以内，宽高不超过512像素）<input type="file" accept="image/png,image/jpeg" aria-label="登录页Logo" @change="setGateLogo" /></label><img v-if="draft.policy.gate.logo_data" :src="draft.policy.gate.logo_data" alt="登录页Logo预览" style="display:block;max-width:96px;max-height:96px" /><ElButton v-if="draft.policy.gate.logo_data" link @click="draft.policy.gate.logo_data = ''">清除Logo</ElButton><p class="muted">Logo嵌入登录页，不从外部地址加载，也不展示上游信息。</p>
               <ElAlert v-if="draft.policy.gate.mode === 'basic'" title="Basic占用Authorization；若业务也使用Basic，请改用表单、trusted网段、免登录路径或独立服务令牌。" type="warning" :closable="false" class="space" />
-              <h3>本端口账号 <ElButton size="small" @click="newAccount">添加账号</ElButton><ElButton size="small" @click="loadAccounts">刷新</ElButton></h3>
-              <ElTable :data="accounts" size="small"><ElTableColumn prop="username" label="账号" /><ElTableColumn label="状态"><template #default="{ row }">{{ row.enabled ? '启用' : '停用' }} · {{ row.expires_at ? timeText(row.expires_at) : '不设到期' }}</template></ElTableColumn><ElTableColumn prop="remark" label="备注" /><ElTableColumn label="操作"><template #default="{ row }"><ElButton link @click="editAccount(row)">修改 / 重设口令</ElButton><ElButton link type="danger" @click="deleteAccount(row)">删除</ElButton></template></ElTableColumn></ElTable>
-              <h3>活动会话</h3><ElTable :data="sessions" size="small"><ElTableColumn prop="username" label="账号" /><ElTableColumn prop="client_ip" label="来源" /><ElTableColumn label="到期"><template #default="{ row }">{{ timeText(row.expires_at) }}</template></ElTableColumn><ElTableColumn label="操作"><template #default="{ row }"><ElButton link type="danger" @click="kick(row)">立即踢出</ElButton></template></ElTableColumn></ElTable>
-              <div class="space"><ElButton @click="rotateToken(false)">生成 / 轮换服务令牌</ElButton><ElButton type="danger" plain @click="rotateToken(true)">撤销服务令牌</ElButton></div>
-              <ElAlert v-if="serviceToken" title="令牌只显示这一次；离开对话框即清除。旧令牌已失效。" type="warning" :closable="false" class="space" /><ElInput v-if="serviceToken" :model-value="serviceToken" readonly aria-label="一次性服务令牌" />
-            </ElCollapseItem>
+              <ServiceIdentityPanel :port="draft.port" :revision="draft.revision" @revision="draft.revision = $event" @busy="busy = $event" />
+</ElCollapseItem>
             <ElCollapseItem title="攻击检测（登录成功后继续执行）" name="attacks">
               <ElAlert title="先观察命中原因和正常业务，再逐条收紧。观察模式不阻断，也不会进入自动处罚。" :closable="false" class="space" />
               <Fields :model="draft.policy.ruleset" :definitions="[{path:'plugins',label:'签名插件策略',kind:'json',nullable:true,help:'mode为off/observe/block；ids为插件ID数组（最多4个）；timeout_ms为共享检测预算内的RPC时限（0使用剩余预算，最大1000毫秒）；scope可限定路径。每端口独立进程，异常只观察并放行；dry-run不运行插件。'}]" @invalid="invalid.plugins = $event" />
@@ -89,11 +85,7 @@
       </ElTabs>
       <div class="editor-actions"><span v-if="Object.values(invalid).some(Boolean)" class="field-error" role="alert">有配置尚未通过校验。<ElButton text @click="locateInvalid">定位未完成的配置</ElButton></span><span v-else class="muted">只保存当前端口。账号操作单独即时生效。</span><ElButton @click="emit('close')">关闭</ElButton><ElButton type="primary" :loading="busy" :disabled="Object.values(invalid).some(Boolean)" @click="save">保存端口配置</ElButton></div>
     </template>
-    <ElDialog v-model="accountVisible" title="端口账号" width="min(620px,94vw)" append-to-body destroy-on-close>
-      <ElButton :disabled="busy" @click="account.totp_secret = newTOTPSecret(); account.clear_totp = false">生成新的动态口令密钥</ElButton>
-      <div class="account-form"><label>用户名<ElInput v-model="account.username" :disabled="editingAccount" aria-label="端口账号用户名" /></label><label>{{ editingAccount ? '新口令（留空保持）' : '口令' }}<ElInput v-model="account.password" type="password" show-password autocomplete="new-password" aria-label="端口账号口令" /></label><label>动态口令Base32密钥（可选，留空保留）<ElInput v-model="account.totp_secret" type="password" show-password autocomplete="new-password" aria-label="动态口令密钥" /></label><small>仅表单模式支持；密钥加密保存且不回显。设置后使用身份验证器的六位动态码登录。{{ account.totp_configured ? '当前已启用二次验证。' : '当前未设置动态口令。' }}</small><ElCheckbox v-if="account.totp_configured" v-model="account.clear_totp">明确移除该账号的二次验证</ElCheckbox><ElSwitch v-model="account.enabled" active-text="账号启用" /><label>到期时间（留空为不限）<input type="datetime-local" :value="localDate(account.expires_at)" @change="account.expires_at = epoch(($event.target as HTMLInputElement).value)" /></label><label>备注<ElInput v-model="account.remark" /></label><p class="muted">保存账号会撤销旧会话；不能删除或停用已开启登录门的最后一个有效账号。</p></div>
-      <template #footer><ElButton @click="accountVisible = false">取消</ElButton><ElButton type="primary" :loading="busy" @click="saveAccount">立即保存账号</ElButton></template>
-    </ElDialog>
+
     <ElDialog v-model="ruleVisible" :title="`规则范围：${activeRule?.id || ''}`" width="min(850px,94vw)" append-to-body>
       <template v-if="activeRule"><Scope :model="activeRule.scope" /><Fields v-if="activeRule.category === 'scanner'" :model="activeRule.params" :definitions="[{path:'probe_paths',label:'本站不存在的探测路径',kind:'lines',help:'每行一个路径；存在的管理页、WordPress登录页不要填入。'}]" /></template><template #footer><ElButton type="primary" @click="ruleVisible = false">返回配置</ElButton></template>
     </ElDialog>
@@ -101,7 +93,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
+import { v4 as uuidv4 } from 'uuid';
 import type { PropType } from 'vue';
 import { ElAlert, ElButton, ElCheckbox, ElCheckboxGroup, ElCollapse, ElCollapseItem, ElDialog, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElOption, ElSelect, ElSwitch, ElTable, ElTableColumn, ElTabPane, ElTabs, ElTag } from 'element-plus';
 import { pipelineGet, pipelinePost } from '@/apis/pipeline';
@@ -110,7 +103,7 @@ import GuidedSetup from './GuidedSetup.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
 import HoneypotSettings from './HoneypotSettings.vue';
 import Fields from './Fields.vue'; import Scope from './Scope.vue'; import Trace from './Trace.vue';
-import { newTOTPSecret } from './model';
+import ServiceIdentityPanel from './ServiceIdentityPanel.vue';
 const props = defineProps({config:{type:Object as PropType<PortConfig & {access_changed_at?:number;access_changed_by?:string}>,required:true},templates:{type:Array as PropType<PolicyTemplate[]>,required:true},isNew:Boolean,initialTab:{type:String,default:'common'},initialPanels:{type:Array as PropType<string[]>,default:()=>[]}});
 const emit = defineEmits(['saved','close','busy']);
 const draft = ref<PortConfig>(clone(props.config)); const busy=ref(false), error=ref(''), activeTab=ref(props.initialTab);
@@ -127,8 +120,6 @@ async function setGateLogo(event: Event) { const input=event.target as HTMLInput
 const selectedTemplate=ref(draft.value.template?.id || ''), selectedSections=ref([...sections]), templatePreview=ref<any>(null), preview=ref<any>(null), previewKey=ref('');
 const invalid=reactive<Record<string,boolean>>({}), rulePanels=ref(props.initialPanels.length?[...props.initialPanels]:props.initialTab==='ruleset'?['gate']:['controls','gate','attacks']), activeRule=ref<any>(null),ruleVisible=ref(false);
 const sample=reactive({client_ip:'198.51.100.25',method:'GET',path:'/',body:''}),sampleHeaders=ref('{"Accept":"text/html"}');
-const accounts=ref<any[]>([]),sessions=ref<any[]>([]),serviceToken=ref('');
-const accountVisible=ref(false),editingAccount=ref(false),account=reactive({username:'',password:'',totp_secret:'',clear_totp:false,totp_configured:false,enabled:true,expires_at:0,remark:''});
 const tightenRules=ref<string[]>([]),advancedJSON=ref(''),businessLoginJSON=ref('[]');
 const templatePreviewKey=ref('');
 const thresholdRows=[{key:'critical',label:'critical',ban:true},{key:'high',label:'high',ban:true},{key:'medium',label:'medium',ban:true},{key:'login_ban',label:'持续登录失败',ban:true},{key:'response_404',label:'不同路径404',ban:false},{key:'response_auth',label:'401/403异常',ban:false},{key:'response_5xx',label:'可归因5xx',ban:false}];
@@ -140,7 +131,7 @@ const timeText=(value:number)=>value?new Date(value*1000).toLocaleString('zh-CN'
 function localDate(value:number){if(!value)return '';const d=new Date(value*1000);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
 const epoch=(value:string)=>value?Math.floor(new Date(value).getTime()/1000):0;
 async function run(work:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';try{await work()}catch(e){if(e!=='cancel'&&e!=='close')error.value=e.message||String(e)}finally{busy.value=false}}
-function addIP(){draft.value.policy.ip_group.entries.push({id:crypto.randomUUID(),type:'allow',value:'',trust:'trusted',expires_at:0,remark:''})}
+function addIP(){draft.value.policy.ip_group.entries.push({id:uuidv4(),type:'allow',value:'',trust:'trusted',expires_at:0,remark:''})}
 function openRule(rule:any){activeRule.value=rule;ruleVisible.value=true}
 async function testUpstream(){await run(async()=>{const message=await pipelinePost('upstream/test',{upstream:draft.value.upstream});ElMessage.success(message+'（TCP）')})}
 async function relearnTamper(rule:any){await run(async()=>{await ElMessageBox.confirm('保存后将重新学习下一次合格响应。请先确认上游未被篡改。','重新学习防篡改基线',{type:'warning'});rule.generation=(rule.generation||0)+1;rule.learned_at=0;ElMessage.info('已标记重新学习，请保存端口配置')})}
@@ -151,17 +142,8 @@ async function acceptTemplate(){await run(async()=>{if(templatePreviewKey.value!
 async function tighten(){await run(async()=>{if(!tightenRules.value.length)throw new Error('请选择已验证的规则');await ElMessageBox.confirm('确认这些命中不是正常业务？所选规则将对匹配请求执行拦截，保存后生效。','渐进收紧',{type:'warning'});for(const r of draft.value.policy.ruleset.rules)if(tightenRules.value.includes(r.id))r.mode='block';tightenRules.value=[]})}
 function parseBusinessLogin(){try{const list=JSON.parse(businessLoginJSON.value);if(!Array.isArray(list))throw new Error();draft.value.policy.hit_policy.business_login=list;invalid.businessLogin=false}catch{invalid.businessLogin=true}}
 async function applyAdvanced(){await run(async()=>{const policy=JSON.parse(advancedJSON.value);if(!policy||sections.some(s=>!policy[s]))throw new Error('策略必须包含全部七个分区');const candidate={...draft.value,policy};await pipelinePost('explain',{config:candidate,...sample,headers:JSON.parse(sampleHeaders.value)});draft.value=candidate;normalize();ElMessage.success('服务端校验通过，已写入草稿')})}
-async function save(){await run(async()=>{parseBusinessLogin();if(Object.values(invalid).some(Boolean))throw new Error('请先修正JSON字段');let plugin_profiles;if(pluginProfilesJSON.value.trim()){plugin_profiles=JSON.parse(pluginProfilesJSON.value);if(!plugin_profiles||typeof plugin_profiles!=='object'||Array.isArray(plugin_profiles))throw new Error('插件启动配置必须是JSON对象')}let business_headers;if(businessHeadersJSON.value.trim()){business_headers=JSON.parse(businessHeadersJSON.value);if(!business_headers||typeof business_headers!=='object'||Array.isArray(business_headers))throw new Error('加密业务头必须是JSON对象')}if(!props.isNew&&draft.value.policy.access.enabled!==props.config.policy.access.enabled)await ElMessageBox.confirm(draft.value.policy.access.enabled?'允许这个端口重新接收业务访问？':'关闭后包括trusted在内的业务请求均被拒绝，已有连接按排空时间关闭。管理端不受影响。','确认切换访问开关',{type:'warning'});if(props.isNew)draft.value.listen_enabled=false;const result=await pipelinePost<PortConfig>('ports/save',{config:draft.value,...secrets,business_headers,plugin_profiles});Object.assign(secrets,{initial_username:'',initial_password:'',tls_certificate:'',tls_private_key:'',upstream_ca:'',clear_upstream_ca:false,privacy_engine_config:'',clear_privacy_engine_config:false});businessHeadersJSON.value='';pluginProfilesJSON.value='';serviceToken.value='';ElMessage.success(props.isNew?'端口已创建，尚未监听':'端口配置已保存');emit('saved',result)})}
-async function loadAccounts(){await run(async()=>{[accounts.value,sessions.value]=await Promise.all([pipelineGet('gate/users',{port:draft.value.port}),pipelineGet('gate/sessions',{port:draft.value.port})])})}
-function newAccount(){editingAccount.value=false;Object.assign(account,{username:'',password:'',totp_secret:'',clear_totp:false,totp_configured:false,enabled:true,expires_at:0,remark:''});accountVisible.value=true}
-function editAccount(row:any){editingAccount.value=true;Object.assign(account,{username:row.username,password:'',totp_secret:'',clear_totp:false,totp_configured:!!row.totp_configured,enabled:row.enabled,expires_at:row.expires_at,remark:row.remark});accountVisible.value=true}
-async function saveAccount(){await run(async()=>{if(account.clear_totp)await ElMessageBox.confirm('移除后该账号只需密码即可登录；旧会话将撤销。','确认移除二次验证',{type:'warning'});const {totp_configured,...values}=account;await pipelinePost('gate/users/save',{port:draft.value.port,...values});account.password='';account.totp_secret='';accountVisible.value=false;accounts.value=await pipelineGet('gate/users',{port:draft.value.port});sessions.value=await pipelineGet('gate/sessions',{port:draft.value.port});ElMessage.success('账号已保存，旧会话已撤销')})}
-async function deleteAccount(row:any){await run(async()=>{await ElMessageBox.confirm(`删除${row.username}并撤销其会话？`,'删除账号',{type:'warning'});await pipelinePost('gate/users/delete',{port:draft.value.port,username:row.username});accounts.value=await pipelineGet('gate/users',{port:draft.value.port});sessions.value=await pipelineGet('gate/sessions',{port:draft.value.port})})}
-async function kick(row:any){await run(async()=>{await ElMessageBox.confirm('立即撤销该会话？','踢出会话',{type:'warning'});await pipelinePost('gate/sessions/kick',{port:draft.value.port,id:row.id});sessions.value=await pipelineGet('gate/sessions',{port:draft.value.port})})}
-async function rotateToken(revoke:boolean){await run(async()=>{await ElMessageBox.confirm(revoke?'撤销后，使用旧服务令牌的客户端将无法登录。':'轮换后旧令牌立即失效，新令牌只显示一次。','服务令牌',{type:'warning'});const result=await pipelinePost('gate/token/rotate',{port:draft.value.port,revoke,revision:draft.value.revision});draft.value.revision=result.revision;serviceToken.value=result.token||'';ElMessage.success(revoke?'服务令牌已撤销':'服务令牌已轮换')})}
-watch(accountVisible,value=>{if(!value){account.password='';account.totp_secret=''}});
+async function save(){await run(async()=>{parseBusinessLogin();if(Object.values(invalid).some(Boolean))throw new Error('请先修正JSON字段');let plugin_profiles;if(pluginProfilesJSON.value.trim()){plugin_profiles=JSON.parse(pluginProfilesJSON.value);if(!plugin_profiles||typeof plugin_profiles!=='object'||Array.isArray(plugin_profiles))throw new Error('插件启动配置必须是JSON对象')}let business_headers;if(businessHeadersJSON.value.trim()){business_headers=JSON.parse(businessHeadersJSON.value);if(!business_headers||typeof business_headers!=='object'||Array.isArray(business_headers))throw new Error('加密业务头必须是JSON对象')}if(!props.isNew&&draft.value.policy.access.enabled!==props.config.policy.access.enabled)await ElMessageBox.confirm(draft.value.policy.access.enabled?'允许这个端口重新接收业务访问？':'关闭后包括trusted在内的业务请求均被拒绝，已有连接按排空时间关闭。管理端不受影响。','确认切换访问开关',{type:'warning'});if(props.isNew)draft.value.listen_enabled=false;const result=await pipelinePost<PortConfig>('ports/save',{config:draft.value,...secrets,business_headers,plugin_profiles});Object.assign(secrets,{initial_username:'',initial_password:'',tls_certificate:'',tls_private_key:'',upstream_ca:'',clear_upstream_ca:false,privacy_engine_config:'',clear_privacy_engine_config:false});businessHeadersJSON.value='';pluginProfilesJSON.value='';ElMessage.success(props.isNew?'端口已创建，尚未监听':'端口配置已保存');emit('saved',result)})}
 watch([selectedTemplate,()=>selectedSections.value.join(',')],()=>{templatePreview.value=null});
-onMounted(async()=>{if(props.isNew)return;if(!props.isNew)await loadAccounts()});
 </script>
 
 <style scoped>

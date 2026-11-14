@@ -4,11 +4,11 @@
       <RouterLink to="/help" class="login-brand"><Logo aria-hidden="true" /><span>HomeWaf</span></RouterLink>
       <div class="login-product">
         <div class="login-intro-copy">
-          <span class="login-category">安全 · 简单 · 易用</span>
+          <span class="login-category">家庭服务与网站防护</span>
           <h2 id="login-product-title">
-            <span class="login-title-first">首款面向家庭的</span><span>Web 应用防火墙</span>
+            <span class="login-title-first">自己的服务，</span><span>清楚掌握每次访问。</span>
           </h2>
-          <p class="login-lead">多一层防护，多一份安心。</p>
+          <p class="login-lead">接入服务、调整防护、查看访问记录。</p>
           <p class="login-detail">从 NAS 到个人网站，<br class="login-detail-break" />守好家庭服务的访问入口。</p>
           <div class="login-license">
             <CircleCheck aria-hidden="true" /><span>家庭非商业使用<strong>免费</strong></span>

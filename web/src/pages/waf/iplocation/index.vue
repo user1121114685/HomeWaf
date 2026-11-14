@@ -2,7 +2,7 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <!-- 标题 -->
       <hw-row justify="space-between" style="margin-bottom: 16px;">
         <div class="left-operation-container">

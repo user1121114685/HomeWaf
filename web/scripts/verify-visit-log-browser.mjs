@@ -207,7 +207,7 @@ try {
   expect(queries.at(-1).host_code).toBe('');
   expect(queries.at(-1).request_outcome).toBe('');
   check('service identity, server-side outcome filters, complete reset');
-  await visit().getByRole('button', { name: '显示列', exact: true }).click();
+  await page.locator('.page-heading-actions').getByRole('button', { name: '显示列', exact: true }).click();
   let dialog = page.getByRole('dialog', { name: '显示列与顺序' });
   await dialog.getByText('响应码', { exact: true }).click();
   await expect(dialog.getByRole('checkbox', { name: '响应码', exact: true })).not.toBeChecked();
@@ -221,7 +221,7 @@ try {
   await expect.poll(async () => (await headers())[0].trim()).toBe('时间');
   expect((await headers()).some((x) => x.includes('响应码'))).toBe(false);
   check('column visibility, keyboard-accessible ordering and persistence after reload');
-  await visit().getByRole('button', { name: '显示列', exact: true }).click();
+  await page.locator('.page-heading-actions').getByRole('button', { name: '显示列', exact: true }).click();
   dialog = page.getByRole('dialog', { name: '显示列与顺序' });
   await dialog.getByRole('button', { name: '恢复家庭用户推荐列' }).click();
   await dialog.getByText('User-Agent', { exact: true }).click();
@@ -260,7 +260,7 @@ try {
   await page.keyboard.press('Escape');
   check('time picker includes time-of-day and working date shortcuts');
   await visit().getByRole('button', { name: '重置', exact: true }).click();
-  await visit().getByRole('button', { name: '日志设置', exact: true }).click();
+  await page.locator('.page-heading-actions').getByRole('button', { name: '日志设置', exact: true }).click();
   const drawer = page.getByRole('dialog', { name: '日志设置', exact: true });
   await expect(drawer.getByRole('button', { name: '保存设置', exact: true })).toBeDisabled();
   const retention = drawer.getByRole('spinbutton', { name: '访问日志保留天数', exact: true });
@@ -277,7 +277,7 @@ try {
   expect(configWrites.every((write) => write.item === 'access_log_retention_days')).toBe(true);
   await drawer.getByRole('button', { name: '关闭', exact: true }).click();
   check('configuration numbers load, only changed values save, business failures never report success');
-  await visit().getByRole('button', { name: '显示列', exact: true }).click();
+  await page.locator('.page-heading-actions').getByRole('button', { name: '显示列', exact: true }).click();
   dialog = page.getByRole('dialog', { name: '显示列与顺序' });
   await dialog.getByRole('button', { name: '恢复家庭用户推荐列' }).click();
   await dialog.getByRole('button', { name: '确定', exact: true }).click();
@@ -303,9 +303,14 @@ try {
       report.layouts.push({ theme, width, ...layout });
       expect(layout.overflow).toBe(false);
       expect(layout.controls.every((control) => Math.abs(control.h - 40) < 1)).toBe(true);
-      expect(Math.max(...layout.controls.map((x) => x.w)) - Math.min(...layout.controls.map((x) => x.w))).toBeLessThan(
+      const sameTrack = width <= 520 ? layout.controls.slice(1) : layout.controls;
+      expect(Math.max(...sameTrack.map((x) => x.w)) - Math.min(...sameTrack.map((x) => x.w))).toBeLessThan(
         2,
       );
+      if (width <= 520) {
+        expect(layout.controls[0].w).toBeGreaterThan(sameTrack[0].w * 1.9);
+        expect(sameTrack.every(control => control.w >= 100)).toBe(true);
+      }
       if (width <= 1023) {
         await expect(visit().locator('.visit-compact-record').first()).toContainText('群晖');
         await expect(visit().locator('.visit-compact-record').first()).toContainText('/photos');
@@ -315,7 +320,7 @@ try {
       await page.screenshot({ path: path.join(output, theme + '-' + width + '.png'), fullPage: true });
     }
   }
-  check('equal control sizes and no page overflow at desktop/tablet/phone widths in both themes');
+  check('aligned filter controls, full-width mobile service scope and no page overflow in both themes');
   expect(report.errors).toEqual([]);
 } catch (error) {
   report.page = (await page.locator('body').innerText()).slice(0, 3000);

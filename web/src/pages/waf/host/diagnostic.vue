@@ -7,7 +7,7 @@
         <h2>{{ tr('title') }}</h2>
         <p>{{ tr('description') }}</p>
       </div>
-      <hw-button variant="text" @click="backToHosts">{{ tr('back') }}</hw-button>
+      <PageActions><hw-button variant="text" @click="backToHosts">{{ tr('back') }}</hw-button></PageActions>
     </header>
 
     <hw-card :bordered="false" class="diagnostic-input">

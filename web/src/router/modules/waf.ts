@@ -214,7 +214,7 @@ export default [
     path: '/waf',
     name: 'waf',
     component: Layout,
-    redirect: '/waf-log/visit',
+    redirect: '/waf/wafvisitlog',
     meta: { title: 'menu.visit_log.parent_title', icon: LightingCircleIcon },
     children: [
       {
@@ -249,7 +249,7 @@ export default [
     path: '/tunnel',
     name: 'tunnel',
     component: Layout,
-    redirect: '/tunnel',
+    redirect: '/tunnel/Tunnel',
     meta: { title: 'menu.tunnel.parent_title', icon: ForkIcon },
     children: [
       {

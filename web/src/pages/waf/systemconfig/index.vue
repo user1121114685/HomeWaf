@@ -2,10 +2,12 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="end" align="middle" :style="{ marginBottom: '12px' }">
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
+          <label for="configuration-search" class="resource-filter-label">查找配置项</label>
           <hw-input
+            id="configuration-search"
             v-model="keyword"
             class="config-search-input"
             :placeholder="$t('page.systemconfig.search_placeholder')"

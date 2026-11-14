@@ -29,21 +29,28 @@ try {
       .filter((r) => r.components?.default && !r.children.length && !r.redirect && !r.path.includes(':'))
       .map((r) => ({ path: r.path, name: String(r.name) })),
   );
-  for (const width of [1440, 390]) {
+  for (const appearance of ['light', 'dark']) {
+  await page.evaluate((mode) => window.vm.$store.dispatch('setting/changeTheme', {...window.vm.$store.state.setting,mode}), appearance);
+  for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
     for (const route of routes.filter((r) => r.name !== 'login')) {
       current = route.path;
       await page.evaluate((path) => window.vm.$router.push(path), route.path);
       await page.waitForTimeout(250);
       const result = await page.evaluate(() => ({
+        actualRoute: String(window.vm.$route.name),
         h1: [...document.querySelectorAll('h1')]
           .filter((el) => el.getClientRects().length)
           .map((el) => el.textContent.trim()),
         overflow: document.documentElement.scrollWidth > innerWidth + 2,
         rendered: !!document.querySelector('.console-page > *, .security-screen, .help-document'),
       }));
-      report.routes.push({ ...route, width, ...result });
+      report.routes.push({ ...route, width, appearance, ...result });
+      if (['DashboardStart','WafPipeline','WafSSLOrderList','WafSSLConfigList','WafvisitLog','WafAccessAccount','Account','SystemConfig','VpConfig','NotifySubscription','DashboardOverview','OPlatformDoc','UserIndex','RumtimeSysteminfo','help'].includes(route.name)) {
+        await page.screenshot({path:new URL(`${route.name}-${width}-${appearance}.png`,output).pathname.replace(/^\/(\w:)/,'$1')});
+      }
     }
+  }
   }
   current = 'mobile navigation';
   await page.goto(origin + '/?appearance=light#/dashboard/start');
@@ -103,7 +110,7 @@ try {
   await browser.close();
   fs.writeFileSync(new URL('browser-report.json', output), JSON.stringify(report, null, 2));
 }
-const faults = report.routes.filter((route) => !route.rendered || route.h1.length !== 1 || route.overflow);
+const faults = report.routes.filter((route) => route.actualRoute !== route.name || !route.rendered || route.h1.length !== 1 || route.overflow);
 console.log(
   JSON.stringify({ routes: report.routes.length, checks: report.checks, faults, errors: report.errors }, null, 2),
 );

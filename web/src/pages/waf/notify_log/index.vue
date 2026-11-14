@@ -2,9 +2,9 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="form" :data="searchformData" :label-width="80" layout="inline" colon :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.notify_log.label_message_type')" name="message_type">
               <hw-select v-model="searchformData.message_type" clearable :style="{ width: '150px' }">

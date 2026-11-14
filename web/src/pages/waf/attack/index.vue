@@ -2,7 +2,7 @@
 
 <template>
   <div class="visit-log-page" data-testid="visit-log-page">
-    <hw-card class="list-card-container visit-log-card">
+    <hw-card class="list-card-container visit-log-card resource-panel">
       <hw-form
         ref="form"
         :data="searchformData"
@@ -140,7 +140,7 @@
             }}
           </p>
         </div>
-        <div class="visit-result-actions">
+        <PageActions :inline="attack_ip !== ''"><div class="visit-result-actions">
           <hw-button
             v-if="attack_ip === '' && $route.name === 'WafvisitLog'"
             variant="outline"
@@ -151,7 +151,7 @@
           <hw-button v-if="attack_ip === ''" variant="text" @click="logConfigVisible = true">{{
             text('日志设置', 'Log settings')
           }}</hw-button>
-        </div>
+        </div></PageActions>
       </div>
       <div class="table-container">
         <hw-alert v-if="queryError" theme="error" :message="queryError" class="visit-notice"
@@ -2598,7 +2598,8 @@ export default defineComponent({
   }
 }
 @media (max-width: 520px) {
-  .visit-filter-grid,
+  .visit-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .visit-filter-grid > :first-child { grid-column: 1 / -1; }
   .log-config-form :deep(.el-row) {
     grid-template-columns: 1fr;
   }

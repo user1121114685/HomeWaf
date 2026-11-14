@@ -1,256 +1,244 @@
 <template>
   <div class="service-policy-page" data-testid="service-policy-page">
-    <ElAlert v-if="error" :title="error" type="error" :closable="false" />
-    <ElCard shadow="never">
-      <div class="service-policy-toolbar">
-        <label
-          ><span>服务</span
-          ><ElSelect
-            :model-value="selectedPort"
-            :loading="loading"
-            :disabled="busy"
-            filterable
-            placeholder="选择已接入的服务"
-            aria-label="服务"
-            @update:model-value="selectService"
-          >
-            <ElOption
-              v-for="row in rows"
-              :key="row.config.port"
-              :value="row.config.port"
-              :label="(row.config.name || '未命名服务') + ' · :' + row.config.port"
-            /> </ElSelect
-        ></label>
-        <div class="service-policy-actions">
-          <ElButton :loading="loading" :disabled="busy" @click="refresh">刷新</ElButton
-          ><ElButton :disabled="!selected || busy" @click="openLogs">访问记录</ElButton>
-        </div>
-      </div>
-      <div v-if="!loading && !rows.length" class="service-policy-empty">
-        <h2>先接入一个服务</h2>
-        <p>新建群晖、相册或其他服务后，可在这里配置它的防护。</p>
-        <ElButton type="primary" @click="router.push('/waf-pipeline/ports')">接入服务</ElButton>
-      </div>
-      <template v-else-if="selected">
-        <div class="service-policy-heading">
-          <h2>{{ selected.config.name || '未命名服务' }} · {{ entry.title }}</h2>
-          <ElTag :type="selected.listener?.running ? 'success' : 'info'">{{
-            selected.listener?.running ? '服务运行中' : '服务未监听'
-          }}</ElTag>
-        </div>
-        <p class="service-policy-hint">{{ entry.hint }}</p>
-        <template v-if="entry.tab === 'cc' && draft">
-          <Fields :model="draft.policy.ruleset" :definitions="ccFields" />
-          <div class="service-policy-save">
-            <ElButton type="primary" :loading="busy" :disabled="!dirty" @click="saveCC">保存 CC 防护</ElButton
-            ><ElButton :disabled="!dirty || busy" @click="resetDraft">撤销修改</ElButton
-            ><span>只更新 {{ draft.name || '该服务' }} 的 CC 策略。</span>
-          </div>
-        </template>
-        <template v-else>
-          <p class="service-policy-hint">这里与“服务接入”使用同一份配置，保存后会应用到这个服务。</p>
-          <ElButton type="primary" @click="editorVisible = true">配置{{ entry.title }}</ElButton>
-        </template>
-      </template>
-    </ElCard>
-    <ElDialog
-      v-model="editorVisible"
-      :title="entry.title"
-      width="min(1400px,97vw)"
-      :close-on-click-modal="false"
-      :close-on-press-escape="!busy"
-      :show-close="!busy"
-      destroy-on-close
+    <PageActions
+      ><ElButton :loading="loading" :disabled="busy" @click="refresh">刷新</ElButton
+      ><ElButton :disabled="!selected || busy" @click="openLogs">访问记录</ElButton
+      ><ElButton :disabled="!selected || busy" @click="openService">完整服务配置</ElButton></PageActions
     >
-      <PortEditor
-        v-if="editorVisible && selected"
-        :key="selected.config.port + '-' + entry.tab"
+    <ElAlert v-if="error" :title="error" type="error" :closable="false" />
+    <section class="service-scope-bar">
+      <label
+        ><span>当前服务</span
+        ><ElSelect
+          :model-value="selectedPort"
+          :loading="loading"
+          :disabled="busy"
+          filterable
+          placeholder="选择已接入的服务"
+          aria-label="服务"
+          @update:model-value="selectService"
+          ><ElOption
+            v-for="row in rows"
+            :key="row.config.port"
+            :value="row.config.port"
+            :label="(row.config.name || '未命名服务') + ' · :' + row.config.port" /></ElSelect
+      ></label>
+      <div v-if="selected" class="service-scope-state">
+        <ElTag :type="selected.listener?.running ? 'success' : 'info'">{{
+          selected.listener?.running ? '服务运行中' : '服务未监听'
+        }}</ElTag
+        ><span
+          >{{ selected.config.protocol.toUpperCase() }} · 端口 {{ selected.config.port }} · 配置版本
+          {{ selected.config.revision }}</span
+        >
+      </div>
+    </section>
+    <section v-if="!loading && !rows.length && !error" class="service-policy-empty">
+      <h2>先接入一个服务</h2>
+      <p>新建群晖、相册或其他服务后，可在这里配置它的防护。</p>
+      <ElButton type="primary" @click="router.push('/waf-pipeline/ports')">接入服务</ElButton>
+    </section>
+    <section v-else-if="selected" class="service-task-panel">
+      <header class="service-task-heading">
+        <h2>{{ entry.title }}</h2>
+        <p>{{ entry.hint }}</p>
+      </header>
+      <ServiceTaskEditor
+        :key="selected.config.port + '-' + route.name + '-' + editorVersion"
+        ref="editor"
         :config="selected.config"
-        :templates="templates"
-        :initial-tab="entry.tab"
-        :initial-panels="entry.panels || []"
-        @saved="editorSaved"
-        @close="editorVisible = false"
+        :task="String(route.name)"
+        @saved="saved"
         @busy="busy = $event"
       />
-    </ElDialog>
+    </section>
+    <p v-else-if="loading" class="service-policy-loading" role="status">正在读取服务配置…</p>
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
-import { ElAlert, ElButton, ElCard, ElDialog, ElMessage, ElMessageBox, ElOption, ElSelect, ElTag } from 'element-plus';
-import { pipelineGet, pipelinePost } from '@/apis/pipeline';
-import { clone, fields, type PortConfig, type PolicyTemplate } from './model';
-import Fields from './Fields.vue';
-import PortEditor from './PortEditor.vue';
+import { ElAlert, ElButton, ElMessageBox, ElOption, ElSelect, ElTag } from 'element-plus';
+import { pipelineGet } from '@/apis/pipeline';
+import type { PortConfig } from './model';
+import ServiceTaskEditor from './ServiceTaskEditor.vue';
 import { servicePolicyEntries } from './policyEntries';
 const route = useRoute(),
   router = useRouter();
 const entry = computed(() => servicePolicyEntries[String(route.name)]);
 const rows = ref<any[]>([]),
-  templates = ref<PolicyTemplate[]>([]),
   selectedPort = ref<number>();
 const loading = ref(false),
   busy = ref(false),
   error = ref(''),
-  editorVisible = ref(false),
-  draft = ref<PortConfig>();
+  editorVersion = ref(0),
+  editor = ref<InstanceType<typeof ServiceTaskEditor>>();
 const selected = computed(() => rows.value.find((row) => row.config.port === selectedPort.value));
-const ccFields = fields.ruleset.filter((field) => field.path.startsWith('cc.'));
-const dirty = computed(
-  () =>
-    !!draft.value &&
-    JSON.stringify(draft.value.policy.ruleset.cc) !== JSON.stringify(selected.value?.config.policy.ruleset.cc),
-);
-function resetDraft() {
-  draft.value = selected.value ? clone(selected.value.config) : undefined;
-}
+let selecting = false;
+const identity = (row: any) => row.config.host_code || 'pipeline-' + row.config.port;
 async function canDiscard() {
-  if (!dirty.value) return true;
+  if (busy.value) return false;
+  if (!editor.value?.dirty) return true;
   try {
-    await ElMessageBox.confirm('CC 配置尚未保存，离开会丢弃这些修改。', '未保存的修改', {
-      confirmButtonText: '丢弃修改',
-      cancelButtonText: '继续编辑',
-      type: 'warning',
-    });
+    await ElMessageBox.confirm(
+      '当前配置尚未保存，离开会丢弃这些修改。已即时保存的账号或会话操作不会撤销。',
+      '未保存的修改',
+      { confirmButtonText: '丢弃修改', cancelButtonText: '继续编辑', type: 'warning' },
+    );
     return true;
   } catch {
     return false;
   }
 }
 async function selectService(port: number) {
-  if (await canDiscard()) {
+  if (port === selectedPort.value || !(await canDiscard())) return;
+  const row = rows.value.find((row) => row.config.port === port);
+  if (!row) return;
+  selecting = true;
+  try {
+    await router.replace({ query: { ...route.query, host_code: identity(row) } });
     selectedPort.value = port;
-    resetDraft();
+    error.value = '';
+    editorVersion.value++;
+  } finally {
+    selecting = false;
   }
 }
+function resolveSelection() {
+  const requested = String(route.query.host_code || '');
+  const row = requested ? rows.value.find((row) => identity(row) === requested) : selected.value || rows.value[0];
+  selectedPort.value = row?.config.port;
+  if (requested && !row) error.value = '请求的服务不存在或不可访问，请重新选择服务。';
+}
 async function refresh() {
-  if (!(await canDiscard())) return;
+  if (loading.value || !(await canDiscard())) return;
   loading.value = true;
   error.value = '';
   try {
-    const [overview, availableTemplates] = await Promise.all([
-      pipelineGet('overview'),
-      pipelineGet<PolicyTemplate[]>('templates'),
-    ]);
+    const overview = await pipelineGet('overview');
     rows.value = overview.ports || [];
-    templates.value = availableTemplates;
-    const requested = String(route.query.host_code || '');
-    if (!selected.value)
-      selectedPort.value =
-        rows.value.find((row) => row.config.host_code === requested)?.config.port || rows.value[0]?.config.port;
-    resetDraft();
-  } catch (e: any) {
-    error.value = e.message || '服务配置读取失败，请重试。';
+    resolveSelection();
+    editorVersion.value++;
+  } catch (cause: any) {
+    error.value = cause.message || '服务配置读取失败，请重试。';
   } finally {
     loading.value = false;
   }
 }
-async function saveCC() {
-  if (!draft.value || !dirty.value) return;
-  busy.value = true;
-  error.value = '';
-  try {
-    const config = clone(selected.value.config);
-    config.policy.ruleset.cc = clone(draft.value.policy.ruleset.cc);
-    const saved = await pipelinePost<PortConfig>('ports/save', { config });
-    selected.value.config = saved;
-    resetDraft();
-    ElMessage.success(saved.listen_enabled ? 'CC 防护已保存并应用到当前服务' : 'CC 防护已保存，服务启用后生效');
-  } catch (e: any) {
-    error.value = e.message || '保存失败，修改已保留，请重试。';
-  } finally {
-    busy.value = false;
-  }
-}
-async function editorSaved(config: PortConfig) {
-  editorVisible.value = false;
-  if (config?.port) selectedPort.value = config.port;
-  await refresh();
+function saved(config: PortConfig) {
+  if (selected.value) selected.value.config = config;
+  busy.value = false;
+  editorVersion.value++;
 }
 function openLogs() {
-  if (selected.value)
-    router.push({
-      name: 'WafvisitLog',
-      query: { host_code: selected.value.config.host_code || 'pipeline-' + selectedPort.value },
-    });
+  if (selected.value) router.push({ name: 'WafvisitLog', query: { host_code: identity(selected.value) } });
 }
-onBeforeRouteLeave(async () => !busy.value && (await canDiscard()));
-onBeforeRouteUpdate(async () => {
-  if (busy.value || !(await canDiscard())) return false;
-  resetDraft();
-  editorVisible.value = false;
-  return true;
-});
+function openService() {
+  if (selected.value) router.push({ name: 'WafPipeline', query: { edit: selectedPort.value } });
+}
+onBeforeRouteLeave(canDiscard);
+onBeforeRouteUpdate(() => selecting || canDiscard());
+watch(
+  () => route.query.host_code,
+  () => {
+    if (!selecting) {
+      resolveSelection();
+      editorVersion.value++;
+    }
+  },
+);
 onMounted(refresh);
 </script>
 <style scoped>
 .service-policy-page {
   display: grid;
-  gap: 16px;
+  gap: 20px;
 }
-.service-policy-toolbar,
-.service-policy-actions,
-.service-policy-heading,
-.service-policy-save {
+.service-scope-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 20px;
+  background: var(--hw-panel);
+  border: 1px solid var(--hw-line);
+  border-radius: 8px;
+}
+.service-scope-bar label {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 12px;
+  min-width: 0;
 }
-.service-policy-toolbar {
-  justify-content: space-between;
+.service-scope-bar label > span {
+  font-size: 13px;
+  color: var(--hw-muted);
+  flex-shrink: 0;
+}
+.service-scope-bar .el-select {
+  width: 280px;
+}
+.service-scope-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--hw-muted);
+}
+.service-task-panel {
+  background: var(--hw-panel);
+  border: 1px solid var(--hw-line);
+  border-radius: 8px;
+  padding: 24px;
+  min-width: 0;
+}
+.service-task-heading {
   padding-bottom: 20px;
+  margin-bottom: 24px;
   border-bottom: 1px solid var(--hw-line);
 }
-.service-policy-toolbar label {
-  display: grid;
-  gap: 8px;
-  width: min(100%, 360px);
+.service-task-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
 }
-.service-policy-toolbar label > span {
-  font-weight: 500;
+.service-task-heading p {
+  color: var(--hw-muted);
+  margin: 8px 0 0;
+  line-height: 1.7;
   font-size: 13px;
 }
-.service-policy-actions {
-  align-self: flex-end;
+.service-policy-empty,
+.service-policy-loading {
+  padding: 40px 24px;
+  text-align: center;
+  background: var(--hw-panel);
+  border: 1px solid var(--hw-line);
+  border-radius: 8px;
 }
-.service-policy-heading {
-  margin-top: 24px;
+.service-policy-empty h2 {
+  font-size: 20px;
 }
-.service-policy-heading h2 {
-  margin: 0;
-  font-size: 18px;
-}
-.service-policy-hint {
+.service-policy-empty p {
   color: var(--hw-muted);
-  font-size: 14px;
-  line-height: 1.7;
   margin: 12px 0 24px;
 }
-.service-policy-save {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--hw-line);
-}
-.service-policy-save span {
-  color: var(--hw-muted);
-  font-size: 13px;
-}
-.service-policy-empty {
-  padding: 32px 0;
-  color: var(--hw-muted);
-}
-.service-policy-page :deep(.el-button + .el-button) {
-  margin-left: 0;
-}
-@media (max-width: 520px) {
-  .service-policy-toolbar label {
+@media (max-width: 620px) {
+  .service-scope-bar label {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .service-scope-bar .el-select {
     width: 100%;
   }
-  .service-policy-save .el-button {
-    flex: 1;
+  .service-scope-state {
+    margin-left: 0;
+  }
+  .service-task-panel {
+    padding: 16px;
   }
 }
 </style>

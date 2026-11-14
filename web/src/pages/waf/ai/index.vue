@@ -11,14 +11,14 @@
       <ai-label-workbench v-if="activeTab === 'workbench'" style="margin-top:12px" />
     </hw-tab-panel>
     <hw-tab-panel value="model" :label="$t('page.ai.model_tab')">
-      <div style="margin-top:12px">
+      <div class="model-workspace">
     <hw-card :title="$t('page.ai.status_title')" :bordered="false" style="margin-bottom:16px">
       <hw-space direction="vertical" size="small" style="width:100%">
         <hw-alert v-if="status.global_enable !== 1" theme="warning" :message="$t('page.ai.global_off_tip')" />
         <hw-alert v-else-if="!status.model_loaded" theme="warning" :message="$t('page.ai.no_model_tip')" />
         <hw-alert v-else theme="success" :message="$t('page.ai.ready_tip')" />
 
-        <hw-descriptions :column="2" bordered>
+        <hw-descriptions :column="1" bordered>
           <hw-descriptions-item :label="$t('page.ai.global_enable')">
             {{ status.global_enable === 1 ? $t('common.on') : $t('common.off') }}
           </hw-descriptions-item>

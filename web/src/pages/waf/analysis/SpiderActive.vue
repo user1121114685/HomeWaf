@@ -3,21 +3,21 @@
 <template>
   <div class="spider-active-page">
     <hw-card>
-      <div style="display: flex; gap: 16px; margin-bottom: 16px;">
-        <hw-date-range-picker v-model="range1" :presets="presets"  style="width: min(100%, 240px);"/>
-        <hw-select v-model="selectedHost"  clearable style="width: min(100%, 200px);" :placeholder="$t('common.select_placeholder')" >
+      <div class="analysis-filter-row">
+        <label><span>日期范围</span><hw-date-range-picker v-model="range1" :presets="presets" aria-label="日期范围" style="width: min(100%, 280px);"/></label>
+        <label><span>服务</span><hw-select v-model="selectedHost" aria-label="服务" clearable style="width: min(100%, 240px);" :placeholder="$t('common.select_placeholder')" >
           <hw-option v-for="item in hostOptions" :value="item.value" :label="item.label" :key="item.value">
             {{ item.label }}
           </hw-option>
-        </hw-select>
+        </hw-select></label>
         <hw-button theme="primary" @click="fetchData"> {{ $t('common.search') }}</hw-button>
       </div>
-      <div style="display: flex; gap: 32px;">
-        <div style="width: min(100%, 660px); height: 320px;">
+      <div class="analysis-comparison">
+        <div class="analysis-chart">
           <div id="spiderChart"  class="echart-box" ref="boxpie"></div>
         </div>
 
-        <div style="flex: 1;">
+        <div class="analysis-results">
           <hw-table :data="spiderPieData" :columns="columns" row-key="name" size="small" :pagination="{ pageSize: 5 }">
             <template #name="{ row }">
               {{ row.name }}

@@ -68,10 +68,10 @@
             <hw-button v-if="isOwaspRule" variant="outline" theme="default" @click="goToOwaspSandbox">
               {{ $t('page.visit_log.detail.owasp_sandbox_test') }}
             </hw-button>
-            <hw-button v-if="!isEmbedded" variant="text" theme="default" @click="backPage">
+            <PageActions v-if="!isEmbedded"><hw-button variant="outline" theme="default" @click="backPage">
               <template #icon><hw-icon name="backward"  /></template>
               {{ $t('common.return') }}
-            </hw-button>
+            </hw-button></PageActions>
           </div>
         </div>
         <div v-if="payloadMissing" class="vd-hero-note">

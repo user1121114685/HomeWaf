@@ -32,13 +32,13 @@
         {{ $t(featureState === 'error' ? 'page.application.feature_retry' : 'page.application.feature_recheck') }}
       </hw-button>
     </hw-card>
-    <hw-card v-else class="list-card-container">
+    <hw-card v-else class="list-card-container resource-panel">
       <hw-alert theme="info" :message="$t('page.application.allow_dirs_tip')" :style="{ marginBottom: '16px' }" />
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <hw-button @click="handleAdd">{{ $t('page.application.new_app') }}</hw-button>
+          <PageActions><hw-button theme="primary" @click="handleAdd">{{ $t('page.application.new_app') }}</hw-button></PageActions>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getList">
             {{ $t('common.search') }}
           </hw-button>

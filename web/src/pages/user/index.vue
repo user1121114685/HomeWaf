@@ -46,7 +46,7 @@ const changePassword = ref(false);
 <style scoped>
 .account-overview {
   display: grid;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 2fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -65,8 +65,9 @@ const changePassword = ref(false);
   border: 1px solid var(--hw-line);
   border-radius: var(--hw-r-md);
   color: var(--hw-muted);
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
+.account-summary { display: flex; align-items: center; gap: 20px; }
 h2 {
   font-size: 18px;
   font-weight: 500;

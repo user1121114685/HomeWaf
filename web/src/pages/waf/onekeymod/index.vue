@@ -2,7 +2,7 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-tabs v-model="activeTab">
         <hw-tab-panel value="port" :label="$t('page.one_key_mod.tab_port_modify')">
       <hw-row justify="space-between">

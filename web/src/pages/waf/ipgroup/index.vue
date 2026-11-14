@@ -2,12 +2,12 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <hw-button @click="handleAddGroup"> {{ $t('page.ipgroup.button_add') }} </hw-button>
+          <PageActions><hw-button theme="primary" @click="handleAddGroup"> {{ $t('page.ipgroup.button_add') }} </hw-button></PageActions>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="searchForm" :data="searchformData" :label-width="80" layout="inline" colon
             :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.ipgroup.label_name')" name="group_name">

@@ -2,7 +2,7 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-tabs v-model="activeTab" @change="handleTabChange">
 
         <!-- ── 结构化查询 Tab ───────────────────────────────────────────────── -->

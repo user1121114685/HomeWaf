@@ -128,7 +128,7 @@ Windows PowerShell:
         </hw-button>
         <div class="header-context">
           <span class="header-context-group">HomeWaf</span><span class="header-context-separator">/</span
-          ><span class="header-context-current">{{ $t(String($route.meta.title || '控制台')) }}</span>
+          ><span class="header-context-current">{{ pageTitle }}</span>
         </div>
       </div>
       <div class="operations-container">
@@ -334,6 +334,7 @@ import SystemMonitor from './SystemMonitor.vue';
 import UpdateProgress from './UpdateProgress.vue';
 import ChangePasswordDialog from '@/pages/waf/account/components/ChangePasswordDialog.vue';
 import { logoutapi } from '@/apis/login';
+import { taskTitles } from '@/ui/workspace';
 export default defineComponent({
   components: {
     Notice,
@@ -416,6 +417,9 @@ export default defineComponent({
     };
   },
   computed: {
+    pageTitle() {
+      return taskTitles[String(this.$route.name)]?.[this.$store.state.language.currentLanguage === 'en_US' ? 1 : 0] || this.$t(String(this.$route.meta.title || '控制台'));
+    },
     compiledMarkdown() {
       return marked(this.update_desc || '');
     },

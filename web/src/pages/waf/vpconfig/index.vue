@@ -6,7 +6,6 @@
            这页有八节，任何一节改完都可能要重启；按钮跟着某张卡走的话，
            用户滚到别处就找不着了，所以提到页面级、固定在右上角 -->
       <div class="vpconfig-bar" :style="{ top: stickyTop + 'px' }">
-        <div class="vpconfig-bar__title">{{ $t('page.vpconfig.title') }}</div>
         <hw-tag v-if="activeSectionLabel" theme="primary" variant="light">
           {{ $t('page.vpconfig.nav_current') }}{{ activeSectionLabel }}
         </hw-tag>
@@ -52,7 +51,7 @@
         </div>
 
         <div class="vpconfig-content">
-      <hw-card id="vp-sec-ip" class="list-card-container" :style="sectionStyle">
+      <hw-card id="vp-sec-ip" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between">
             <div class="card-header-title">
@@ -85,7 +84,7 @@
       </hw-card>
 
       <!-- 管理端可信代理网段卡片 -->
-      <hw-card id="vp-sec-proxy" class="list-card-container" :style="sectionStyle">
+      <hw-card id="vp-sec-proxy" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between">
             <div class="card-header-title">
@@ -224,7 +223,7 @@
       </hw-card>
 
       <!-- CORS 跨域白名单卡片 -->
-      <hw-card id="vp-sec-cors" class="list-card-container" :style="sectionStyle">
+      <hw-card id="vp-sec-cors" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between">
             <div class="card-header-title">
@@ -257,7 +256,7 @@
       </hw-card>
 
       <!-- 域名白名单卡片 -->
-      <hw-card id="vp-sec-domain" class="list-card-container" :style="sectionStyle">
+      <hw-card id="vp-sec-domain" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between">
             <div class="card-header-title">
@@ -295,7 +294,7 @@
            证书那张还挂着 v-if(ssl_enable)——没开 SSL 就不显示，第一次配置的人从头到尾
            看不到"还得配证书"这一步；而且"清除本地证书"要求先切回仅HTTP，一切回去
            整个证书区就消失了，那颗按钮永远够不着。合并后编号成两步，缺哪步一眼可见。 -->
-      <hw-card id="vp-sec-access" class="list-card-container" :style="sectionStyle">
+      <hw-card id="vp-sec-access" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between" align="middle">
             <div class="card-header-title">
@@ -611,7 +610,7 @@
       </hw-card>
 
       <!-- 安全路径入口卡片 -->
-      <hw-card id="vp-sec-entry" class="list-card-container" :style="sectionStyle">
+      <hw-card id="vp-sec-entry" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between">
             <div class="card-header-title">
@@ -694,7 +693,7 @@
         </hw-loading>
       </hw-card>
 
-      <hw-card id="vp-sec-title" class="list-card-container" :style="sectionStyle">
+      <hw-card id="vp-sec-title" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between">
             <div class="card-header-title">
@@ -725,7 +724,7 @@
       </hw-card>
 
       <!-- 通知标题前缀卡片 -->
-      <hw-card id="vp-sec-notice" class="list-card-container" :style="sectionStyle">
+      <hw-card id="vp-sec-notice" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between">
             <div class="card-header-title">
@@ -2415,6 +2414,14 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
     }
 
     &__item {
+      appearance: none;
+      width: 100%;
+      min-height: 40px;
+      border: 0;
+      background: transparent;
+      font-family: inherit;
+      line-height: 1.6;
+      text-align: left;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -2482,6 +2489,8 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
       }
 
       &__item {
+        width: auto;
+        min-height: 44px;
         border-left: none;
         border-radius: var(--td-radius-medium, 3px);
         padding: 4px 10px;

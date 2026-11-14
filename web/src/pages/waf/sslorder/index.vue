@@ -2,13 +2,11 @@
 
 <template>
   <div class="ssl-order-page">
-    <hw-card class="list-card-container">
-      <div class="ssl-toolbar">
-        <div class="ssl-toolbar-actions">
+    <hw-card class="list-card-container resource-panel">
+      <PageActions>
           <hw-button @click="handleAdd" theme="primary">申请证书</hw-button>
           <hw-button variant="outline" @click="handleCaServerMaintenance">CA 服务器</hw-button>
-        </div>
-      </div>
+      </PageActions>
       <details class="ssl-guide">
         <summary>自动续期默认开启 · DNS 验证无需开放 80/443</summary>
       <help-block summary="签发成功后按计划检查续期，无需添加过期检测记录。请保留 DNS 凭据和验证记录；家庭网络推荐 DNS 验证。" doc="guide/SSL">
@@ -36,8 +34,7 @@
 
     <hw-dialog header="申请证书" v-model:visible="addFormVisible" :width="770" :footer="false">
       <template #body><div >
-        <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="240">
-          <hw-form-item label="关联服务" name="host_code">
+        <hw-form class="certificate-request-form" :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="240"><fieldset class="form-section"><legend>申请对象</legend><hw-form-item label="关联服务" name="host_code">
             <hw-select v-model="formData.host_code" filterable clearable :loading="hostListLoading"
               :disabled="hostListLoading || !!hostListError || host_options.length === 0" aria-label="关联服务"
               placeholder="选择服务接入中的服务" :style="{ width: 'min(100%, 480px)' }" @change="changeHostCode">
@@ -52,11 +49,12 @@
             </div>
             <p v-if="selectedHostInfo(formData.host_code)?.source === 'pipeline' && selectedHostInfo(formData.host_code)?.protocol === 'http'" class="form-item-tips">签发后保存证书并关联此服务；当前 HTTP 服务不会自动切换为 HTTPS，可在服务设置中启用。</p>
           </hw-form-item>
-          <hw-form-item label="自动续期" name="auto_renew">
-            <hw-checkbox v-model="formData.auto_renew">启用自动续期</hw-checkbox>
-            <p class="form-item-tips">签发成功后自动检查并在临近到期时续期，无需到过期检测页面另行配置。取消勾选后需手动续期。</p>
+<hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
+            <hw-textarea v-model="formData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4" placeholder="example.com, *.example.com（多个域名用逗号或换行分隔）"></hw-textarea>
           </hw-form-item>
-          <hw-form-item :label="$t('page.sslorder.label_apply_platform')" name="apply_platform">
+<hw-form-item :label="$t('page.sslorder.label_apply_email')" name="apply_email">
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.apply_email"></hw-input>
+          </hw-form-item></fieldset><fieldset class="form-section"><legend>签发与域名验证</legend><hw-form-item :label="$t('page.sslorder.label_apply_platform')" name="apply_platform">
             <div style="display: flex; align-items: center;">
               <hw-select v-model="formData.apply_platform" clearable :style="{ width: 'min(100%, 250px)' }">
                 <hw-option v-for="item in sslorder_platform_type" :value="item.value" :label="`${item.label}`">
@@ -68,9 +66,9 @@
               </hw-button>
             </div>
           </hw-form-item>
-          <ZeroSSLAccount v-if="addFormVisible && formData.apply_platform === 'zerossl'" :revision="zeroSSLRevision"
+<ZeroSSLAccount v-if="addFormVisible && formData.apply_platform === 'zerossl'" :revision="zeroSSLRevision"
             @status="zeroSSLAddStatus = $event" @saved="zeroSSLRevision++" />
-          <hw-form-item :label="$t('page.sslorder.label_apply_method')" name="apply_method">
+<hw-form-item :label="$t('page.sslorder.label_apply_method')" name="apply_method">
             <hw-select v-model="formData.apply_method" clearable :style="{ width: 'min(100%, 480px)' }" @change="handleApplyMethodChange">
               <hw-option v-for="item in sslorder_apply_method_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
@@ -80,33 +78,25 @@
               {{ $t('page.sslorder.http01_no_80_tips') }}
             </div>
           </hw-form-item>
-          <DnsProviderConfig v-if="addFormVisible && formData.apply_method === 'dns01'"
+<DnsProviderConfig v-if="addFormVisible && formData.apply_method === 'dns01'"
             v-model:provider="formData.apply_dns" v-model:group="formData.private_group_name"
             :revision="dnsRevision" @configure="handlePrivateInfo" @add-group="handleAddPrivateGroup" />
-          <hw-form-item v-if="formData.apply_method === 'dns01'" label="本地 DNS 传播检查" name="skip_dns_verify">
+<hw-form-item v-if="formData.apply_method === 'dns01'" label="本地 DNS 传播检查" name="skip_dns_verify">
             <hw-radio-group v-model="formData.skip_dns_verify">
               <hw-radio :value="0">检查后验证（推荐）</hw-radio>
               <hw-radio :value="1">等待后直接验证</hw-radio>
             </hw-radio-group>
             <p class="form-item-tips">通常保留检查。跳过只影响本地预检查，证书机构仍会验证公网 TXT 记录。</p>
-          </hw-form-item>
-          <hw-form-item :label="$t('page.sslorder.label_apply_email')" name="apply_email">
-            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.apply_email"></hw-input>
-          </hw-form-item>
-          <hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
-            <hw-textarea v-model="formData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4" placeholder="example.com, *.example.com（多个域名用逗号或换行分隔）"></hw-textarea>
-          </hw-form-item>
-          <hw-form-item style="float: right">
-            <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
-            <hw-button theme="primary" type="submit" :loading="addSubmitting" :disabled="addSubmitting || (formData.apply_platform === 'zerossl' && zeroSSLAddStatus !== 'configured')">{{ $t('common.confirm') }}</hw-button>
-          </hw-form-item>
-        </hw-form>
+          </hw-form-item></fieldset><fieldset class="form-section"><legend>续期方式</legend><hw-form-item label="自动续期" name="auto_renew">
+            <hw-checkbox v-model="formData.auto_renew">启用自动续期</hw-checkbox>
+            <p class="form-item-tips">签发成功后自动检查并在临近到期时续期，无需到过期检测页面另行配置。取消勾选后需手动续期。</p>
+          </hw-form-item></fieldset><div class="form-actions"><hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
+<hw-button theme="primary" type="submit" :loading="addSubmitting" :disabled="addSubmitting || (formData.apply_platform === 'zerossl' && zeroSSLAddStatus !== 'configured')">{{ $t('common.confirm') }}</hw-button></div></hw-form>
       </div></template>
     </hw-dialog>
     <hw-dialog header="手动续期" v-model:visible="editFormVisible" :width="770" :footer="false">
       <template #body><div >
-        <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="240">
-          <hw-form-item label="关联服务" name="host_code">
+        <hw-form class="certificate-request-form" :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="240"><fieldset class="form-section"><legend>申请对象</legend><hw-form-item label="关联服务" name="host_code">
             <hw-select v-model="formEditData.host_code" filterable clearable :loading="hostListLoading"
               :disabled="hostListLoading || !!hostListError || host_options.length === 0" aria-label="关联服务"
               placeholder="选择服务接入中的服务" :style="{ width: 'min(100%, 480px)' }" @change="changeHostCodeEdit">
@@ -121,11 +111,12 @@
             </div>
             <p v-if="selectedHostInfo(formEditData.host_code)?.source === 'pipeline' && selectedHostInfo(formEditData.host_code)?.protocol === 'http'" class="form-item-tips">签发后保存证书并关联此服务；当前 HTTP 服务不会自动切换为 HTTPS，可在服务设置中启用。</p>
           </hw-form-item>
-          <hw-form-item label="自动续期" name="auto_renew">
-            <hw-checkbox v-model="formEditData.auto_renew">启用自动续期</hw-checkbox>
-            <p class="form-item-tips">签发成功后自动检查并在临近到期时续期，无需到过期检测页面另行配置。取消勾选后需手动续期。</p>
+<hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
+            <hw-textarea v-model="formEditData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4" placeholder="example.com, *.example.com（多个域名用逗号或换行分隔）"></hw-textarea>
           </hw-form-item>
-          <hw-form-item :label="$t('page.sslorder.label_apply_platform')" name="apply_platform">
+<hw-form-item :label="$t('page.sslorder.label_apply_email')" name="apply_email">
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.apply_email"></hw-input>
+          </hw-form-item></fieldset><fieldset class="form-section"><legend>签发与域名验证</legend><hw-form-item :label="$t('page.sslorder.label_apply_platform')" name="apply_platform">
             <div style="display: flex; align-items: center;">
               <hw-select v-model="formEditData.apply_platform" clearable :style="{ width: 'min(100%, 250px)' }">
                 <hw-option v-for="item in sslorder_platform_type" :value="item.value" :label="`${item.label}`">
@@ -137,9 +128,9 @@
               </hw-button>
             </div>
           </hw-form-item>
-          <ZeroSSLAccount v-if="editFormVisible && formEditData.apply_platform === 'zerossl'" :revision="zeroSSLRevision"
+<ZeroSSLAccount v-if="editFormVisible && formEditData.apply_platform === 'zerossl'" :revision="zeroSSLRevision"
             @status="zeroSSLEditStatus = $event" @saved="zeroSSLRevision++" />
-          <hw-form-item :label="$t('page.sslorder.label_apply_method')" name="apply_method">
+<hw-form-item :label="$t('page.sslorder.label_apply_method')" name="apply_method">
             <hw-select v-model="formEditData.apply_method" clearable :style="{ width: 'min(100%, 480px)' }" @change="handleApplyMethodChangeEdit">
               <hw-option v-for="item in sslorder_apply_method_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
@@ -149,27 +140,20 @@
               {{ $t('page.sslorder.http01_no_80_tips') }}
             </div>
           </hw-form-item>
-          <DnsProviderConfig v-if="editFormVisible && formEditData.apply_method === 'dns01'"
+<DnsProviderConfig v-if="editFormVisible && formEditData.apply_method === 'dns01'"
             v-model:provider="formEditData.apply_dns" v-model:group="formEditData.private_group_name"
             :revision="dnsRevision" @configure="handlePrivateInfo" @add-group="handleAddPrivateGroup" />
-          <hw-form-item v-if="formEditData.apply_method === 'dns01'" label="本地 DNS 传播检查" name="skip_dns_verify">
+<hw-form-item v-if="formEditData.apply_method === 'dns01'" label="本地 DNS 传播检查" name="skip_dns_verify">
             <hw-radio-group v-model="formEditData.skip_dns_verify">
               <hw-radio :value="0">检查后验证（推荐）</hw-radio>
               <hw-radio :value="1">等待后直接验证</hw-radio>
             </hw-radio-group>
             <p class="form-item-tips">通常保留检查。跳过只影响本地预检查，证书机构仍会验证公网 TXT 记录。</p>
-          </hw-form-item>
-          <hw-form-item :label="$t('page.sslorder.label_apply_email')" name="apply_email">
-            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.apply_email"></hw-input>
-          </hw-form-item>
-          <hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
-            <hw-textarea v-model="formEditData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4" placeholder="example.com, *.example.com（多个域名用逗号或换行分隔）"></hw-textarea>
-          </hw-form-item>
-          <hw-form-item style="float: right">
-            <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
-            <hw-button theme="primary" type="submit" :loading="editSubmitting" :disabled="editSubmitting || (formEditData.apply_platform === 'zerossl' && zeroSSLEditStatus !== 'configured')">{{ $t('common.confirm') }}</hw-button>
-          </hw-form-item>
-        </hw-form>
+          </hw-form-item></fieldset><fieldset class="form-section"><legend>续期方式</legend><hw-form-item label="自动续期" name="auto_renew">
+            <hw-checkbox v-model="formEditData.auto_renew">启用自动续期</hw-checkbox>
+            <p class="form-item-tips">签发成功后自动检查并在临近到期时续期，无需到过期检测页面另行配置。取消勾选后需手动续期。</p>
+          </hw-form-item></fieldset><div class="form-actions"><hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
+<hw-button theme="primary" type="submit" :loading="editSubmitting" :disabled="editSubmitting || (formEditData.apply_platform === 'zerossl' && zeroSSLEditStatus !== 'configured')">{{ $t('common.confirm') }}</hw-button></div></hw-form>
       </div></template>
     </hw-dialog>
 

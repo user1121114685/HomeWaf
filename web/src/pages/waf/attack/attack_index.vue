@@ -5,7 +5,7 @@
     <help-block :summary="$t('page.attack_log.attack_log')" doc="guide/AttackLog">
       <template #actions><ip-lookup ref="ipLookup" /></template>
     </help-block>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <div class="attack-layout">
         <!-- 左侧规则筛选侧栏：规则标签基数无上限，必须能分组 + 搜索 -->
         <div v-if="tagLayout === 'left'" class="facet-side" :class="{ 'is-collapsed': facetCollapsed }">

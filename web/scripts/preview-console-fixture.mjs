@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { AesEncrypt } from '../src/utils/legacyCipher.ts';
 const webRoot = fileURLToPath(new URL('..', import.meta.url));
 const dist = path.join(webRoot, 'dist');
+const channelCatalogue = JSON.parse(fs.readFileSync(path.join(webRoot, '../wafnotify/channels/catalog.json'), 'utf8'));
 const templates = JSON.parse(
   execFileSync('go', ['run', './scripts/pipeline-fixtures'], {
     cwd: path.dirname(webRoot),
@@ -28,6 +29,7 @@ const ports =
             schema_version: 1,
             revision: 1,
             port: item.port,
+            host_code: 'pipeline-' + item.port,
             name: item.name,
             protocol: 'http',
             upstream: item.upstream,
@@ -70,6 +72,9 @@ const server = http.createServer((request, response) => {
     if (endpoint.includes('handshake') || endpoint === 'public/seckey' || endpoint === 'sysinfo/checkversion')
       return send({}, 1);
     if (request.method !== 'GET' && !endpoint.endsWith('/list')) return send({}, 1);
+    if (endpoint === 'notify/channel/types') return send(channelCatalogue);
+    if (endpoint === 'wafhost/host/allhost') return send(ports.map(row => ({value:row.config.host_code,label:row.config.name,source:'pipeline'})));
+    if (endpoint === 'statrumtimesysinfo') return send([{name:'运行环境',value:'隔离预览'},{name:'数据来源',value:'本地模拟响应，不连接防护实例'}]);
     if (endpoint === 'pipeline/overview') return send({ ports, issues: {}, punishment: {}, log_queue: {} });
     if (endpoint === 'pipeline/templates') return send(templates);
     if (
@@ -81,6 +86,8 @@ const server = http.createServer((request, response) => {
         'pipeline/state',
         'pipeline/logs',
         'wafhost/ipgroup/options',
+        'waflog/attack/allsharedb',
+        'waflog/attack/alliptag',
       ].includes(endpoint)
     )
       return send([]);

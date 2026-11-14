@@ -2,13 +2,13 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <hw-button @click="handleAdd"> {{ $t('page.blocking_page.button_add_blocking_page') }} </hw-button>
+          <PageActions><hw-button theme="primary" @click="handleAdd"> {{ $t('page.blocking_page.button_add_blocking_page') }} </hw-button></PageActions>
           <hw-button variant="outline" @click="openUnmatchedDialog">{{ $t('page.blocking_page.unmatched.title') }}</hw-button>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
             <hw-form ref="form" :data="searchformData" :label-width="300" layout="inline" colon :style="{ marginBottom: '8px' }">
                    <hw-form-item>
                   <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getList('all')">

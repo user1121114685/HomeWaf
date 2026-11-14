@@ -11,7 +11,7 @@
       @close="handleDowngradeAck"
     />
 
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-alert theme="info" class="range-alert">
         <template #message>
           <span v-if="summary.from_version">

@@ -2,7 +2,7 @@
 
 <template>
   <div class="diagnostic-container">
-    <hw-alert theme="info" :message="$t('page.diagnostic.alert_message')" style="margin-bottom: 16px;" />
+    <p class="diagnostic-scope-note">{{ $t('page.diagnostic.alert_message') }}</p>
     <hw-tabs v-model="activeTab" @change="handleTabChange">
       <!-- 整机监控：复用现有系统监控组件 -->
       <hw-tab-panel value="machine" :label="$t('page.diagnostic.tab_machine')">

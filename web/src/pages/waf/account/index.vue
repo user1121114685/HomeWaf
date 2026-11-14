@@ -2,12 +2,12 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <hw-button @click="handleAddAccount"> {{$t('page.account.create_account')}} </hw-button>
+          <PageActions><hw-button theme="primary" @click="handleAddAccount"> {{$t('page.account.create_account')}} </hw-button></PageActions>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="form" :data="searchformData" :label-width="120" colon   layout="inline" :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.account.login_account_label')" name="login_account">
               <hw-input v-model="searchformData.login_account"  :placeholder="$t('common.placeholder_content')" clearable>

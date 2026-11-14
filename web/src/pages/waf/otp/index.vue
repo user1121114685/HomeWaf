@@ -2,12 +2,12 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container">
 
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
 
         </div>
       </hw-row>

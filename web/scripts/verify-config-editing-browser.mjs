@@ -201,7 +201,7 @@ try {
   expect(JSON.stringify(configs.get(5001))).toBe(otherPort);
   report.checks.push('table and card entries both edit honeypot without changing another service');
 
-  await page.getByRole('tab', { name: '模板管理', exact: true }).click();
+  await page.locator('.task-navigation').getByRole('link', { name: '策略模板', exact: true }).click();
   const templateCard = page.locator('.el-card').filter({ hasText: '可修改模板' });
   await templateCard.getByRole('button', { name: '编辑 / 重命名', exact: true }).click();
   const templateDialog = page.getByRole('dialog', { name: '用户模板 / 导入预览', exact: true });
@@ -215,7 +215,7 @@ try {
   report.checks.push('user templates can be renamed, validated, saved and reopened after refresh');
   await templateDialog.getByRole('button', { name: '关闭', exact: true }).click();
 
-  await page.getByRole('tab', { name: '我的服务', exact: true }).click();
+  await page.locator('.task-navigation').getByRole('link', { name: '我的服务', exact: true }).click();
   const cardViewButton = page.getByRole('button', { name: '卡片视图', exact: true });
   if (await cardViewButton.count()) await cardViewButton.click();
   await page.setViewportSize({ width: 390, height: 844 });

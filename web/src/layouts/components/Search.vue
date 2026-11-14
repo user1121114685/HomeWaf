@@ -48,12 +48,12 @@ import { ElButton, ElDialog, ElInput } from 'element-plus';
 import { ArrowRight, Search, TopRight } from '@element-plus/icons-vue';
 import { navigationItems, filterNavigation } from '@/ui/navigation';
 import store from '@/store';
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const visible = ref(false),
   query = ref(''),
   input = ref(),
   results = ref<HTMLElement>();
-const matches = computed(() => filterNavigation(navigationItems(store.getters['permission/routers'], t), query.value));
+const matches = computed(() => filterNavigation(navigationItems(store.getters['permission/routers'], t, locale.value), query.value));
 function focusResult() {
   results.value?.querySelector<HTMLElement>('a')?.focus();
 }

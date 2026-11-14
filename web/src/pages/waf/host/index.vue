@@ -19,7 +19,7 @@
       </hw-loading>
     </div>
 
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <div class="host-toolbar">
         <div class="ht-left">
           <hw-button theme="primary" @click="handleAddHost">＋ {{ $t('page.host.new_protection') }}</hw-button>

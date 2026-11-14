@@ -2,10 +2,10 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container"></div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="searchForm" :data="searchformData" layout="inline" colon :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.oplatform.key_name')" name="key_name">
               <hw-input v-model="searchformData.key_name" style="width:160px" clearable />

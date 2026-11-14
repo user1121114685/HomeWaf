@@ -1,7 +1,7 @@
 <!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
 
 <template>
-  <hw-card class="list-card-container ip-ban-page">
+  <hw-card class="list-card-container ip-ban-page resource-panel">
     <div class="page-topbar">
       <span class="topbar-title">{{ $t('menu.host.ip_ban') }}</span>
       <ip-lookup ref="ipLookup" />

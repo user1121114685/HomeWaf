@@ -2,7 +2,7 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <help-block :summary="$t('page.cdnip.alert_message')" doc="guide/CDNIP" style="margin-bottom: 12px;">
         <template #actions><ip-lookup ref="ipLookup" /></template>
       </help-block>

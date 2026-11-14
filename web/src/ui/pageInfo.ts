@@ -3,7 +3,7 @@ export const pageDescriptions: Record<string, string> = {
   DashboardStart: '查看服务运行状态，继续处理待启用的服务。',
   DashboardBase: '查看请求趋势、拦截原因与访问来源。',
   DashboardOverview: '按日期比较站点的访问量、流量与拦截情况。',
-  DashboardStats: '查看各项防护规则的命中情况。',
+  DashboardStats: '查看请求速率、队列积压、响应延迟与资源变化。',
   WafPipeline: '连接现有服务，配置访问策略并启用监听。',
   WafPipelineTemplates: '复用防护设置；应用模板后，每个服务独立管理。',
   LegacyWafHosts: '查看已有站点，并迁入按端口管理的服务配置。',
@@ -67,6 +67,6 @@ export const pageDescriptions: Record<string, string> = {
   NotifyLog: '检查通知发送状态、失败原因和重试结果。',
   OPlatformKey: '管理 API 凭据及其有效期。',
   OPlatformLog: '审查 API 调用和认证结果。',
-  OPlatformDoc: '查看管理 API 的请求方式与参数。',
+  OPlatformDoc: '配置调用凭据，了解访问限制并核对调用记录。',
   UserIndex: '检查当前账号并管理登录安全。',
 };

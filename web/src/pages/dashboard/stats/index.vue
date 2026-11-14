@@ -4,7 +4,6 @@
   <div class="stats-dashboard">
     <!-- 页面标题 + 实时状态 -->
     <div class="stats-head">
-      <div class="stats-head__title">{{ $t('menu.dashboard.stats_title') }}</div>
       <div class="stats-head__subtitle">
         <span class="live-dot"></span>
         {{ $t('dashboard.stats.update_frequency') }} · {{ $t('dashboard.stats.last_update') }}: {{ lastUpdateTime }}
@@ -12,7 +11,7 @@
     </div>
 
     <!-- 实时指标 -->
-    <div class="stats-grid">
+    <section class="stats-grid" aria-label="实时运行指标">
       <div
         v-for="item in statCards"
         :key="item.key"
@@ -32,8 +31,9 @@
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
+    <h2 class="analysis-section-title">请求与资源趋势</h2>
     <!-- 趋势图表 -->
     <div class="charts-grid">
       <hw-card :title="$t('dashboard.stats.qps_trend')" class="chart-card">

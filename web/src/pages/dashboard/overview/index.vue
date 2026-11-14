@@ -28,17 +28,17 @@
           />
         </hw-col>
         <hw-col flex="none">
-          <hw-button theme="default" variant="outline" :loading="loading" @click="loadOverview">
+          <PageActions><hw-button theme="default" variant="outline" :loading="loading" @click="loadOverview">
             <template #icon><refresh-icon /></template>
             {{ $t('page.overview.refresh') }}
-          </hw-button>
+          </hw-button></PageActions>
         </hw-col>
       </hw-row>
     </hw-card>
 
     <!-- 顶部汇总卡片 -->
     <hw-row :gutter="[16, 16]" class="summary-cards">
-      <hw-col :xs="12" :sm="6" :xl="4" v-for="card in summaryCards" :key="card.key">
+      <hw-col :xs="6" :sm="6" :xl="4" v-for="card in summaryCards" :key="card.key">
         <hw-card :bordered="false" :class="['summary-card', card.colorClass]">
           <div class="card-content">
             <div class="card-info">

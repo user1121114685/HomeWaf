@@ -2,10 +2,10 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <hw-button @click="handleAdd"> {{ $t('page.ssl_expire.button_add_ssl_expire') }} </hw-button>
+          <PageActions><hw-button theme="primary" @click="handleAdd"> {{ $t('page.ssl_expire.button_add_ssl_expire') }} </hw-button></PageActions>
 
           <hw-button @click="handleCheck"> {{ $t('page.ssl_expire.button_check') }} </hw-button>
 
@@ -14,7 +14,7 @@
 
           <hw-button @click="getList('all')"> {{ $t('common.refresh') }} </hw-button>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="form" :data="searchformData" :label-width="300" layout="inline" colon :style="{ marginBottom: '8px' }">
             <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getList('all')">
               {{ $t('common.search') }}

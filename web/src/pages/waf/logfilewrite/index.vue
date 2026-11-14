@@ -3,7 +3,7 @@
 <template>
   <div>
     <!-- 基础配置 -->
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <template #header>
         <hw-row justify="space-between">
           <div class="card-header-title">
@@ -85,7 +85,7 @@
     </hw-card>
 
     <!-- 日志轮转配置 -->
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <template #header>
         <div class="card-header-title">{{ $t('page.logfilewrite.rotation_title') }}</div>
       </template>
@@ -121,7 +121,7 @@
     </hw-card>
 
     <!-- 日志预览 -->
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <template #header>
         <hw-row justify="space-between">
           <div class="card-header-title">
@@ -148,7 +148,7 @@
     </hw-card>
 
     <!-- 历史文件列表 -->
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <template #header>
         <hw-row justify="space-between">
           <div class="card-header-title">{{ $t('page.logfilewrite.backup_title') }}</div>

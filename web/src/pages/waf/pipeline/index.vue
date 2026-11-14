@@ -1,14 +1,12 @@
 <template>
   <div class="pipeline-page" data-testid="pipeline-page">
-    <div class="pipeline-actions">
-      <span class="muted">{{ page === 'ports' ? '按服务管理连接、访问与防护' : '内置场景与自定义策略' }}</span>
-      <div class="heading-actions">
+    <PageActions>
         <ElButton :loading="busy" @click="refresh">刷新状态</ElButton
         ><ElButton v-if="page === 'ports'" type="primary" :disabled="!templates.length || busy" @click="create"
           >接入服务<ArrowRight class="button-icon" aria-hidden="true"
         /></ElButton>
-      </div>
-    </div>
+      <ElButton v-if="page === 'templates'" type="primary" @click="importTemplate">导入JSON</ElButton>
+    </PageActions>
     <div v-if="savedService" class="saved-service" role="status">
       <div>
         <strong>{{ savedService.name || '服务' }}的配置已保存</strong>
@@ -36,9 +34,6 @@
       :closable="false"
       class="space"
     />
-    <ElTabs v-model="page" @tab-change="changePage"
-      ><ElTabPane label="我的服务" name="ports" /><ElTabPane label="模板管理" name="templates"
-    /></ElTabs>
     <div v-if="!loaded && busy" class="service-loading" role="status">正在读取服务配置…</div>
     <template v-if="page === 'ports' && loaded">
       <div class="service-toolbar" v-if="overview.ports.length">
@@ -177,7 +172,6 @@
     </template>
     <template v-else-if="page === 'templates' && loaded">
       <div class="table-toolbar">
-        <ElButton type="primary" @click="importTemplate">导入JSON</ElButton>
         <p class="muted">
           内置模板只读。应用即复制，后续修改模板不会自动改变已应用端口。模板不含凭据、手动IP或可信代理。
         </p>

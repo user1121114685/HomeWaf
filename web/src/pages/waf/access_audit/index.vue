@@ -2,10 +2,10 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container"></div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="searchForm" :data="searchformData" :label-width="70" layout="inline" colon
             :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.access.audit.label_category')" name="category">

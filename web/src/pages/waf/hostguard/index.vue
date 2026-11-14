@@ -34,7 +34,7 @@
       </template>
     </hw-alert>
 
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-tabs v-model="activeTab" @change="onTabChange">
         <hw-tab-panel value="overview" :label="$t('page.hostguard.tab_overview')">
           <overview-panel ref="overviewPanel" @go-tab="switchTab" />

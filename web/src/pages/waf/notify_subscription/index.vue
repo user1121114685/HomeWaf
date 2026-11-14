@@ -2,14 +2,14 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <div class="page-header">
         <div class="page-header-main">
           <p class="page-desc">选择希望收到的提醒。这里只显示已添加的通知渠道。</p>
         </div>
-        <hw-button variant="outline" @click="globalDialogVisible = true">
+        <PageActions><hw-button variant="outline" @click="globalDialogVisible = true">
           <hw-icon name="setting" /> {{ $t('page.notify_subscription.button_global_config') }}
-        </hw-button>
+        </hw-button></PageActions>
       </div>
 
       <hw-alert v-if="loadError" theme="error" :message="loadError"><hw-button variant="text" @click="loadData">重新读取</hw-button></hw-alert>

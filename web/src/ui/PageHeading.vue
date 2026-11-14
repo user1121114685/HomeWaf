@@ -5,7 +5,7 @@
       <h1>{{ title }}</h1>
       <p v-if="description">{{ description }}</p>
     </div>
-    <div v-if="$slots.default" class="page-heading-actions"><slot /></div>
+    <div id="page-actions" class="page-heading-actions"><slot /></div>
   </header>
 </template>
 <script setup lang="ts">

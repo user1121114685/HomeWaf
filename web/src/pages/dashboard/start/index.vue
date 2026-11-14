@@ -2,12 +2,12 @@
   <div class="workbench" data-testid="workbench">
     <div class="workbench-toolbar">
       <span class="workbench-updated">{{ lastUpdated ? `状态更新于 ${lastUpdated}` : '当前实例' }}</span>
-      <div>
+      <PageActions>
         <ElButton :loading="loading" @click="load"><Refresh class="button-icon" aria-hidden="true" />刷新状态</ElButton
         ><ElButton type="primary" @click="go({ action: 'create' })"
           ><Connection class="button-icon" aria-hidden="true" />接入服务</ElButton
         >
-      </div>
+      </PageActions>
     </div>
     <ElAlert v-if="error" type="error" :title="error" :closable="false" show-icon class="workbench-alert" />
     <div v-if="!loaded && loading" class="workbench-loading" role="status">正在读取服务状态…</div>

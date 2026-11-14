@@ -2,12 +2,12 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <hw-button @click="handleAdd" theme="success"> {{ $t('common.new') }} </hw-button>
+          <PageActions><hw-button @click="handleAdd" theme="primary"> {{ $t('common.new') }} </hw-button></PageActions>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="form" :data="searchformData" :label-width="300" layout="inline" colon :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.batchtask.label_batch_task_name')" name="batch_task_name">
               <hw-input v-model="searchformData.batch_task_name" class="search-input" clearable></hw-input>

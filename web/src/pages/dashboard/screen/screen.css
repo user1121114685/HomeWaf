@@ -92,12 +92,9 @@
   border-radius: var(--hw-r-lg);
 }
 .brand-mark svg {
-  width: 29px;
-  fill: none;
-  stroke: var(--screen-accent);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+  width: 34px;
+  height: 34px;
+  stroke: none;
 }
 .brand-eyebrow {
   letter-spacing: 0;

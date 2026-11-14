@@ -3,10 +3,7 @@
     <header class="screen-header">
       <div class="screen-brand">
         <div class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 32 36">
-            <path d="M16 2 29 7v10c0 8-8 14-13 17C11 31 3 25 3 17V7Z" />
-            <path d="m10 17 4 4 9-10" />
-          </svg>
+          <Logo />
         </div>
         <div>
           <div class="brand-eyebrow">HomeWaf <span>安全监控</span></div>
@@ -31,6 +28,7 @@
           class="icon-button"
           :title="paused ? '恢复自动刷新' : '暂停自动刷新'"
           :aria-label="paused ? '恢复自动刷新' : '暂停自动刷新'"
+          :aria-pressed="paused"
           @click="togglePause"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -43,7 +41,7 @@
             <path d="M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 13 3M18 18A8 8 0 0 1 5 15" /></svg
           ><span>刷新</span>
         </button>
-        <button class="screen-button primary" @click="toggleFullscreen">
+        <button class="screen-button primary" :aria-pressed="fullscreen" @click="toggleFullscreen">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" /></svg
           ><span>{{ fullscreen ? '退出全屏' : '全屏' }}</span>
         </button>
@@ -235,6 +233,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import QpsChart from './QpsChart.vue';
 import WorldMap from './WorldMap.vue';
 import ScreenControls from './ScreenControls.vue';
+import Logo from '@/assets/homewaf-logo.svg';
 import { blockRate, eventLocation, formatCount, sourceLabels } from './data';
 import { useScreenData } from './useScreenData';
 const props = defineProps({ sharedView: Boolean, sharedToken: { type: String, default: '' } });

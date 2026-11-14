@@ -4,10 +4,10 @@
   <div>
     <hw-tabs v-model="activeSourceTab" @change="onSourceTabChange">
     <hw-tab-panel value="manual" :label="$t('page.firewall_ipblock.tab_manual')">
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <hw-button @click="handleAdd" :disabled="!fwCapability.available"> {{ $t('page.firewall_ipblock.button_add_ip') }} </hw-button>
+          <PageActions><hw-button theme="primary" @click="handleAdd" :disabled="!fwCapability.available"> {{ $t('page.firewall_ipblock.button_add_ip') }} </hw-button></PageActions>
           <hw-button @click="handleBatchAdd" :disabled="!fwCapability.available"> {{ $t('page.firewall_ipblock.button_batch_add') }} </hw-button>
           <hw-button
             theme="danger"
@@ -30,7 +30,7 @@
             {{ $t('page.firewall_ipblock.button_clear_expired') }}
           </hw-button>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="searchForm" :data="searchformData" :label-width="80" layout="inline" colon :style="{ marginBottom: '8px' }">
             <hw-form-item :label="'IP'" name="ip">
               <hw-input v-model="searchformData.ip" class="search-input" clearable>
@@ -167,7 +167,7 @@
     </hw-card>
     </hw-tab-panel>
     <hw-tab-panel value="sub" :label="$t('page.firewall_ipblock.tab_sub_source')">
-      <hw-card class="list-card-container">
+      <hw-card class="list-card-container resource-panel">
         <threat-sub-source-panel ref="subPanel" land="system" />
       </hw-card>
     </hw-tab-panel>

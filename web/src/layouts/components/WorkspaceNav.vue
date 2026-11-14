@@ -72,16 +72,20 @@ import {
   Search,
   TopRight,
   Warning,
+  Key, Lock, Bell, Setting, DataAnalysis, User,
 } from '@element-plus/icons-vue';
 import { navigationItems, filterNavigation } from '@/ui/navigation';
+import { workspaceGroups } from '@/ui/workspace';
 import store from '@/store';
 const props = defineProps({ menu: { type: Array, default: () => [] }, collapsed: Boolean });
 const route = useRoute(),
-  { t } = useI18n(),
+  { t, locale } = useI18n(),
   query = ref('');
 const icons = { DashboardStart: House, WafPipeline: Connection, WafvisitLog: Document, WafAttackLog: Warning };
 const pinnedNames = Object.keys(icons);
-const items = computed(() => filterNavigation(navigationItems(props.menu, t), query.value));
+const items = computed(() => filterNavigation(navigationItems(props.menu, t, locale.value), query.value));
+const groupIcons = { services: Connection, certificates: Key, access: Lock, protection: Warning,
+  traffic: DataAnalysis, notifications: Bell, accounts: User, system: Setting };
 const pinned = computed(() => pinnedNames.flatMap((name) => items.value.filter((item) => item.name === name)));
 const groups = computed(() => {
   const grouped = new Map<string, ReturnType<typeof navigationItems>>();
@@ -89,10 +93,11 @@ const groups = computed(() => {
     const group = item.group || '其他功能';
     grouped.set(group, [...(grouped.get(group) || []), item]);
   }
-  return [...grouped].map(([title, items]) => ({
+  const order: string[] = workspaceGroups.map(group => group.label[locale.value === 'en_US' ? 1 : 0]);
+  return [...grouped].sort(([a], [b]) => order.indexOf(a) - order.indexOf(b)).map(([title, items]) => ({
     title,
     items,
-    icon: (props.menu as any[]).find((group) => t(group.meta?.title || '') === title)?.meta?.icon || Grid,
+    icon: groupIcons[workspaceGroups.find(group => group.label.includes(title as never))?.id || ''] || Grid,
   }));
 });
 function focusSearch(event: KeyboardEvent) {

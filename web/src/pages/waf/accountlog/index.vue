@@ -2,7 +2,7 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <hw-row justify="space-between">
         <hw-input v-model="searchValue" class="search-input" :placeholder="$t('common.placeholder_content')" clearable>
           <template #suffix-icon>

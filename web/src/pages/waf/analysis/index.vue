@@ -3,11 +3,11 @@
 <template>
   <section class="region-analysis">
     <hw-card :title="english ? 'Traffic by region' : '地区流量统计'">
-      <hw-space wrap>
-        <hw-date-range-picker v-model="range" />
-        <hw-select v-model="action" :options="actions" style="width:140px" />
+      <div class="analysis-filter-row">
+        <label><span>{{ english ? 'Date range' : '日期范围' }}</span><hw-date-range-picker v-model="range" :aria-label="english ? 'Date range' : '日期范围'" /></label>
+        <label><span>{{ english ? 'Action' : '防护动作' }}</span><hw-select v-model="action" :options="actions" style="width:160px" :aria-label="english ? 'Action' : '防护动作'" /></label>
         <hw-button theme="primary" :loading="loading" :disabled="!range || range.length !== 2" @click="load">{{ $t('common.search') }}</hw-button>
-      </hw-space>
+      </div>
       <div ref="chart" class="region-chart"></div>
       <hw-table :data="rows" :columns="columns" row-key="name" :loading="loading" />
     </hw-card>
@@ -30,4 +30,4 @@ export default {
  methods:{async load(){if(!this.range||this.range.length!==2)return;const sequence=++this.requestSequence;this.loading=true;try{const response=await wafanalysisdaycountryrange({start_day:this.range[0].replace(/-/g,''),end_day:this.range[1].replace(/-/g,''),attack_type:this.action});if(sequence!==this.requestSequence)return;this.rows=(response.data||[]).map(row=>({name:String(row.name||''),value:Number(row.value)||0})).sort((a,b)=>b.value-a.value);const visible=this.rows.slice(0,30).reverse();this.chart.setOption({tooltip:{trigger:'axis'},grid:{left:130,right:30,top:24,bottom:35},xAxis:{type:'value',min:0},yAxis:{type:'category',data:visible.map(row=>row.name)},series:[{type:'bar',data:visible.map(row=>row.value),itemStyle:{color:'#2563eb'}}]},true);}catch(error){this.$message.error(error.message||'Request failed');}finally{if(sequence===this.requestSequence)this.loading=false;}}}
 };
 </script>
-<style scoped>.region-chart{height:560px;margin:20px 0}.region-analysis{padding:16px}</style>
+<style scoped>.region-chart{height:440px;margin:24px 0}.region-analysis{min-width:0}.analysis-filter-row{display:flex;align-items:flex-end;flex-wrap:wrap;gap:16px}.analysis-filter-row label{display:grid;gap:8px;min-width:0}.analysis-filter-row label>span{font-size:13px;color:var(--hw-muted)}@media(max-width:600px){.analysis-filter-row label{width:100%}.region-chart{height:360px}}</style>

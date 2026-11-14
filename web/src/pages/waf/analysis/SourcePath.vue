@@ -5,10 +5,10 @@
     <!-- 查询条件 -->
     <hw-card class="sp-card">
       <div class="sp-bar">
-        <span class="sp-lb">{{ $t('page.source_path.label_day') }}</span>
-        <hw-date-picker v-model="day" :style="{ width: '150px' }" @change="reload" />
-        <span class="sp-lb">{{ $t('page.source_path.label_host') }}</span>
-        <hw-select v-model="hostCode" clearable filterable :style="{ width: 'min(100%, 200px)' }"
+        <label class="sp-lb" for="source-path-day">{{ $t('page.source_path.label_day') }}</label>
+        <hw-date-picker id="source-path-day" v-model="day" :style="{ width: '150px' }" @change="reload" />
+        <label class="sp-lb" for="source-path-service">{{ $t('page.source_path.label_host') }}</label>
+        <hw-select id="source-path-service" v-model="hostCode" clearable filterable :style="{ width: 'min(100%, 200px)' }"
                   :placeholder="$t('page.source_path.all_hosts')" @change="reload">
           <hw-option v-for="item in hostOptions" :key="item.value" :value="item.value" :label="item.label" />
         </hw-select>
@@ -23,9 +23,9 @@
     </hw-card>
 
     <!-- 判定阈值：就地改就地存，与访问日志页的「日志配置」卡同款 -->
-    <hw-card class="sp-card">
+    <details class="analysis-settings">
+      <summary>{{ $t('page.source_path.label_threshold') }}</summary>
       <div class="sp-bar">
-        <span class="sp-lb"><b>{{ $t('page.source_path.label_threshold') }}</b></span>
         <span class="sp-lb">{{ $t('page.source_path.th_scan_prefix') }}</span>
         <hw-input-number v-model="thScan" :min="1" :max="100000" theme="column" :style="{ width: '110px' }" />
         <span class="sp-lb">{{ $t('page.source_path.th_scan_suffix') }}</span>
@@ -39,7 +39,7 @@
         <span class="sp-flex"></span>
         <span class="sp-tip">{{ $t('page.source_path.threshold_tip') }}</span>
       </div>
-    </hw-card>
+    </details>
 
     <!-- 摘要 -->
     <div class="sp-kpis">

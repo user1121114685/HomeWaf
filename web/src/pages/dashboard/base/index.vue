@@ -76,7 +76,7 @@
       </hw-list>
     </hw-card>
 
-    <traffic-analysis />
+    <section class="analysis-workspace" aria-label="流量趋势与请求来源"><traffic-analysis /></section>
 
     <!-- 重要升级须知：一辈子只弹一次，关掉即回写 popup_shown -->
     <hw-dialog

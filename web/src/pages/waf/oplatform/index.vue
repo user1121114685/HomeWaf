@@ -2,7 +2,7 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <!-- 开放平台总开关。默认是关的，而"调不通"的头号原因就是这个开关没开——
            以前它藏在「参数配置」里，用户在这页建完 Key 直接去调，然后来问为什么 401。
            放在整页最上面靠右，进页面第一眼就能看到当前是开还是关 -->
@@ -19,9 +19,9 @@
 
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <hw-button @click="handleAdd">{{ $t('page.oplatform.new_key') }}</hw-button>
+          <PageActions><hw-button theme="primary" @click="handleAdd">{{ $t('page.oplatform.new_key') }}</hw-button></PageActions>
         </div>
-        <div class="right-operation-container">
+        <div class="right-operation-container resource-filters">
           <hw-form ref="searchForm" :data="searchformData" layout="inline" colon :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.oplatform.key_name')" name="key_name">
               <hw-input v-model="searchformData.key_name" style="width: min(100%, 200px)" clearable />

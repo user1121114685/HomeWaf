@@ -2,7 +2,7 @@
 
 <template>
   <div>
-    <hw-card class="list-card-container">
+    <hw-card class="list-card-container resource-panel">
       <help-block :summary="$t('page.owasp.alert_message')" doc="guide/Owasp" />
       <hw-tabs v-model="activeTab" theme="card">
         <hw-tab-panel value="rules" :label="$t('page.owasp.tab_rules')">
