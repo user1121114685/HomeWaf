@@ -15,6 +15,7 @@ require (
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/dmitryikh/leaves v0.0.0-20230708180554-25d19a787328
 	github.com/dsnet/compress v0.0.1
+	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/gin-contrib/gzip v1.2.10
 	github.com/gin-contrib/pprof v1.5.8
 	github.com/gin-gonic/gin v1.12.0

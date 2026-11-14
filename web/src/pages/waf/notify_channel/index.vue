@@ -14,25 +14,8 @@
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_channel.label_type')" name="type">
               <hw-select v-model="searchformData.type" clearable :style="{ width: '150px' }">
-                <hw-option value="dingtalk" :label="$t('page.notify_channel.type_dingtalk')">
-                  {{ $t('page.notify_channel.type_dingtalk') }}
-                </hw-option>
-                <hw-option value="feishu" :label="$t('page.notify_channel.type_feishu')">
-                  {{ $t('page.notify_channel.type_feishu') }}
-                </hw-option>
-                <hw-option value="email" :label="$t('page.notify_channel.type_email')">
-                  {{ $t('page.notify_channel.type_email') }}
-                </hw-option>
-                <hw-option value="serverchan" :label="$t('page.notify_channel.type_serverchan')">
-                  {{ $t('page.notify_channel.type_serverchan') }}
-                </hw-option>
-                <hw-option value="wechatwork" :label="$t('page.notify_channel.type_wechatwork')">
-                  {{ $t('page.notify_channel.type_wechatwork') }}
-                </hw-option>
-                <hw-option value="webhook" :label="$t('page.notify_channel.type_webhook')">
-                  {{ $t('page.notify_channel.type_webhook') }}
-                </hw-option>
-              </hw-select>
+              <hw-option v-for="item in channelTypes" :key="item.type" :value="item.type" :label="item.name" />
+            </hw-select>
             </hw-form-item>
             <hw-form-item>
               <hw-button theme="primary" @click="getList">{{ $t('common.search') }}</hw-button>
@@ -46,13 +29,7 @@
           :pagination="pagination" :loading="dataLoading" @page-change="rehandlePageChange" @change="rehandleChange"
           :headerAffixedTop="true" :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
           <template #type="{ row }">
-            <hw-tag v-if="row.type === 'dingtalk'" theme="primary">{{ $t('page.notify_channel.type_dingtalk') }}</hw-tag>
-            <hw-tag v-else-if="row.type === 'feishu'" theme="success">{{ $t('page.notify_channel.type_feishu') }}</hw-tag>
-            <hw-tag v-else-if="row.type === 'email'" theme="warning">{{ $t('page.notify_channel.type_email') }}</hw-tag>
-            <hw-tag v-else-if="row.type === 'serverchan'" theme="danger">{{ $t('page.notify_channel.type_serverchan') }}</hw-tag>
-            <hw-tag v-else-if="row.type === 'wechatwork'" theme="primary">{{ $t('page.notify_channel.type_wechatwork') }}</hw-tag>
-            <hw-tag v-else-if="row.type === 'webhook'" theme="success">{{ $t('page.notify_channel.type_webhook') }}</hw-tag>
-            <hw-tag v-else theme="default">{{ row.type }}</hw-tag>
+            <hw-tag theme="primary">{{ channelTypes.find(item => item.type === row.type)?.name || row.type }}</hw-tag>
           </template>
           <template #status="{ row }">
             <hw-switch v-model="row.status" :customValue="[1, 0]" @change="handleStatusChange(row)"></hw-switch>
@@ -80,12 +57,7 @@
           </hw-form-item>
           <hw-form-item :label="$t('page.notify_channel.label_type')" name="type">
             <hw-select v-model="formData.type" :style="{ width: '480px' }" @change="handleTypeChange">
-              <hw-option value="dingtalk" :label="$t('page.notify_channel.type_dingtalk')"></hw-option>
-              <hw-option value="feishu" :label="$t('page.notify_channel.type_feishu')"></hw-option>
-              <hw-option value="email" :label="$t('page.notify_channel.type_email')"></hw-option>
-              <hw-option value="serverchan" :label="$t('page.notify_channel.type_serverchan')"></hw-option>
-              <hw-option value="wechatwork" :label="$t('page.notify_channel.type_wechatwork')"></hw-option>
-              <hw-option value="webhook" :label="$t('page.notify_channel.type_webhook')"></hw-option>
+              <hw-option v-for="item in channelTypes" :key="item.type" :value="item.type" :label="item.name" />
             </hw-select>
           </hw-form-item>
 
@@ -243,6 +215,7 @@
               </div>
             </hw-form-item>
           </template>
+          <provider-config :definition="providerDefinition(formData.type)" :form="formData" />
           <hw-form-item :label="$t('page.notify_channel.label_status')" name="status">
             <hw-radio-group v-model="formData.status">
               <hw-radio :value="1">{{ $t('common.on') }}</hw-radio>
@@ -270,12 +243,7 @@
           </hw-form-item>
           <hw-form-item :label="$t('page.notify_channel.label_type')" name="type">
             <hw-select v-model="formEditData.type" :style="{ width: '480px' }" @change="handleEditTypeChange">
-              <hw-option value="dingtalk" :label="$t('page.notify_channel.type_dingtalk')"></hw-option>
-              <hw-option value="feishu" :label="$t('page.notify_channel.type_feishu')"></hw-option>
-              <hw-option value="email" :label="$t('page.notify_channel.type_email')"></hw-option>
-              <hw-option value="serverchan" :label="$t('page.notify_channel.type_serverchan')"></hw-option>
-              <hw-option value="wechatwork" :label="$t('page.notify_channel.type_wechatwork')"></hw-option>
-              <hw-option value="webhook" :label="$t('page.notify_channel.type_webhook')"></hw-option>
+              <hw-option v-for="item in channelTypes" :key="item.type" :value="item.type" :label="item.name" />
             </hw-select>
           </hw-form-item>
 
@@ -459,6 +427,7 @@
               </div>
             </hw-form-item>
           </template>
+          <provider-config :definition="providerDefinition(formEditData.type)" :form="formEditData" />
           <hw-form-item :label="$t('page.notify_channel.label_status')" name="status">
             <hw-radio-group v-model="formEditData.status">
               <hw-radio :value="1">{{ $t('common.on') }}</hw-radio>
@@ -488,6 +457,7 @@ import {defineComponent} from 'vue';
 
 import { MessagePlugin } from '@/ui';
 import {
+  getNotifyChannelTypes,
   getNotifyChannelList,
   addNotifyChannel,
   editNotifyChannel,
@@ -495,6 +465,8 @@ import {
   testNotifyChannel,
 } from '@/apis/notify_channel';
 import WebhookConfig from './components/WebhookConfig.vue';
+import ProviderConfig from './components/ProviderConfig.vue';
+import { configDefaults, parseProviderConfig, providerValidationError, serializeProviderConfig, type ProviderDefinition } from './provider_config';
 
 // 与后端 waf_service.ConfigClearSentinel 约定：编辑时密钥字段留空=保持原值
 // （后端不回显原文，空提交不能当成清空），要真正清空必须提交这个哨兵值。
@@ -510,6 +482,8 @@ const INITIAL_DATA = {
   has_secret: false,
   has_access_token: false,
   config_json: '',
+  provider_config: {} as Record<string, any>,
+  has_config_secrets: {} as Record<string, boolean>,
   status: 1,
   remarks: '',
   // 邮件配置字段
@@ -531,7 +505,7 @@ const INITIAL_DATA = {
 };
 
 // 每次都要新建一份：webhook_headers 是数组，浅拷贝会让新增和编辑两个表单共用同一个数组
-const newFormData = () => ({ ...INITIAL_DATA, webhook_headers: [] });
+const newFormData = () => ({ ...INITIAL_DATA, webhook_headers: [], provider_config: {}, has_config_secrets: {} });
 
 // 各渠道类型真正会用到的密钥字段：
 //   secret       —— 钉钉/飞书的签名密钥（企业微信不需要）
@@ -564,9 +538,10 @@ const buildWebhookConfig = (form: any) => JSON.stringify({
 
 export default defineComponent({
   name: 'NotifyChannel',
-  components: { WebhookConfig },
+  components: { WebhookConfig, ProviderConfig },
   data() {
     return {
+      channelTypes: [] as ProviderDefinition[],
       data: [],
       dataLoading: false,
       value: 'first',
@@ -615,10 +590,26 @@ export default defineComponent({
     };
   },
   computed: {},
-  mounted() {
+  async mounted() {
+    try {
+      const res = await getNotifyChannelTypes();
+      if (res.code !== 0 || !Array.isArray(res.data)) throw new Error('无法读取通知渠道类型');
+      this.channelTypes = res.data;
+    } catch { MessagePlugin.error('通知渠道配置加载失败，请刷新重试'); }
     this.getList();
   },
   methods: {
+    providerDefinition(type: string) { return this.channelTypes.find((item) => item.type === type); },
+    prepareProvider(form: any, submitData: any): boolean {
+      const definition = this.providerDefinition(form.type);
+      if (!definition) { MessagePlugin.error('通知渠道配置尚未加载，请刷新重试'); return false; }
+      if (!definition.fields.length) return true;
+      const error = providerValidationError(definition, form.provider_config, form.has_config_secrets);
+      if (error) { MessagePlugin.warning(error); return false; }
+      submitData.config_json = serializeProviderConfig(definition, form.provider_config);
+      if (!['dingtalk', 'feishu', 'wechatwork'].includes(form.type)) submitData.webhook_url = '';
+      return true;
+    },
     getContainer() {
       return document.querySelector('.tdesign-starter-main');
     },
@@ -648,10 +639,13 @@ export default defineComponent({
     },
     handleAdd() {
       this.formData = newFormData();
+      this.formData.provider_config = configDefaults(this.providerDefinition(this.formData.type));
       this.addFormVisible = true;
     },
     handleClickEdit(e: any) {
       const row = { ...newFormData(), ...e.row };
+      try { row.provider_config = parseProviderConfig(this.providerDefinition(row.type), row.config_json); }
+      catch { MessagePlugin.error('渠道配置解析失败，请检查原始配置'); return; }
       // 如果是通用Webhook类型，解析config_json
       if (row.type === 'webhook' && row.config_json) {
         try {
@@ -761,6 +755,7 @@ export default defineComponent({
             submitData.access_token = '';
             submitData.config_json = buildWebhookConfig(submitData);
           }
+          if (!this.prepareProvider(this.formData, submitData)) return;
           const res = await addNotifyChannel(submitData);
           if (res.code === 0) {
             MessagePlugin.success(this.$t('page.notify_channel.add_success'));
@@ -808,6 +803,7 @@ export default defineComponent({
           // 密钥字段归一（编辑专用）：本类型用不到的密钥必须显式清空。
           // 后端语义是"留空=保持原值"（因为不回显原文），所以这里不能只置空串，
           // 否则改成别的渠道类型后，旧密钥会一直留在库里。
+          if (!this.prepareProvider(this.formEditData, submitData)) return;
           normalizeSecretsForEdit(submitData);
           const res = await editNotifyChannel(submitData);
           if (res.code === 0) {
@@ -848,6 +844,14 @@ export default defineComponent({
       this.editFormVisible = false;
     },
     handleTypeChange(value: string) {
+      this.formData.provider_config = configDefaults(this.providerDefinition(value));
+      this.formData.has_config_secrets = {};
+      this.formData.config_json = '';
+      this.formData.secret = '';
+      this.formData.access_token = '';
+      this.formData.has_secret = false;
+      this.formData.has_access_token = false;
+      this.formData.webhook_url = '';
       // 切换类型时清空相关字段
       if (value === 'email') {
         this.formData.webhook_url = '';
@@ -879,6 +883,14 @@ export default defineComponent({
       }
     },
     handleEditTypeChange(value: string) {
+      this.formEditData.provider_config = configDefaults(this.providerDefinition(value));
+      this.formEditData.has_config_secrets = {};
+      this.formEditData.config_json = '';
+      this.formEditData.secret = '';
+      this.formEditData.access_token = '';
+      this.formEditData.has_secret = false;
+      this.formEditData.has_access_token = false;
+      this.formEditData.webhook_url = '';
       // 切换类型时清空相关字段
       if (value === 'email') {
         this.formEditData.webhook_url = '';

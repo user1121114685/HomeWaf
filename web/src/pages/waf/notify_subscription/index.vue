@@ -26,12 +26,8 @@
           <template #messageType="{ row }">
             <div class="message-type-cell">
               <div class="message-type-name">{{ row.messageTypeName }}</div>
+              <div v-if="eventHints[row.messageType]" class="event-hint">{{ eventHints[row.messageType] }}</div>
             </div>
-          </template>
-
-          <!-- 渠道表头：5 个渠道共用一个组件，加菜单项只改一处 -->
-          <template :key="ct.type"  v-for="ct in channelTypes" v-slot:[ct.titleSlot]>
-            <channel-header  :type="ct.type" :label="ct.name" :theme="ct.theme" @batch="handleBatchAction" />
           </template>
 
           <!-- 渠道单元格 -->
@@ -137,7 +133,7 @@ import {
   editNotifySubscription,
   deleteNotifySubscription,
 } from '@/apis/notify_subscription';
-import { getNotifyChannelList } from '@/apis/notify_channel';
+import { getNotifyChannelList, getNotifyChannelTypes } from '@/apis/notify_channel';
 import ChannelHeader from './components/ChannelHeader.vue';
 import ChannelCell from './components/ChannelCell.vue';
 import ConfigDrawer from './components/ConfigDrawer.vue';
@@ -149,19 +145,19 @@ export default defineComponent({
   components: { ChannelHeader, ChannelCell, ConfigDrawer, BatchConfigDialog, GlobalThrottleDialog },
   data() {
     return {
+      eventHints: {
+        rule_trigger: '规则命中、防篡改等现有拦截事件',
+        ip_ban: '自动封禁、防爆破封禁',
+        ssl_expire: '站点与管理端证书到期提醒',
+        system_error: '已接入的账号锁定、引擎与端口防护错误',
+        operation_notice: '运行汇总、证书申请/续期结果；并非所有操作日志',
+        attack_info: '预留类型：尚无自动触发源；攻击拦截请选择“规则触发”',
+        weekly_report: '预留类型：尚未接入周报定时任务',
+      } as Record<string, string>,
       dataLoading: false,
       channelList: [],
       subscriptionList: [],
-      // titleSlot 预先算好：Vue2 的动态插槽名不允许表达式里出现引号，
-      // 写成 v-slot:[ct.type+'-title'] 会直接编译失败
-      channelTypes: [
-        { type: 'dingtalk', name: '钉钉', theme: 'primary', titleSlot: 'dingtalk-title' },
-        { type: 'feishu', name: '飞书', theme: 'success', titleSlot: 'feishu-title' },
-        { type: 'email', name: '邮箱', theme: 'warning', titleSlot: 'email-title' },
-        { type: 'serverchan', name: 'Server酱', theme: 'danger', titleSlot: 'serverchan-title' },
-        { type: 'wechatwork', name: '企业微信', theme: 'primary', titleSlot: 'wechatwork-title' },
-        { type: 'webhook', name: '自定义Webhook', theme: 'success', titleSlot: 'webhook-title' },
-      ],
+      channelTypes: [] as { type: string; name: string; theme: string }[],
       messageTypes: [
         {
           type: 'user_login',
@@ -254,7 +250,12 @@ export default defineComponent({
       this.channelTypes.forEach((channelType: any) => {
         columns.push({
           colKey: channelType.type,
-          title: `${channelType.type}-title`, // 指定title slot名称
+          title: (h: any) => h(ChannelHeader, {
+            type: channelType.type,
+            label: channelType.name,
+            theme: channelType.theme,
+            onBatch: this.handleBatchAction,
+          }),
           minWidth: 200,
         });
       });
@@ -297,6 +298,7 @@ export default defineComponent({
       this.dataLoading = true;
       try {
         await Promise.all([
+          this.loadChannelTypes(),
           this.loadChannelList(),
           this.loadSubscriptionList(),
         ]);
@@ -305,6 +307,14 @@ export default defineComponent({
       } finally {
         this.dataLoading = false;
       }
+    },
+    async loadChannelTypes() {
+      const res = await getNotifyChannelTypes();
+      if (res.code !== 0 || !Array.isArray(res.data)) {
+        MessagePlugin.error('通知渠道类型加载失败，请刷新重试');
+        return;
+      }
+      this.channelTypes = res.data.map((item: any) => ({ ...item, theme: 'primary' }));
     },
     async loadChannelList() {
       try {
@@ -867,4 +877,8 @@ export default defineComponent({
     font-family: monospace;
   }
 }
+</style>
+
+<style scoped>
+.event-hint { margin-top: 4px; color: var(--td-text-color-secondary); font-size: 12px; line-height: 1.5; }
 </style>

@@ -115,6 +115,11 @@ func escapeForChannel(channelType, s string) string {
 		// 在这里做 Markdown 转义只会把反斜杠原样发给对方；真正的转义按 Content-Type
 		// 在 wafnotify/webhook 渲染报文时做。
 		return s
+	case "bark", "telegram", "gotify", "socket", "wechatwork_app":
+		// These providers receive plain text or perform their own format-specific
+		// escaping. Markdown escaping here would appear literally (or be escaped
+		// a second time by Telegram).
+		return s
 	default:
 		return escapeMarkdown(s)
 	}

@@ -13,6 +13,7 @@ type NotifyChannelRouter struct {
 func (receiver *NotifyChannelRouter) InitNotifyChannelRouter(group *gin.RouterGroup) {
 	api := api.APIGroupAPP.WafNotifyChannelApi
 	router := group.Group("")
+	router.GET("/api/v1/notify/channel/types", api.GetTypesApi)
 	router.POST("/api/v1/notify/channel/list", api.GetListApi)
 	router.GET("/api/v1/notify/channel/detail", api.GetDetailApi)
 	router.POST("/api/v1/notify/channel/add", api.AddApi)

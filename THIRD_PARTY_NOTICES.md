@@ -37,6 +37,7 @@ When dependencies or embedded assets change, update this inventory, the correspo
 | github.com/dsnet/compress | v0.0.1 | BSD-3-Clause |
 | github.com/dustin/go-humanize | v1.1.0 | MIT |
 | github.com/ebitengine/purego | v0.11.3 | Apache-2.0 |
+| github.com/eclipse/paho.mqtt.golang | v1.5.1 | EPL-2.0 / EDL-1.0 (dual-licensed; see LICENSES/eclipse-paho-mqtt-golang.txt) |
 | github.com/fsnotify/fsnotify | v1.10.1 | BSD-3-Clause |
 | github.com/gabriel-vasile/mimetype | v1.4.16 | MIT |
 | github.com/gin-contrib/gzip | v1.2.10 | MIT |

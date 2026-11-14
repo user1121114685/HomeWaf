@@ -7,14 +7,10 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/model"
-	"HomeWaf/utils"
 	"HomeWaf/wafdb/dialect"
-	"HomeWaf/wafnotify/dingtalk"
+	"HomeWaf/wafnotify/channels"
 	"HomeWaf/wafnotify/email"
-	"HomeWaf/wafnotify/feishu"
-	"HomeWaf/wafnotify/serverchan"
 	"HomeWaf/wafnotify/webhook"
-	"HomeWaf/wafnotify/wechatwork"
 	"fmt"
 	"strings"
 	"sync"
@@ -216,28 +212,14 @@ func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChanne
 // issue #822 的标题就是"通知管理无法调试"，测试发送必须走完全相同的投递链路。
 func (receiver *WafNotifySenderService) deliverToChannel(channel model.NotifyChannel,
 	subscription model.NotifySubscription, messageType, title, content string) (recipients string, err error) {
+	if channels.Handles(channel.Type) {
+		notifier, notifierErr := channels.New(channel.Type, channel.ConfigJSON, channel.WebhookURL, channel.Secret, channel.AccessToken)
+		if notifierErr != nil {
+			return "", notifierErr
+		}
+		return "", notifier.Send(title, content)
+	}
 	switch channel.Type {
-	case "dingtalk":
-		if ok, reason := utils.IsAllowedOutboundURL(channel.WebhookURL); !ok {
-			err = fmt.Errorf("WebhookURL 目标不被允许: %s", reason)
-		} else {
-			notifier := dingtalk.NewDingTalkNotifier(channel.WebhookURL, channel.Secret)
-			err = notifier.SendMarkdown(title, content)
-		}
-	case "feishu":
-		if ok, reason := utils.IsAllowedOutboundURL(channel.WebhookURL); !ok {
-			err = fmt.Errorf("WebhookURL 目标不被允许: %s", reason)
-		} else {
-			notifier := feishu.NewFeishuNotifier(channel.WebhookURL, channel.Secret)
-			err = notifier.SendMarkdown(title, content)
-		}
-	case "wechatwork":
-		if ok, reason := utils.IsAllowedOutboundURL(channel.WebhookURL); !ok {
-			err = fmt.Errorf("WebhookURL 目标不被允许: %s", reason)
-		} else {
-			notifier := wechatwork.NewWechatWorkNotifier(channel.WebhookURL)
-			err = notifier.SendMarkdown(title, content)
-		}
 	case "email":
 		notifier, notifierErr := email.NewEmailNotifier(channel.ConfigJSON)
 		if notifierErr != nil {
@@ -263,13 +245,6 @@ func (receiver *WafNotifySenderService) deliverToChannel(channel model.NotifyCha
 				recipients = strings.Join(notifier.ToEmails, ", ")
 			}
 			// 如果订阅中没有配置收件人，则使用渠道配置中的收件人（向后兼容）
-			err = notifier.SendMarkdown(title, content)
-		}
-	case "serverchan":
-		notifier, notifierErr := serverchan.NewServerChanNotifier(channel.AccessToken)
-		if notifierErr != nil {
-			err = notifierErr
-		} else {
 			err = notifier.SendMarkdown(title, content)
 		}
 	case "webhook":

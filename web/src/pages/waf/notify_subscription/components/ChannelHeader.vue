@@ -4,7 +4,7 @@
   <div class="channel-header-wrapper">
     <hw-tag :theme="theme" size="small">{{ label }}</hw-tag>
     <hw-dropdown :min-column-width="140">
-      <hw-button variant="text" size="small" shape="square">
+      <hw-button variant="text" size="small" shape="square" :aria-label="`${label}批量操作`">
         <hw-icon name="ellipsis" />
       </hw-button>
       <hw-dropdown-menu>

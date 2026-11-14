@@ -2,6 +2,11 @@
 
 import request from '@/utils/request'
 
+// The backend catalogue drives provider options and configuration forms.
+export function getNotifyChannelTypes() {
+  return request({ url: '/notify/channel/types', method: 'get' })
+}
+
 //列表
 export function getNotifyChannelList(params: any = {}) {
   return request({

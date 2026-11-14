@@ -258,6 +258,16 @@ func safeOutboundDialContext(ctx context.Context, network, addr string) (net.Con
 	return dialOutbound(ctx, network, addr, true, nil)
 }
 
+// DialAllowedOutbound connects raw TCP/UDP notification transports using the same
+// allowlist and DNS pinning as HTTP. Raw connections never inherit an HTTP proxy
+// exemption; the actual destination is always checked.
+func DialAllowedOutbound(ctx context.Context, network, addr string) (net.Conn, error) {
+	if network != "tcp" && network != "udp" {
+		return nil, fmt.Errorf("unsupported outbound network")
+	}
+	return dialOutbound(ctx, network, addr, false, nil)
+}
+
 func dialOutbound(ctx context.Context, network, addr string, allowProxy bool, guard func(string) error) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
