@@ -9,7 +9,7 @@ const routes = [
   { path: '/help', name: 'help', component: () => import('@/pages/help/index.vue') },
   { path: '/login', name: 'login', component: () => import('@/pages/login/index.vue') },
   ...asyncRouterList,
-  { path: '/:pathMatch(.*)*', redirect: '/dashboard/base' },
+  { path: '/:pathMatch(.*)*', redirect: '/dashboard/start' },
 ];
 const router = createRouter({ history: createWebHashHistory(), routes, scrollBehavior: () => ({ left: 0, top: 0 }) });
 export function resetRouter() {

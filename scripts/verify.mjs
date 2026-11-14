@@ -2,6 +2,9 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 process.env.CGO_ENABLED ||= "0";
+const prepare = spawnSync(process.execPath, ["scripts/prepare-ip-databases.mjs", "--check"], { stdio: "inherit" });
+if (prepare.error) throw prepare.error;
+if (prepare.status !== 0) process.exit(prepare.status || 1);
 function run(args) {
   if (args[0] === "test") args.splice(1, 0, "-trimpath");
   const result = spawnSync("go", args, { stdio: "inherit" });

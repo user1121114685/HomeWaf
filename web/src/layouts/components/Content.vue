@@ -1,11 +1,11 @@
 <!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
 
 <template>
-  <transition name="fade" mode="out-in">
-    <keep-alive :include="this.aliveViews">
-      <router-view v-if="!this.isRefreshing" />
+  <router-view v-slot="{ Component, route }">
+    <keep-alive :include="isUseTabsRouter && route.meta.keepAlive !== false ? aliveViews : []">
+      <component :is="Component" v-if="!isRefreshing" />
     </keep-alive>
-  </transition>
+  </router-view>
 </template>
 <script lang="ts">
 import { mapGetters } from '@/store/helpers';
@@ -23,15 +23,3 @@ export default {
   },
 };
 </script>
-<style lang="less" scoped>
-@import '@/style/variables';
-
-.fade-leave-active,
-.fade-enter-active {
-  transition: opacity @anim-duration-slow @anim-time-fn-easing;
-}
-.fade-enter,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

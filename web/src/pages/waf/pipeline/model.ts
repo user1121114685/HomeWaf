@@ -52,6 +52,7 @@ export function observationConfig(config: PortConfig): PortConfig {
 }
 export function publicTemplate(config: PortConfig, name: string): PolicyTemplate {
   const policy = clone(config.policy); policy.ip_group.entries = []; policy.network.trusted_proxies = [];
+  policy.ip_group.allow_groups = []; policy.ip_group.deny_groups = [];
   policy.gate.exempt_ips=[];
   if(policy.ruleset.callback)policy.ruleset.callback.networks=[];
   for (const rule of policy.network.response?.tamper || []) rule.learned_at=0;

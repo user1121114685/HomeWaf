@@ -1,0 +1,218 @@
+/* Console rhythm: shared tokens and controls, compatible with existing light/dark themes. */
+:root {
+  --workspace-radius: 12px;
+  --workspace-space: 24px;
+}
+html.dark .console-shell {
+  --workspace-focus: color-mix(in srgb, var(--el-color-primary) 70%, white);
+}
+.console-shell button:focus-visible,
+.console-shell a:focus-visible,
+.console-shell summary:focus-visible,
+.setup-dialog button:focus-visible {
+  outline: 2px solid var(--workspace-focus, var(--el-color-primary)) !important;
+  outline-offset: 3px;
+}
+html.dark .workspace-link.active,
+html.dark .done .checklist-number {
+  color: color-mix(in srgb, var(--el-color-primary) 70%, white);
+}
+html.dark .console-shell .el-button--primary:not(.is-plain):not(.is-link),
+html.dark .setup-dialog .el-button--primary:not(.is-plain):not(.is-link) {
+  --el-button-text-color: #101826;
+  --el-button-hover-text-color: #101826;
+  --el-button-active-text-color: #101826;
+}
+.console-shell {
+  background: var(--el-bg-color-page);
+  min-height: 100vh;
+}
+.console-shell > .el-container > .el-main,
+.console-shell > .el-container > .el-container > .el-main {
+  padding: 0;
+}
+.mobile-nav-backdrop {
+  display: none;
+}
+.console-shell .header-tools-only > .hw-menu-body {
+  display: none;
+}
+.console-shell .el-header {
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.console-shell .hw-side-menu {
+  border-right-color: var(--el-border-color-light);
+}
+.console-shell .tdesign-starter-content-layout {
+  padding: 28px 32px;
+}
+.console-shell .tdesign-starter-layout > .el-main {
+  flex: 1 0 auto;
+  overflow: visible;
+}
+.console-shell .hw-side-menu .hw-menu-logo {
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  height: 72px;
+  flex-basis: 72px;
+}
+.console-shell .tdesign-starter-side-nav-logo-wrapper {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.console-shell .tdesign-starter-side-nav-logo-wrapper:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: -4px;
+}
+.console-shell .el-button {
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    transform 150ms;
+}
+.console-shell .el-button:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 3px;
+}
+.console-shell .el-dialog {
+  border-radius: 12px;
+  padding: 24px;
+}
+.console-shell .el-dialog__title {
+  font-size: 18px;
+  font-weight: 500;
+}
+.console-shell .el-dialog__headerbtn {
+  width: 48px;
+  height: 48px;
+}
+.workspace-skip {
+  position: fixed;
+  top: 8px;
+  left: 16px;
+  z-index: 4000;
+  transform: translateY(-160%);
+  padding: 12px 20px;
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
+  border: 2px solid var(--el-color-primary);
+  border-radius: 6px;
+}
+.workspace-skip:focus {
+  transform: translateY(0);
+}
+.setup-dialog .el-dialog__body {
+  max-height: calc(90vh - 100px);
+  overflow: auto;
+}
+@media (max-width: 760px) {
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 190;
+    border: 0;
+    background: rgb(0 0 0 / 35%);
+    cursor: pointer;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .console-shell .el-button:not(:disabled):not(.is-link):hover {
+    transform: translateY(-1px);
+  }
+  .console-shell .el-button:not(:disabled):not(.is-link):active {
+    transform: translateY(1px) scale(0.985);
+  }
+}
+@media (max-width: 760px) {
+  .console-shell .tdesign-starter-content-layout {
+    padding: 20px 16px;
+  }
+  .console-shell .el-header .screen-entry,
+  .console-shell .el-header .system-monitor-trigger {
+    display: none;
+  }
+  .console-shell .el-header .operations-container {
+    min-width: 0;
+    max-width: 100%;
+    margin-right: 0;
+    gap: 2px;
+  }
+  .console-shell .el-header .hw-menu-operations {
+    min-width: 0;
+    max-width: calc(100vw - 72px);
+    flex-shrink: 1;
+  }
+  .console-shell .el-header {
+    padding: 0 8px;
+  }
+  .console-shell .el-dialog {
+    padding: 20px 16px;
+  }
+  .console-shell .tdesign-starter-sidebar-compact,
+  .console-shell .tdesign-starter-side-nav-placeholder-hidden {
+    width: 0;
+    min-width: 0;
+    flex-basis: 0;
+  }
+  .console-shell .tdesign-starter-sidebar-compact .hw-side-menu {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .console-shell .tdesign-starter-side-nav-placeholder {
+    min-width: 0;
+    flex-basis: 0;
+  }
+  .console-shell .tdesign-starter-side-nav {
+    box-shadow: var(--el-box-shadow-light);
+  }
+  .console-shell .el-message {
+    max-width: calc(100vw - 24px);
+  }
+  .setup-dialog {
+    margin-top: 4vh !important;
+    width: calc(100vw - 24px) !important;
+  }
+  .setup-dialog .el-dialog__body {
+    max-height: calc(92vh - 80px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .console-shell .el-button {
+    transition: none;
+  }
+  .console-shell .el-button:hover,
+  .console-shell .el-button:active {
+    transform: none;
+  }
+}
+@media (max-width: 600px) {
+  .console-shell .el-header .header-help-btn,
+  .console-shell .el-header .lang-btn,
+  .console-shell .el-header .header-update-btn {
+    display: none;
+  }
+  .console-shell .el-header .header-operate-left {
+    margin-left: 0;
+  }
+  .console-shell .el-header .operations-container .el-button,
+  .console-shell .el-header .sidebar-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    margin: 0;
+    padding: 10px;
+  }
+  .console-shell .el-header .operations-container {
+    gap: 0;
+  }
+  .console-shell .el-header .header-user-account {
+    font-size: 13px;
+    max-width: 64px;
+    overflow: hidden;
+  }
+  .console-shell .el-header .hw-menu-operations {
+    max-width: calc(100vw - 60px);
+  }
+}

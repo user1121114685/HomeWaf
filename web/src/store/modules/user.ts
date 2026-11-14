@@ -19,6 +19,7 @@ const actions = {
   async login({ commit }: any) {
     const token = localStorage.getItem('access_token');
     if (!token) throw new Error('A verified backend login is required');
+    commit('setUserInfo', { name: '', roles: [] });
     commit('setToken', token);
   },
   async getUserInfo({ commit, state }: any) {

@@ -38,3 +38,10 @@ test('batch preview limits concurrent API calls and preserves port result order'
   const out=await mapBounded(values,async value=>{active++;peak=Math.max(peak,active);await new Promise(resolve=>setTimeout(resolve,value%3));active--;return value*2},4);
   assert.equal(peak,4);assert.deepEqual(out,values.map(v=>v*2));assert.equal(active,0);
 });
+
+
+test('portable templates omit shared group identities while observation preserves source controls',()=>{
+  const port=newPort(template());Object.assign(port.policy.ip_group,{allow_groups:['family'],deny_groups:['scanners'],block_outside_mainland:true,denied_regions:[{country:'Example'}]});
+  const exported=publicTemplate(port,'不包含本地引用');assert.deepEqual(exported.policy.ip_group.allow_groups,[]);assert.deepEqual(exported.policy.ip_group.deny_groups,[]);assert.equal(exported.policy.ip_group.block_outside_mainland,true);
+  const observed=observationConfig(port);assert.deepEqual(observed.policy.ip_group,port.policy.ip_group);assert.deepEqual(port.policy.ip_group.allow_groups,['family']);
+});

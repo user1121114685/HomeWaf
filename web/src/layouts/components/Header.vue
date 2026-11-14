@@ -84,7 +84,7 @@ Windows PowerShell:
     <!-- 微信公众号二维码对话框 -->
 
 
-    <hw-head-menu :class="menuCls" :theme="theme" expandType="popup" :value="active">
+    <hw-head-menu :class="[menuCls, { 'header-tools-only': layout === 'side' }]" :theme="theme" expandType="popup" :value="active">
       <template #logo>
         <span v-if="showLogo" class="header-logo-container" @click="handleNav('/dashboard/base')">
           <logo-full class="t-logo"/>
@@ -110,7 +110,7 @@ Windows PowerShell:
           <notice />
           <!-- 版本说明 -->
           <hw-tooltip placement="bottom" :content="$t('topNav.update.has_new_version')" v-show="hasNewVersion">
-            <hw-button theme="default" shape="square" variant="text" @click="checkVersion('manual')" style="position: relative; overflow: visible;">
+            <hw-button class="header-update-btn" theme="default" shape="square" variant="text" :aria-label="$t('topNav.update.has_new_version')" @click="checkVersion('manual')" style="position: relative; overflow: visible;">
               <NotificationErrorIcon />
               <span v-if="update_new_ver && update_new_ver.toLowerCase().includes('beta')"
                     style="position: absolute; top: -6px; right: -18px; font-size: 10px; color: white; background: #ff4d4f; border-radius: 8px; padding: 0 4px; line-height: 16px; font-weight: bold; box-shadow: 0 1px 2px rgba(0,0,0,0.2); white-space: nowrap; z-index: 10;">
@@ -125,7 +125,7 @@ Windows PowerShell:
 
 
           <hw-tooltip placement="bottom" :content="$t('topNav.help_document')">
-            <hw-button theme="default" shape="square" variant="text" @click="navToHelper">
+            <hw-button class="header-help-btn" theme="default" shape="square" variant="text" :aria-label="$t('topNav.help_document')" @click="navToHelper">
               <help-circle-icon />
             </hw-button>
           </hw-tooltip>
@@ -157,6 +157,8 @@ Windows PowerShell:
           <hw-dropdown :min-column-width="125" trigger="click">
             <template #dropdown>
               <hw-dropdown-menu>
+                <hw-dropdown-item @click="navToHelper"><help-circle-icon />{{ $t('topNav.help_document') }}</hw-dropdown-item>
+                <hw-dropdown-item v-for="item in langOptions" :key="`account-${item.value}`" @click="changeLangEvent(item.value)"><translate-icon />{{ item.label }}</hw-dropdown-item>
                 <hw-dropdown-item class="operations-dropdown-container-item" @click="handleNav('/user/index')">
                   <user-circle-icon /> {{ $t('topNav.dropdown_person_center')}}
                 </hw-dropdown-item>
@@ -177,7 +179,7 @@ Windows PowerShell:
                 </hw-dropdown-item>
               </hw-dropdown-menu>
             </template>
-            <hw-button class="header-user-btn" theme="default" variant="text">
+            <hw-button class="header-user-btn" theme="default" variant="text" aria-label="账户菜单">
               <template #icon>
                 <user-circle-icon class="header-user-avatar" />
               </template>
@@ -402,7 +404,7 @@ import {defineComponent} from 'vue';
         logoutapi({account_token:current_account_token})
         .then((res)=>{
             if(res.code==0){
-              this.$router.push(`/login?redirect=${this.$router.history.current.fullPath}`);
+                this.$router.replace({ path: '/login', query: { redirect: this.$route.fullPath } });
             }else{
               this.$message.warning(res.msg);
             }

@@ -1,9 +1,11 @@
 <!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
 
 <template>
-  <div>
+  <div class="console-shell" @keydown.esc="closeMobileNavigation">
+    <a v-if="!$route.meta.fullscreen" class="workspace-skip" href="#console-main" @click.prevent="$el.querySelector('#console-main')?.focus()">跳到主要内容</a>
     <router-view v-if="$route.meta.fullscreen" />
     <template v-else>
+    <button v-if="!setting.isSidebarCompact && setting.layout !== 'top'" class="mobile-nav-backdrop" aria-label="关闭导航菜单" @click="closeMobileNavigation"></button>
     <!-- HTTP 访问提示条：放在三种布局之外，side/top/mix 都能显示 -->
     <insecure-banner />
     <template v-if="setting.layout === 'side'">
@@ -44,6 +46,7 @@ import {defineComponent} from 'vue';
 
 import { mapGetters } from '@/store/helpers';
 import { NotifyPlugin } from '@/ui';
+import { ElButton } from 'element-plus';
 
 import InsecureBanner from './components/InsecureBanner.vue';
 import LayoutHeader from './components/LayoutHeader.vue';
@@ -107,6 +110,11 @@ export default defineComponent({
     this.showLoginNotice();
   },
   methods: {
+    closeMobileNavigation() {
+      if (window.innerWidth > 760 || this.setting.isSidebarCompact) return;
+      this.$store.commit('setting/showSidebarCompact', true);
+      this.$nextTick(() => this.$el.querySelector('.sidebar-toggle')?.focus());
+    },
     // 登录来源提醒：登录页把响应里的 login_notice 存进 sessionStorage，进入布局后在右下角弹一次。
     // 读完即删，保证刷新页面不会反复弹。
     showLoginNotice() {
@@ -172,17 +180,15 @@ export default defineComponent({
         options.footer = (h: any) =>
           h('div', { style: 'display:flex;justify-content:flex-end;' }, [
             h(
-              't-button',
+              ElButton,
               {
-                props: { theme: 'primary', variant: 'text', size: 'small' },
-                on: {
-                  click: () => {
-                    if (instance) NotifyPlugin.close(instance);
-                    this.$router.push('/account/LoginHistory').catch(() => {});
-                  },
+                type: 'primary', link: true, size: 'small',
+                onClick: () => {
+                  if (instance) NotifyPlugin.close(instance);
+                  this.$router.push('/account/LoginHistory').catch(() => {});
                 },
               },
-              this.$t('page.login_notice.view_history') as string,
+              () => this.$t('page.login_notice.view_history') as string,
             ),
           ]);
       }

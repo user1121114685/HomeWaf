@@ -210,6 +210,8 @@ type PortSaveRequest struct {
 func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	pipelineGroupReferenceMu.RLock()
+	defer pipelineGroupReferenceMu.RUnlock()
 	c := wafpipeline.CloneConfig(req.Config)
 	if err := wafpipeline.ValidateConfig(c, uint16(global.GWAF_LOCAL_SERVER_PORT)); err != nil {
 		return c, err
@@ -222,6 +224,9 @@ func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, 
 		return c, err
 	}
 	var oldRow model.PortConfig
+	if err := validatePipelineGroups(db, c.Policy.IPGroup); err != nil {
+		return c, err
+	}
 	find := db.Where("port = ?", c.Port).First(&oldRow).Error
 	isNew := errors.Is(find, gorm.ErrRecordNotFound)
 	if find != nil && !isNew {
@@ -746,6 +751,8 @@ func (s *WafPipelineService) Copy(source, target uint16, includeIPs bool) (wafpi
 	c.AccessChangedBy = ""
 	if !includeIPs {
 		c.Policy.IPGroup.Entries = []wafpipeline.IPEntry{}
+		c.Policy.IPGroup.AllowGroups = nil
+		c.Policy.IPGroup.DenyGroups = nil
 		c.Policy.Gate.ExemptIPs = nil
 		c.ScriptGroups = nil
 	}

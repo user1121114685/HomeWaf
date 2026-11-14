@@ -94,6 +94,7 @@ function cleanBinaries() {
   }
 }
 async function rebuild() {
+  await run(process.execPath, ["scripts/prepare-ip-databases.mjs", "--check"]);
   const version = `v2.0.0-dev.${Date.now()}.${++generation}`;
   log(`Building ${version}...`);
   await run("go", ["build", `-ldflags=-X HomeWaf/global.GWAF_RELEASE=false -X HomeWaf/global.GWAF_RELEASE_VERSION=${version}`, "-o", candidate, "./cmd/homewaf"]);

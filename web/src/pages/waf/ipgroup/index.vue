@@ -88,6 +88,8 @@
       v-model:visible="itemDrawerVisible" size="860px" :footer="false" @close="onCloseDrawer">
       <div>
         <hw-alert theme="info" :message="ruleUsageTips" close></hw-alert>
+        <p v-if="linkedPorts.length">修改后立即同步到以下服务：<RouterLink v-for="port in linkedPorts" :key="port.port" :to="`/waf-pipeline/ports?edit=${port.port}`" style="margin-left: 12px">{{ port.name || '服务' }} · {{ port.port }}</RouterLink></p>
+        <p v-if="linkedPortsError" role="alert">{{ linkedPortsError }}</p>
         <hw-row justify="space-between">
           <div class="left-operation-container">
             <hw-button @click="handleAddItem">{{ $t('page.ipgroup.button_add_item') }}</hw-button>
@@ -172,11 +174,11 @@
 
     <!-- 删除组：有引用时必须显式勾选才允许级联 -->
     <hw-dialog :header="$t('common.confirm_delete')" v-model:visible="delGroupVisible" :width="680"
-      :confirm-btn="{ content: $t('common.confirm'), theme: 'danger', disabled: hasRefs && !forceDelete }"
+      :confirm-btn="{ content: $t('common.confirm'), theme: 'danger', disabled: !!refsData.ports?.length || (hasRefs && !forceDelete) }"
       :cancel-btn="$t('common.close')" @confirm="onConfirmDeleteGroup">
       <template #body><div >
-        <p v-if="!hasRefs">{{ $t('common.data_delete_warning') }}</p>
-        <div v-else>
+        <p v-if="!hasRefs && !refsData.ports?.length">{{ $t('common.data_delete_warning') }}</p>
+        <div v-if="hasRefs">
           <hw-alert theme="warning" :message="refsWarning"></hw-alert>
           <ul class="ref-host-list">
             <li v-for="h in refsData.hosts" :key="h.host_code">
@@ -185,7 +187,11 @@
               <span v-if="h.allow"> — {{ $t('page.ipgroup.ref_allow') }} {{ h.allow }}</span>
             </li>
           </ul>
-          <hw-checkbox v-model="forceDelete">{{ $t('page.ipgroup.delete_force_confirm') }}</hw-checkbox>
+          <hw-checkbox v-if="!refsData.ports?.length" v-model="forceDelete">{{ $t('page.ipgroup.delete_force_confirm') }}</hw-checkbox>
+        </div>
+        <div v-if="refsData.ports?.length">
+          <p>以下服务正在使用此 IP 组，请先移除服务中的引用后再删除。修改组内地址会立即影响这些服务。</p>
+          <ul class="ref-host-list"><li v-for="port in refsData.ports" :key="port.port"><RouterLink :to="`/waf-pipeline/ports?edit=${port.port}`" @click="delGroupVisible = false">{{ port.name || '服务' }} · {{ port.port }}</RouterLink>：{{ port.allow ? '白名单 ' : '' }}{{ port.block ? '黑名单' : '' }}</li></ul>
         </div>
       </div></template>
     </hw-dialog>
@@ -262,11 +268,12 @@ export default defineComponent({
       // 删除确认
       delGroupVisible: false,
       forceDelete: false,
-      refsData: { block_count: 0, allow_count: 0, hosts: [] },
+      refsData: { block_count: 0, allow_count: 0, hosts: [], ports: [] },
 
       // 组内条目
       itemDrawerVisible: false,
       currentGroup: { group_name: '', group_code: '' },
+      linkedPorts: [], linkedPortsError: '',
       itemData: [],
       itemLoading: false,
       selectedItemKeys: [],
@@ -409,7 +416,7 @@ export default defineComponent({
       const that = this;
       that.deleteIdx = e.rowIndex;
       that.forceDelete = false;
-      that.refsData = { block_count: 0, allow_count: 0, hosts: [] };
+      that.refsData = { block_count: 0, allow_count: 0, hosts: [], ports: [] };
       wafIPGroupRefsApi({ group_code: e.row.group_code })
         .then((res) => {
           if (res.code === 0) {
@@ -442,6 +449,12 @@ export default defineComponent({
 
     // ---------- 组内条目 ----------
     handleManageItems(row) {
+      this.linkedPorts = []; this.linkedPortsError = '';
+      wafIPGroupRefsApi({ group_code: row.group_code }).then(res => {
+        if (this.currentGroup.group_code !== row.group_code) return;
+        if (res.code === 0) this.linkedPorts = res.data.ports || [];
+        else this.linkedPortsError = res.msg || '引用服务读取失败';
+      }).catch(() => { if (this.currentGroup.group_code === row.group_code) this.linkedPortsError = '引用服务读取失败，请重新打开此组。'; });
       this.currentGroup = { ...row };
       this.itemSearchData = { ip: '' };
       this.itemPagination = { total: 0, current: 1, pageSize: 10 };

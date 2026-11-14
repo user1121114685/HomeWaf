@@ -16,6 +16,39 @@ type GeoResult struct {
 	ISP      string `json:"isp"`
 	OK       bool   `json:"ok"`
 }
+
+func matchesRegion(geo GeoResult, regions []Region) bool {
+	if !geo.OK {
+		return false
+	}
+	for _, region := range regions {
+		if strings.EqualFold(region.Country, geo.Country) && (region.Province == "" || strings.EqualFold(region.Province, geo.Province)) {
+			return true
+		}
+	}
+	return false
+}
+
+// Country-only databases identify HK/MO/TW separately; province databases may
+// place them under China. Recognize both forms, never guessing unknown locations.
+func mainlandChina(geo GeoResult) bool {
+	if !geo.OK {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(geo.Country)) {
+	case "中国", "中國", "中国大陆", "中國大陸", "cn", "china", "mainland china":
+	default:
+		return false
+	}
+	province := strings.ToLower(strings.TrimSpace(geo.Province))
+	for _, excluded := range []string{"香港", "澳门", "澳門", "台湾", "臺灣", "台灣", "hong kong", "hongkong", "macao", "macau", "taiwan"} {
+		if strings.Contains(province, excluded) {
+			return false
+		}
+	}
+	return province != "hk" && province != "mo" && province != "tw"
+}
+
 type geoItem struct {
 	ip         netip.Addr
 	value      GeoResult

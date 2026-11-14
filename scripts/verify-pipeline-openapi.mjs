@@ -26,3 +26,9 @@ for(const match of source.matchAll(/r\.(GET|POST)\("([^"]+)", a\.(\w+)\)/g)) {
 }
 assert.equal(count,32);
 console.log(`Pipeline OpenAPI: ${count} operations have response, request and authentication documentation.`);
+
+const groupSchema=Object.entries(doc.definitions).find(([key])=>key.endsWith('.IPGroupConfig'))?.[1];
+for(const key of ['allow_groups','deny_groups','denied_regions','block_outside_mainland'])assert(groupSchema?.properties?.[key],`IPGroupConfig: missing ${key}`);
+const createGroupSchema=Object.entries(doc.definitions).find(([key])=>key.endsWith('.WafIPGroupAddReq'))?.[1];
+assert(createGroupSchema?.properties?.initial_ips,'IP group creation: missing atomic initial_ips');
+console.log('Shared access-policy fields and atomic IP-group creation are documented.');

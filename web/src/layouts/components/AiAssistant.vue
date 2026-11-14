@@ -129,7 +129,7 @@
          压在下面，右下角点不到。给个明确层级，仍低于 drawer/dialog(2500+)。 -->
     <hw-sticky-tool :style="{ position: 'fixed', right: '20px', overflow: 'hidden', height: '70px', zIndex: 100 }"
                    @click="openChat">
-      <hw-sticky-item :label="$t('page.gpt.assistant')" :icon="renderChatIcon"/>
+      <hw-sticky-item :label="$t('page.gpt.assistant')" :aria-label="$t('page.gpt.assistant')" :icon="renderChatIcon"/>
     </hw-sticky-tool>
   </div>
 </template>

@@ -7,13 +7,19 @@ export default [
   {
     path: '/dashboard',
     component: Layout,
-    redirect: '/dashboard/base',
+    redirect: '/dashboard/start',
     name: 'dashboard',
     meta: {
       title: 'menu.dashboard.parent_title',
       icon: DashboardIcon,
     },
     children: [
+      {
+        path: 'start',
+        name: 'DashboardStart',
+        component: () => import('@/pages/dashboard/start/index.vue'),
+        meta: { title: '工作台', roleCode: 'WafHost', keepAlive: false },
+      },
       {
         path: 'base',
         name: 'DashboardBase',

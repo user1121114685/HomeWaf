@@ -1,6 +1,6 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
 
-import { resetRouter, asyncRouterList } from '@/router';
+import { asyncRouterList } from '@/router';
 
 function filterPermissionsRouters(routes, roles) {
   const res = [];
@@ -13,8 +13,7 @@ function filterPermissionsRouters(routes, roles) {
       }
     });
     if (children.length > 0) {
-      route.children = children;
-      res.push(route);
+      res.push({ ...route, children });
     }
   });
   return res;
@@ -53,8 +52,8 @@ const actions = {
     // router.addRoutes(state.routers);
   },
   async restore({ commit }) {
-    // remove routers
-    resetRouter();
+    // Routes are registered statically. Removing them during login invalidates
+    // the active RouterView and can leave subsequent navigation on a stale view.
     commit('setRouters', []);
   },
 };

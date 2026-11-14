@@ -187,7 +187,7 @@ export default defineComponent({
           login_password: this.formData.password,
           login_otp_secret_code: this.formData.secret_code
         })
-        .then((res) => {
+        .then(async (res) => {
 
           this.loginError = '';
           if (res.code == 0) {
@@ -209,18 +209,7 @@ export default defineComponent({
               return;
             }
 
-            this.$store.dispatch('user/login', this.formData);
-            this.$store.dispatch('sysparams/fetchParams');
-            this.$message.success(this.$t('login.login_success'));
-
-            setTimeout(() => {
-              // 获取安全的重定向URL
-              const redirectUrl = getSafeRedirectUrl();
-              console.log('重定向到:', redirectUrl);
-
-              // 安全跳转
-              this.$router.replace(redirectUrl).catch(() => '');
-            }, 1000);
+            await this.completeLogin();
 
           } else if (res.code == -2) {
             this.showSecretCode = true;
@@ -238,14 +227,17 @@ export default defineComponent({
       }
     },
     // 强制改密成功后再加载受保护的系统参数并进入系统（此时服务端已清除令牌的强制改密标记）
-    onChangePwdSuccess() {
-      this.$store.dispatch('user/login', this.formData);
+    async onChangePwdSuccess() {
+      await this.completeLogin();
+    },
+    async completeLogin() {
+      await this.$store.dispatch('user/login', this.formData);
+      await this.$store.dispatch('user/getUserInfo');
+      await this.$store.dispatch('permission/initRoutes', this.$store.getters['user/roles']);
       this.$store.dispatch('sysparams/fetchParams');
       this.$message.success(this.$t('login.login_success'));
-      setTimeout(() => {
-        const redirectUrl = getSafeRedirectUrl();
-        this.$router.replace(redirectUrl).catch(() => '');
-      }, 800);
+      await this.$nextTick();
+      await this.$router.replace(getSafeRedirectUrl());
     },
     handleCounter() {
       this.countDown = 60;

@@ -11,11 +11,11 @@
       :defaultExpanded="defaultExpanded"
     >
       <template #logo>
-        <span v-if="showLogo" :class="`${prefix}-side-nav-logo-wrapper`" @click="() => handleNav('/dashboard/base')">
+        <button v-if="showLogo" :class="`${prefix}-side-nav-logo-wrapper`" aria-label="HomeWaf 工作台" @click="() => handleNav('/dashboard/start')">
           <component :is="getLogo" :class="`${prefix}-side-nav-logo-${collapsed ? 't' : 'tdesign'}-logo`" />
-        </span>
+        </button>
       </template>
-      <menu-content :navData="menu" />
+      <workspace-nav :menu="menu" :collapsed="collapsed" />
       <template #operations>
         <!-- 版本号即“系统信息”入口：做成带图标的可点击块，避免用户看不出来能点 -->
         <hw-tooltip placement="top" :content="$t('common.system_info.tooltip')">
@@ -48,6 +48,7 @@ import LogoFull from '@/assets/assets-logo-full.svg';
 import { DeviceIcon } from '@/ui/icons';
 
 import MenuContent from './MenuContent.vue';
+import WorkspaceNav from './WorkspaceNav.vue';
 import SystemInfoDialog from './SystemInfoDialog.vue';
 import pgk from '../../../package.json';
 import { SysVersionApi } from '@/apis/sysinfo';
@@ -57,6 +58,7 @@ export default defineComponent({
   name: 'sideNav',
   components: {
     MenuContent,
+    WorkspaceNav,
     SystemInfoDialog,
     DeviceIcon,
   },
@@ -151,10 +153,10 @@ export default defineComponent({
   mounted() {
     this.autoCollapsed();
     this.loadversion()
-    window.onresize = () => {
-      this.autoCollapsed();
-    };
+    window.addEventListener('resize', this.autoCollapsed);
   },
+  unmounted() { window.removeEventListener('resize', this.autoCollapsed); },
+  watch: { $route() { if (window.innerWidth <= 760) this.$store.commit('setting/showSidebarCompact', true); } },
   methods: {
     changeCollapsed(): void {
       this.$store.commit('setting/toggleSidebarCompact');

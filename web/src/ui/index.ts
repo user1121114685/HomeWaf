@@ -813,17 +813,34 @@ export const MessagePlugin: any = Object.assign(
   ),
 );
 MessagePlugin.closeAll = () => E.ElMessage.closeAll();
+function openNotification(options: any) {
+  const content = options.content ?? options.message;
+  // Legacy render callbacks expect Vue's h argument. Element Plus invokes a
+  // message function as a slot, without that argument; forwarding it directly
+  // throws during the login notice render and interrupts subsequent navigation.
+  const renderPart = (value: any) => typeof value === 'function' ? value(h) : value;
+  const message = () => options.footer
+    ? h('div', [renderPart(content), renderPart(options.footer)])
+    : renderPart(content);
+  return E.ElNotification({
+    ...options,
+    title: options.title || '',
+    message,
+    position: options.position || options.placement || 'top-right',
+    showClose: options.showClose ?? options.closeBtn ?? true,
+  });
+}
 export const NotifyPlugin: any = Object.assign(
-  (options: any) =>
-    E.ElNotification({ ...options, title: options.title || '', message: options.content || options.message }),
+  openNotification,
   Object.fromEntries(
     ['success', 'error', 'warning', 'info'].map((kind) => [
       kind,
-      (options: any) =>
-        E.ElNotification({ type: kind as any, ...options, message: options.content || options.message }),
+      (options: any) => openNotification({ type: kind, ...options }),
     ]),
   ),
 );
+NotifyPlugin.close = (instance: any) => instance?.close?.();
+NotifyPlugin.closeAll = () => E.ElNotification.closeAll();
 function openDialog(options: any) {
   const state = reactive({ ...options, visible: true });
   const mount = document.createElement('div');

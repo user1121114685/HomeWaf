@@ -9,8 +9,9 @@ import "HomeWaf/model/common/request"
 // 组短码由后端自动生成，不接受前端传入：它只是内部引用键，
 // 让用户自定义既没有收益，还多一处唯一性冲突要处理。
 type WafIPGroupAddReq struct {
-	GroupName string `json:"group_name" binding:"required"` //组名称
-	Remarks   string `json:"remarks"`                       //备注
+	GroupName  string   `json:"group_name" binding:"required"` //组名称
+	Remarks    string   `json:"remarks"`                       //备注
+	InitialIPs []string `json:"initial_ips,omitempty"`         //可选，与IP组一起原子创建
 }
 
 type WafIPGroupEditReq struct {
