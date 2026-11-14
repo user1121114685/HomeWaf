@@ -6,14 +6,14 @@
     :class="['item-container', `login-${type}`]"
     :data="formData"
     :rules="FORM_RULES"
-    label-width="0"
+    layout="vertical"
     @submit="onSubmit"
   >
     <!-- 登录失败的原因就摆在表单上方（视线必经之路），不再飘到右上角去。
          同一时刻只留一条，新的覆盖旧的 -->
     <hw-alert v-if="loginError" theme="error" :message="loginError" class="login-error-tip" close @close="loginError = ''" />
     <template v-if="type == 'password'">
-      <hw-form-item name="lang">
+      <hw-form-item name="lang" :label="$t('common.language')">
         <hw-select  v-model="langValue"
                    placeholder="SelectLanguage"
                    @change="changeLangEvent"  size="large"  title="Select Language">
@@ -23,16 +23,17 @@
                      :value="item.value"/>
         </hw-select>
       </hw-form-item>
-      <hw-form-item name="account">
-        <hw-input v-model="formData.account" size="large" :placeholder="$t('login.input_account_placeholder')">
+      <hw-form-item name="account" :label="$t('page.account.login_account_label')">
+        <hw-input autocomplete="username" v-model="formData.account" size="large" :placeholder="$t('login.input_account_placeholder')">
           <template #prefix-icon>
             <user-icon />
           </template>
         </hw-input>
       </hw-form-item>
 
-      <hw-form-item name="password">
+      <hw-form-item name="password" :label="$t('page.account.login_password')">
         <hw-input
+          autocomplete="current-password"
           v-model="formData.password"
           size="large"
           :type="showPsw ? 'text' : 'password'"
@@ -44,12 +45,11 @@
             <lock-on-icon />
           </template>
           <template #suffix-icon>
-            <browse-icon v-if="showPsw" @click="showPsw = !showPsw" key="browse" />
-            <browse-off-icon v-else @click="showPsw = !showPsw" key="browse-off" />
+            <button type="button" class="login-password-toggle" :aria-label="showPsw ? '隐藏密码' : '显示密码'" :aria-pressed="showPsw" @click="showPsw = !showPsw"><browse-icon v-if="showPsw" /><browse-off-icon v-else /></button>
           </template>
         </hw-input>
       </hw-form-item>
-      <hw-form-item name="secretCode" v-if="showSecretCode">
+      <hw-form-item name="secretCode" v-if="showSecretCode" label="双因素验证码">
         <!-- 安全码是 2FA，不能被浏览器塞进登录口令；账号/密码框的自动填充保持不动 -->
         <hw-input v-model="formData.secret_code" size="large" :type="'password'"  clearable  autocomplete="one-time-code" :placeholder="$t('login.input_secret_code_placeholder')" >
           <template #prefix-icon>

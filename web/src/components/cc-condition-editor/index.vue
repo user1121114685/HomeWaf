@@ -391,7 +391,7 @@ export default defineComponent({
   position: absolute;
   left: -46px;
   top: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   border: 1px solid var(--td-component-border);
   border-radius: 2px;
@@ -437,7 +437,7 @@ export default defineComponent({
 }
 
 .cc-cond-hint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   margin-top: 6px;
 }

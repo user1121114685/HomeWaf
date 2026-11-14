@@ -76,7 +76,7 @@ function action(command: string, row: any) {
 }
 .service-card {
   border: 1px solid var(--el-border-color-light);
-  border-radius: 12px;
+  border-radius: var(--hw-r-lg);
   background: var(--el-bg-color);
   padding: 24px;
   min-width: 0;
@@ -100,7 +100,7 @@ function action(command: string, row: any) {
 .service-card header > div > span {
   font-size: 13px;
   color: var(--el-text-color-regular);
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 .service-card-icon {
   display: grid;

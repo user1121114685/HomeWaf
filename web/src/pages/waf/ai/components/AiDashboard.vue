@@ -59,7 +59,7 @@
 
 <script>
 import { MessagePlugin } from '@/ui';
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import { PieChart, BarChart, LineChart } from 'echarts/charts';
 import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -184,7 +184,7 @@ export default {
 <style scoped>
 .stat-num {
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
 }
 .stat-num.warn { color: #e37318; }

@@ -60,7 +60,7 @@
       <div class="th-impact" v-html="impactHtml"></div>
 
       <div class="th-tiers">
-        <div
+        <div role="button" tabindex="0" @keydown.enter.prevent="threshold = t.value" @keydown.space.prevent="threshold = t.value"
           v-for="t in tiers"
           :key="t.key"
           class="th-tier"
@@ -240,7 +240,7 @@ export default defineComponent({
 }
 
 .th-meta {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   margin-bottom: 8px;
 }
@@ -257,7 +257,7 @@ export default defineComponent({
   border-radius: var(--td-radius-default);
   background: var(--td-warning-color-1);
   color: var(--td-warning-color-7);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 
@@ -279,13 +279,13 @@ export default defineComponent({
   }
 
   .k {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
   }
 
   .v {
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 500;
     margin-top: 2px;
   }
 }
@@ -332,7 +332,7 @@ export default defineComponent({
   top: -20px;
   background: var(--td-error-color);
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   padding: 1px 6px;
   border-radius: 2px;
 }
@@ -342,7 +342,7 @@ export default defineComponent({
   left: 16px;
   right: 16px;
   bottom: 10px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   display: flex;
   justify-content: space-between;
@@ -378,12 +378,12 @@ export default defineComponent({
 
   .v {
     font-size: 22px;
-    font-weight: 600;
+    font-weight: 500;
     margin: 4px 0 2px;
   }
 
   .d {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
     line-height: 1.6;
   }

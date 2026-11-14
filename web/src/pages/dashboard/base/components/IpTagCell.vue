@@ -42,7 +42,7 @@
             </template>
           </div>
           <div class="ip-tag-pop__foot">
-            <span class="ip-tag-pop__link" @click="$emit('view-log', ip)">
+            <span role="button" tabindex="0" @keydown.enter.prevent="$emit('view-log', ip)" @keydown.space.prevent="$emit('view-log', ip)" class="ip-tag-pop__link" @click="$emit('view-log', ip)">
               {{ $t('dashboard.ip_rank.tag_view_log') }}
             </span>
           </div>
@@ -160,7 +160,7 @@ export default {
   height: 22px;
   padding: 0 8px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 22px;
   white-space: nowrap;
   overflow: hidden;
@@ -174,7 +174,7 @@ export default {
   border-radius: 3px;
   border: 1px dashed var(--td-component-border);
   color: var(--td-text-color-secondary);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 20px;
   font-variant-numeric: tabular-nums;
   cursor: default;
@@ -211,13 +211,13 @@ export default {
 
 .ip-tag-pop__ip {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .ip-tag-pop__sum {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   white-space: nowrap;
 }
@@ -233,8 +233,8 @@ export default {
   align-items: center;
   gap: 6px;
   padding: 7px 12px 4px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--td-text-color-placeholder);
 }
 
@@ -299,8 +299,8 @@ export default {
 }
 
 .ip-tag-pop__link {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--td-brand-color);
   cursor: pointer;
 

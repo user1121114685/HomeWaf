@@ -29,7 +29,7 @@
       </template>
       <template #rule_id="{ row }">
         <span v-if="row.rule_id">
-          <a class="rule-link" @click="goToRule(row.rule_id)">{{ row.rule_id }}</a>
+          <button type="button" class="rule-link" @click="goToRule(row.rule_id)">{{ row.rule_id }}</button>
         </span>
         <span v-else style="color:var(--td-text-color-placeholder)">-</span>
       </template>
@@ -170,8 +170,8 @@ export default defineComponent({
   &:hover { text-decoration: underline; }
 }
 .file-cell {
-  font-family: monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
   cursor: help;
 }
 </style>

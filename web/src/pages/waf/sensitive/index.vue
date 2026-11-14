@@ -65,8 +65,8 @@
             </p>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -81,22 +81,22 @@
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
 
           <hw-form-item :label="$t('page.sensitive.label_content')" name="content">
-            <hw-input :style="{ width: '480px' }" v-model="formData.content"  ></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.content"  ></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.sensitive.label_check_direction')" name="check_direction">
-            <hw-select v-model="formData.check_direction" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formData.check_direction" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in check_direction_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.sensitive.label_action')" name="action">
-            <hw-select v-model="formData.action" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formData.action" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in action_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks"   name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks"   name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -112,22 +112,22 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100">
          <hw-form-item :label="$t('page.sensitive.label_content')" name="content">
-           <hw-input :style="{ width: '480px' }" v-model="formEditData.content" ></hw-input>
+           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.content" ></hw-input>
          </hw-form-item>
           <hw-form-item :label="$t('page.sensitive.label_check_direction')" name="check_direction">
-            <hw-select v-model="formEditData.check_direction" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.check_direction" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in check_direction_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.sensitive.label_action')" name="action">
-            <hw-select v-model="formEditData.action" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.action" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in action_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks" name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">

@@ -8,7 +8,7 @@
       </hw-button>
       <hw-form-item :label="$t('page.rule.detail.relation')" name="relation_symbol"
                    v-if="localFormData.rule_condition.relation_detail.length > 1">
-        <hw-select clearable :style="{ width: '480px' }"
+        <hw-select clearable :style="{ width: 'min(100%, 480px)' }"
                   v-model="localFormData.rule_condition.relation_symbol"
                   @change="onFormChange">
           <hw-option v-for="(item, index) in relation_symbol_option" :value="item.value" :label="item.label" :key="index">
@@ -22,7 +22,7 @@
         <hw-row :gutter="{ xs: 8, sm: 12, md: 16, lg: 16, xl: 16, xxl: 16 }">
           <hw-col :span="5">
             <hw-form-item :label="$t('page.rule.detail.scope')" name="attr" :labelWidth="80">
-              <hw-select clearable :style="{ width: '200px' }" v-model="condition_item.attr"
+              <hw-select clearable :style="{ width: 'min(100%, 200px)' }" v-model="condition_item.attr"
                         @change="onAttrChange(condition_item)">
                 <hw-option
                   v-for="(item, index) in attr_option.filter(option => !option.value.toLowerCase().startsWith('get'))"
@@ -35,7 +35,7 @@
 
           <hw-col :span="5">
             <hw-form-item :label="$t('page.rule.detail.judgment')" name="attr_judge" :labelWidth="80">
-              <hw-select clearable :style="{ width: '200px' }" v-model="condition_item.attr_judge" @change="onAttrJudgeChange(condition_item)">
+              <hw-select clearable :style="{ width: 'min(100%, 200px)' }" v-model="condition_item.attr_judge" @change="onAttrJudgeChange(condition_item)">
                 <hw-option v-for="(item, index) in attr_judge_option" :value="item.value" :label="item.label" :key="index">
                   {{ item.label }}
                 </hw-option>
@@ -45,7 +45,7 @@
 
           <hw-col :span="5">
             <hw-form-item :label="$t('page.rule.detail.value')" name="att_val" :labelWidth="80">
-              <hw-input :style="{ width: '200px' }" :placeholder="$t('common.placeholder')"
+              <hw-input :style="{ width: 'min(100%, 200px)' }" :placeholder="$t('common.placeholder')"
                        v-model="condition_item.attr_val" @change="onFormChange" />
             </hw-form-item>
           </hw-col>
@@ -204,10 +204,10 @@ export default {
 
 <style scoped>
 .rule-example-code {
-  background: #f7f8fa;
+  background: var(--hw-subtle);
   padding: 12px;
   border-radius: 6px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   white-space: pre-wrap;
 }
 </style>

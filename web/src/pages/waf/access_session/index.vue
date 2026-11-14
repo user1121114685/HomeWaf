@@ -58,9 +58,9 @@
             <span>{{ [row.country, row.city].filter(Boolean).join(' ') || '-' }}</span>
           </template>
           <template #op="slotProps">
-            <a v-if="slotProps.row.status === 1" class="t-button-link" @click="handleKick(slotProps.row)">
+            <button type="button" v-if="slotProps.row.status === 1" class="t-button-link" @click="handleKick(slotProps.row)">
               {{ $t('page.access.session.button_kick') }}
-            </a>
+            </button>
             <span v-else>-</span>
           </template>
         </hw-table>

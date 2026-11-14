@@ -3,7 +3,7 @@
 </template>
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';

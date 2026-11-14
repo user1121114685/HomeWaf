@@ -33,21 +33,21 @@
             </div>
 
             <div class="facet-list">
-              <div class="facet-item facet-item--all" :class="{ 'is-active': attackSearchformData.rule === '' }"
+              <div role="button" tabindex="0" @keydown.enter.prevent="selectTag('')" @keydown.space.prevent="selectTag('')" class="facet-item facet-item--all" :class="{ 'is-active': attackSearchformData.rule === '' }"
                    @click="selectTag('')">
                 <span class="nm">{{ $t('page.attack_log.all_rules') }}</span>
                 <span class="badge">{{ formatCount(totalTagCount) }}</span>
               </div>
 
               <template :key="'g-' + group.name"  v-for="group in groupedTags">
-                <div  class="facet-group" :class="{ 'is-closed': isGroupClosed(group.name) }"
+                <div role="button" tabindex="0" @keydown.enter.prevent="toggleGroup(group.name)" @keydown.space.prevent="toggleGroup(group.name)"  class="facet-group" :class="{ 'is-closed': isGroupClosed(group.name) }"
                      @click="toggleGroup(group.name)">
                   <hw-icon class="caret" name="chevron-down" />
                   <span class="gname">{{ group.name }}</span>
                   <span class="gsum">{{ group.items.length }} · {{ formatCount(group.sum) }}</span>
                 </div>
                 <div v-if="!isGroupClosed(group.name)" :key="'b-' + group.name">
-                  <div v-for="item in group.items" :key="item.value" class="facet-item"
+                  <div role="button" tabindex="0" @keydown.enter.prevent="selectTag(item.value)" @keydown.space.prevent="selectTag(item.value)" v-for="item in group.items" :key="item.value" class="facet-item"
                        :class="{ 'is-active': attackSearchformData.rule === item.value }"
                        :title="item.value" @click="selectTag(item.value)">
                     <span class="nm">{{ item.short }}</span>
@@ -64,7 +64,7 @@
             <div class="facet-foot">
               <div class="foot-label">
                 <span>{{ $t('page.attack_log.iptag_db_title') }}</span>
-                <hw-tooltip :content="$t('page.attack_log.iptag_db_tip')" placement="top" :overlay-style="{ width: '280px' }" show-arrow>
+                <hw-tooltip :content="$t('page.attack_log.iptag_db_tip')" placement="top" :overlay-style="{ width: 'min(100%, 280px)' }" show-arrow>
                   <hw-icon name="help-circle" />
                 </hw-tooltip>
               </div>
@@ -147,12 +147,12 @@
               <template #ip="{ row }">
                 <!-- 点 IP 直接开归属查询：排查时最想知道的就是「这个IP现在被什么拦着」 -->
                 <hw-tooltip :content="$t('common.ip_lookup.click_tip')">
-                  <a class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</a>
+                  <button type="button" class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</button>
                 </hw-tooltip>
               </template>
               <template #op="slotProps">
-                <a class="t-button-link" @click="handleClickDetail(slotProps)">{{$t('common.details')}}</a>
-                <a class="t-button-link" style="margin-left: 8px" @click="openWatchDialog(slotProps.row)">{{ $t('page.visit_log.watch_add') }}</a>
+                <button type="button" class="t-button-link" @click="handleClickDetail(slotProps)">{{$t('common.details')}}</button>
+                <button type="button" class="t-button-link" style="margin-left: 8px" @click="openWatchDialog(slotProps.row)">{{ $t('page.visit_log.watch_add') }}</button>
               </template>
             </hw-table>
           </div>
@@ -237,7 +237,7 @@
         @page-change="onWatchPageChange" :empty="$t('page.visit_log.watch_empty')">
         <template #expire_at="{ row }">{{ formatWatchExpire(row.expire_at) }}</template>
         <template #op="{ row }">
-          <a class="t-button-link" @click="handleWatchRemove(row)">{{ $t('page.visit_log.watch_remove') }}</a>
+          <button type="button" class="t-button-link" @click="handleWatchRemove(row)">{{ $t('page.visit_log.watch_remove') }}</button>
         </template>
       </hw-table>
     </hw-dialog>
@@ -1055,7 +1055,7 @@ export default defineComponent({
   gap: 6px;
   margin-top: 2px;
   padding: 7px 6px 7px 2px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   cursor: pointer;
   user-select: none;
@@ -1081,7 +1081,7 @@ export default defineComponent({
 
   .gsum {
     margin-left: auto;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
     flex: none;
   }
@@ -1128,7 +1128,7 @@ export default defineComponent({
     flex: none;
     min-width: 20px;
     padding: 0 6px;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 18px;
     text-align: center;
     color: var(--td-text-color-secondary);
@@ -1154,7 +1154,7 @@ export default defineComponent({
 
 .facet-empty {
   padding: 16px 8px;
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
   color: var(--td-text-color-placeholder);
 }
@@ -1169,13 +1169,13 @@ export default defineComponent({
     align-items: center;
     gap: 4px;
     margin-bottom: 6px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-secondary);
   }
 
   .foot-hint {
     margin-top: 6px;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.6;
     color: var(--td-text-color-placeholder);
   }

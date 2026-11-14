@@ -16,12 +16,12 @@
           v-model="content"
           :autosize="{ minRows: 6, maxRows: 14 }"
           :placeholder="$t('page.one_key_mod.import_content_placeholder')"
-          style="width: 100%; max-width: 900px;"
+          style="width: 100%; max-width: min(100%, 900px);"
         />
       </hw-form-item>
 
       <hw-form-item v-else :label="$t('page.one_key_mod.import_dir')">
-        <hw-input v-model="scanPath" style="width: 480px;" :placeholder="$t('page.one_key_mod.import_dir_placeholder')" clearable />
+        <hw-input v-model="scanPath" style="width: min(100%, 480px);" :placeholder="$t('page.one_key_mod.import_dir_placeholder')" clearable />
       </hw-form-item>
 
       <hw-form-item>
@@ -42,7 +42,7 @@
             <hw-input v-model="batch.remote_ip" style="width: 140px;" />
           </span>
           <span>{{ $t('page.one_key_mod.import_bind_ssl') }}
-            <hw-select v-model="batch.bind_ssl_id" :filterable="true" clearable style="width: 240px;"
+            <hw-select v-model="batch.bind_ssl_id" :filterable="true" clearable style="width: min(100%, 240px);"
               :placeholder="$t('page.one_key_mod.import_bind_ssl_ph')">
               <hw-option v-for="item in sslConfigList" :key="item.id" :value="item.id"
                 :label="`${item.domains} (${item.valid_to})`" />

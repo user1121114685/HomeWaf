@@ -82,8 +82,8 @@
           </template>
 
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -666,7 +666,7 @@ export default defineComponent({
 }
 .chain-mode-desc {
   color: var(--td-text-color-secondary, #666);
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 6px;
   padding-left: 24px;
   line-height: 1.6;

@@ -1,0 +1,200 @@
+/* HomeWaf console: one palette, type scale and interaction system. */
+@font-face {
+  font-family: 'Geist';
+  src: url('../assets/fonts/Geist.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../assets/fonts/GeistMono.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+:root {
+  --p-bg: #eef0f3;
+  --p-surface: #e2e5ea;
+  --p-ink: #0b0c0e;
+  --p-muted: #5d6470;
+  --p-accent: #1f2de6;
+  --p-accent-ink: #ffffff;
+  --p-action: #1f2de6;
+  --p-action-ink: #ffffff;
+  --p-inv-bg: #0b0c0e;
+  --p-inv-surface: #17181a;
+  --p-inv-ink: #eef0f3;
+  --p-inv-muted: #8e8f92;
+  --p-inv-accent: #eef0f3;
+  --p-inv-accent-ink: #0b0c0e;
+  --p-inv-action: #eef0f3;
+  --p-inv-action-ink: #0b0c0e;
+  --font-display: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-text: 'Geist', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Geist Mono', 'SFMono-Regular', Consolas, monospace;
+  --display-weight: 500;
+  --display-tracking: -0.035em;
+  --display-tracking-xl: -0.045em;
+  --hw-canvas: var(--p-bg);
+  --hw-panel: #ffffff;
+  --hw-subtle: #f7f8fa;
+  --hw-ink: #161a23;
+  --hw-muted: #5d6470;
+  --hw-line: #dfe3e9;
+  --hw-accent: var(--p-action);
+  --hw-accent-soft: #eef0ff;
+  --hw-success: #14765b;
+  --hw-danger: #c13d45;
+  --hw-warning: #926019;
+  --hw-r-sm: 4px;
+  --hw-r-md: 6px;
+  --hw-r-lg: 8px;
+  --hw-space-1: 4px;
+  --hw-space-2: 8px;
+  --hw-space-3: 12px;
+  --hw-space-4: 16px;
+  --hw-space-6: 24px;
+  --hw-space-8: 32px;
+  --hw-space-12: 48px;
+  --hw-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --hw-shadow: 0 16px 48px rgb(20 30 50 / 12%);
+  --hw-gutter: 32px;
+  --hw-sidebar: 244px;
+  --el-font-family: var(--font-text);
+  --el-font-size-base: 14px;
+  --el-font-size-small: 13px;
+  --el-font-size-extra-small: 13px;
+  --el-font-weight-primary: 500;
+  --el-component-size: 40px;
+  --el-component-size-small: 32px;
+  --el-component-size-large: 44px;
+  --el-border-radius-base: var(--hw-r-sm);
+  --el-border-radius-small: var(--hw-r-sm);
+  --el-color-primary: var(--hw-accent);
+  --el-color-primary-rgb: 31, 45, 230;
+  --el-color-primary-dark-2: #1823b8;
+  --el-color-primary-light-3: #626ceb;
+  --el-color-primary-light-5: #8f96f3;
+  --el-color-primary-light-7: #bfc3f8;
+  --el-color-primary-light-8: #d7dafb;
+  --el-color-primary-light-9: var(--hw-accent-soft);
+  --el-color-success: var(--hw-success);
+  --el-color-success-light-9: #edf7f2;
+  --el-color-success-light-8: #d8ede3;
+  --el-color-danger: var(--hw-danger);
+  --el-color-danger-light-9: #fcf0f0;
+  --el-color-danger-light-8: #f4dbdd;
+  --el-color-warning: var(--hw-warning);
+  --el-color-warning-light-9: #fcf6e9;
+  --el-color-warning-light-8: #f2e6c9;
+  --el-color-info: var(--hw-muted);
+  --el-color-info-light-9: var(--hw-subtle);
+  --el-text-color-primary: var(--hw-ink);
+  --el-text-color-regular: var(--hw-muted);
+  --el-text-color-secondary: var(--hw-muted);
+  --el-text-color-placeholder: #737b88;
+  --el-border-color: var(--hw-line);
+  --el-border-color-light: var(--hw-line);
+  --el-border-color-lighter: #e9ecf1;
+  --el-fill-color-blank: var(--hw-panel);
+  --el-fill-color-light: var(--hw-subtle);
+  --el-fill-color-lighter: var(--hw-subtle);
+  --el-bg-color: var(--hw-panel);
+  --el-bg-color-page: var(--hw-canvas);
+  --el-bg-color-overlay: var(--hw-panel);
+  --el-box-shadow: var(--hw-shadow);
+  --el-box-shadow-light: 0 8px 32px rgb(20 30 50 / 10%);
+  --el-menu-active-color: var(--hw-accent);
+}
+html.dark {
+  color-scheme: dark;
+  --hw-canvas: #11151c;
+  --hw-panel: #191f29;
+  --hw-subtle: #202734;
+  --hw-ink: #e9edf4;
+  --hw-muted: #a4adbc;
+  --hw-line: #303947;
+  --hw-accent: #91a6ff;
+  --hw-accent-soft: #252f4a;
+  --hw-success: #79cbb0;
+  --hw-danger: #f19ba0;
+  --hw-warning: #e2bd79;
+  --el-color-primary: var(--hw-accent);
+  --el-color-primary-rgb: 145, 166, 255;
+  --el-color-primary-dark-2: #b3c1ff;
+  --el-color-primary-light-3: #6c80cc;
+  --el-color-primary-light-5: #4e5d94;
+  --el-color-primary-light-7: #374367;
+  --el-color-primary-light-8: #2c3653;
+  --el-color-primary-light-9: var(--hw-accent-soft);
+  --el-color-success: var(--hw-success);
+  --el-color-success-light-9: #1d352e;
+  --el-color-success-light-8: #28493f;
+  --el-color-danger: var(--hw-danger);
+  --el-color-danger-light-9: #39272e;
+  --el-color-danger-light-8: #513139;
+  --el-color-warning: var(--hw-warning);
+  --el-color-warning-light-9: #353022;
+  --el-color-warning-light-8: #49402a;
+  --el-color-info: var(--hw-muted);
+  --el-color-info-light-9: var(--hw-subtle);
+  --el-text-color-primary: var(--hw-ink);
+  --el-text-color-regular: var(--hw-muted);
+  --el-text-color-secondary: var(--hw-muted);
+  --el-text-color-placeholder: #969faf;
+  --el-border-color: var(--hw-line);
+  --el-border-color-light: var(--hw-line);
+  --el-border-color-lighter: #29313e;
+  --el-fill-color-blank: var(--hw-panel);
+  --el-fill-color-light: var(--hw-subtle);
+  --el-fill-color-lighter: var(--hw-subtle);
+  --el-bg-color: var(--hw-panel);
+  --el-bg-color-page: var(--hw-canvas);
+  --el-bg-color-overlay: var(--hw-panel);
+}
+html,
+body,
+#app {
+  min-height: 100%;
+}
+body {
+  color: var(--hw-ink);
+  background: var(--hw-canvas);
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+a {
+  margin-right: 0;
+}
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+[tabindex='0']:focus-visible {
+  outline: 2px solid var(--hw-accent);
+  outline-offset: 3px;
+}
+::selection {
+  background: var(--hw-accent-soft);
+  color: var(--hw-ink);
+}
+@media (max-width: 760px) {
+  :root {
+    --hw-gutter: 16px;
+    --el-component-size: 44px;
+    --el-component-size-small: 40px;
+  }
+}

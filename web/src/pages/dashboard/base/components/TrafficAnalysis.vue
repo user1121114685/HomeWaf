@@ -307,30 +307,30 @@ const dark = computed(() => store.getters['setting/mode'] === 'dark');
 const palette = computed(() =>
   dark.value
     ? {
-        visits: '#85c7eb',
-        allowed: '#89bdd7',
-        blocked: '#ef9471',
-        inbound: '#edc5a7',
-        outbound: '#a49bc4',
-        axis: '#918f8b',
-        grid: '#363534',
-        tooltip: '#343230',
-        border: '#51463e',
-        text: '#eee5de',
-        empty: '#3b3835',
+        visits: '#91a6ff',
+        allowed: '#79cbb0',
+        blocked: '#f19ba0',
+        inbound: '#75c1cf',
+        outbound: '#a4b9d4',
+        axis: '#a4adbc',
+        grid: '#303947',
+        tooltip: '#191f29',
+        border: '#303947',
+        text: '#e9edf4',
+        empty: '#202734',
       }
     : {
-        visits: '#3485b4',
-        allowed: '#3889b5',
-        blocked: '#c66c42',
-        inbound: '#b27b4e',
-        outbound: '#8875ac',
-        axis: '#687482',
-        grid: '#e4e8ee',
+        visits: '#1f2de6',
+        allowed: '#14765b',
+        blocked: '#c13d45',
+        inbound: '#177d8c',
+        outbound: '#526981',
+        axis: '#5d6470',
+        grid: '#dfe3e9',
         tooltip: '#ffffff',
-        border: '#dfe4eb',
-        text: '#263342',
-        empty: '#e4e8ee',
+        border: '#dfe3e9',
+        text: '#161a23',
+        empty: '#f7f8fa',
       },
 );
 const english = computed(() => store.state.language.currentLanguage === 'en_US');
@@ -564,14 +564,14 @@ function lineOption(series: number[], color: string, name: string) {
   return {
     animation: false,
     tooltip: tooltip.value,
-    grid: { top: 14, bottom: 24, left: 38, right: 10 },
+    grid: { top: 14, bottom: 28, left: 44, right: 12 },
     xAxis: {
       type: 'category',
       data: days.value.map((d) => d.slice(4, 6) + '-' + d.slice(6)),
       boundaryGap: series.length === 1,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: palette.value.axis, fontSize: 10, hideOverlap: true },
+      axisLabel: { color: palette.value.axis, fontSize: 13, hideOverlap: true },
     },
     yAxis: {
       type: 'value',
@@ -580,7 +580,7 @@ function lineOption(series: number[], color: string, name: string) {
       splitNumber: 3,
       axisLabel: {
         color: palette.value.axis,
-        fontSize: 10,
+        fontSize: 13,
         formatter: (n: number) => (n >= 1000 ? n / 1000 + 'k' : n),
       },
       splitLine: { lineStyle: { color: palette.value.grid } },
@@ -603,13 +603,13 @@ function lineOption(series: number[], color: string, name: string) {
 const qpsOption = computed(() => ({
   animation: false,
   tooltip: tooltip.value,
-  grid: { top: 8, bottom: 18, left: 8, right: 8 },
+  grid: { top: 8, bottom: 26, left: 8, right: 8 },
   xAxis: {
     type: 'category',
     data: (qps.value?.Points || []).map((p) => dayjs.unix(p.T).format('HH:mm:ss')),
     axisLine: { show: false },
     axisTick: { show: false },
-    axisLabel: { color: palette.value.axis, fontSize: 9, interval: 19, hideOverlap: true },
+    axisLabel: { color: palette.value.axis, fontSize: 13, interval: 19, hideOverlap: true },
   },
   yAxis: { type: 'value', min: 0, minInterval: 1, show: false },
   series: [

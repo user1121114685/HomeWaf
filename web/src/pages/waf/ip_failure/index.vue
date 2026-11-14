@@ -16,12 +16,12 @@
               :pagination="pagination" :loading="dataLoading" @page-change="rehandlePageChange">
               <template #ip="{ row }">
                 <hw-tooltip :content="$t('common.ip_lookup.click_tip')">
-                  <a class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</a>
+                  <button type="button" class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</button>
                 </hw-tooltip>
               </template>
               <template #op="slotProps">
-                <a class="t-button-link" @click="handleClickDetail(slotProps)">{{ $t('common.details') }}</a>
-                <a class="t-button-link" @click="handleClickUnban(slotProps)" style="margin-left: 8px;">{{ $t('page.ip_ban.failure_clear') }}</a>
+                <button type="button" class="t-button-link" @click="handleClickDetail(slotProps)">{{ $t('common.details') }}</button>
+                <button type="button" class="t-button-link" @click="handleClickUnban(slotProps)" style="margin-left: 8px;">{{ $t('page.ip_ban.failure_clear') }}</button>
               </template>
             </hw-table>
           </div>
@@ -33,11 +33,11 @@
                 <hw-switch v-model="formData.enabled" :customValue="[1, 0]"></hw-switch>
               </hw-form-item>
               <hw-form-item :label="$t('page.ip_failure.status_codes')" name="status_codes">
-                <hw-input v-model="formData.status_codes" :placeholder="$t('page.ip_failure.status_codes_placeholder')" :style="{ width: '480px' }"></hw-input>
+                <hw-input v-model="formData.status_codes" :placeholder="$t('page.ip_failure.status_codes_placeholder')" :style="{ width: 'min(100%, 480px)' }"></hw-input>
                 <div class="desc">{{ $t('page.ip_failure.status_codes_desc') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.ip_ban.failure_retention')" name="lock_time">
-                <hw-input-number v-model="formData.lock_time" :min="1" :style="{ width: '480px' }"></hw-input-number>
+                <hw-input-number v-model="formData.lock_time" :min="1" :style="{ width: 'min(100%, 480px)' }"></hw-input-number>
                 <span class="unit">{{ $t('common.unit_minute') }}</span>
                 <div class="desc">{{ $t('page.ip_ban.failure_retention_desc') }}</div>
               </hw-form-item>
@@ -266,7 +266,7 @@ export default defineComponent({
   margin: 0 0 20px;
 }
 .desc {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   margin-top: 4px;
 }
@@ -295,7 +295,7 @@ export default defineComponent({
 
     .example-title {
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 500;
     }
 
     .example-ops {
@@ -308,17 +308,17 @@ export default defineComponent({
     padding: 14px 16px;
     margin: 0;
     font-family: Consolas, "Courier New", monospace;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.7;
     color: var(--td-text-color-primary);
-    background: #fff;
+    background: var(--hw-panel);
     overflow-x: auto;
   }
 
   .example-foot {
     padding: 8px 16px 12px;
     color: var(--td-text-color-placeholder);
-    font-size: 12px;
+    font-size: 13px;
   }
 }
 .cfg-foot {

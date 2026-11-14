@@ -60,12 +60,12 @@ export default defineComponent({
   background: #1e1e1e;
   color: #d4d4d4;
   font-family: 'Courier New', monospace;
-  font-size: 12px;
+  font-size: 13px;
   height: 400px;
   overflow-y: auto;
   padding: 12px;
   border-radius: 4px;
 }
 .log-line { line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
-.log-empty { color: #888; text-align: center; margin-top: 180px; }
+.log-empty { color: var(--hw-muted); text-align: center; margin-top: 180px; }
 </style>

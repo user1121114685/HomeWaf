@@ -27,7 +27,6 @@ dist/
 /.cursor/
 /.claude/
 /.agents/
-/AGENTS.md
 /docs/openapi/
 /.data/
 
@@ -53,6 +52,7 @@ dist/
 
 /web/.cache/
 /web/.taste-skill/
+/.taste-skill/
 /.homewaf-keys/
 
 # Temporary migration and dependency audit reports belong in artifacts/ or .cache/.

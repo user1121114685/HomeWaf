@@ -22,15 +22,15 @@
     </hw-form-item>
     <hw-form-item v-if="local.check_ext === '1'" :label="$t('page.host.upload_security.ext_blacklist')">
       <hw-tooltip class="placement top center" :content="$t('page.host.upload_security.ext_blacklist_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-textarea v-model="local.ext_blacklist" :placeholder="$t('page.host.upload_security.ext_blacklist_ph')"
-                    :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: '480px' }" @blur="updateParent" />
+                    :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
       </hw-tooltip>
     </hw-form-item>
 
     <hw-form-item :label="$t('page.host.upload_security.check_content')">
       <hw-tooltip class="placement top center" :content="$t('page.host.upload_security.check_content_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-radio-group v-model="local.check_content" @change="updateParent">
           <hw-radio value="1">{{ $t('common.on') }}</hw-radio>
           <hw-radio value="0">{{ $t('common.off') }}</hw-radio>
@@ -40,7 +40,7 @@
 
     <hw-form-item :label="$t('page.host.upload_security.check_magic')">
       <hw-tooltip class="placement top center" :content="$t('page.host.upload_security.check_magic_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-radio-group v-model="local.check_magic" @change="updateParent">
           <hw-radio value="1">{{ $t('common.on') }}</hw-radio>
           <hw-radio value="0">{{ $t('common.off') }}</hw-radio>
@@ -56,13 +56,13 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.upload_security.max_size_kb')">
       <hw-tooltip class="placement top center" :content="$t('page.host.upload_security.max_size_kb_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-input-number v-model="local.max_size_kb" :min="1" :style="{ width: '180px' }" @change="updateParent" />
       </hw-tooltip>
     </hw-form-item>
     <hw-form-item :label="$t('page.host.upload_security.over_limit_action')">
       <hw-tooltip class="placement top center" :content="$t('page.host.upload_security.over_limit_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-radio-group v-model="local.over_limit_action" @change="updateParent">
           <hw-radio value="block">{{ $t('page.host.upload_security.over_limit_block') }}</hw-radio>
           <hw-radio value="pass">{{ $t('page.host.upload_security.over_limit_pass') }}</hw-radio>
@@ -72,16 +72,16 @@
 
     <hw-form-item :label="$t('page.host.upload_security.include_paths')">
       <hw-tooltip class="placement top center" :content="$t('page.host.upload_security.include_paths_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-textarea v-model="local.include_paths" :placeholder="$t('page.host.upload_security.include_paths_ph')"
-                    :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: '480px' }" @blur="updateParent" />
+                    :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
       </hw-tooltip>
     </hw-form-item>
     <hw-form-item :label="$t('page.host.upload_security.exclude_paths')">
       <hw-tooltip class="placement top center" :content="$t('page.host.upload_security.exclude_paths_tips')" placement="top"
-                 :overlay-style="{ width: '360px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 360px)' }" show-arrow>
         <hw-textarea v-model="local.exclude_paths" :placeholder="$t('page.host.upload_security.exclude_paths_ph')"
-                    :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: '480px' }" @blur="updateParent" />
+                    :autosize="{ minRows: 2, maxRows: 4 }" :style="{ width: 'min(100%, 480px)' }" @blur="updateParent" />
       </hw-tooltip>
     </hw-form-item>
   </div>

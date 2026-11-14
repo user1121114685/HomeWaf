@@ -341,5 +341,33 @@
     },
     "runtime_network": "Same-origin packaged map data and worker; no external tiles, glyphs or styles",
     "generator": "web/scripts/generate-screen-countries.mjs"
-  }
+  },
+  "console-fonts": [
+    {
+      "family": "Geist",
+      "file": "web/src/assets/fonts/Geist.woff2",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/geist/Geist%5Bwght%5D.ttf",
+      "sha256": "2ffebe993e969069a9789d15164b7715d42491b5835516c5e3b935d5f81b05f1",
+      "license": "OFL-1.1",
+      "license_file": "LICENSES/fonts/OFL-Geist.txt",
+      "modified": true,
+      "source_sha256": "73894e0448cae90a92b6c2f8732b7bb9acb7b94c418bff559dad4a18e1de9659",
+      "changes": [
+        "Lossless WOFF2 compression with fontTools 4.62.1; glyphs, Unicode mappings and font names retained."
+      ]
+    },
+    {
+      "family": "Geist Mono",
+      "file": "web/src/assets/fonts/GeistMono.woff2",
+      "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/geistmono/GeistMono%5Bwght%5D.ttf",
+      "sha256": "09853cd11045cf50e8ac07faf08bd5420f181b924f4c65b93b8ee49259a03734",
+      "license": "OFL-1.1",
+      "license_file": "LICENSES/fonts/OFL-GeistMono.txt",
+      "modified": true,
+      "source_sha256": "d00e590b8eb3a59acc329b2d044fd143ae935090b7da33199ebee27cc7de8196",
+      "changes": [
+        "Lossless WOFF2 compression with fontTools 4.62.1; glyphs, Unicode mappings and font names retained."
+      ]
+    }
+  ]
 }

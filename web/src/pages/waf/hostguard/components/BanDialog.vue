@@ -11,14 +11,14 @@
     <template #body><div >
       <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="110">
         <hw-form-item :label="$t('page.hostguard.col_ip')" name="ip">
-          <hw-input v-model="formData.ip" :style="{ width: '360px' }" />
+          <hw-input v-model="formData.ip" :style="{ width: 'min(100%, 360px)' }" />
         </hw-form-item>
         <hw-form-item :label="$t('page.hostguard.ban_minutes')" name="ban_minutes">
-          <hw-input-number v-model="formData.ban_minutes" :min="0" theme="column" :style="{ width: '360px' }" />
+          <hw-input-number v-model="formData.ban_minutes" :min="0" theme="column" :style="{ width: 'min(100%, 360px)' }" />
           <div class="desc">{{ $t('page.hostguard.ban_minutes_desc') }}</div>
         </hw-form-item>
         <hw-form-item :label="$t('page.hostguard.ban_reason')" name="reason">
-          <hw-input v-model="formData.reason" :style="{ width: '360px' }" />
+          <hw-input v-model="formData.reason" :style="{ width: 'min(100%, 360px)' }" />
         </hw-form-item>
         <hw-form-item style="float: right">
           <hw-button variant="outline" @click="onClose">{{ $t('common.close') }}</hw-button>
@@ -95,7 +95,7 @@ export default defineComponent({
 .desc {
   flex-basis: 100%;
   width: 100%;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   margin-top: 4px;
 }

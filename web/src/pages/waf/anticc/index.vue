@@ -11,7 +11,7 @@
             <hw-option v-for="g in hostGroups" :key="g.group_code" :value="g.group_code" :label="g.group_name" />
             <hw-option value="__none__" :label="$t('page.ccrule.filter_group_none')" />
           </hw-select>
-          <hw-select v-model="searchHostCode" :style="{ width: '260px', marginRight: '8px' }" filterable
+          <hw-select v-model="searchHostCode" :style="{ width: 'min(100%, 260px)', marginRight: '8px' }" filterable
             :placeholder="$t('page.ccrule.filter_host')" @change="onSearch">
             <hw-option :value="''" :label="$t('page.ccrule.filter_host_all')" />
             <hw-option v-for="h in filteredHosts" :key="h.value" :value="h.value" :label="h.label" />
@@ -35,7 +35,7 @@
 
       <div v-if="emergencyActive" class="cc-emg-banner">
         <span>{{ $t('page.ccrule.emg_banner', { n: emergencyList.length }) }}</span>
-        <a class="t-button-link" @click="emergencyVisible = true">{{ $t('page.ccrule.emg_banner_manage') }} ›</a>
+        <button type="button" class="t-button-link" @click="emergencyVisible = true">{{ $t('page.ccrule.emg_banner_manage') }} ›</button>
       </div>
 
       <hw-table :data="data" :columns="columns" row-key="id" vertical-align="top" :hover="true" :loading="dataLoading"
@@ -88,7 +88,7 @@
         </template>
 
         <template #hit_count="{ row }">
-          <a v-if="row.hit_count > 0" class="t-button-link cc-hit-num" @click="openHits(row)">{{ row.hit_count }}</a>
+          <button type="button" v-if="row.hit_count > 0" class="t-button-link cc-hit-num" @click="openHits(row)">{{ row.hit_count }}</button>
           <span v-else class="cc-hit-zero">0</span>
         </template>
 
@@ -97,16 +97,16 @@
         </template>
 
         <template #op="slotProps">
-          <a class="t-button-link" :class="{ 'is-disabled': !canMove(slotProps.row, -1) }"
+          <button type="button" class="t-button-link" :class="{ 'is-disabled': !canMove(slotProps.row, -1) }"
             :title="moveTip(slotProps.row, -1)" @click="onMove(slotProps.row, -1)">
             {{ $t('page.ccrule.move_up') }}
-          </a>
-          <a class="t-button-link" :class="{ 'is-disabled': !canMove(slotProps.row, 1) }"
+          </button>
+          <button type="button" class="t-button-link" :class="{ 'is-disabled': !canMove(slotProps.row, 1) }"
             :title="moveTip(slotProps.row, 1)" @click="onMove(slotProps.row, 1)">
             {{ $t('page.ccrule.move_down') }}
-          </a>
-          <a class="t-button-link" @click="onClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-          <a class="t-button-link" @click="onClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+          </button>
+          <button type="button" class="t-button-link" @click="onClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+          <button type="button" class="t-button-link" @click="onClickDelete(slotProps)">{{ $t('common.delete') }}</button>
         </template>
       </hw-table>
     </hw-card>
@@ -116,16 +116,16 @@
       <div style="max-height: 68vh; overflow-y: auto; padding-right: 8px">
         <hw-form ref="ruleForm" :data="formData" :rules="formRules" @submit="onSubmit" :labelWidth="130">
           <hw-form-item :label="$t('page.ccrule.label_host')" name="host_code">
-            <hw-select v-model="formData.host_code" :style="{ width: '480px' }" filterable
+            <hw-select v-model="formData.host_code" :style="{ width: 'min(100%, 480px)' }" filterable
               @change="loadFormCaptcha">
               <hw-option v-for="h in hosts" :key="h.value" :value="h.value" :label="h.label" />
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('page.ccrule.label_rule_name')" name="rule_name">
-            <hw-input v-model="formData.rule_name" :style="{ width: '480px' }" />
+            <hw-input v-model="formData.rule_name" :style="{ width: 'min(100%, 480px)' }" />
           </hw-form-item>
           <hw-form-item :label="$t('page.ccrule.label_priority')" name="priority">
-            <hw-input-number v-model="formData.priority" :min="1" :style="{ width: '200px' }" />
+            <hw-input-number v-model="formData.priority" :min="1" :style="{ width: 'min(100%, 200px)' }" />
             <template #help>{{ $t('page.ccrule.priority_hint') }}</template>
           </hw-form-item>
 
@@ -142,14 +142,14 @@
             <cc-condition-editor ref="condEditor" v-model="formData.conditions" />
           </hw-form-item>
           <hw-form-item v-if="formData.match_mode === 'expr'" :label="$t('page.ccrule.label_match_expr')">
-            <hw-textarea v-model="formData.match_expr" :rows="6" :style="{ width: '560px' }"
+            <hw-textarea v-model="formData.match_expr" :rows="6" :style="{ width: 'min(100%, 560px)' }"
               :placeholder="$t('page.ccrule.match_expr_placeholder')" />
             <template #help><span class="cc-warn">{{ $t('page.ccrule.match_expr_hint') }}</span></template>
           </hw-form-item>
 
           <hw-divider align="left">{{ $t('page.ccrule.section_count') }}</hw-divider>
           <hw-form-item :label="$t('page.ccrule.label_count_scope')">
-            <hw-select v-model="formData.count_scope" :style="{ width: '260px' }">
+            <hw-select v-model="formData.count_scope" :style="{ width: 'min(100%, 260px)' }">
               <hw-option value="dynamic" :label="$t('page.ccrule.scope_dynamic')" />
               <hw-option value="all" :label="$t('page.ccrule.scope_all')" />
               <hw-option value="document" :label="$t('page.ccrule.scope_document')" />
@@ -158,7 +158,7 @@
           </hw-form-item>
           <hw-form-item :label="$t('page.ccrule.label_stat_dim')">
             <div style="display: flex; gap: 10px">
-              <hw-select v-model="formData.stat_dim" :style="{ width: '260px' }" @change="onStatDimChange">
+              <hw-select v-model="formData.stat_dim" :style="{ width: 'min(100%, 260px)' }" @change="onStatDimChange">
                 <hw-option value="ip" :label="$t('page.ccrule.dim_ip')" />
                 <hw-option value="ip_uri" :label="$t('page.ccrule.dim_ip_uri')" />
                 <hw-option value="cookie" :label="$t('page.ccrule.dim_cookie')" />
@@ -166,7 +166,7 @@
                 <hw-option value="query" :label="$t('page.ccrule.dim_query')" />
                 <hw-option value="host_total" :label="$t('page.ccrule.dim_host_total')" />
               </hw-select>
-              <hw-input v-if="dimNeedsField" v-model="formData.stat_dim_field" :style="{ width: '200px' }"
+              <hw-input v-if="dimNeedsField" v-model="formData.stat_dim_field" :style="{ width: 'min(100%, 200px)' }"
                 :placeholder="$t('page.ccrule.dim_field_placeholder')" />
             </div>
             <template #help>
@@ -180,11 +180,11 @@
 
           <hw-divider align="left">{{ $t('page.ccrule.section_threshold') }}</hw-divider>
           <hw-form-item :label="$t('page.ccrule.label_window')" name="window_sec">
-            <hw-input-number v-model="formData.window_sec" :min="1" :max="86400" :style="{ width: '200px' }" />
+            <hw-input-number v-model="formData.window_sec" :min="1" :max="86400" :style="{ width: 'min(100%, 200px)' }" />
             <span class="cc-unit">{{ $t('page.ccrule.unit_second') }}</span>
           </hw-form-item>
           <hw-form-item :label="$t('page.ccrule.label_threshold')" name="threshold">
-            <hw-input-number v-model="formData.threshold" :min="1" :style="{ width: '200px' }" />
+            <hw-input-number v-model="formData.threshold" :min="1" :style="{ width: 'min(100%, 200px)' }" />
             <span class="cc-unit">{{ $t('page.ccrule.unit_times') }}</span>
             <hw-button variant="outline" size="small" style="margin-left: 10px"
               :disabled="!formData.host_code" @click="openThreshold">
@@ -195,13 +195,13 @@
             </template>
           </hw-form-item>
           <hw-form-item :label="$t('page.ccrule.label_burst')">
-            <hw-input-number v-model="formData.burst" :min="0" :style="{ width: '200px' }" />
+            <hw-input-number v-model="formData.burst" :min="0" :style="{ width: 'min(100%, 200px)' }" />
             <span class="cc-unit">{{ $t('page.ccrule.unit_times') }}</span>
             <template #help>{{ $t('page.ccrule.burst_hint') }}</template>
           </hw-form-item>
           <!-- 限流算法只对存量配置显示：新建一律用滑动窗口，避免又多一个要解释的概念 -->
           <hw-form-item v-if="formData.algo === 'token_bucket'" :label="$t('page.ccrule.label_algo')">
-            <hw-select v-model="formData.algo" :style="{ width: '260px' }">
+            <hw-select v-model="formData.algo" :style="{ width: 'min(100%, 260px)' }">
               <hw-option value="token_bucket" :label="$t('page.ccrule.algo_token_bucket_full')" />
               <hw-option value="window" :label="$t('page.ccrule.algo_window_full')" />
             </hw-select>
@@ -214,7 +214,7 @@
                  自定义规则放行三道闸，下面还有站点「仅记录模式」会把它降级，一次讲清楚 -->
             <template #label>
               <span>{{ $t('page.ccrule.label_action') }}</span>
-              <hw-popup trigger="click" placement="right-start" :overlay-style="{ width: '580px' }" show-arrow>
+              <hw-popup trigger="click" placement="right-start" :overlay-style="{ width: 'min(100%, 580px)' }" show-arrow>
                 <hw-icon name="help-circle" class="cc-help-icon" />
                 <template #content>
                   <div class="cc-prio">
@@ -229,7 +229,7 @@
                 </template>
               </hw-popup>
             </template>
-            <hw-select v-model="formData.action" :style="{ width: '260px' }">
+            <hw-select v-model="formData.action" :style="{ width: 'min(100%, 260px)' }">
               <hw-option value="captcha" :label="$t('page.ccrule.action_captcha')" />
               <hw-option value="observe" :label="$t('page.ccrule.action_observe')" />
               <hw-option value="deny" :label="$t('page.ccrule.action_deny')" />
@@ -238,7 +238,7 @@
             <template #help>{{ $t('page.ccrule.action_hint') }}</template>
           </hw-form-item>
           <hw-form-item v-if="formData.action !== 'observe'" :label="$t('page.ccrule.label_action_seconds')">
-            <hw-input-number v-model="formData.action_seconds" :min="1" :style="{ width: '200px' }" />
+            <hw-input-number v-model="formData.action_seconds" :min="1" :style="{ width: 'min(100%, 200px)' }" />
             <span class="cc-unit">{{ $t('page.ccrule.unit_second') }}</span>
             <template #help>{{ actionSecondsHint }}</template>
           </hw-form-item>
@@ -246,9 +246,9 @@
             <div class="cc-captcha-box">
               <div class="cc-captcha-top">
                 <span>{{ isGlobalRuleHost ? $t('page.ccrule.captcha_box_title_global') : $t('page.ccrule.captcha_box_title') }}</span>
-                <a class="t-button-link" @click="goCaptchaSetting()">
+                <button type="button" class="t-button-link" @click="goCaptchaSetting()">
                   {{ isGlobalRuleHost ? $t('page.ccrule.captcha_box_goto_hosts') : $t('page.ccrule.captcha_box_goto') }} ›
-                </a>
+                </button>
               </div>
 
               <!-- 全局规则没有单一站点可看：人机验证的配置落在各站点上，引擎按被访问的那个站点判定 -->
@@ -262,7 +262,7 @@
                 <div v-for="s in formCaptchaSites" :key="s.host_code" class="cc-captcha-site">
                   <span class="n" :title="s.host_name">{{ s.host_name || s.host_code }}</span>
                   <span class="p">{{ sitePathsText(s) }}</span>
-                  <a class="t-button-link" @click="goCaptchaSetting(s.host_code)">{{ $t('page.ccrule.captcha_box_goto') }} ›</a>
+                  <button type="button" class="t-button-link" @click="goCaptchaSetting(s.host_code)">{{ $t('page.ccrule.captcha_box_goto') }} ›</button>
                 </div>
                 <!-- form-help-check-ignore 在定宽的 cc-captcha-box 内部，不参与表单行的 flex 争抢 -->
                 <div v-if="captchaSiteConflicts.length" class="cc-captcha-warn">
@@ -294,7 +294,7 @@
             <template #help>{{ $t('page.ccrule.bot_exempt_hint') }}</template>
           </hw-form-item>
           <hw-form-item v-if="formData.action === 'ban'" :label="$t('page.ccrule.label_ban_scope')">
-            <hw-select v-model="formData.ban_scope" :style="{ width: '260px' }">
+            <hw-select v-model="formData.ban_scope" :style="{ width: 'min(100%, 260px)' }">
               <hw-option value="host" :label="$t('page.ccrule.ban_scope_host')" />
               <hw-option value="global" :label="$t('page.ccrule.ban_scope_global')" />
             </hw-select>
@@ -308,7 +308,7 @@
             <hw-switch v-model="formData.is_enable" :custom-value="[1, 0]" />
           </hw-form-item>
           <hw-form-item :label="$t('page.ccrule.label_remarks')">
-            <hw-textarea v-model="formData.remarks" :rows="2" :style="{ width: '480px' }" />
+            <hw-textarea v-model="formData.remarks" :rows="2" :style="{ width: 'min(100%, 480px)' }" />
           </hw-form-item>
 
           <hw-form-item :label="$t('page.ccrule.label_preview')">
@@ -937,7 +937,7 @@ export default defineComponent({
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 10px;
 }
 
@@ -960,7 +960,7 @@ export default defineComponent({
 }
 
 .cc-captcha-note {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--td-text-color-secondary);
   margin-bottom: 10px;
@@ -990,7 +990,7 @@ export default defineComponent({
 
   .t-button-link {
     flex: none;
-    font-size: 12px;
+    font-size: 13px;
     margin-right: 0;
   }
 }
@@ -998,7 +998,7 @@ export default defineComponent({
   margin-top: 10px;
   padding: 8px 10px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--td-warning-color-7);
   background: var(--td-warning-color-1);
@@ -1009,7 +1009,7 @@ export default defineComponent({
 .cc-rule-code {
   margin-top: 2px;
   font-family: Consolas, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 
@@ -1024,13 +1024,13 @@ export default defineComponent({
 }
 
 .cc-order-tip {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   line-height: 32px;
 }
 
 .cc-sub-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   margin-top: 2px;
 }
@@ -1108,7 +1108,7 @@ export default defineComponent({
 }
 
 .cc-prio-title {
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 6px;
 }
 
@@ -1124,7 +1124,7 @@ export default defineComponent({
     line-height: 20px;
     text-align: center;
     border-radius: 50%;
-    font-size: 11px;
+    font-size: 13px;
     background: var(--td-bg-color-secondarycontainer);
     color: var(--td-text-color-secondary);
   }
@@ -1141,12 +1141,12 @@ export default defineComponent({
   border-radius: var(--td-radius-default);
   background: var(--td-warning-color-1);
   color: var(--td-text-color-primary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 
 .cc-hit-num {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .cc-hit-zero {

@@ -124,13 +124,13 @@
         <hw-tag v-else theme="default" variant="light">{{ row.state }}</hw-tag>
       </template>
       <template #op="{ row }">
-        <a
+        <button type="button"
           v-if="row.remote_ip && !row.banned"
           class="t-button-link"
           @click="handleBlock(row)"
         >
           {{ $t('page.hostconn.op_block') }}
-        </a>
+        </button>
         <span v-else class="op-disabled">-</span>
       </template>
     </hw-table>
@@ -275,7 +275,7 @@ export default defineComponent({
   }
   .stat-value {
     font-size: 22px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary);
     &.stat-active {
       color: #52c41a;
@@ -288,13 +288,13 @@ export default defineComponent({
     }
   }
   .stat-hint {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
     margin-top: 4px;
   }
 }
 .guard-port {
-  font-weight: 600;
+  font-weight: 500;
   color: #e37318;
 }
 .op-disabled {

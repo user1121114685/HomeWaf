@@ -1,77 +1,500 @@
 <template>
   <div class="pipeline-page" data-testid="pipeline-page">
-    <header class="page-heading"><div><div class="service-eyebrow">连接与防护</div><h1>{{ page === 'ports' ? '服务接入' : '策略模板' }}</h1><p>{{ page === 'ports' ? '把网站、NAS 和设备接入 HomeWaf，按服务管理防护。' : '选择已有场景配置，保存自己的可复用策略。' }}</p></div><div class="heading-actions"><ElButton :loading="busy" @click="refresh">刷新状态</ElButton><ElButton type="primary" :disabled="!templates.length || busy" @click="create">接入服务<ArrowRight class="button-icon" aria-hidden="true" /></ElButton></div></header>
-    <div v-if="savedService" class="saved-service" role="status"><div><strong>{{ savedService.name || '服务' }}的配置已保存</strong><p>{{ savedService.policy.gate.require_token ? '下一步：配置服务令牌，然后启用监听。' : '下一步：启用服务，再将实际访问指向 HomeWaf 的新入口。' }}</p></div><ElButton type="primary" plain @click="savedService.policy.gate.require_token ? editToken(savedService) : openEnable({ config: savedService })">{{ savedService.policy.gate.require_token ? '配置服务令牌' : '继续启用服务' }}</ElButton><ElButton text @click="savedService = null">收起提示</ElButton></div>
+    <div class="pipeline-actions">
+      <span class="muted">{{ page === 'ports' ? '按服务管理连接、访问与防护' : '内置场景与自定义策略' }}</span>
+      <div class="heading-actions">
+        <ElButton :loading="busy" @click="refresh">刷新状态</ElButton
+        ><ElButton v-if="page === 'ports'" type="primary" :disabled="!templates.length || busy" @click="create"
+          >接入服务<ArrowRight class="button-icon" aria-hidden="true"
+        /></ElButton>
+      </div>
+    </div>
+    <div v-if="savedService" class="saved-service" role="status">
+      <div>
+        <strong>{{ savedService.name || '服务' }}的配置已保存</strong>
+        <p>
+          {{
+            savedService.policy.gate.require_token
+              ? '下一步：配置服务令牌，然后启用监听。'
+              : '下一步：启用服务，再将实际访问指向 HomeWaf 的新入口。'
+          }}
+        </p>
+      </div>
+      <ElButton
+        type="primary"
+        plain
+        @click="savedService.policy.gate.require_token ? editToken(savedService) : openEnable({ config: savedService })"
+        >{{ savedService.policy.gate.require_token ? '配置服务令牌' : '继续启用服务' }}</ElButton
+      ><ElButton text @click="savedService = null">收起提示</ElButton>
+    </div>
     <ElAlert v-if="error" :title="error" type="error" :closable="false" class="space" />
-    <ElAlert v-for="(issue, port) in overview.issues" :key="port" :title="`端口 ${port}：${issue}`" type="warning" :closable="false" class="space" />
-    <ElTabs v-model="page" @tab-change="changePage"><ElTabPane label="我的服务" name="ports" /><ElTabPane label="模板管理" name="templates" /></ElTabs>
+    <ElAlert
+      v-for="(issue, port) in overview.issues"
+      :key="port"
+      :title="`端口 ${port}：${issue}`"
+      type="warning"
+      :closable="false"
+      class="space"
+    />
+    <ElTabs v-model="page" @tab-change="changePage"
+      ><ElTabPane label="我的服务" name="ports" /><ElTabPane label="模板管理" name="templates"
+    /></ElTabs>
     <div v-if="!loaded && busy" class="service-loading" role="status">正在读取服务配置…</div>
     <template v-if="page === 'ports' && loaded">
-      <div class="service-toolbar" v-if="overview.ports.length"><label class="service-search"><Search aria-hidden="true" /><input v-model="search" placeholder="搜索名称、地址或端口" aria-label="搜索服务" /></label><span class="service-count">{{ filteredPorts.length }} 个服务</span><ElButton :aria-pressed="tableView" @click="tableView = !tableView">{{ tableView ? '卡片视图' : '表格与批量管理' }}</ElButton></div>
-      <div v-if="!overview.ports.length" class="service-empty"><Connection aria-hidden="true" /><h2>接入你的第一个服务</h2><p>选一个场景，填写现在使用的服务地址。端口和策略会自动带入，检查后再启用。</p><ol><li>选择服务场景</li><li>填写服务地址</li><li>检查并保存</li></ol><ElButton type="primary" :disabled="!templates.length || busy" @click="create">开始接入服务<ArrowRight class="button-icon" aria-hidden="true" /></ElButton><span>原有站点可通过下方的迁移入口接入。</span></div>
-      <p v-else-if="!filteredPorts.length" class="service-no-results">没有找到匹配的服务。<ElButton text type="primary" @click="search = ''">清除搜索</ElButton></p>
-      <ServiceCards v-if="!tableView" :rows="filteredPorts" @edit="edit" @honeypot="editHoneypot" @enable="openEnable" @inspect="inspect" @copy="copy" @template="saveAsTemplate" @stop="stop" @remove="remove" />
+      <div class="service-toolbar" v-if="overview.ports.length">
+        <label class="service-search"
+          ><Search aria-hidden="true" /><input
+            v-model="search"
+            placeholder="搜索名称、地址或端口"
+            aria-label="搜索服务" /></label
+        ><span class="service-count">{{ filteredPorts.length }} 个服务</span
+        ><ElButton :aria-pressed="tableView" @click="tableView = !tableView">{{
+          tableView ? '卡片视图' : '表格与批量管理'
+        }}</ElButton>
+      </div>
+      <div v-if="!overview.ports.length" class="service-empty">
+        <Connection aria-hidden="true" />
+        <h2>接入你的第一个服务</h2>
+        <p>选一个场景，填写现在使用的服务地址。端口和策略会自动带入，检查后再启用。</p>
+        <ol>
+          <li>选择服务场景</li>
+          <li>填写服务地址</li>
+          <li>检查并保存</li>
+        </ol>
+        <ElButton type="primary" :disabled="!templates.length || busy" @click="create"
+          >开始接入服务<ArrowRight class="button-icon" aria-hidden="true" /></ElButton
+        ><span>原有站点可通过下方的迁移入口接入。</span>
+      </div>
+      <p v-else-if="!filteredPorts.length" class="service-no-results">
+        没有找到匹配的服务。<ElButton text type="primary" @click="search = ''">清除搜索</ElButton>
+      </p>
+      <ServiceCards
+        v-if="!tableView"
+        :rows="filteredPorts"
+        @edit="edit"
+        @honeypot="editHoneypot"
+        @enable="openEnable"
+        @inspect="inspect"
+        @copy="copy"
+        @template="saveAsTemplate"
+        @stop="stop"
+        @remove="remove"
+      />
       <ElCard v-if="tableView && overview.ports.length" shadow="never">
-        <div class="table-toolbar"><span>已选 {{ selected.length }} 个端口</span><ElButton :disabled="!selected.length" @click="openBatch">批量应用模板</ElButton><ElButton :disabled="!selected.length" @click="batchListening(true)">批量启用</ElButton><ElButton :disabled="!selected.length" @click="batchListening(false)">批量停止</ElButton><ElButton :disabled="!selected.length" @click="batchExport">批量导出模板</ElButton></div>
-        <ElTable ref="portsTable" :data="filteredPorts" :row-key="portKey" stripe @selection-change="selected = $event" data-testid="ports-table">
-          <ElTableColumn type="selection" width="42" reserve-selection /><ElTableColumn label="端口 / 名称" min-width="145"><template #default="{ row }"><strong>{{ row.config.protocol.toUpperCase() }} :{{ row.config.port }}</strong><small>{{ row.config.name || '未命名' }}</small><ElTag v-if="row.listener?.error" type="danger" size="small">监听错误</ElTag></template></ElTableColumn>
-          <ElTableColumn label="上游 / 模板" min-width="215"><template #default="{ row }"><span class="break">{{ row.config.upstream }}</span><small>{{ templateName(row.config.template?.id) }} · v{{ row.config.template?.version || '—' }}</small></template></ElTableColumn>
-          <ElTableColumn label="监听" width="105"><template #default="{ row }"><ElTag :type="row.listener?.running ? 'success' : 'info'">{{ row.listener?.running ? '运行中' : '未监听' }}</ElTag></template></ElTableColumn>
-          <ElTableColumn label="访问 / 登录门" width="115"><template #default="{ row }"><div>{{ row.config.policy.access.enabled ? '允许访问' : '访问关闭' }}</div><small>{{ row.config.policy.gate.enabled ? row.config.policy.gate.mode + ' 登录门' : '无登录门' }}</small></template></ElTableColumn>
-          <ElTableColumn label="今日命中 / 拦截" width="130"><template #default="{ row }">{{ row.stats?.today_hits || 0 }} / {{ row.stats?.today_denied || 0 }}</template></ElTableColumn>
-          <ElTableColumn label="自动状态" width="125"><template #default="{ row }"><span>封禁 {{ row.ban_count || 0 }}</span><small>蜜罐 {{ row.honeypot_count || 0 }}</small><ElTag v-if="row.locked" type="danger" size="small">本端口已锁定</ElTag></template></ElTableColumn>
-          <ElTableColumn label="操作" min-width="300" :fixed="isMobile ? false : 'right'"><template #default="{ row }"><ElButton link type="primary" @click="edit(row.config)">配置</ElButton><ElButton link @click="editHoneypot(row.config)">蜜罐设置</ElButton><ElButton link @click="inspect(row)">状态 / trace</ElButton><ElButton link @click="copy(row.config)">复制</ElButton><ElButton link @click="saveAsTemplate(row.config)">存为模板</ElButton><ElButton v-if="!row.config.listen_enabled" link type="success" @click="openEnable(row)">启用</ElButton><ElButton v-else link type="warning" @click="stop(row)">停止</ElButton><ElButton link type="danger" :disabled="row.config.listen_enabled" @click="remove(row)">删除</ElButton></template></ElTableColumn>
+        <div class="table-toolbar">
+          <span>已选 {{ selected.length }} 个端口</span
+          ><ElButton :disabled="!selected.length" @click="openBatch">批量应用模板</ElButton
+          ><ElButton :disabled="!selected.length" @click="batchListening(true)">批量启用</ElButton
+          ><ElButton :disabled="!selected.length" @click="batchListening(false)">批量停止</ElButton
+          ><ElButton :disabled="!selected.length" @click="batchExport">批量导出模板</ElButton>
+        </div>
+        <ElTable
+          ref="portsTable"
+          :data="filteredPorts"
+          :row-key="portKey"
+          stripe
+          @selection-change="selected = $event"
+          data-testid="ports-table"
+        >
+          <ElTableColumn type="selection" width="42" reserve-selection /><ElTableColumn
+            label="端口 / 名称"
+            min-width="145"
+            ><template #default="{ row }"
+              ><strong>{{ row.config.protocol.toUpperCase() }} :{{ row.config.port }}</strong
+              ><small>{{ row.config.name || '未命名' }}</small
+              ><ElTag v-if="row.listener?.error" type="danger" size="small">监听错误</ElTag></template
+            ></ElTableColumn
+          >
+          <ElTableColumn label="上游 / 模板" min-width="215"
+            ><template #default="{ row }"
+              ><span class="break">{{ row.config.upstream }}</span
+              ><small
+                >{{ templateName(row.config.template?.id) }} · v{{ row.config.template?.version || '—' }}</small
+              ></template
+            ></ElTableColumn
+          >
+          <ElTableColumn label="监听" width="105"
+            ><template #default="{ row }"
+              ><ElTag :type="row.listener?.running ? 'success' : 'info'">{{
+                row.listener?.running ? '运行中' : '未监听'
+              }}</ElTag></template
+            ></ElTableColumn
+          >
+          <ElTableColumn label="访问 / 登录门" width="115"
+            ><template #default="{ row }"
+              ><div>{{ row.config.policy.access.enabled ? '允许访问' : '访问关闭' }}</div>
+              <small>{{
+                row.config.policy.gate.enabled ? row.config.policy.gate.mode + ' 登录门' : '无登录门'
+              }}</small></template
+            ></ElTableColumn
+          >
+          <ElTableColumn label="今日命中 / 拦截" width="130"
+            ><template #default="{ row }"
+              >{{ row.stats?.today_hits || 0 }} / {{ row.stats?.today_denied || 0 }}</template
+            ></ElTableColumn
+          >
+          <ElTableColumn label="自动状态" width="125"
+            ><template #default="{ row }"
+              ><span>封禁 {{ row.ban_count || 0 }}</span
+              ><small>蜜罐 {{ row.honeypot_count || 0 }}</small
+              ><ElTag v-if="row.locked" type="danger" size="small">本端口已锁定</ElTag></template
+            ></ElTableColumn
+          >
+          <ElTableColumn label="操作" min-width="300" :fixed="isMobile ? false : 'right'"
+            ><template #default="{ row }"
+              ><ElButton link type="primary" @click="edit(row.config)">配置</ElButton
+              ><ElButton link @click="editHoneypot(row.config)">蜜罐设置</ElButton
+              ><ElButton link @click="inspect(row)">状态 / trace</ElButton
+              ><ElButton link @click="copy(row.config)">复制</ElButton
+              ><ElButton link @click="saveAsTemplate(row.config)">存为模板</ElButton
+              ><ElButton v-if="!row.config.listen_enabled" link type="success" @click="openEnable(row)">启用</ElButton
+              ><ElButton v-else link type="warning" @click="stop(row)">停止</ElButton
+              ><ElButton link type="danger" :disabled="row.config.listen_enabled" @click="remove(row)"
+                >删除</ElButton
+              ></template
+            ></ElTableColumn
+          >
           <template #empty><p>尚无独立端口。可新建端口，或在下方将现有业务迁入五步配置。</p></template>
         </ElTable>
-        <p class="muted">今日计数按服务器本地日期重置，每2秒持久化；异常掉电可能丢失尚未落盘的增量。封禁数含共享记录，trusted仍可豁免。</p>
+        <p class="muted">
+          今日计数按服务器本地日期重置，每2秒持久化；异常掉电可能丢失尚未落盘的增量。封禁数含共享记录，trusted仍可豁免。
+        </p>
       </ElCard>
-      <details class="advanced-service-tools"><summary>高级工具与运行指标</summary><ElButton @click="openFeed">签名威胁订阅</ElButton><div class="resource-summary"><span>处罚队列：{{ overview.punishment?.queued || 0 }} / {{ overview.punishment?.capacity || 4096 }}</span><span>事件丢弃：{{ dropped(overview.punishment) }}</span><span>日志队列：{{ overview.log_queue?.queued || 0 }} / {{ overview.log_queue?.capacity || 8192 }}</span><span>日志丢弃：{{ dropped(overview.log_queue) }}</span></div></details>
+      <details class="advanced-service-tools">
+        <summary>高级工具与运行指标</summary>
+        <ElButton @click="openFeed">签名威胁订阅</ElButton>
+        <div class="resource-summary">
+          <span>处罚队列：{{ overview.punishment?.queued || 0 }} / {{ overview.punishment?.capacity || 4096 }}</span
+          ><span>事件丢弃：{{ dropped(overview.punishment) }}</span
+          ><span>日志队列：{{ overview.log_queue?.queued || 0 }} / {{ overview.log_queue?.capacity || 8192 }}</span
+          ><span>日志丢弃：{{ dropped(overview.log_queue) }}</span>
+        </div>
+      </details>
       <ElAlert v-if="legacyError" :title="legacyError" type="warning" :closable="false" class="space" />
       <LegacyMigration :sources="legacyPorts" @imported="refresh" />
     </template>
     <template v-else-if="page === 'templates' && loaded">
-      <div class="table-toolbar"><ElButton type="primary" @click="importTemplate">导入JSON</ElButton><p class="muted">内置模板只读。应用即复制，后续修改模板不会自动改变已应用端口。模板不含凭据、手动IP或可信代理。</p></div>
-      <div class="template-grid"><ElCard v-for="tpl in templates" :key="tpl.id" shadow="never"><template #header><strong>{{ tpl.name }}</strong><ElTag size="small" class="template-badge">{{ tpl.builtin ? '内置只读' : '用户模板' }} · v{{ tpl.version }}</ElTag></template><p>{{ templateHint(tpl) }}</p><small>ID：{{ tpl.id }} · schema {{ tpl.schema_version }}</small><div class="space"><ElButton @click="templateDetails(tpl)">{{ tpl.builtin ? '查看 / 另存为' : '编辑 / 重命名' }}</ElButton><ElButton @click="downloadTemplate(tpl)">导出</ElButton><ElButton v-if="!tpl.builtin" type="danger" plain @click="deleteTemplate(tpl)">删除</ElButton></div></ElCard></div>
+      <div class="table-toolbar">
+        <ElButton type="primary" @click="importTemplate">导入JSON</ElButton>
+        <p class="muted">
+          内置模板只读。应用即复制，后续修改模板不会自动改变已应用端口。模板不含凭据、手动IP或可信代理。
+        </p>
+      </div>
+      <div class="template-grid">
+        <ElCard v-for="tpl in templates" :key="tpl.id" shadow="never"
+          ><template #header
+            ><strong>{{ tpl.name }}</strong
+            ><ElTag size="small" class="template-badge"
+              >{{ tpl.builtin ? '内置只读' : '用户模板' }} · v{{ tpl.version }}</ElTag
+            ></template
+          >
+          <p>{{ templateHint(tpl) }}</p>
+          <small>ID：{{ tpl.id }} · schema {{ tpl.schema_version }}</small>
+          <div class="space">
+            <ElButton @click="templateDetails(tpl)">{{ tpl.builtin ? '查看 / 另存为' : '编辑 / 重命名' }}</ElButton
+            ><ElButton @click="downloadTemplate(tpl)">导出</ElButton
+            ><ElButton v-if="!tpl.builtin" type="danger" plain @click="deleteTemplate(tpl)">删除</ElButton>
+          </div></ElCard
+        >
+      </div>
     </template>
-    <ElDialog v-model="editorVisible" :title="editor?.revision ? `配置服务 · ${editor.name || editor.port}` : '接入服务'" :width="editor?.revision ? 'min(1400px,97vw)' : 'min(880px,94vw)'" :class="{ 'setup-dialog': !editor?.revision }" :close-on-press-escape="!editorBusy" :show-close="!editorBusy" destroy-on-close :close-on-click-modal="false" :before-close="closeEditor" @closed="editor = null">
-      <PortEditor v-if="editor" :key="editorKey" :config="editor" :templates="templates" :is-new="!editor.revision" :initial-tab="editorTab" @saved="editorSaved" @close="closeEditor" @busy="editorBusy = $event" />
+    <ElDialog
+      v-model="editorVisible"
+      :title="editor?.revision ? `配置服务 · ${editor.name || editor.port}` : '接入服务'"
+      :width="editor?.revision ? 'min(1400px,97vw)' : 'min(880px,94vw)'"
+      :class="{ 'setup-dialog': !editor?.revision }"
+      :close-on-press-escape="!editorBusy"
+      :show-close="!editorBusy"
+      destroy-on-close
+      :close-on-click-modal="false"
+      :before-close="closeEditor"
+      @closed="editor = null"
+    >
+      <PortEditor
+        v-if="editor"
+        :key="editorKey"
+        :config="editor"
+        :templates="templates"
+        :is-new="!editor.revision"
+        :initial-tab="editorTab"
+        @saved="editorSaved"
+        @close="closeEditor"
+        @busy="editorBusy = $event"
+      />
     </ElDialog>
-    <ElDialog v-model="enableVisible" title="启用服务" width="min(760px,94vw)" :close-on-click-modal="false" :close-on-press-escape="!busy" :show-close="!busy">
+    <ElDialog
+      v-model="enableVisible"
+      title="启用服务"
+      width="min(760px,94vw)"
+      :close-on-click-modal="false"
+      :close-on-press-escape="!busy"
+      :show-close="!busy"
+    >
       <ElAlert v-if="error" :title="error" type="error" :closable="false" class="space" />
-      <template v-if="enableRow"><div class="enable-intro"><h2>{{ enableRow.config.name || '服务' }}</h2><p>HomeWaf 的 {{ enableRow.config.port }} 端口 → {{ enableRow.config.upstream }}</p></div>
-        <ElRadioGroup v-model="enableMode" :disabled="busy" class="enable-modes" @change="enablePreview = null; previewEnable()"><ElRadio value="normal">按当前策略启用</ElRadio><ElRadio value="observe">先观察运行</ElRadio></ElRadioGroup>
-        <p class="enable-help">{{ enableMode === 'observe' ? '只记录攻击规则命中，暂不拦截或自动处罚。访问限制、IP 名单与登录要求仍然有效。' : '使用刚刚保存的策略。启用后，请通过 HomeWaf 的新入口实际访问一次。' }}</p>
-        <div v-if="enablePreview" class="enable-result" role="status"><strong>配置检查完成</strong><p>模拟陌生访客：{{ { allow: '允许继续访问', bypass: '允许访问', challenge: '需要完成访问验证', deny: '将被拒绝访问', drop: '连接将被关闭', honeypot: '将进入蜜罐' }[enablePreview.verdict?.action] || '请查看详细检测结果' }}</p></div>
+      <template v-if="enableRow"
+        ><div class="enable-intro">
+          <h2>{{ enableRow.config.name || '服务' }}</h2>
+          <p>HomeWaf 的 {{ enableRow.config.port }} 端口 → {{ enableRow.config.upstream }}</p>
+        </div>
+        <ElRadioGroup
+          v-model="enableMode"
+          :disabled="busy"
+          class="enable-modes"
+          @change="
+            enablePreview = null;
+            previewEnable();
+          "
+          ><ElRadio value="normal">按当前策略启用</ElRadio><ElRadio value="observe">先观察运行</ElRadio></ElRadioGroup
+        >
+        <p class="enable-help">
+          {{
+            enableMode === 'observe'
+              ? '只记录攻击规则命中，暂不拦截或自动处罚。访问限制、IP 名单与登录要求仍然有效。'
+              : '使用刚刚保存的策略。启用后，请通过 HomeWaf 的新入口实际访问一次。'
+          }}
+        </p>
+        <div v-if="enablePreview" class="enable-result" role="status">
+          <strong>配置检查完成</strong>
+          <p>
+            模拟陌生访客：{{
+              {
+                allow: '允许继续访问',
+                bypass: '允许访问',
+                challenge: '需要完成访问验证',
+                deny: '将被拒绝访问',
+                drop: '连接将被关闭',
+                honeypot: '将进入蜜罐',
+              }[enablePreview.verdict?.action] || '请查看详细检测结果'
+            }}
+          </p>
+        </div>
         <p v-else role="status" class="enable-help">{{ busy ? '正在检查访问策略…' : '配置尚未检查通过，请重试。' }}</p>
-        <details v-if="enablePreview" class="space"><summary>查看详细检测结果</summary><Trace :result="enablePreview" /></details>
+        <details v-if="enablePreview" class="space">
+          <summary>查看详细检测结果</summary>
+          <Trace :result="enablePreview" />
+        </details>
         <ElButton :loading="busy" @click="previewEnable">重新检查配置</ElButton>
-        <p class="enable-help">启用监听不会自动修改域名解析或路由器映射。实际流量需要指向 HomeWaf，原服务地址仍可直接访问。</p>
+        <p class="enable-help">
+          启用监听不会自动修改域名解析或路由器映射。实际流量需要指向 HomeWaf，原服务地址仍可直接访问。
+        </p>
       </template>
-      <template #footer><ElButton :disabled="busy" @click="enableVisible = false">暂不启用</ElButton><ElButton type="primary" :disabled="!enablePreview || busy" :loading="busy" @click="confirmEnable">确认启用服务</ElButton></template>
+      <template #footer
+        ><ElButton :disabled="busy" @click="enableVisible = false">暂不启用</ElButton
+        ><ElButton type="primary" :disabled="!enablePreview || busy" :loading="busy" @click="confirmEnable"
+          >确认启用服务</ElButton
+        ></template
+      >
     </ElDialog>
-    <ElDialog v-model="inspectVisible" :title="`端口 ${inspectRow?.config.port || ''} · 状态与解释`" width="min(1250px,97vw)">
+    <ElDialog
+      v-model="inspectVisible"
+      :title="`端口 ${inspectRow?.config.port || ''} · 状态与解释`"
+      width="min(1250px,97vw)"
+    >
       <ElAlert v-if="inspectError" :title="inspectError" type="warning" :closable="false" class="space" />
-      <ElTabs v-model="inspectTab"><ElTabPane label="当前处罚" name="state"><ElButton @click="reloadInspection">刷新状态</ElButton><ElTable :data="stateRows" stripe class="space"><ElTableColumn prop="kind" label="状态" width="105" /><ElTableColumn prop="prefix" label="来源 / 网段" min-width="170" /><ElTableColumn prop="scope" label="作用域" width="90" /><ElTableColumn prop="reason" label="原因" min-width="140" /><ElTableColumn label="到期" min-width="170"><template #default="{ row }">{{ row.expires_at ? timeText(row.expires_at) : '永久' }}</template></ElTableColumn><ElTableColumn label="操作" min-width="200"><template #default="{ row }"><ElButton link type="success" @click="manageState(row,'release')">{{ row.kind === 'lockdown' ? '解除锁定' : '释放' }}</ElButton><ElButton v-if="row.kind === 'ban'" link type="warning" @click="manageState(row,'permanent')">转永久</ElButton><ElButton v-if="row.prefix" link @click="manageState(row,'whitelist')">转trusted白名单</ElButton></template></ElTableColumn></ElTable><p class="muted">释放共享ban会影响其他端口；转白名单只将当前端口设为trusted。trusted 仍受本端口 IP 组黑名单、地域黑名单、手动 deny 和访问总开关约束。</p></ElTabPane>
-        <ElTabPane label="最近请求 / 状态变化" name="logs"><ElButton @click="reloadInspection">刷新日志</ElButton><ElTable :data="logs" stripe class="space"><ElTableColumn label="时间" min-width="160"><template #default="{ row }">{{ new Date(row.time_ms).toLocaleString('zh-CN') }}</template></ElTableColumn><ElTableColumn prop="client_ip" label="来源" min-width="130" /><ElTableColumn prop="kind" label="类型" width="95" /><ElTableColumn prop="stage" label="步骤" width="65" /><ElTableColumn prop="verdict" label="动作" width="90" /><ElTableColumn label="原因" min-width="240"><template #default="{ row }">{{ accessReason(row.reason) }}</template></ElTableColumn><ElTableColumn label="解释" width="95"><template #default="{ row }"><ElButton link type="primary" @click="showTrace(row)">展开trace</ElButton></template></ElTableColumn></ElTable><Trace v-if="trace?.trace" :result="trace" /><pre v-else-if="trace">{{ JSON.stringify(trace,null,2) }}</pre></ElTabPane>
-        <ElTabPane label="运行指标" name="metrics"><p class="muted">队列丢弃、持久化错误和配额拒绝都应结合当前流量查看；不能把这些资源保护事件当成攻击归因。</p><pre>{{ JSON.stringify(inspectStats,null,2) }}</pre></ElTabPane></ElTabs>
+      <ElTabs v-model="inspectTab"
+        ><ElTabPane label="当前处罚" name="state"
+          ><ElButton @click="reloadInspection">刷新状态</ElButton
+          ><ElTable :data="stateRows" stripe class="space"
+            ><ElTableColumn prop="kind" label="状态" width="105" /><ElTableColumn
+              prop="prefix"
+              label="来源 / 网段"
+              min-width="170"
+            /><ElTableColumn prop="scope" label="作用域" width="90" /><ElTableColumn
+              prop="reason"
+              label="原因"
+              min-width="140"
+            /><ElTableColumn label="到期" min-width="170"
+              ><template #default="{ row }">{{
+                row.expires_at ? timeText(row.expires_at) : '永久'
+              }}</template></ElTableColumn
+            ><ElTableColumn label="操作" min-width="200"
+              ><template #default="{ row }"
+                ><ElButton link type="success" @click="manageState(row, 'release')">{{
+                  row.kind === 'lockdown' ? '解除锁定' : '释放'
+                }}</ElButton
+                ><ElButton v-if="row.kind === 'ban'" link type="warning" @click="manageState(row, 'permanent')"
+                  >转永久</ElButton
+                ><ElButton v-if="row.prefix" link @click="manageState(row, 'whitelist')"
+                  >转trusted白名单</ElButton
+                ></template
+              ></ElTableColumn
+            ></ElTable
+          >
+          <p class="muted">
+            释放共享ban会影响其他端口；转白名单只将当前端口设为trusted。trusted 仍受本端口 IP 组黑名单、地域黑名单、手动
+            deny 和访问总开关约束。
+          </p></ElTabPane
+        >
+        <ElTabPane label="最近请求 / 状态变化" name="logs"
+          ><ElButton @click="reloadInspection">刷新日志</ElButton
+          ><ElTable :data="logs" stripe class="space"
+            ><ElTableColumn label="时间" min-width="160"
+              ><template #default="{ row }">{{
+                new Date(row.time_ms).toLocaleString('zh-CN')
+              }}</template></ElTableColumn
+            ><ElTableColumn prop="client_ip" label="来源" min-width="130" /><ElTableColumn
+              prop="kind"
+              label="类型"
+              width="95"
+            /><ElTableColumn prop="stage" label="步骤" width="65" /><ElTableColumn
+              prop="verdict"
+              label="动作"
+              width="90"
+            /><ElTableColumn label="原因" min-width="240"
+              ><template #default="{ row }">{{ accessReason(row.reason) }}</template></ElTableColumn
+            ><ElTableColumn label="解释" width="95"
+              ><template #default="{ row }"
+                ><ElButton link type="primary" @click="showTrace(row)">展开trace</ElButton></template
+              ></ElTableColumn
+            ></ElTable
+          ><Trace v-if="trace?.trace" :result="trace" />
+          <pre v-else-if="trace">{{ JSON.stringify(trace, null, 2) }}</pre>
+        </ElTabPane>
+        <ElTabPane label="运行指标" name="metrics"
+          ><p class="muted">队列丢弃、持久化错误和配额拒绝都应结合当前流量查看；不能把这些资源保护事件当成攻击归因。</p>
+          <pre>{{ JSON.stringify(inspectStats, null, 2) }}</pre>
+        </ElTabPane></ElTabs
+      >
     </ElDialog>
-    <ElDialog v-model="copyVisible" title="复制端口配置" width="min(600px,94vw)"><p>来源端口 {{ copySource?.port }}。凭据、会话与TLS私钥不复制，目标监听保持关闭，登录门须重新设置。</p><label>新端口<ElInputNumber v-model="copyTarget" :min="1" :max="65535" aria-label="复制目标端口" /></label><ElCheckbox v-model="copyIPs" class="space">同时复制地址名单和 IP 组引用（默认不复制）</ElCheckbox><template #footer><ElButton @click="copyVisible=false">取消</ElButton><ElButton type="primary" :loading="busy" @click="confirmCopy">生成复制草稿</ElButton></template></ElDialog>
+    <ElDialog v-model="copyVisible" title="复制端口配置" width="min(600px,94vw)"
+      ><p>来源端口 {{ copySource?.port }}。凭据、会话与TLS私钥不复制，目标监听保持关闭，登录门须重新设置。</p>
+      <label>新端口<ElInputNumber v-model="copyTarget" :min="1" :max="65535" aria-label="复制目标端口" /></label
+      ><ElCheckbox v-model="copyIPs" class="space">同时复制地址名单和 IP 组引用（默认不复制）</ElCheckbox
+      ><template #footer
+        ><ElButton @click="copyVisible = false">取消</ElButton
+        ><ElButton type="primary" :loading="busy" @click="confirmCopy">生成复制草稿</ElButton></template
+      ></ElDialog
+    >
     <ElDialog v-model="batchVisible" title="批量应用模板：逐端口预览" width="min(1100px,96vw)">
-      <ElSelect v-model="batchTemplate" aria-label="批量模板" @change="batchPreview=[]"><ElOption v-for="tpl in templates" :key="tpl.id" :label="tpl.name" :value="tpl.id" /></ElSelect><ElCheckboxGroup v-model="batchSections" class="space" @change="batchPreview=[]"><ElCheckbox v-for="section in sections" :key="section" :value="section">{{ sectionNames[section] }}</ElCheckbox></ElCheckboxGroup><ElButton :loading="busy" @click="previewBatch">为每个端口生成差异</ElButton>
-      <details v-for="item in batchPreview" :key="item.port" class="space"><summary>端口 {{ item.port }}：{{ item.error || `${item.diff?.length || 0}个分区不同` }} {{ item.status || '' }}</summary><div v-for="diff in item.diff || []" :key="diff.section"><h4>{{ sectionNames[diff.section] }}</h4><div class="diff-columns"><pre>{{ JSON.stringify(diff.current,null,2) }}</pre><pre>{{ JSON.stringify(diff.template,null,2) }}</pre></div></div></details><ElAlert v-if="batchResults.length" :title="batchResults.join('；')" type="info" :closable="false" />
-      <template #footer><ElButton @click="batchVisible=false">关闭</ElButton><ElButton type="primary" :disabled="!batchPreview.length || batchPreview.some(v => v.error)" :loading="busy" @click="commitBatch">确认差异并逐端口保存</ElButton></template>
+      <ElSelect v-model="batchTemplate" aria-label="批量模板" @change="batchPreview = []"
+        ><ElOption v-for="tpl in templates" :key="tpl.id" :label="tpl.name" :value="tpl.id" /></ElSelect
+      ><ElCheckboxGroup v-model="batchSections" class="space" @change="batchPreview = []"
+        ><ElCheckbox v-for="section in sections" :key="section" :value="section">{{
+          sectionNames[section]
+        }}</ElCheckbox></ElCheckboxGroup
+      ><ElButton :loading="busy" @click="previewBatch">为每个端口生成差异</ElButton>
+      <details v-for="item in batchPreview" :key="item.port" class="space">
+        <summary>
+          端口 {{ item.port }}：{{ item.error || `${item.diff?.length || 0}个分区不同` }} {{ item.status || '' }}
+        </summary>
+        <div v-for="diff in item.diff || []" :key="diff.section">
+          <h4>{{ sectionNames[diff.section] }}</h4>
+          <div class="diff-columns">
+            <pre>{{ JSON.stringify(diff.current, null, 2) }}</pre>
+            <pre>{{ JSON.stringify(diff.template, null, 2) }}</pre>
+          </div>
+        </div>
+      </details>
+      <ElAlert v-if="batchResults.length" :title="batchResults.join('；')" type="info" :closable="false" />
+      <template #footer
+        ><ElButton @click="batchVisible = false">关闭</ElButton
+        ><ElButton
+          type="primary"
+          :disabled="!batchPreview.length || batchPreview.some((v) => v.error)"
+          :loading="busy"
+          @click="commitBatch"
+          >确认差异并逐端口保存</ElButton
+        ></template
+      >
     </ElDialog>
-    <ElDialog v-model="templateVisible" :title="templateReadonly ? '内置模板详情' : '用户模板 / 导入预览'" width="min(950px,96vw)" :close-on-click-modal="false">
-      <div class="template-form"><label>模板ID<ElInput v-model="templateID" :disabled="templateReadonly || editingTemplate" aria-label="模板ID" @input="templateValidated = ''" /></label><label>模板名称<ElInput v-model="templateTitle" :disabled="templateReadonly" aria-label="模板名称" @input="templateValidated = ''" /></label></div>
-      <label v-if="!templateReadonly" class="space">从JSON文件读取<input type="file" accept="application/json,.json" @change="readTemplateFile" /></label><p class="muted">不允许携带口令哈希、密钥、令牌、用户账号、手动IP或可信代理。先校验预览，再确认导入；导入不会自动应用到端口。</p>
-      <ElInput v-model="templateJSON" type="textarea" :rows="15" :readonly="templateReadonly" aria-label="模板JSON" @input="templateValidated = ''" /><ElAlert v-if="templateValidated" title="服务端校验通过，尚未保存。确认后只保存模板。" type="success" :closable="false" class="space" />
-      <template #footer><ElButton @click="templateVisible=false">关闭</ElButton><ElButton v-if="templateReadonly" type="primary" @click="forkTemplate">另存为用户模板</ElButton><template v-else><ElButton :loading="busy" @click="validateTemplate">校验并预览</ElButton><ElButton type="primary" :disabled="!templateValidated" :loading="busy" @click="saveTemplate">确认保存模板</ElButton></template></template>
+    <ElDialog
+      v-model="templateVisible"
+      :title="templateReadonly ? '内置模板详情' : '用户模板 / 导入预览'"
+      width="min(950px,96vw)"
+      :close-on-click-modal="false"
+    >
+      <div class="template-form">
+        <label
+          >模板ID<ElInput
+            v-model="templateID"
+            :disabled="templateReadonly || editingTemplate"
+            aria-label="模板ID"
+            @input="templateValidated = ''" /></label
+        ><label
+          >模板名称<ElInput
+            v-model="templateTitle"
+            :disabled="templateReadonly"
+            aria-label="模板名称"
+            @input="templateValidated = ''"
+        /></label>
+      </div>
+      <label v-if="!templateReadonly" class="space"
+        >从JSON文件读取<input type="file" accept="application/json,.json" @change="readTemplateFile"
+      /></label>
+      <p class="muted">
+        不允许携带口令哈希、密钥、令牌、用户账号、手动IP或可信代理。先校验预览，再确认导入；导入不会自动应用到端口。
+      </p>
+      <ElInput
+        v-model="templateJSON"
+        type="textarea"
+        :rows="15"
+        :readonly="templateReadonly"
+        aria-label="模板JSON"
+        @input="templateValidated = ''"
+      /><ElAlert
+        v-if="templateValidated"
+        title="服务端校验通过，尚未保存。确认后只保存模板。"
+        type="success"
+        :closable="false"
+        class="space"
+      />
+      <template #footer
+        ><ElButton @click="templateVisible = false">关闭</ElButton
+        ><ElButton v-if="templateReadonly" type="primary" @click="forkTemplate">另存为用户模板</ElButton
+        ><template v-else
+          ><ElButton :loading="busy" @click="validateTemplate">校验并预览</ElButton
+          ><ElButton type="primary" :disabled="!templateValidated" :loading="busy" @click="saveTemplate"
+            >确认保存模板</ElButton
+          ></template
+        ></template
+      >
     </ElDialog>
     <ElDialog v-model="feedVisible" title="签名威胁订阅（共享源，按端口启用）" width="min(720px,95vw)">
-      <ElAlert title="默认关闭，不会自动联网。需要有效授权与安装包信任库中的Ed25519公钥；验签失败保留最近有效快照。" :closable="false" class="space" />
-      <ElAlert v-if="!feedAuthorized || !feedTrustedKeys" :title="!feedAuthorized ? '当前实例需要 threat_feed 授权；订阅保持关闭。' : '安装包未配置可信公钥，无法验证订阅签名。'" type="warning" :closable="false" class="space" />
-      <div class="feed-form"><ElSwitch v-model="feed.enabled" :disabled="!feed.enabled && (!feedAuthorized || !feedTrustedKeys)" active-text="启用已授权的签名HTTPS源" /><label>HTTPS订阅地址<ElInput v-model="feed.url" aria-label="签名订阅地址" /></label><label>刷新间隔（分钟）<ElInputNumber v-model="feed.interval_minutes" :min="1" :max="1440" /></label><label>认证令牌<ElInput v-model="feed.token" type="password" show-password autocomplete="new-password" :placeholder="feed.has_token ? '已保存，留空保留' : '可选'" /></label><ElCheckbox v-model="feed.clear_token">清除已有令牌</ElCheckbox><details><summary>当前订阅状态</summary><pre>{{ JSON.stringify(feedStatus,null,2) }}</pre></details></div>
-      <template #footer><ElButton @click="feedVisible=false;feed.token=''">关闭</ElButton><ElButton :loading="busy" :disabled="!feedAuthorized || !feedTrustedKeys || !feed.enabled" @click="syncFeed">立即检查已保存源</ElButton><ElButton type="primary" :loading="busy" @click="saveFeed">保存订阅配置</ElButton></template>
+      <ElAlert
+        title="默认关闭，不会自动联网。需要有效授权与安装包信任库中的Ed25519公钥；验签失败保留最近有效快照。"
+        :closable="false"
+        class="space"
+      />
+      <ElAlert
+        v-if="!feedAuthorized || !feedTrustedKeys"
+        :title="
+          !feedAuthorized ? '当前实例需要 threat_feed 授权；订阅保持关闭。' : '安装包未配置可信公钥，无法验证订阅签名。'
+        "
+        type="warning"
+        :closable="false"
+        class="space"
+      />
+      <div class="feed-form">
+        <ElSwitch
+          v-model="feed.enabled"
+          :disabled="!feed.enabled && (!feedAuthorized || !feedTrustedKeys)"
+          active-text="启用已授权的签名HTTPS源"
+        /><label>HTTPS订阅地址<ElInput v-model="feed.url" aria-label="签名订阅地址" /></label
+        ><label>刷新间隔（分钟）<ElInputNumber v-model="feed.interval_minutes" :min="1" :max="1440" /></label
+        ><label
+          >认证令牌<ElInput
+            v-model="feed.token"
+            type="password"
+            show-password
+            autocomplete="new-password"
+            :placeholder="feed.has_token ? '已保存，留空保留' : '可选'" /></label
+        ><ElCheckbox v-model="feed.clear_token">清除已有令牌</ElCheckbox>
+        <details>
+          <summary>当前订阅状态</summary>
+          <pre>{{ JSON.stringify(feedStatus, null, 2) }}</pre>
+        </details>
+      </div>
+      <template #footer
+        ><ElButton
+          @click="
+            feedVisible = false;
+            feed.token = '';
+          "
+          >关闭</ElButton
+        ><ElButton :loading="busy" :disabled="!feedAuthorized || !feedTrustedKeys || !feed.enabled" @click="syncFeed"
+          >立即检查已保存源</ElButton
+        ><ElButton type="primary" :loading="busy" @click="saveFeed">保存订阅配置</ElButton></template
+      >
     </ElDialog>
   </div>
 </template>
@@ -79,98 +502,1120 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElAlert, ElButton, ElCard, ElCheckbox, ElCheckboxGroup, ElDialog, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElOption, ElRadio, ElRadioGroup, ElSelect, ElSwitch, ElTable, ElTableColumn, ElTabPane, ElTabs, ElTag } from 'element-plus';
+import {
+  ElAlert,
+  ElButton,
+  ElCard,
+  ElCheckbox,
+  ElCheckboxGroup,
+  ElDialog,
+  ElInput,
+  ElInputNumber,
+  ElMessage,
+  ElMessageBox,
+  ElOption,
+  ElRadio,
+  ElRadioGroup,
+  ElSelect,
+  ElSwitch,
+  ElTable,
+  ElTableColumn,
+  ElTabPane,
+  ElTabs,
+  ElTag,
+} from 'element-plus';
 import { pipelineGet, pipelinePost } from '@/apis/pipeline';
-import { clone, mapBounded, newPort, observationConfig, sectionNames, sections, type PortConfig, type PolicyTemplate } from './model';
-import PortEditor from './PortEditor.vue';import Trace from './Trace.vue';
+import {
+  clone,
+  mapBounded,
+  newPort,
+  observationConfig,
+  sectionNames,
+  sections,
+  type PortConfig,
+  type PolicyTemplate,
+} from './model';
+import PortEditor from './PortEditor.vue';
+import Trace from './Trace.vue';
 import { accessReason } from './accessPolicy';
 import LegacyMigration from './LegacyMigration.vue';
 import ServiceCards from './ServiceCards.vue';
 import { suggestPort } from './onboarding';
 import { ArrowRight, Connection, Search } from '@element-plus/icons-vue';
 import type { LegacyPortSummary } from './model';
-const legacyPorts=ref<LegacyPortSummary[]>([]),legacyError=ref('');
-const route=useRoute(),router=useRouter();const page=ref(route.name==='WafPipelineTemplates'?'templates':'ports');
-const overview=reactive<any>({ports:[],issues:{},punishment:{},log_queue:{}}),templates=ref<PolicyTemplate[]>([]),selected=ref<any[]>([]),busy=ref(false),error=ref('');
-const portsTable=ref<any>();
-const loaded=ref(false),tableView=ref(false),search=ref(''),savedService=ref<PortConfig|null>(null),editorBusy=ref(false),editorTab=ref('common');
-const filteredPorts=computed(()=>{const query=search.value.trim().toLowerCase();return overview.ports.filter(row=>`${row.config.name} ${row.config.upstream} ${row.config.port}`.toLowerCase().includes(query))});
-const editor=ref<PortConfig|null>(null),editorVisible=ref(false),editorKey=ref(0);
-const enableVisible=ref(false),enableRow=ref<any>(null),enableMode=ref('normal'),enablePreview=ref<any>(null),enableCandidate=ref<PortConfig|null>(null);
-const inspectVisible=ref(false),inspectRow=ref<any>(null),inspectTab=ref('state'),stateRows=ref<any[]>([]),logs=ref<any[]>([]),trace=ref<any>(null),inspectStats=ref<any>({}),inspectError=ref('');
-const copyVisible=ref(false),copySource=ref<PortConfig|null>(null),copyTarget=ref(5001),copyIPs=ref(false);
-const batchVisible=ref(false),batchTemplate=ref(''),batchSections=ref([...sections]),batchPreview=ref<any[]>([]),batchResults=ref<string[]>([]);
-const templateVisible=ref(false),templateReadonly=ref(false),editingTemplate=ref(false),templateID=ref(''),templateTitle=ref(''),templateJSON=ref(''),templateValidated=ref('');
-const feedAuthorized=ref(false),feedTrustedKeys=ref(0);
-const feedVisible=ref(false),feed=reactive<any>({enabled:false,url:'',interval_minutes:60,token:'',clear_token:false,has_token:false}),feedStatus=ref<any>({});
-let refreshTimer:ReturnType<typeof setInterval>|undefined;
-const mobileQuery=window.matchMedia('(max-width:760px)');
-const isMobile=ref(mobileQuery.matches);
-function fitNavigation(){isMobile.value=mobileQuery.matches}
-const portKey=(row:any)=>row.config.port;
-const dropped=(stats:any)=>(stats?.dropped_low||0)+(stats?.dropped_medium||0)+(stats?.dropped_high||0);
-const total=(field:string)=>overview.ports.reduce((sum:number,row:any)=>sum+(row.stats?.[field]||0),0);
-const timeText=(value:number)=>new Date(value*1000).toLocaleString('zh-CN');
-const templateName=(id:string)=>templates.value.find(t=>t.id===id)?.name||id||'独立配置';
-const templateHint=(tpl:PolicyTemplate)=>`${tpl.policy.gate.enabled?'前置登录门开启':'无前置登录门'}；陌生来源${tpl.policy.ip_group.unlisted_action==='deny'?'拒绝':'进入后续检测'}；${tpl.policy.hit_policy.enabled?'自动处罚可用':'仅观察，不自动处罚'}。`;
-async function run(work:()=>Promise<void>){if(busy.value)return;busy.value=true;error.value='';try{await work()}catch(e){if(e!=='cancel'&&e!=='close'){error.value=e.message||String(e);ElMessage.error(error.value)}}finally{busy.value=false}}
-async function loadData(){const [data,tpls,legacy]=await Promise.all([pipelineGet('overview'),pipelineGet<PolicyTemplate[]>('templates'),pipelineGet<LegacyPortSummary[]>('migration/legacy').then(data=>({data,error:''}),error=>({data:[],error:error.message||'现有业务端口读取失败，请刷新重试'}))]);Object.assign(overview,data);templates.value=tpls||[];loaded.value=true;legacyPorts.value=legacy.data;legacyError.value=legacy.error;portsTable.value?.clearSelection();selected.value=[]}
-async function refresh(){await run(loadData)}
-function changePage(value:string){router.replace({name:value==='templates'?'WafPipelineTemplates':'WafPipeline'})}
-watch(()=>route.name,name=>{page.value=name==='WafPipelineTemplates'?'templates':'ports'});
-function create(){savedService.value=null;editorBusy.value=false;editorTab.value='common';const tpl=templates.value.find(t=>t.id==='family-nas')||templates.value[0];if(!tpl)return;const port=suggestPort([...overview.ports.map(r=>r.config.port),...legacyPorts.value.map(r=>r.port)]);editor.value=newPort(tpl,port);editorKey.value++;editorVisible.value=true}
-function edit(config:PortConfig){editorTab.value='common';editorBusy.value=false;editor.value=clone(config);editorKey.value++;editorVisible.value=true}
-function editToken(config:PortConfig){edit(config);editorTab.value='ruleset'}
-function editHoneypot(config:PortConfig){edit(config);editorTab.value='honeypot'}
-async function closeEditor(done?:()=>void){if(editorBusy.value)return;try{await ElMessageBox.confirm('关闭并丢弃尚未保存的端口草稿？已单独保存的账号和 IP 组操作不会撤销。','关闭配置',{type:'warning'});editorVisible.value=false;if(typeof done==='function')done()}catch{}}
-async function editorSaved(result:PortConfig){const isNew=!editor.value?.revision;editorVisible.value=false;if(isNew)savedService.value=result;else if(savedService.value?.port===result.port)savedService.value=result;await refresh()}
-function openEnable(row:any){enableRow.value=row;enableMode.value='normal';enablePreview.value=null;enableCandidate.value=null;enableVisible.value=true;previewEnable()}
-async function previewEnable(){await run(async()=>{const candidate=enableMode.value==='observe'?observationConfig(enableRow.value.config):clone(enableRow.value.config);candidate.listen_enabled=true;enablePreview.value=await pipelinePost('explain',{config:candidate,client_ip:'198.51.100.25',method:'GET',path:'/',headers:{Accept:'text/html'},body:''});enableCandidate.value=candidate})}
-async function confirmEnable(){await run(async()=>{if(!enablePreview.value||!enableCandidate.value)throw new Error('请先解释启动策略');await pipelinePost('ports/save',{config:enableCandidate.value});enableVisible.value=false;savedService.value=null;await loadData();ElMessage.success('监听已启用，请使用新入口访问并查看记录')})}
-async function stop(row:any){await run(async()=>{await ElMessageBox.confirm(`停止端口${row.config.port}的监听？已有连接将排空后关闭，其他端口不受影响。`,'停止监听',{type:'warning'});const config=clone(row.config);config.listen_enabled=false;await pipelinePost('ports/save',{config});await loadData()})}
-async function remove(row:any){await run(async()=>{await ElMessageBox.confirm(`删除已停止的端口${row.config.port}配置？`,'删除端口',{type:'warning'});await pipelinePost('ports/delete',{port:row.config.port});await loadData()})}
-function copy(config:PortConfig){copySource.value=config;copyTarget.value=Math.min(65535,config.port+1);copyIPs.value=false;copyVisible.value=true}
-async function confirmCopy(){await run(async()=>{const candidate=await pipelinePost<PortConfig>('ports/copy',{source:copySource.value.port,target:copyTarget.value,include_ips:copyIPs.value});copyVisible.value=false;edit(candidate)})}
-async function inspect(row:any){inspectRow.value=row;inspectVisible.value=true;inspectTab.value='state';trace.value=null;await reloadInspection()}
-async function reloadInspection(){await run(async()=>{const port=inspectRow.value.config.port;const result=await Promise.allSettled([pipelineGet('state',{port}),pipelineGet('logs',{port}),pipelineGet('stats',{port})]);inspectError.value=result.filter(r=>r.status==='rejected').map((r:any)=>r.reason?.message||'读取失败').join('；');if(result[0].status==='fulfilled')stateRows.value=result[0].value;if(result[1].status==='fulfilled')logs.value=result[1].value;if(result[2].status==='fulfilled')inspectStats.value=result[2].value})}
-function showTrace(row:any){try{trace.value=JSON.parse(row.detail_json)}catch{trace.value={error:'日志结构不可解析',req_id:row.req_id}}}
-async function manageState(row:any,action:string){await run(async()=>{const label={release:'释放',permanent:'转为永久封禁',whitelist:'转入当前端口trusted并释放'}[action];await ElMessageBox.confirm(`${label} ${row.prefix||'本端口锁定'}？${row.scope==='global'?'这是一条共享封禁记录，释放将影响其他端口。':''}`,'管理自动处罚',{type:'warning'});await pipelinePost('state/manage',{port:inspectRow.value.config.port,id:row.id,action});stateRows.value=await pipelineGet('state',{port:inspectRow.value.config.port});await loadData();ElMessage.success('状态已更新')})}
-function download(value:unknown,name:string){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=name.replace(/[^\p{L}\p{N}_.-]/gu,'_');document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-async function batchExport(){await run(async()=>{const exported=await mapBounded(selected.value,async row=>JSON.parse(await pipelineGet<string>('templates/export',{port:row.config.port})));download(exported,'homewaf-port-templates.json')})}
-function openBatch(){batchTemplate.value=templates.value[0]?.id||'';batchSections.value=[...sections];batchPreview.value=[];batchResults.value=[];batchVisible.value=true}
-async function previewBatch(){await run(async()=>{if(!batchTemplate.value||!batchSections.value.length)throw new Error('请选择模板及分区');batchPreview.value=await mapBounded(selected.value,async row=>{try{return{port:row.config.port,...await pipelinePost('templates/preview',{config:row.config,template_id:batchTemplate.value,sections:batchSections.value})}}catch(e){return{port:row.config.port,error:e.message}}});batchResults.value=[]})}
-async function commitBatch(){await run(async()=>{await ElMessageBox.confirm(`将按上面的逐端口差异保存${batchPreview.value.length}个端口，失败项会保留原配置。`,'确认批量应用',{type:'warning'});batchResults.value=[];for(const item of batchPreview.value){try{await pipelinePost('ports/save',{config:item.config});item.status='保存成功';batchResults.value.push(`${item.port}成功`)}catch(e){item.status=e.message;batchResults.value.push(`${item.port}失败：${e.message}`)}}await loadData()})}
-async function batchListening(enabled:boolean){await run(async()=>{const rows=selected.value.slice();const previews=enabled?await mapBounded(rows,async row=>({port:row.config.port,result:await pipelinePost('explain',{config:row.config,client_ip:'198.51.100.25',method:'GET',path:'/',headers:{Accept:'text/html'},body:''})})):[];const summary=previews.map(p=>`${p.port}: ${p.result.verdict.action}（${p.result.verdict.reason}）`).join('\n');await ElMessageBox.confirm(`${enabled?'启用':'停止'}选中的${rows.length}个端口？${summary?'\n陌生来源预览：\n'+summary:''}`,'批量监听操作',{type:'warning'});const results=[];for(const row of rows){try{const config=clone(row.config);config.listen_enabled=enabled;await pipelinePost('ports/save',{config});results.push(`${config.port}成功`)}catch(e){results.push(`${row.config.port}失败：${e.message}`)}}await loadData();await ElMessageBox.alert(results.join('\n'),'逐端口执行结果')})}
-function downloadTemplate(tpl:PolicyTemplate){download(tpl,`homewaf-template-${tpl.id}.json`)}
-function templateDetails(tpl:PolicyTemplate){templateReadonly.value=tpl.builtin;editingTemplate.value=!tpl.builtin;templateID.value=tpl.id;templateTitle.value=tpl.name;templateJSON.value=JSON.stringify(tpl,null,2);templateValidated.value='';templateVisible.value=true}
-function importTemplate(){templateReadonly.value=false;editingTemplate.value=false;templateID.value='';templateTitle.value='';templateJSON.value='';templateValidated.value='';templateVisible.value=true}
-async function saveAsTemplate(config:PortConfig){await run(async()=>{const value=JSON.parse(await pipelineGet<string>('templates/export',{port:config.port}));value.id=`user-${config.port}-${crypto.randomUUID().slice(0,8)}`;value.name=(config.name||`端口${config.port}`)+' 模板';templateDetails(value);editingTemplate.value=false})}
-function forkTemplate(){const value=JSON.parse(templateJSON.value);value.id='custom-'+crypto.randomUUID().slice(0,8);value.name+=' · 副本';value.builtin=false;value.version=1;templateID.value=value.id;templateTitle.value=value.name;templateJSON.value=JSON.stringify(value,null,2);templateReadonly.value=false;editingTemplate.value=false;templateValidated.value=''}
-async function readTemplateFile(event:Event){await run(async()=>{const file=(event.target as HTMLInputElement).files?.[0];if(!file)return;if(file.size>1048576)throw new Error('模板不能超过1MiB');const value=JSON.parse(await file.text());if(Array.isArray(value))throw new Error('请选择单个模板对象；批量导出集合中的模板需逐个导入');templateJSON.value=JSON.stringify(value,null,2);templateID.value=value.id||'';templateTitle.value=value.name||'';templateValidated.value='';editingTemplate.value=false})}
-function templateCandidate(){const value=JSON.parse(templateJSON.value);if(templateID.value)value.id=templateID.value;if(templateTitle.value)value.name=templateTitle.value;value.builtin=false;return value}
-async function validateTemplate(){await run(async()=>{const value=await pipelinePost<PolicyTemplate>('templates/import-preview',templateCandidate());templateID.value=value.id;templateTitle.value=value.name;templateJSON.value=JSON.stringify(value,null,2);templateValidated.value=JSON.stringify(value)})}
-async function saveTemplate(){await run(async()=>{const candidate=templateCandidate();if(templateValidated.value!==JSON.stringify(candidate))throw new Error('模板已变化，请重新校验预览');await pipelinePost('templates/save',candidate);templateVisible.value=false;await loadData();ElMessage.success('模板已保存，未更改任何端口')})}
-async function deleteTemplate(tpl:PolicyTemplate){await run(async()=>{await ElMessageBox.confirm(`删除用户模板“${tpl.name}”？已应用端口仍保留自己的配置。`,'删除模板',{type:'warning'});await pipelinePost('templates/delete',{id:tpl.id});await loadData()})}
-async function openFeed(){await run(async()=>{const result=await pipelineGet('feed');Object.assign(feed,result.config,{token:'',clear_token:false});feedStatus.value=result.status||{};feedAuthorized.value=!!result.authorized;feedTrustedKeys.value=result.trusted_keys||0;feedVisible.value=true})}
-async function saveFeed(){await run(async()=>{await pipelinePost('feed/save',feed);feed.token='';const result=await pipelineGet('feed');Object.assign(feed,result.config,{token:'',clear_token:false});feedStatus.value=result.status||{};feedAuthorized.value=!!result.authorized;feedTrustedKeys.value=result.trusted_keys||0;ElMessage.success('订阅配置已保存')})}
-async function syncFeed(){await run(async()=>{await pipelinePost('feed/sync',{});const result=await pipelineGet('feed');feedStatus.value=result.status||{};feedAuthorized.value=!!result.authorized;feedTrustedKeys.value=result.trusted_keys||0;ElMessage.success('已检查已保存的订阅源')})}
-watch(feedVisible,open=>{if(!open)feed.token=''});
-async function followEntry(){if(!loaded.value)return;const action=route.query.action,enable=route.query.enable,inspectPort=route.query.inspect,editPort=route.query.edit;if(!action&&!enable&&!inspectPort&&!editPort)return;await router.replace({name:route.name,query:{}});if(action==='create'){create();return}const row=overview.ports.find(row=>row.config.port===Number(enable||inspectPort||editPort));if(!row){error.value='没有找到该服务，请刷新列表后重试。';return}if(editPort){edit(row.config);return}if(enable){if(row.config.policy.gate.require_token)editToken(row.config);else openEnable(row)}else await inspect(row)}
-watch(()=>route.fullPath,()=>{if(!busy.value)followEntry()});
+const legacyPorts = ref<LegacyPortSummary[]>([]),
+  legacyError = ref('');
+const route = useRoute(),
+  router = useRouter();
+const page = ref(route.name === 'WafPipelineTemplates' ? 'templates' : 'ports');
+const overview = reactive<any>({ ports: [], issues: {}, punishment: {}, log_queue: {} }),
+  templates = ref<PolicyTemplate[]>([]),
+  selected = ref<any[]>([]),
+  busy = ref(false),
+  error = ref('');
+const portsTable = ref<any>();
+const loaded = ref(false),
+  tableView = ref(false),
+  search = ref(''),
+  savedService = ref<PortConfig | null>(null),
+  editorBusy = ref(false),
+  editorTab = ref('common');
+const filteredPorts = computed(() => {
+  const query = search.value.trim().toLowerCase();
+  return overview.ports.filter((row) =>
+    `${row.config.name} ${row.config.upstream} ${row.config.port}`.toLowerCase().includes(query),
+  );
+});
+const editor = ref<PortConfig | null>(null),
+  editorVisible = ref(false),
+  editorKey = ref(0);
+const enableVisible = ref(false),
+  enableRow = ref<any>(null),
+  enableMode = ref('normal'),
+  enablePreview = ref<any>(null),
+  enableCandidate = ref<PortConfig | null>(null);
+const inspectVisible = ref(false),
+  inspectRow = ref<any>(null),
+  inspectTab = ref('state'),
+  stateRows = ref<any[]>([]),
+  logs = ref<any[]>([]),
+  trace = ref<any>(null),
+  inspectStats = ref<any>({}),
+  inspectError = ref('');
+const copyVisible = ref(false),
+  copySource = ref<PortConfig | null>(null),
+  copyTarget = ref(5001),
+  copyIPs = ref(false);
+const batchVisible = ref(false),
+  batchTemplate = ref(''),
+  batchSections = ref([...sections]),
+  batchPreview = ref<any[]>([]),
+  batchResults = ref<string[]>([]);
+const templateVisible = ref(false),
+  templateReadonly = ref(false),
+  editingTemplate = ref(false),
+  templateID = ref(''),
+  templateTitle = ref(''),
+  templateJSON = ref(''),
+  templateValidated = ref('');
+const feedAuthorized = ref(false),
+  feedTrustedKeys = ref(0);
+const feedVisible = ref(false),
+  feed = reactive<any>({
+    enabled: false,
+    url: '',
+    interval_minutes: 60,
+    token: '',
+    clear_token: false,
+    has_token: false,
+  }),
+  feedStatus = ref<any>({});
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
+const mobileQuery = window.matchMedia('(max-width:760px)');
+const isMobile = ref(mobileQuery.matches);
+function fitNavigation() {
+  isMobile.value = mobileQuery.matches;
+}
+const portKey = (row: any) => row.config.port;
+const dropped = (stats: any) => (stats?.dropped_low || 0) + (stats?.dropped_medium || 0) + (stats?.dropped_high || 0);
+const total = (field: string) => overview.ports.reduce((sum: number, row: any) => sum + (row.stats?.[field] || 0), 0);
+const timeText = (value: number) => new Date(value * 1000).toLocaleString('zh-CN');
+const templateName = (id: string) => templates.value.find((t) => t.id === id)?.name || id || '独立配置';
+const templateHint = (tpl: PolicyTemplate) =>
+  `${tpl.policy.gate.enabled ? '前置登录门开启' : '无前置登录门'}；陌生来源${tpl.policy.ip_group.unlisted_action === 'deny' ? '拒绝' : '进入后续检测'}；${tpl.policy.hit_policy.enabled ? '自动处罚可用' : '仅观察，不自动处罚'}。`;
+async function run(work: () => Promise<void>) {
+  if (busy.value) return;
+  busy.value = true;
+  error.value = '';
+  try {
+    await work();
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') {
+      error.value = e.message || String(e);
+      ElMessage.error(error.value);
+    }
+  } finally {
+    busy.value = false;
+  }
+}
+async function loadData() {
+  const [data, tpls, legacy] = await Promise.all([
+    pipelineGet('overview'),
+    pipelineGet<PolicyTemplate[]>('templates'),
+    pipelineGet<LegacyPortSummary[]>('migration/legacy').then(
+      (data) => ({ data, error: '' }),
+      (error) => ({ data: [], error: error.message || '现有业务端口读取失败，请刷新重试' }),
+    ),
+  ]);
+  Object.assign(overview, data);
+  templates.value = tpls || [];
+  loaded.value = true;
+  legacyPorts.value = legacy.data;
+  legacyError.value = legacy.error;
+  portsTable.value?.clearSelection();
+  selected.value = [];
+}
+async function refresh() {
+  await run(loadData);
+}
+function changePage(value: string) {
+  router.replace({ name: value === 'templates' ? 'WafPipelineTemplates' : 'WafPipeline' });
+}
+watch(
+  () => route.name,
+  (name) => {
+    page.value = name === 'WafPipelineTemplates' ? 'templates' : 'ports';
+  },
+);
+function create() {
+  savedService.value = null;
+  editorBusy.value = false;
+  editorTab.value = 'common';
+  const tpl = templates.value.find((t) => t.id === 'family-nas') || templates.value[0];
+  if (!tpl) return;
+  const port = suggestPort([...overview.ports.map((r) => r.config.port), ...legacyPorts.value.map((r) => r.port)]);
+  editor.value = newPort(tpl, port);
+  editorKey.value++;
+  editorVisible.value = true;
+}
+function edit(config: PortConfig) {
+  editorTab.value = 'common';
+  editorBusy.value = false;
+  editor.value = clone(config);
+  editorKey.value++;
+  editorVisible.value = true;
+}
+function editToken(config: PortConfig) {
+  edit(config);
+  editorTab.value = 'ruleset';
+}
+function editHoneypot(config: PortConfig) {
+  edit(config);
+  editorTab.value = 'honeypot';
+}
+async function closeEditor(done?: () => void) {
+  if (editorBusy.value) return;
+  try {
+    await ElMessageBox.confirm('关闭并丢弃尚未保存的端口草稿？已单独保存的账号和 IP 组操作不会撤销。', '关闭配置', {
+      type: 'warning',
+    });
+    editorVisible.value = false;
+    if (typeof done === 'function') done();
+  } catch {}
+}
+async function editorSaved(result: PortConfig) {
+  const isNew = !editor.value?.revision;
+  editorVisible.value = false;
+  if (isNew) savedService.value = result;
+  else if (savedService.value?.port === result.port) savedService.value = result;
+  await refresh();
+}
+function openEnable(row: any) {
+  enableRow.value = row;
+  enableMode.value = 'normal';
+  enablePreview.value = null;
+  enableCandidate.value = null;
+  enableVisible.value = true;
+  previewEnable();
+}
+async function previewEnable() {
+  await run(async () => {
+    const candidate =
+      enableMode.value === 'observe' ? observationConfig(enableRow.value.config) : clone(enableRow.value.config);
+    candidate.listen_enabled = true;
+    enablePreview.value = await pipelinePost('explain', {
+      config: candidate,
+      client_ip: '198.51.100.25',
+      method: 'GET',
+      path: '/',
+      headers: { Accept: 'text/html' },
+      body: '',
+    });
+    enableCandidate.value = candidate;
+  });
+}
+async function confirmEnable() {
+  await run(async () => {
+    if (!enablePreview.value || !enableCandidate.value) throw new Error('请先解释启动策略');
+    await pipelinePost('ports/save', { config: enableCandidate.value });
+    enableVisible.value = false;
+    savedService.value = null;
+    await loadData();
+    ElMessage.success('监听已启用，请使用新入口访问并查看记录');
+  });
+}
+async function stop(row: any) {
+  await run(async () => {
+    await ElMessageBox.confirm(
+      `停止端口${row.config.port}的监听？已有连接将排空后关闭，其他端口不受影响。`,
+      '停止监听',
+      { type: 'warning' },
+    );
+    const config = clone(row.config);
+    config.listen_enabled = false;
+    await pipelinePost('ports/save', { config });
+    await loadData();
+  });
+}
+async function remove(row: any) {
+  await run(async () => {
+    await ElMessageBox.confirm(`删除已停止的端口${row.config.port}配置？`, '删除端口', { type: 'warning' });
+    await pipelinePost('ports/delete', { port: row.config.port });
+    await loadData();
+  });
+}
+function copy(config: PortConfig) {
+  copySource.value = config;
+  copyTarget.value = Math.min(65535, config.port + 1);
+  copyIPs.value = false;
+  copyVisible.value = true;
+}
+async function confirmCopy() {
+  await run(async () => {
+    const candidate = await pipelinePost<PortConfig>('ports/copy', {
+      source: copySource.value.port,
+      target: copyTarget.value,
+      include_ips: copyIPs.value,
+    });
+    copyVisible.value = false;
+    edit(candidate);
+  });
+}
+async function inspect(row: any) {
+  inspectRow.value = row;
+  inspectVisible.value = true;
+  inspectTab.value = 'state';
+  trace.value = null;
+  await reloadInspection();
+}
+async function reloadInspection() {
+  await run(async () => {
+    const port = inspectRow.value.config.port;
+    const result = await Promise.allSettled([
+      pipelineGet('state', { port }),
+      pipelineGet('logs', { port }),
+      pipelineGet('stats', { port }),
+    ]);
+    inspectError.value = result
+      .filter((r) => r.status === 'rejected')
+      .map((r: any) => r.reason?.message || '读取失败')
+      .join('；');
+    if (result[0].status === 'fulfilled') stateRows.value = result[0].value;
+    if (result[1].status === 'fulfilled') logs.value = result[1].value;
+    if (result[2].status === 'fulfilled') inspectStats.value = result[2].value;
+  });
+}
+function showTrace(row: any) {
+  try {
+    trace.value = JSON.parse(row.detail_json);
+  } catch {
+    trace.value = { error: '日志结构不可解析', req_id: row.req_id };
+  }
+}
+async function manageState(row: any, action: string) {
+  await run(async () => {
+    const label = { release: '释放', permanent: '转为永久封禁', whitelist: '转入当前端口trusted并释放' }[action];
+    await ElMessageBox.confirm(
+      `${label} ${row.prefix || '本端口锁定'}？${row.scope === 'global' ? '这是一条共享封禁记录，释放将影响其他端口。' : ''}`,
+      '管理自动处罚',
+      { type: 'warning' },
+    );
+    await pipelinePost('state/manage', { port: inspectRow.value.config.port, id: row.id, action });
+    stateRows.value = await pipelineGet('state', { port: inspectRow.value.config.port });
+    await loadData();
+    ElMessage.success('状态已更新');
+  });
+}
+function download(value: unknown, name: string) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name.replace(/[^\p{L}\p{N}_.-]/gu, '_');
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+async function batchExport() {
+  await run(async () => {
+    const exported = await mapBounded(selected.value, async (row) =>
+      JSON.parse(await pipelineGet<string>('templates/export', { port: row.config.port })),
+    );
+    download(exported, 'homewaf-port-templates.json');
+  });
+}
+function openBatch() {
+  batchTemplate.value = templates.value[0]?.id || '';
+  batchSections.value = [...sections];
+  batchPreview.value = [];
+  batchResults.value = [];
+  batchVisible.value = true;
+}
+async function previewBatch() {
+  await run(async () => {
+    if (!batchTemplate.value || !batchSections.value.length) throw new Error('请选择模板及分区');
+    batchPreview.value = await mapBounded(selected.value, async (row) => {
+      try {
+        return {
+          port: row.config.port,
+          ...(await pipelinePost('templates/preview', {
+            config: row.config,
+            template_id: batchTemplate.value,
+            sections: batchSections.value,
+          })),
+        };
+      } catch (e) {
+        return { port: row.config.port, error: e.message };
+      }
+    });
+    batchResults.value = [];
+  });
+}
+async function commitBatch() {
+  await run(async () => {
+    await ElMessageBox.confirm(
+      `将按上面的逐端口差异保存${batchPreview.value.length}个端口，失败项会保留原配置。`,
+      '确认批量应用',
+      { type: 'warning' },
+    );
+    batchResults.value = [];
+    for (const item of batchPreview.value) {
+      try {
+        await pipelinePost('ports/save', { config: item.config });
+        item.status = '保存成功';
+        batchResults.value.push(`${item.port}成功`);
+      } catch (e) {
+        item.status = e.message;
+        batchResults.value.push(`${item.port}失败：${e.message}`);
+      }
+    }
+    await loadData();
+  });
+}
+async function batchListening(enabled: boolean) {
+  await run(async () => {
+    const rows = selected.value.slice();
+    const previews = enabled
+      ? await mapBounded(rows, async (row) => ({
+          port: row.config.port,
+          result: await pipelinePost('explain', {
+            config: row.config,
+            client_ip: '198.51.100.25',
+            method: 'GET',
+            path: '/',
+            headers: { Accept: 'text/html' },
+            body: '',
+          }),
+        }))
+      : [];
+    const summary = previews
+      .map((p) => `${p.port}: ${p.result.verdict.action}（${p.result.verdict.reason}）`)
+      .join('\n');
+    await ElMessageBox.confirm(
+      `${enabled ? '启用' : '停止'}选中的${rows.length}个端口？${summary ? '\n陌生来源预览：\n' + summary : ''}`,
+      '批量监听操作',
+      { type: 'warning' },
+    );
+    const results = [];
+    for (const row of rows) {
+      try {
+        const config = clone(row.config);
+        config.listen_enabled = enabled;
+        await pipelinePost('ports/save', { config });
+        results.push(`${config.port}成功`);
+      } catch (e) {
+        results.push(`${row.config.port}失败：${e.message}`);
+      }
+    }
+    await loadData();
+    await ElMessageBox.alert(results.join('\n'), '逐端口执行结果');
+  });
+}
+function downloadTemplate(tpl: PolicyTemplate) {
+  download(tpl, `homewaf-template-${tpl.id}.json`);
+}
+function templateDetails(tpl: PolicyTemplate) {
+  templateReadonly.value = tpl.builtin;
+  editingTemplate.value = !tpl.builtin;
+  templateID.value = tpl.id;
+  templateTitle.value = tpl.name;
+  templateJSON.value = JSON.stringify(tpl, null, 2);
+  templateValidated.value = '';
+  templateVisible.value = true;
+}
+function importTemplate() {
+  templateReadonly.value = false;
+  editingTemplate.value = false;
+  templateID.value = '';
+  templateTitle.value = '';
+  templateJSON.value = '';
+  templateValidated.value = '';
+  templateVisible.value = true;
+}
+async function saveAsTemplate(config: PortConfig) {
+  await run(async () => {
+    const value = JSON.parse(await pipelineGet<string>('templates/export', { port: config.port }));
+    value.id = `user-${config.port}-${crypto.randomUUID().slice(0, 8)}`;
+    value.name = (config.name || `端口${config.port}`) + ' 模板';
+    templateDetails(value);
+    editingTemplate.value = false;
+  });
+}
+function forkTemplate() {
+  const value = JSON.parse(templateJSON.value);
+  value.id = 'custom-' + crypto.randomUUID().slice(0, 8);
+  value.name += ' · 副本';
+  value.builtin = false;
+  value.version = 1;
+  templateID.value = value.id;
+  templateTitle.value = value.name;
+  templateJSON.value = JSON.stringify(value, null, 2);
+  templateReadonly.value = false;
+  editingTemplate.value = false;
+  templateValidated.value = '';
+}
+async function readTemplateFile(event: Event) {
+  await run(async () => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (file.size > 1048576) throw new Error('模板不能超过1MiB');
+    const value = JSON.parse(await file.text());
+    if (Array.isArray(value)) throw new Error('请选择单个模板对象；批量导出集合中的模板需逐个导入');
+    templateJSON.value = JSON.stringify(value, null, 2);
+    templateID.value = value.id || '';
+    templateTitle.value = value.name || '';
+    templateValidated.value = '';
+    editingTemplate.value = false;
+  });
+}
+function templateCandidate() {
+  const value = JSON.parse(templateJSON.value);
+  if (templateID.value) value.id = templateID.value;
+  if (templateTitle.value) value.name = templateTitle.value;
+  value.builtin = false;
+  return value;
+}
+async function validateTemplate() {
+  await run(async () => {
+    const value = await pipelinePost<PolicyTemplate>('templates/import-preview', templateCandidate());
+    templateID.value = value.id;
+    templateTitle.value = value.name;
+    templateJSON.value = JSON.stringify(value, null, 2);
+    templateValidated.value = JSON.stringify(value);
+  });
+}
+async function saveTemplate() {
+  await run(async () => {
+    const candidate = templateCandidate();
+    if (templateValidated.value !== JSON.stringify(candidate)) throw new Error('模板已变化，请重新校验预览');
+    await pipelinePost('templates/save', candidate);
+    templateVisible.value = false;
+    await loadData();
+    ElMessage.success('模板已保存，未更改任何端口');
+  });
+}
+async function deleteTemplate(tpl: PolicyTemplate) {
+  await run(async () => {
+    await ElMessageBox.confirm(`删除用户模板“${tpl.name}”？已应用端口仍保留自己的配置。`, '删除模板', {
+      type: 'warning',
+    });
+    await pipelinePost('templates/delete', { id: tpl.id });
+    await loadData();
+  });
+}
+async function openFeed() {
+  await run(async () => {
+    const result = await pipelineGet('feed');
+    Object.assign(feed, result.config, { token: '', clear_token: false });
+    feedStatus.value = result.status || {};
+    feedAuthorized.value = !!result.authorized;
+    feedTrustedKeys.value = result.trusted_keys || 0;
+    feedVisible.value = true;
+  });
+}
+async function saveFeed() {
+  await run(async () => {
+    await pipelinePost('feed/save', feed);
+    feed.token = '';
+    const result = await pipelineGet('feed');
+    Object.assign(feed, result.config, { token: '', clear_token: false });
+    feedStatus.value = result.status || {};
+    feedAuthorized.value = !!result.authorized;
+    feedTrustedKeys.value = result.trusted_keys || 0;
+    ElMessage.success('订阅配置已保存');
+  });
+}
+async function syncFeed() {
+  await run(async () => {
+    await pipelinePost('feed/sync', {});
+    const result = await pipelineGet('feed');
+    feedStatus.value = result.status || {};
+    feedAuthorized.value = !!result.authorized;
+    feedTrustedKeys.value = result.trusted_keys || 0;
+    ElMessage.success('已检查已保存的订阅源');
+  });
+}
+watch(feedVisible, (open) => {
+  if (!open) feed.token = '';
+});
+async function followEntry() {
+  if (!loaded.value) return;
+  const action = route.query.action,
+    enable = route.query.enable,
+    inspectPort = route.query.inspect,
+    editPort = route.query.edit;
+  if (!action && !enable && !inspectPort && !editPort) return;
+  await router.replace({ name: route.name, query: {} });
+  if (action === 'create') {
+    create();
+    return;
+  }
+  const row = overview.ports.find((row) => row.config.port === Number(enable || inspectPort || editPort));
+  if (!row) {
+    error.value = '没有找到该服务，请刷新列表后重试。';
+    return;
+  }
+  if (editPort) {
+    edit(row.config);
+    return;
+  }
+  if (enable) {
+    if (row.config.policy.gate.require_token) editToken(row.config);
+    else openEnable(row);
+  } else await inspect(row);
+}
+watch(
+  () => route.fullPath,
+  () => {
+    if (!busy.value) followEntry();
+  },
+);
 
-onMounted(async()=>{document.body.classList.add('pipeline-route');fitNavigation();mobileQuery.addEventListener('change',fitNavigation);await refresh();await followEntry();refreshTimer=setInterval(async()=>{if(busy.value||editorVisible.value||document.hidden)return;try{Object.assign(overview,await pipelineGet('overview'));error.value=''}catch(e){error.value='刷新失败，保留最近一次数据：'+(e.message||String(e))}},10000)});
-onUnmounted(()=>{if(refreshTimer)clearInterval(refreshTimer);feed.token='';document.body.classList.remove('pipeline-route');mobileQuery.removeEventListener('change',fitNavigation)});
+onMounted(async () => {
+  document.body.classList.add('pipeline-route');
+  fitNavigation();
+  mobileQuery.addEventListener('change', fitNavigation);
+  await refresh();
+  await followEntry();
+  refreshTimer = setInterval(async () => {
+    if (busy.value || editorVisible.value || document.hidden) return;
+    try {
+      Object.assign(overview, await pipelineGet('overview'));
+      error.value = '';
+    } catch (e) {
+      error.value = '刷新失败，保留最近一次数据：' + (e.message || String(e));
+    }
+  }, 10000);
+});
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer);
+  feed.token = '';
+  document.body.classList.remove('pipeline-route');
+  mobileQuery.removeEventListener('change', fitNavigation);
+});
 </script>
 
 <style scoped>
-.pipeline-page{max-width:1650px;margin:0 auto;color:var(--el-text-color-primary)}.page-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:20px}.page-heading h1{font-size:25px;margin:0 0 9px}.page-heading p,.muted{color:var(--el-text-color-secondary);font-size:13px;line-height:1.7}.page-heading p{margin:0}.space{margin:18px 0}.summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:20px}.summary-grid>div{border:1px solid var(--el-border-color-lighter);background:var(--el-bg-color);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:12px}.summary-grid span{font-size:13px;color:var(--el-text-color-secondary)}.summary-grid strong{font-size:25px;font-weight:600}.table-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}.table-toolbar .el-button+.el-button{margin-left:0}.pipeline-page :deep(.el-table small){display:block;color:var(--el-text-color-secondary);font-size:12px;line-height:1.7;margin-top:4px}.break{overflow-wrap:anywhere}.resource-summary{display:flex;gap:22px;flex-wrap:wrap;color:var(--el-text-color-secondary);font-size:12px;margin:18px 0}.template-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.template-badge{float:right}.template-grid p{line-height:1.7}.template-grid small{color:var(--el-text-color-secondary)}.template-form,.diff-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.template-form label,.feed-form label{display:flex;flex-direction:column;gap:8px}.feed-form{display:grid;gap:18px}pre{font-size:12px;line-height:1.6;background:var(--el-fill-color-light);padding:14px;border-radius:4px;overflow:auto;max-height:450px}summary{cursor:pointer;font-weight:600;padding:12px 0}.pipeline-page :deep(.el-dialog__body){max-height:77vh;overflow:auto}.pipeline-page :deep(.el-tabs__content){overflow:visible}@media(max-width:800px){.summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.template-grid,.template-form,.diff-columns{grid-template-columns:1fr}.page-heading h1{font-size:22px}.page-heading>div:last-child{display:flex;flex-wrap:wrap;gap:8px}.page-heading .el-button{margin-left:0}}
+.pipeline-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.pipeline-actions > span {
+  font-size: 13px;
+}
+.pipeline-actions .heading-actions {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .pipeline-actions .heading-actions {
+    width: 100%;
+  }
+  .pipeline-actions .el-button {
+    flex: 1;
+  }
+}
+.pipeline-page {
+  max-width: 1650px;
+  margin: 0 auto;
+  color: var(--el-text-color-primary);
+}
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.page-heading h1 {
+  font-size: 25px;
+  margin: 0 0 9px;
+}
+.page-heading p,
+.muted {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.page-heading p {
+  margin: 0;
+}
+.space {
+  margin: 18px 0;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.summary-grid > div {
+  border: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.summary-grid span {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+.summary-grid strong {
+  font-size: 25px;
+  font-weight: 500;
+}
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.table-toolbar .el-button + .el-button {
+  margin-left: 0;
+}
+.pipeline-page :deep(.el-table small) {
+  display: block;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-top: 4px;
+}
+.break {
+  overflow-wrap: anywhere;
+}
+.resource-summary {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  margin: 18px 0;
+}
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.template-badge {
+  float: right;
+}
+.template-grid p {
+  line-height: 1.7;
+}
+.template-grid small {
+  color: var(--el-text-color-secondary);
+}
+.template-form,
+.diff-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.template-form label,
+.feed-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.feed-form {
+  display: grid;
+  gap: 18px;
+}
+pre {
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--el-fill-color-light);
+  padding: 14px;
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 450px;
+}
+summary {
+  cursor: pointer;
+  font-weight: 500;
+  padding: 12px 0;
+}
+.pipeline-page :deep(.el-dialog__body) {
+  max-height: 77vh;
+  overflow: auto;
+}
+.pipeline-page :deep(.el-tabs__content) {
+  overflow: visible;
+}
+@media (max-width: 800px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .template-grid,
+  .template-form,
+  .diff-columns {
+    grid-template-columns: 1fr;
+  }
+  .page-heading h1 {
+    font-size: 22px;
+  }
+  .page-heading > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .page-heading .el-button {
+    margin-left: 0;
+  }
+}
 </style>
 <style>
-@media(max-width:760px){body.pipeline-route .el-header .screen-entry,body.pipeline-route .el-header .system-monitor-trigger{display:none}body.pipeline-route .el-header .hw-menu-operations{min-width:0;max-width:calc(100vw - 72px);flex-shrink:1}body.pipeline-route .el-header .operations-container{min-width:0;max-width:100%;margin-right:0;overflow-x:auto}body.pipeline-route .tdesign-starter-content-layout{padding:14px}body.pipeline-route .pipeline-page{min-width:0;width:100%}body.pipeline-route .el-message{max-width:calc(100vw - 24px)}}
+@media (max-width: 760px) {
+  body.pipeline-route .el-header .screen-entry,
+  body.pipeline-route .el-header .system-monitor-trigger {
+    display: none;
+  }
+  body.pipeline-route .el-header .hw-menu-operations {
+    min-width: 0;
+    max-width: calc(100vw - 72px);
+    flex-shrink: 1;
+  }
+  body.pipeline-route .el-header .operations-container {
+    min-width: 0;
+    max-width: 100%;
+    margin-right: 0;
+    overflow-x: auto;
+  }
+  body.pipeline-route .tdesign-starter-content-layout {
+    padding: 14px;
+  }
+  body.pipeline-route .pipeline-page {
+    min-width: 0;
+    width: 100%;
+  }
+  body.pipeline-route .el-message {
+    max-width: calc(100vw - 24px);
+  }
+}
 </style>
 
 <style scoped>
-.pipeline-page{max-width:1248px}.service-eyebrow{font-size:13px;color:var(--el-text-color-regular);margin:8px 0 12px}.page-heading{margin-bottom:28px}.page-heading h1{font-size:30px;font-weight:500;letter-spacing:-.8px}.page-heading p{font-size:14px;color:var(--el-text-color-regular)}.heading-actions{display:flex;gap:12px}.heading-actions .el-button{margin:0;min-height:44px}.button-icon{width:16px;height:16px;margin-left:8px}.service-toolbar{display:flex;align-items:center;gap:16px;margin:12px 0 24px}.service-search{display:flex;align-items:center;gap:10px;background:var(--el-bg-color);border:1px solid var(--el-border-color);border-radius:6px;min-height:44px;padding:0 14px;width:340px;max-width:100%}.service-search svg{width:18px;height:18px;flex-shrink:0;color:var(--el-text-color-regular)}.service-search input{border:0;outline:0;background:transparent;color:var(--el-text-color-primary);width:100%;min-width:0;font:inherit;font-size:14px}.service-search:focus-within{outline:2px solid var(--el-color-primary);outline-offset:2px}.service-count{margin-right:auto;font-size:13px;color:var(--el-text-color-regular);white-space:nowrap}.service-toolbar>.el-button{min-height:44px;margin:0}.service-empty{background:var(--el-bg-color);border:1px solid var(--el-border-color-light);border-radius:12px;text-align:center;padding:48px 24px;margin:12px 0 24px}.service-empty>svg{width:44px;height:44px;color:var(--el-color-primary);margin-bottom:20px}.service-empty h2{font-size:24px;font-weight:500;margin:0 0 12px}.service-empty p{font-size:14px;line-height:1.8;color:var(--el-text-color-regular);max-width:440px;margin:0 auto}.service-empty ol{display:flex;justify-content:center;gap:32px;list-style-position:inside;padding:0;margin:28px 0;font-size:13px;color:var(--el-text-color-regular)}.service-empty>.el-button{min-height:44px}.service-empty>span{display:block;font-size:12px;color:var(--el-text-color-regular);margin-top:16px}.advanced-service-tools{margin:24px 0;color:var(--el-text-color-regular);border-bottom:1px solid var(--el-border-color-light);padding-bottom:16px}.advanced-service-tools summary{font-weight:400;font-size:13px;min-height:44px}.saved-service{display:flex;align-items:center;gap:16px;padding:24px;border-radius:12px;border:1px solid var(--el-color-primary-light-7);background:var(--el-color-primary-light-9);margin-bottom:24px}.saved-service>div{flex:1}.saved-service strong{font-weight:500}.saved-service p{font-size:13px;line-height:1.7;color:var(--el-text-color-regular);margin:8px 0 0}.saved-service .el-button{min-height:44px;margin:0}.service-loading,.service-no-results{padding:32px;text-align:center;color:var(--el-text-color-regular)}@media(max-width:600px){.page-heading h1{font-size:24px}.page-heading{gap:20px}.heading-actions{width:100%}.heading-actions .el-button{flex:1}.service-toolbar{flex-wrap:wrap;gap:12px}.service-search{width:100%}.saved-service{flex-wrap:wrap;padding:20px}.saved-service>div{flex-basis:100%}.service-empty{padding:32px 20px}.service-empty ol{flex-direction:column;gap:12px;text-align:left;max-width:180px;margin:24px auto}.service-empty>.el-button{width:100%}.service-empty h2{font-size:21px}}
+.pipeline-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.pipeline-actions > span {
+  font-size: 13px;
+}
+.pipeline-actions .heading-actions {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .pipeline-actions .heading-actions {
+    width: 100%;
+  }
+  .pipeline-actions .el-button {
+    flex: 1;
+  }
+}
+.pipeline-page {
+  max-width: 1248px;
+}
+.service-eyebrow {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  margin: 8px 0 12px;
+}
+.page-heading {
+  margin-bottom: 28px;
+}
+.page-heading h1 {
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.8px;
+}
+.page-heading p {
+  font-size: 14px;
+  color: var(--el-text-color-regular);
+}
+.heading-actions {
+  display: flex;
+  gap: 12px;
+}
+.heading-actions .el-button {
+  margin: 0;
+  min-height: 44px;
+}
+.button-icon {
+  width: 16px;
+  height: 16px;
+  margin-left: 8px;
+}
+.service-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 12px 0 24px;
+}
+.service-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  width: 340px;
+  max-width: 100%;
+}
+.service-search svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--el-text-color-regular);
+}
+.service-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--el-text-color-primary);
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+}
+.service-search:focus-within {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+.service-count {
+  margin-right: auto;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  white-space: nowrap;
+}
+.service-toolbar > .el-button {
+  min-height: 44px;
+  margin: 0;
+}
+.service-empty {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--hw-r-lg);
+  text-align: center;
+  padding: 48px 24px;
+  margin: 12px 0 24px;
+}
+.service-empty > svg {
+  width: 44px;
+  height: 44px;
+  color: var(--el-color-primary);
+  margin-bottom: 20px;
+}
+.service-empty h2 {
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+.service-empty p {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--el-text-color-regular);
+  max-width: 440px;
+  margin: 0 auto;
+}
+.service-empty ol {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  list-style-position: inside;
+  padding: 0;
+  margin: 28px 0;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+.service-empty > .el-button {
+  min-height: 44px;
+}
+.service-empty > span {
+  display: block;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  margin-top: 16px;
+}
+.advanced-service-tools {
+  margin: 24px 0;
+  color: var(--el-text-color-regular);
+  border-bottom: 1px solid var(--el-border-color-light);
+  padding-bottom: 16px;
+}
+.advanced-service-tools summary {
+  font-weight: 400;
+  font-size: 13px;
+  min-height: 44px;
+}
+.saved-service {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  border-radius: var(--hw-r-lg);
+  border: 1px solid var(--el-color-primary-light-7);
+  background: var(--el-color-primary-light-9);
+  margin-bottom: 24px;
+}
+.saved-service > div {
+  flex: 1;
+}
+.saved-service strong {
+  font-weight: 500;
+}
+.saved-service p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--el-text-color-regular);
+  margin: 8px 0 0;
+}
+.saved-service .el-button {
+  min-height: 44px;
+  margin: 0;
+}
+.service-loading,
+.service-no-results {
+  padding: 32px;
+  text-align: center;
+  color: var(--el-text-color-regular);
+}
+@media (max-width: 600px) {
+  .page-heading h1 {
+    font-size: 24px;
+  }
+  .page-heading {
+    gap: 20px;
+  }
+  .heading-actions {
+    width: 100%;
+  }
+  .heading-actions .el-button {
+    flex: 1;
+  }
+  .service-toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .service-search {
+    width: 100%;
+  }
+  .saved-service {
+    flex-wrap: wrap;
+    padding: 20px;
+  }
+  .saved-service > div {
+    flex-basis: 100%;
+  }
+  .service-empty {
+    padding: 32px 20px;
+  }
+  .service-empty ol {
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+    max-width: 180px;
+    margin: 24px auto;
+  }
+  .service-empty > .el-button {
+    width: 100%;
+  }
+  .service-empty h2 {
+    font-size: 21px;
+  }
+}
 </style>
 
-<style scoped>.enable-intro h2{font-size:22px;font-weight:500;margin:8px 0}.enable-intro p{font-size:13px;color:var(--el-text-color-regular);line-height:1.8;overflow-wrap:anywhere}.enable-modes{margin:12px 0}.enable-help{font-size:13px;color:var(--el-text-color-regular);line-height:1.8;margin:16px 0}.enable-result{padding:20px;background:var(--el-color-primary-light-9);border:1px solid var(--el-color-primary-light-7);border-radius:8px}.enable-result strong{font-weight:500}.enable-result p{font-size:14px;margin:8px 0 0}</style>
+<style scoped>
+.pipeline-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.pipeline-actions > span {
+  font-size: 13px;
+}
+.pipeline-actions .heading-actions {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .pipeline-actions .heading-actions {
+    width: 100%;
+  }
+  .pipeline-actions .el-button {
+    flex: 1;
+  }
+}
+.enable-intro h2 {
+  font-size: 22px;
+  font-weight: 500;
+  margin: 8px 0;
+}
+.enable-intro p {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.enable-modes {
+  margin: 12px 0;
+}
+.enable-help {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  line-height: 1.8;
+  margin: 16px 0;
+}
+.enable-result {
+  padding: 20px;
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-7);
+  border-radius: 8px;
+}
+.enable-result strong {
+  font-weight: 500;
+}
+.enable-result p {
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+</style>

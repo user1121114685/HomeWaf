@@ -4,8 +4,8 @@
   <div class="spider-active-page">
     <hw-card>
       <div style="display: flex; gap: 16px; margin-bottom: 16px;">
-        <hw-date-range-picker v-model="range1" :presets="presets"  style="width: 240px;"/>
-        <hw-select v-model="selectedHost"  clearable style="width: 200px;" :placeholder="$t('common.select_placeholder')" >
+        <hw-date-range-picker v-model="range1" :presets="presets"  style="width: min(100%, 240px);"/>
+        <hw-select v-model="selectedHost"  clearable style="width: min(100%, 200px);" :placeholder="$t('common.select_placeholder')" >
           <hw-option v-for="item in hostOptions" :value="item.value" :label="item.label" :key="item.value">
             {{ item.label }}
           </hw-option>
@@ -13,7 +13,7 @@
         <hw-button theme="primary" @click="fetchData"> {{ $t('common.search') }}</hw-button>
       </div>
       <div style="display: flex; gap: 32px;">
-        <div style="width: 660px; height: 320px;">
+        <div style="width: min(100%, 660px); height: 320px;">
           <div id="spiderChart"  class="echart-box" ref="boxpie"></div>
         </div>
 
@@ -39,7 +39,7 @@
 import {defineComponent} from 'vue';
 
 
-import { use } from "echarts/core";
+import { use } from "@/ui/charts";
 import { TooltipComponent, LegendComponent, GridComponent, TitleComponent } from "echarts/components";
 import {
   PieChart,
@@ -56,7 +56,7 @@ import {
 import {
   allhost
 } from '@/apis/host';
-import * as echarts from "echarts/core";
+import * as echarts from "@/ui/charts";
 
 export default defineComponent({
   name: 'SpiderActive',
@@ -75,9 +75,9 @@ export default defineComponent({
       pieContainer:null,//饼图
       selectedHost: '',
       globalHost: '',
-      totalPV: 260,
-      spiderPV: 260,
-      spiderPercent: 100,
+      totalPV: 0,
+      spiderPV: 0,
+      spiderPercent: 0,
       spiderPieData: [
       ],
       spiderLineData: [

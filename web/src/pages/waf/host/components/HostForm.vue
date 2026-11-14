@@ -36,11 +36,11 @@
                 <template #label>
                   <span>{{ $t('page.host.website') }}</span>
                   <hw-tooltip :content="$t('page.host.host_tips')" placement="top"
-                             :overlay-style="{ width: '240px' }" :delay="200" show-arrow>
+                             :overlay-style="{ width: 'min(100%, 240px)' }" :delay="200" show-arrow>
                     <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                   </hw-tooltip>
                 </template>
-                <hw-input :style="{ width: '400px' }" v-model="formData.host" :placeholder="$t('common.placeholder')" :disabled="isEdit"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 400px)' }" v-model="formData.host" :placeholder="$t('common.placeholder')" :disabled="isEdit"></hw-input>
               </hw-form-item>
             </div>
 
@@ -58,7 +58,7 @@
                   <span class="port-listen-ipv" v-if="showPortIpv">
                     {{ $t('page.host.port_listen.col_ipv') }}
                     <hw-tooltip :content="$t('page.host.port_listen.ipv_tips')" placement="top"
-                               :overlay-style="{ width: '320px' }" :delay="200" show-arrow>
+                               :overlay-style="{ width: 'min(100%, 320px)' }" :delay="200" show-arrow>
                       <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                     </hw-tooltip>
                   </span>
@@ -100,7 +100,7 @@
                       {{ $t('page.host.port_listen.acme80') }}
                     </hw-checkbox>
                     <hw-tooltip :content="$t('page.host.port_listen.acme80_tips')" placement="top"
-                               :overlay-style="{ width: '340px' }" :delay="200" show-arrow>
+                               :overlay-style="{ width: 'min(100%, 340px)' }" :delay="200" show-arrow>
                       <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                     </hw-tooltip>
                   </span>
@@ -125,7 +125,7 @@
                 <div class="port-listen-hint">
                   {{ $t('page.host.port_listen.tips_short') }}
                   <hw-tooltip :content="$t('page.host.port_listen.tips')" placement="top"
-                             :overlay-style="{ width: '360px' }" :delay="200" show-arrow>
+                             :overlay-style="{ width: 'min(100%, 360px)' }" :delay="200" show-arrow>
                     <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                   </hw-tooltip>
                 </div>
@@ -135,7 +135,7 @@
               <template #label>
                 <span>{{ $t('page.host.unrestricted_port.label_unrestricted_port_is_enable') }}</span>
                 <hw-tooltip :content="$t('page.host.unrestricted_port.unrestricted_port_tip')" placement="top"
-                           :overlay-style="{ width: '240px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 240px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
@@ -158,7 +158,7 @@
               <template #label>
                 <span>{{ $t('page.host.ssl') }}</span>
                 <hw-tooltip :content="$t('page.host.ssl_tips')" placement="top"
-                           :overlay-style="{ width: '240px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 240px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
@@ -225,7 +225,7 @@
               <template #label>
                 <span>{{ $t('page.host.disable_http2.label') }}</span>
                 <hw-tooltip :content="$t('page.host.disable_http2.tips')" placement="top"
-                           :overlay-style="{ width: '300px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 300px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
@@ -238,11 +238,11 @@
               <template #label>
                 <span>{{ $t('page.host.certfile') }}</span>
                 <hw-tooltip :content="$t('page.host.certfile_content')" placement="top"
-                           :overlay-style="{ width: '260px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 260px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
-              <hw-textarea :style="{ width: '400px' }" v-model="formData.certfile" :placeholder="$t('common.placeholder')"
+              <hw-textarea :style="{ width: 'min(100%, 400px)' }" v-model="formData.certfile" :placeholder="$t('common.placeholder')"
                           name="certfile">
               </hw-textarea>
             </hw-form-item>
@@ -250,11 +250,11 @@
               <template #label>
                 <span>{{ $t('page.host.keyfile') }}</span>
                 <hw-tooltip :content="$t('page.host.keyfile_content')" placement="top"
-                           :overlay-style="{ width: '260px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 260px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
-              <hw-textarea :style="{ width: '400px' }" v-model="formData.keyfile" :placeholder="$t('common.placeholder')" name="keyfile">
+              <hw-textarea :style="{ width: 'min(100%, 400px)' }" v-model="formData.keyfile" :placeholder="$t('common.placeholder')" name="keyfile">
               </hw-textarea>
             </hw-form-item>
             </div>
@@ -286,11 +286,11 @@
               <template #label>
                 <span>{{ $t('page.host.remote_host') }}</span>
                 <hw-tooltip :content="$t('page.host.remote_host_content')" placement="top"
-                           :overlay-style="{ width: '260px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 260px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
-              <hw-input :style="{ width: '400px' }" v-model="formData.remote_host" :placeholder="$t('common.placeholder')+$t('page.host.remote_host')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 400px)' }" v-model="formData.remote_host" :placeholder="$t('common.placeholder')+$t('page.host.remote_host')"></hw-input>
             </hw-form-item>
 
             <!-- 后端IP 与 后端端口 并成一行显示；两者各自保留 form-item 与 name，校验提示才能分别落到对应输入框 -->
@@ -299,17 +299,17 @@
                 <template #label>
                   <span>{{ $t('page.host.remote_ip') }}</span>
                   <hw-tooltip :content="$t('page.host.remote_ip_content')" placement="top"
-                             :overlay-style="{ width: '260px' }" :delay="200" show-arrow>
+                             :overlay-style="{ width: 'min(100%, 260px)' }" :delay="200" show-arrow>
                     <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                   </hw-tooltip>
                 </template>
-                <hw-input :style="{ width: '250px' }" v-model="formData.remote_ip" :placeholder="$t('common.placeholder')+$t('page.host.remote_ip')"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 250px)' }" v-model="formData.remote_ip" :placeholder="$t('common.placeholder')+$t('page.host.remote_ip')"></hw-input>
               </hw-form-item>
               <hw-form-item name="remote_port" :label-width="64">
                 <template #label>
                   <span>{{ $t('page.host.port_listen.port_ph') }}</span>
                   <hw-tooltip :content="$t('page.host.remote_port_content')" placement="top"
-                             :overlay-style="{ width: '260px' }" :delay="200" show-arrow>
+                             :overlay-style="{ width: 'min(100%, 260px)' }" :delay="200" show-arrow>
                     <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                   </hw-tooltip>
                 </template>
@@ -350,7 +350,7 @@
               <template #label>
                 <span>{{ $t('page.host.start_status') }}</span>
                 <hw-tooltip :content="$t('page.host.start_status_content')" placement="top"
-                           :overlay-style="{ width: '240px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 240px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
@@ -363,7 +363,7 @@
               <template #label>
                 <span>{{ $t('page.host.log_only_mode') }}</span>
                 <hw-tooltip :content="$t('page.host.log_only_mode_tips')" placement="top"
-                           :overlay-style="{ width: '240px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 240px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
@@ -380,22 +380,22 @@
                 <small>{{ $t('page.host.sect.meta_desc') }}</small>
               </h4>
             <hw-form-item :label="$t('page.host.nickname')" name="nickname" :label-width="baseLabelWidth">
-              <hw-input :style="{ width: '400px' }" v-model="formData.nickname" :placeholder="$t('page.host.nickname_placeholder')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 400px)' }" v-model="formData.nickname" :placeholder="$t('page.host.nickname_placeholder')"></hw-input>
             </hw-form-item>
 
             <hw-form-item :label="$t('page.host.group.belong_group')" name="group_code" :label-width="baseLabelWidth">
-              <hw-select :style="{ width: '400px' }" v-model="formData.group_code" clearable
+              <hw-select :style="{ width: 'min(100%, 400px)' }" v-model="formData.group_code" clearable
                         :placeholder="$t('page.host.group.belong_group_placeholder')">
                 <hw-option v-for="g in hostGroups" :key="g.group_code" :value="g.group_code" :label="g.group_name">
                   <i class="hg-form-dot" :style="{ background: g.color }"></i>{{ g.group_name }}
                 </hw-option>
               </hw-select>
-              <a class="hg-form-new" @click="openGroupQuickAdd()">＋ {{ $t('page.host.group.new_group') }}</a>
+              <button type="button" class="hg-form-new" @click="openGroupQuickAdd()">＋ {{ $t('page.host.group.new_group') }}</button>
               <div class="hg-form-tip">{{ $t('page.host.group.belong_group_tip') }}</div>
             </hw-form-item>
 
             <hw-form-item :label="$t('common.remarks')" name="remarks" :label-width="baseLabelWidth">
-              <hw-textarea :style="{ width: '400px' }" v-model="formData.remarks" :placeholder="$t('common.placeholder_content')" name="remarks">
+              <hw-textarea :style="{ width: 'min(100%, 400px)' }" v-model="formData.remarks" :placeholder="$t('common.placeholder_content')" name="remarks">
               </hw-textarea>
             </hw-form-item>
             </div>
@@ -408,8 +408,8 @@
             </template>
             <hw-form-item :label="$t('page.host.more_domain')" name="bind_more_host">
               <hw-tooltip class="placement top center" :content="$t('page.host.more_domain_tips')" placement="top"
-                       :overlay-style="{ width: '200px' }" show-arrow>
-                <hw-textarea :style="{ width: '480px' }" v-model="formData.bind_more_host" :placeholder="$t('common.placeholder')"
+                       :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
+                <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.bind_more_host" :placeholder="$t('common.placeholder')"
                           name="bind_more_host">
                 </hw-textarea>
               </hw-tooltip>
@@ -433,7 +433,7 @@
             >
               <template #detection="{ row }">
                 <hw-tooltip class="placement top center" :content="row.tips" placement="top"
-                           :overlay-style="{ width: '300px' }" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 300px)' }" show-arrow>
                   <span>{{ row.label }}</span>
                 </hw-tooltip>
               </template>
@@ -467,7 +467,7 @@
               <template #label>
                 <span>{{ $t('page.host.ip_mode') }}</span>
                 <hw-tooltip class="placement top center" :content="$t('page.host.ip_mode_tips')" placement="top"
-                           :overlay-style="{ width: '300px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 300px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
@@ -492,12 +492,12 @@
               <template #label>
                 <span>{{ $t('page.host.ip_source_mode') }}</span>
                 <hw-tooltip class="placement top center" :content="$t('page.host.ip_source_mode_tips')" placement="top"
-                           :overlay-style="{ width: '340px' }" :delay="200" show-arrow>
+                           :overlay-style="{ width: 'min(100%, 340px)' }" :delay="200" show-arrow>
                   <hw-icon name="help-circle" class="host-form-ip-mode-help-icon" />
                 </hw-tooltip>
               </template>
               <div class="ip-source-block">
-                <hw-select v-model="formData.ip_source_mode" :style="{ width: '320px' }" clearable>
+                <hw-select v-model="formData.ip_source_mode" :style="{ width: 'min(100%, 320px)' }" clearable>
                   <hw-option value="" :label="$t('page.host.ip_source_compat')" />
                   <hw-option value="header" :label="$t('page.host.ip_source_header')" />
                   <hw-option value="xff_depth" :label="$t('page.host.ip_source_xff')" />
@@ -509,14 +509,14 @@
                   <hw-alert v-if="globalProxyHeader" theme="info">
                     <div>
                       {{ $t('page.host.ip_scope_inherit', { header: globalProxyHeader }) }}
-                      <a class="t-button-link" @click="goSystemConfig">{{ $t('page.host.ip_scope_edit_global') }}</a>
+                      <button type="button" class="t-button-link" @click="goSystemConfig">{{ $t('page.host.ip_scope_edit_global') }}</button>
                       <div class="limit-mode-desc">{{ $t('page.host.ip_scope_inherit_desc') }}</div>
                     </div>
                   </hw-alert>
                   <hw-alert v-else theme="error">
                     <div>
                       {{ $t('page.host.ip_scope_global_empty') }}
-                      <a class="t-button-link" @click="goSystemConfig">{{ $t('page.host.ip_scope_goto_global') }}</a>
+                      <button type="button" class="t-button-link" @click="goSystemConfig">{{ $t('page.host.ip_scope_goto_global') }}</button>
                     </div>
                   </hw-alert>
                 </div>
@@ -525,12 +525,12 @@
                 </div>
                 <!-- 到底该配哪个头，只能看真实到达的请求头才知道；这里直接给个入口，免得跑去日志详情里翻(#956) -->
                 <div v-if="isEdit && formData.code" class="ip-probe-entry">
-                  <a class="t-button-link" @click="openIpProbe">{{ $t('page.host.ip_probe_entry') }}</a>
+                  <button type="button" class="t-button-link" @click="openIpProbe">{{ $t('page.host.ip_probe_entry') }}</button>
                 </div>
               </div>
             </hw-form-item>
             <hw-form-item v-if="formData.ip_mode === 'proxy' && formData.ip_source_mode === 'cdn_preset'" :label="$t('page.host.cdn_provider')" name="cdn_provider">
-              <hw-select v-model="formData.cdn_provider" :style="{ width: '320px' }" @change="onCdnProviderChange">
+              <hw-select v-model="formData.cdn_provider" :style="{ width: 'min(100%, 320px)' }" @change="onCdnProviderChange">
                 <hw-option value="cloudflare" label="Cloudflare (CF-Connecting-IP)" />
                 <hw-option value="fastly" label="Fastly (Fastly-Client-IP)" />
                 <hw-option value="cloudfront" label="AWS CloudFront" />
@@ -549,7 +549,7 @@
                     <span style="color: var(--td-text-color-placeholder);">（{{ $t('page.host.cdn_last_update') }}: {{ formatCdnTs(cdnProviderInfo.last_sync_at) }}）</span>
                   </span>
                   <span v-else style="color: var(--td-warning-color);">{{ $t('page.host.cdn_not_fetched') }}</span>
-                  <a class="t-button-link" style="margin-left: 12px;" @click="goCdnPage">{{ $t('page.host.cdn_manage_link') }}</a>
+                  <button type="button" class="t-button-link" style="margin-left: 12px;" @click="goCdnPage">{{ $t('page.host.cdn_manage_link') }}</button>
                 </template>
                 <span v-else style="color: var(--td-text-color-placeholder);">-</span>
                 <div class="limit-mode-desc">{{ $t('page.host.cdn_trusted_ips_tips') }}</div>
@@ -559,7 +559,7 @@
                  例如在 EdgeOne 控制台开了自定义「客户端IP头部」的场景) -->
             <hw-form-item v-if="showIpRealHeader" :label="$t('page.host.ip_real_header')" name="ip_real_header">
               <div>
-                <hw-input :style="{ width: '320px' }" v-model="formData.ip_real_header"
+                <hw-input :style="{ width: 'min(100%, 320px)' }" v-model="formData.ip_real_header"
                          :placeholder="cdnDefaultHeader || 'X-Real-IP / CF-Connecting-IP'"></hw-input>
                 <div v-if="formData.ip_source_mode === 'cdn_preset'" class="limit-mode-desc">
                   {{ $t('page.host.ip_real_header_cdn_desc', { header: cdnDefaultHeader || '-' }) }}
@@ -571,7 +571,7 @@
             <hw-form-item v-if="showIpTrustProxies"
                          :label="$t('page.host.ip_trust_proxies')" name="ip_trust_proxies">
               <div>
-                <hw-textarea :style="{ width: '320px' }" v-model="formData.ip_trust_proxies"
+                <hw-textarea :style="{ width: 'min(100%, 320px)' }" v-model="formData.ip_trust_proxies"
                             placeholder="192.0.2.10/32,2001:db8::10/128"></hw-textarea>
                 <!-- cdn_preset 且中心库没拉到回源段时，这里就是唯一的可信来源，必须填 -->
                 <div v-if="cdnTrustProxiesRequired" style="color: var(--td-error-color);">
@@ -582,16 +582,16 @@
             </hw-form-item>
             <hw-form-item :label="$t('page.host.exclude_url_log')" name="exclude_url_log">
               <hw-tooltip class="placement top center" :content="$t('page.host.exclude_url_log_tips')" placement="top"
-                       :overlay-style="{ width: '200px' }" show-arrow>
-                <hw-textarea :style="{ width: '480px' }" v-model="formData.exclude_url_log" :placeholder="$t('page.host.exclude_url_log_tips')"
+                       :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
+                <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.exclude_url_log" :placeholder="$t('page.host.exclude_url_log_tips')"
                           name="exclude_url_log">
                 </hw-textarea>
               </hw-tooltip>
             </hw-form-item>
             <hw-form-item :label="$t('page.host.exclude_ip_log')" name="exclude_ip_log">
               <hw-tooltip class="placement top center" :content="$t('page.host.exclude_ip_log_tips')" placement="top"
-                       :overlay-style="{ width: '260px' }" show-arrow>
-                <hw-textarea :style="{ width: '480px' }" v-model="formData.exclude_ip_log" :placeholder="$t('page.host.exclude_ip_log_tips')"
+                       :overlay-style="{ width: 'min(100%, 260px)' }" show-arrow>
+                <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.exclude_ip_log" :placeholder="$t('page.host.exclude_ip_log_tips')"
                           name="exclude_ip_log">
                 </hw-textarea>
               </hw-tooltip>
@@ -599,7 +599,7 @@
             <hw-form-item :label="$t('page.host.insecure_skip_verify')" name="insecure_skip_verify" data-diagnostic-section="tls">
               <hw-tooltip class="placement top center"
                          :content="$t('page.host.insecure_skip_verify_tips')" placement="top"
-                         :overlay-style="{ width: '200px' }" show-arrow>
+                         :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
                 <hw-radio-group v-model="formData.insecure_skip_verify">
                   <hw-radio value="0">{{ $t('common.off') }}</hw-radio>
                   <hw-radio value="1">{{ $t('common.on') }}</hw-radio>
@@ -609,7 +609,7 @@
             <hw-form-item :label="$t('page.host.response_time_out')" name="response_time_out">
               <hw-tooltip class="placement top center"
                          :content="$t('page.host.response_time_out_tips')" placement="top"
-                         :overlay-style="{ width: '200px' }" show-arrow>
+                         :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
                 <hw-input-number :style="{ width: '150px' }" v-model="formData.response_time_out" >
                 </hw-input-number>
               </hw-tooltip>
@@ -617,7 +617,7 @@
             <hw-form-item :label="$t('page.host.response_buffering.label')" name="is_enable_response_buffering">
               <hw-tooltip class="placement top center"
                          :content="$t('page.host.response_buffering.tips')" placement="top"
-                         :overlay-style="{ width: '260px' }" show-arrow>
+                         :overlay-style="{ width: 'min(100%, 260px)' }" show-arrow>
                 <hw-radio-group v-model="formData.is_enable_response_buffering">
                   <hw-radio value="1">{{ $t('page.host.response_buffering.enable') }}</hw-radio>
                   <hw-radio value="0">{{ $t('page.host.response_buffering.disable') }}</hw-radio>
@@ -640,7 +640,7 @@
             </template>
             <hw-form-item :label="$t('page.host.is_enable_http_auth_base')" name="is_enable_http_auth_base">
               <hw-tooltip class="placement top center" :content="$t('page.host.is_enable_http_auth_base_tips')" placement="top"
-                       :overlay-style="{ width: '200px' }" show-arrow>
+                       :overlay-style="{ width: 'min(100%, 200px)' }" show-arrow>
                 <hw-radio-group v-model="formData.is_enable_http_auth_base">
                   <hw-radio value="0">{{$t('common.off')}}</hw-radio>
                   <hw-radio value="1">{{$t('common.on')}}</hw-radio>
@@ -649,7 +649,7 @@
             </hw-form-item>
             <hw-form-item v-if="formData.is_enable_http_auth_base === '1'" :label="$t('page.host.http_auth_base_type')" name="http_auth_base_type">
               <hw-tooltip class="placement top center" :content="$t('page.host.http_auth_base_type_tips')" placement="top"
-                       :overlay-style="{ width: '400px' }" show-arrow>
+                       :overlay-style="{ width: 'min(100%, 400px)' }" show-arrow>
                 <hw-radio-group v-model="formData.http_auth_base_type">
                   <hw-radio value="authorization">{{$t('page.host.http_auth_base_type_authorization')}}</hw-radio>
                   <hw-radio value="custom">{{$t('page.host.http_auth_base_type_custom')}}</hw-radio>
@@ -669,8 +669,8 @@
             </hw-form-item>
             <hw-form-item v-if="formData.is_enable_http_auth_base === '1'" :label="$t('page.host.http_auth_path_prefix')" name="http_auth_path_prefix">
               <hw-tooltip class="placement top center" :content="$t('page.host.http_auth_path_prefix_tips')" placement="top"
-                       :overlay-style="{ width: '500px' }" show-arrow>
-                <hw-input v-model="formData.http_auth_path_prefix" :placeholder="$t('page.host.http_auth_path_prefix_placeholder')" :style="{ width: '300px' }">
+                       :overlay-style="{ width: 'min(100%, 500px)' }" show-arrow>
+                <hw-input v-model="formData.http_auth_path_prefix" :placeholder="$t('page.host.http_auth_path_prefix_placeholder')" :style="{ width: 'min(100%, 300px)' }">
                   <template #suffix>
                     <hw-button size="small" theme="primary" @click="generateHttpAuthPath">
                       {{$t('page.host.generate_random_path')}}
@@ -681,7 +681,7 @@
             </hw-form-item>
             <hw-form-item v-if="formData.is_enable_http_auth_base === '1'" :label="$t('page.host.http_auth_path_scope')">
               <hw-tooltip class="placement top center" :content="$t('page.host.http_auth_path_scope_tips')" placement="top"
-                       :overlay-style="{ width: '420px' }" show-arrow>
+                       :overlay-style="{ width: 'min(100%, 420px)' }" show-arrow>
                 <hw-radio-group v-model="httpAuthConfigData.path_scope">
                   <hw-radio value="all">{{$t('page.host.http_auth_path_scope_all')}}</hw-radio>
                   <hw-radio value="include">{{$t('page.host.http_auth_path_scope_include')}}</hw-radio>
@@ -691,15 +691,15 @@
             </hw-form-item>
             <hw-form-item v-if="formData.is_enable_http_auth_base === '1' && httpAuthConfigData.path_scope !== 'all'" :label="$t('page.host.http_auth_paths')">
               <hw-tooltip class="placement top center" :content="$t('page.host.http_auth_paths_tips')" placement="top"
-                       :overlay-style="{ width: '500px' }" show-arrow>
+                       :overlay-style="{ width: 'min(100%, 500px)' }" show-arrow>
                 <hw-textarea v-model="httpAuthConfigData.paths" :placeholder="$t('page.host.http_auth_paths_ph')"
-                            :autosize="{ minRows: 3, maxRows: 8 }" :style="{ width: '480px' }"/>
+                            :autosize="{ minRows: 3, maxRows: 8 }" :style="{ width: 'min(100%, 480px)' }"/>
               </hw-tooltip>
             </hw-form-item>
             <hw-form-item v-if="formData.is_enable_http_auth_base === '1'" :label="$t('page.host.http_auth_bypass_ip_group')">
               <hw-tooltip class="placement top center" :content="$t('page.host.http_auth_bypass_ip_group_tips')" placement="top"
-                       :overlay-style="{ width: '400px' }" show-arrow>
-                <hw-select v-model="httpAuthConfigData.bypass_ip_group" clearable filterable :style="{ width: '480px' }"
+                       :overlay-style="{ width: 'min(100%, 400px)' }" show-arrow>
+                <hw-select v-model="httpAuthConfigData.bypass_ip_group" clearable filterable :style="{ width: 'min(100%, 480px)' }"
                           :placeholder="$t('common.select_placeholder')">
                   <hw-option v-for="g in ipGroupOptions" :key="g.group_code" :value="g.group_code" :label="g.group_name"></hw-option>
                 </hw-select>
@@ -707,7 +707,7 @@
             </hw-form-item>
             <hw-form-item v-if="formData.is_enable_http_auth_base === '1'" :label="$t('page.host.http_auth_session_ttl')">
               <hw-tooltip class="placement top center" :content="$t('page.host.http_auth_session_ttl_tips')" placement="top"
-                       :overlay-style="{ width: '400px' }" show-arrow>
+                       :overlay-style="{ width: 'min(100%, 400px)' }" show-arrow>
                 <hw-input-number v-model="httpAuthConfigData.session_ttl" theme="column" :min="1" :max="525600"
                                 :style="{ width: '180px' }"/>
               </hw-tooltip>
@@ -716,7 +716,7 @@
             <hw-form-item v-if="formData.is_enable_http_auth_base === '1'" :label="$t('page.host.http_auth_idle_timeout')">
               <hw-tooltip class="placement top center"
                        :content="formData.http_auth_base_type === 'custom' ? $t('page.host.http_auth_idle_timeout_tips') : $t('page.host.http_auth_idle_timeout_unsupported')"
-                       placement="top" :overlay-style="{ width: '400px' }" show-arrow>
+                       placement="top" :overlay-style="{ width: 'min(100%, 400px)' }" show-arrow>
                 <hw-input-number v-model="httpAuthConfigData.idle_timeout" theme="column" :min="0" :max="525600"
                                 :disabled="formData.http_auth_base_type !== 'custom'"
                                 :style="{ width: '180px' }"/>
@@ -725,7 +725,7 @@
             </hw-form-item>
             <hw-form-item v-if="formData.is_enable_http_auth_base === '1'" :label="$t('page.host.http_auth_bind_ip')">
               <hw-tooltip class="placement top center" :content="$t('page.host.http_auth_bind_ip_tips')" placement="top"
-                       :overlay-style="{ width: '450px' }" show-arrow>
+                       :overlay-style="{ width: 'min(100%, 450px)' }" show-arrow>
                 <hw-radio-group v-model="httpAuthConfigData.bind_ip">
                   <hw-radio value="0">{{$t('common.off')}}</hw-radio>
                   <hw-radio value="1">{{$t('common.on')}}</hw-radio>
@@ -2781,7 +2781,7 @@ import {defineComponent} from 'vue';
 }
 .hg-form-new {
   margin-left: 10px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-brand-color, #0052d9);
   cursor: pointer;
 }
@@ -2805,7 +2805,7 @@ import {defineComponent} from 'vue';
 }
 .hg-form-tip {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder, rgba(0, 0, 0, 0.35));
 }
 .port-listen-editor {
@@ -2831,7 +2831,7 @@ import {defineComponent} from 'vue';
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--td-text-color-placeholder, rgba(0, 0, 0, 0.35));
   margin-bottom: 2px;
@@ -2874,7 +2874,7 @@ import {defineComponent} from 'vue';
   padding: 0;
 }
 .port-listen-hint {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--td-text-color-placeholder, rgba(0, 0, 0, 0.35));
 }
@@ -2912,7 +2912,7 @@ import {defineComponent} from 'vue';
 }
 .hf-sect-title small {
   font-weight: 400;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder, rgba(0, 0, 0, 0.35));
 }
 .hf-sect-title .hf-sect-extra {

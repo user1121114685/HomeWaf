@@ -1,6 +1,6 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
 
-import { defineComponent, h, ref, watch, nextTick } from 'vue';
+import { computed, defineComponent, h, ref, watch, nextTick } from 'vue';
 import { ElTable, ElTableColumn, ElPagination } from 'element-plus';
 
 // HomeWaf column schema keeps server pagination and named business-cell slots
@@ -26,6 +26,7 @@ export default defineComponent({
   emits: ['page-change', 'select-change', 'sort-change', 'filter-change', 'expand-change', 'row-click', 'change'],
   setup(props, { attrs, slots, emit, expose }) {
     const table = ref<any>();
+    const rows = computed(() => (Array.isArray(props.data) ? props.data : []));
     let synchronizing = false;
     const key = (row: any) => (typeof props.rowKey === 'function' ? props.rowKey(row) : row[props.rowKey || 'id']);
     watch(
@@ -36,7 +37,7 @@ export default defineComponent({
         if (!table.value) return;
         synchronizing = true;
         table.value.clearSelection();
-        for (const row of props.data || [])
+        for (const row of rows.value)
           if (props.selectedRowKeys.includes(key(row))) table.value.toggleRowSelection(row, true);
         await nextTick();
         synchronizing = false;
@@ -56,7 +57,7 @@ export default defineComponent({
         prop: col.colKey,
         label: typeof col.title === 'string' ? col.title : undefined,
         width: col.width,
-        minWidth: col.minWidth,
+        minWidth: col.minWidth ?? (col.width ? undefined : 120),
         align: col.align,
         fixed: col.fixed,
         showOverflowTooltip: col.ellipsis,
@@ -96,7 +97,7 @@ export default defineComponent({
           {
             ...attrs,
             ref: table,
-            data: props.data || [],
+            data: rows.value,
             rowKey: props.rowKey || 'id',
             size: props.size === 'medium' ? 'default' : props.size,
             maxHeight: props.maxHeight,
@@ -138,7 +139,13 @@ export default defineComponent({
                 : null,
               ...(props.columns || []).map(column),
             ],
-            empty: slots.empty,
+            empty:
+              slots.empty ||
+              (() =>
+                h('div', { class: 'table-empty-state' }, [
+                  h('strong', '暂无记录'),
+                  h('p', '调整筛选条件，或在完成配置后刷新。'),
+                ])),
           },
         ),
         props.pagination
@@ -148,12 +155,13 @@ export default defineComponent({
               pageSize: props.pagination.pageSize || 20,
               total: props.pagination.total || 0,
               pageSizes: props.pagination.pageSizeOptions || [10, 20, 50, 100],
-              layout: 'total, sizes, prev, pager, next, jumper',
+              layout: 'total, sizes, prev, pager, next',
+              pagerCount: 5,
               'onUpdate:currentPage': (current: number) => page(current, props.pagination.pageSize || 20),
               'onUpdate:pageSize': (size: number) => page(1, size),
             })
           : null,
-        props.loading ? h('div', { class: 'hw-table-loading', role: 'status' }, 'Loading…') : null,
+        props.loading ? h('div', { class: 'hw-table-loading', role: 'status' }, '正在读取记录…') : null,
       ]);
   },
 });

@@ -52,14 +52,14 @@
         <span>{{ fmtTime(row.last_ban_time) }}</span>
       </template>
       <template #op="{ row }">
-        <a class="t-button-link" @click="handleReset(row)">{{ $t('page.hostguard.op_reset_level') }}</a>
-        <a class="t-button-link" @click="handlePermanentBan(row)" style="margin-left: 8px">
+        <button type="button" class="t-button-link" @click="handleReset(row)">{{ $t('page.hostguard.op_reset_level') }}</button>
+        <button type="button" class="t-button-link" @click="handlePermanentBan(row)" style="margin-left: 8px">
           {{ $t('page.hostguard.op_ban_permanent') }}
-        </a>
-        <a class="t-button-link" @click="handleWhitelist(row)" style="margin-left: 8px">
+        </button>
+        <button type="button" class="t-button-link" @click="handleWhitelist(row)" style="margin-left: 8px">
           {{ $t('page.hostguard.op_whitelist') }}
-        </a>
-        <a class="t-button-link" @click="handleDelete(row)" style="margin-left: 8px">{{ $t('common.delete') }}</a>
+        </button>
+        <button type="button" class="t-button-link" @click="handleDelete(row)" style="margin-left: 8px">{{ $t('common.delete') }}</button>
       </template>
     </hw-table>
   </div>
@@ -209,7 +209,7 @@ export default defineComponent({
   margin-bottom: 16px;
 }
 .ban-count {
-  font-weight: 600;
+  font-weight: 500;
   color: #d54941;
 }
 </style>

@@ -179,7 +179,7 @@ export default {
 
   .hits-code {
     margin-left: 8px;
-    font-size: 12px;
+    font-size: 13px;
     padding: 1px 6px;
     border-radius: 2px;
     background: var(--td-bg-color-secondarycontainer);
@@ -188,13 +188,13 @@ export default {
 
   .hits-cond {
     margin-left: 8px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
   }
 }
 
 .hits-since {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   margin-bottom: 12px;
 }
@@ -217,13 +217,13 @@ export default {
   }
 
   .k {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
   }
 
   .v {
     font-size: 20px;
-    font-weight: 600;
+    font-weight: 500;
     margin-top: 2px;
   }
 
@@ -241,8 +241,8 @@ export default {
   display: inline-block;
   margin-right: 8px;
   padding: 2px 10px;
-  border-radius: 12px;
-  font-size: 12px;
+  border-radius: var(--hw-r-lg);
+  font-size: 13px;
   background: var(--td-brand-color-1);
   color: var(--td-brand-color-7);
 }
@@ -253,7 +253,7 @@ export default {
   border-radius: var(--td-radius-default);
   background: var(--td-warning-color-1);
   color: var(--td-warning-color-7);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 
@@ -292,7 +292,7 @@ export default {
 
 .hits-bar-num {
   flex: none;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 

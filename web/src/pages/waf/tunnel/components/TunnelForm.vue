@@ -5,16 +5,16 @@
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="150">
 
             <hw-form-item :label="$t('page.tunnel.name')" name="name">
-                <hw-input :style="{ width: '480px' }" v-model="formData.name"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.name"></hw-input>
             </hw-form-item>
 
             <hw-form-item :label="$t('page.tunnel.port')" name="port">
-                <hw-input :style="{ width: '480px' }" v-model="formData.port"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.port"></hw-input>
             </hw-form-item>
 
             <div class="form-row">
                 <hw-form-item :label="$t('page.tunnel.protocol')" name="protocol" class="half-width" >
-                    <hw-select v-model="formData.protocol" clearable :style="{ width: '480px' }" :disabled="isEdit">
+                    <hw-select v-model="formData.protocol" clearable :style="{ width: 'min(100%, 480px)' }" :disabled="isEdit">
                         <hw-option value="tcp" label="TCP">TCP</hw-option>
                       <hw-option value="udp" label="UDP">UDP</hw-option>
                     </hw-select>
@@ -34,19 +34,19 @@
             </hw-form-item>
 
             <hw-form-item :label="$t('page.tunnel.remote_ip')" name="remote_ip">
-                <hw-input :style="{ width: '480px' }" v-model="formData.remote_ip"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.remote_ip"></hw-input>
             </hw-form-item>
 
             <hw-form-item :label="$t('page.tunnel.allow_ip')" name="allow_ip">
-                <hw-input :style="{ width: '480px' }" v-model="formData.allow_ip"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.allow_ip"></hw-input>
             </hw-form-item>
 
             <hw-form-item :label="$t('page.tunnel.deny_ip')" name="deny_ip">
-                <hw-input :style="{ width: '480px' }" v-model="formData.deny_ip"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.deny_ip"></hw-input>
             </hw-form-item>
 
             <hw-form-item :label="$t('page.tunnel.allowed_time_ranges')" name="allowed_time_ranges">
-                <hw-input :style="{ width: '480px' }" v-model="formData.allowed_time_ranges"
+                <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.allowed_time_ranges"
                     :placeholder="$t('page.tunnel.allowed_time_ranges_placeholder')">
                 </hw-input>
                 <div style="color: #909399; font-size: 12px; margin-top: 4px;">
@@ -55,7 +55,7 @@
             </hw-form-item>
 
             <hw-form-item :label="$t('page.tunnel.ip_version')" name="ip_version">
-                <hw-select v-model="formData.ip_version" :style="{ width: '480px' }">
+                <hw-select v-model="formData.ip_version" :style="{ width: 'min(100%, 480px)' }">
                     <hw-option value="ipv4" :label="$t('page.tunnel.ip_version_ipv4')">IPv4</hw-option>
                     <hw-option value="ipv6" :label="$t('page.tunnel.ip_version_ipv6')">IPv6</hw-option>
                     <hw-option value="both" :label="$t('page.tunnel.ip_version_both')">IPv4 & IPv6</hw-option>
@@ -77,19 +77,19 @@
 
             <template v-if="formData.protocol === 'tcp' && formData.ssl_status === 1">
                 <hw-form-item :label="$t('page.tunnel.ssl_certificate')" name="ssl_certificate">
-                    <hw-input :style="{ width: '480px' }" v-model="formData.ssl_certificate"
+                    <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.ssl_certificate"
                         placeholder="/home/nginx/cert/test.com.pem">
                     </hw-input>
                 </hw-form-item>
 
                 <hw-form-item :label="$t('page.tunnel.ssl_certificate_key')" name="ssl_certificate_key">
-                    <hw-input :style="{ width: '480px' }" v-model="formData.ssl_certificate_key"
+                    <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.ssl_certificate_key"
                         placeholder="/home/nginx/cert/test.com.key">
                     </hw-input>
                 </hw-form-item>
 
                 <hw-form-item :label="$t('page.tunnel.ssl_protocols')" name="ssl_protocols">
-                    <hw-input :style="{ width: '480px' }" v-model="formData.ssl_protocols"
+                    <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.ssl_protocols"
                         :placeholder="$t('page.tunnel.ssl_protocols_placeholder')">
                     </hw-input>
                 </hw-form-item>
@@ -131,7 +131,7 @@
             </hw-form-item>
 
             <hw-form-item :label="$t('page.tunnel.remark')" name="remark">
-                <hw-input :style="{ width: '480px' }" v-model="formData.remark"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.remark"></hw-input>
             </hw-form-item>
 
             <hw-form-item style="float: right">

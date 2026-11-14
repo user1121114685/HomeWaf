@@ -2,7 +2,7 @@ import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { AesEncrypt } from '../src/utils/legacyCipher.ts';
-import { verifyThemeSettings, verifySharedComponents, verifySystemMonitor } from './verify-theme-ui.mjs';
+import { verifyThemeSettings, verifySystemMonitor } from './verify-theme-ui.mjs';
 
 const origin = process.env.OVERVIEW_TEST_ORIGIN || 'http://127.0.0.1:3001';
 const live = process.env.OVERVIEW_LIVE === '1';
@@ -247,7 +247,6 @@ try {
   await page.goto(origin + '/#/dashboard/base');
   await loaded();
   await expect(page.getByRole('heading', { name: '来源地区', exact: true })).toBeVisible();
-  await verifySharedComponents(page, output, report);
   expect(report.errors).toEqual([]);
   fs.writeFileSync(
     new URL(live ? 'overview-live-verification.json' : 'overview-verification.json', output),

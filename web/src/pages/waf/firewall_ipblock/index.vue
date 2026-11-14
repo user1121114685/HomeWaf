@@ -112,7 +112,7 @@
         theme="warning"
         :message="$t('page.firewall_ipblock.unavailable_alert') + fwCapability.message">
         <template #operation>
-          <span @click="handleJumpOnlineUrl">{{ $t('common.online_document') }}</span>
+          <span role="button" tabindex="0" @keydown.enter.prevent="handleJumpOnlineUrl" @keydown.space.prevent="handleJumpOnlineUrl" @click="handleJumpOnlineUrl">{{ $t('common.online_document') }}</span>
         </template>
       </hw-alert>
       <help-block :summary="$t('page.firewall_ipblock.alert_message')" doc="guide/FirewallIPBlock" />
@@ -152,15 +152,15 @@
           </template>
 
           <template #op="slotProps">
-            <a class="t-button-link" v-if="slotProps.row.status === 'inactive' && fwCapability.available"
+            <button type="button" class="t-button-link" v-if="slotProps.row.status === 'inactive' && fwCapability.available"
               @click="handleClickEnable(slotProps)">
               {{ $t('page.firewall_ipblock.enable') }}
-            </a>
-            <a class="t-button-link" v-if="slotProps.row.status === 'active'" @click="handleClickDisable(slotProps)">
+            </button>
+            <button type="button" class="t-button-link" v-if="slotProps.row.status === 'active'" @click="handleClickDisable(slotProps)">
               {{ $t('page.firewall_ipblock.disable') }}
-            </a>
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            </button>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -178,16 +178,16 @@
       <template #body><div >
         <hw-form :data="formData" ref="addForm" :rules="rules" @submit="onSubmit" :labelWidth="120">
           <hw-form-item :label="$t('page.firewall_ipblock.label_ip')" name="ip">
-            <hw-input :style="{ width: '480px' }" v-model="formData.ip"
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.ip"
               :placeholder="$t('page.firewall_ipblock.ip_placeholder')">
             </hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.firewall_ipblock.label_reason')" name="reason">
-            <hw-input :style="{ width: '480px' }" v-model="formData.reason">
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.reason">
             </hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.firewall_ipblock.label_block_type')" name="block_type">
-            <hw-select v-model="formData.block_type" :style="{ width: '480px' }">
+            <hw-select v-model="formData.block_type" :style="{ width: 'min(100%, 480px)' }">
               <hw-option value="manual" :label="$t('page.firewall_ipblock.block_type_manual')"></hw-option>
               <hw-option value="auto" :label="$t('page.firewall_ipblock.block_type_auto')"></hw-option>
               <hw-option value="temp" :label="$t('page.firewall_ipblock.block_type_temp')"></hw-option>
@@ -198,12 +198,12 @@
               v-model="formData.expire_time_date"
               enable-time-picker
               clearable
-              :style="{ width: '480px' }"
+              :style="{ width: 'min(100%, 480px)' }"
               :placeholder="$t('page.firewall_ipblock.expire_time_placeholder')"
             />
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks" name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks" name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -220,24 +220,24 @@
         <hw-form :data="batchAddFormData" ref="batchAddForm" :rules="batchAddRules" @submit="onSubmitBatchAdd" :labelWidth="120">
           <hw-form-item :label="$t('page.firewall_ipblock.label_ips')" name="ips">
             <hw-textarea
-              :style="{ width: '480px', height: '200px' }"
+              :style="{ width: 'min(100%, 480px)', height: '200px' }"
               v-model="batchAddFormData.ips_text"
               :placeholder="$t('page.firewall_ipblock.ips_placeholder')">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item :label="$t('page.firewall_ipblock.label_reason')" name="reason">
-            <hw-input :style="{ width: '480px' }" v-model="batchAddFormData.reason">
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="batchAddFormData.reason">
             </hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.firewall_ipblock.label_block_type')" name="block_type">
-            <hw-select v-model="batchAddFormData.block_type" :style="{ width: '480px' }">
+            <hw-select v-model="batchAddFormData.block_type" :style="{ width: 'min(100%, 480px)' }">
               <hw-option value="manual" :label="$t('page.firewall_ipblock.block_type_manual')"></hw-option>
               <hw-option value="auto" :label="$t('page.firewall_ipblock.block_type_auto')"></hw-option>
               <hw-option value="temp" :label="$t('page.firewall_ipblock.block_type_temp')"></hw-option>
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="batchAddFormData.remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="batchAddFormData.remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -253,15 +253,15 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="editForm" :rules="rules" @submit="onSubmitEdit" :labelWidth="120">
           <hw-form-item :label="$t('page.firewall_ipblock.label_ip')" name="ip">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.ip">
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.ip">
             </hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.firewall_ipblock.label_reason')" name="reason">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.reason">
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.reason">
             </hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.firewall_ipblock.label_block_type')" name="block_type">
-            <hw-select v-model="formEditData.block_type" :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.block_type" :style="{ width: 'min(100%, 480px)' }">
               <hw-option value="manual" :label="$t('page.firewall_ipblock.block_type_manual')"></hw-option>
               <hw-option value="auto" :label="$t('page.firewall_ipblock.block_type_auto')"></hw-option>
               <hw-option value="temp" :label="$t('page.firewall_ipblock.block_type_temp')"></hw-option>
@@ -272,12 +272,12 @@
               v-model="formEditData.expire_time_date"
               enable-time-picker
               clearable
-              :style="{ width: '480px' }"
+              :style="{ width: 'min(100%, 480px)' }"
               :placeholder="$t('page.firewall_ipblock.expire_time_placeholder')"
             />
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks" name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -919,14 +919,14 @@ export default defineComponent({
   padding: 8px 0;
 
   .stat-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-secondary);
     margin-bottom: 8px;
   }
 
   .stat-value {
     font-size: 24px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary);
 
     &.stat-active {
@@ -942,13 +942,13 @@ export default defineComponent({
     }
 
     &.stat-sub {
-      color: #1677ff;
+      color: var(--hw-accent);
     }
   }
 
   .stat-sub-hint {
-    font-size: 12px;
-    color: #1677ff;
+    font-size: 13px;
+    color: var(--hw-accent);
     margin-top: 4px;
   }
 }
@@ -958,8 +958,8 @@ export default defineComponent({
   transition: box-shadow 0.2s, border-color 0.2s;
 
   &:hover {
-    border-color: #1677ff;
-    box-shadow: 0 2px 8px rgba(22, 119, 255, 0.2);
+    border-color: var(--hw-accent);
+    box-shadow: none;
   }
 }
 </style>

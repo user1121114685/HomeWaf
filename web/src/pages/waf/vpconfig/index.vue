@@ -39,7 +39,7 @@
              做成路由式分页会失去全貌，所以用锚点 -->
         <div class="vpconfig-nav" :style="{ top: anchorOffset + 'px' }">
           <div class="vpconfig-nav__title">{{ $t('page.vpconfig.nav_title') }}</div>
-          <a
+          <button type="button"
             v-for="s in visibleSections"
             :key="s.id"
             class="vpconfig-nav__item"
@@ -48,7 +48,7 @@
           >
             <i class="vpconfig-nav__dot"></i>
             <span class="vpconfig-nav__text">{{ s.label }}</span>
-          </a>
+          </button>
         </div>
 
         <div class="vpconfig-content">
@@ -139,7 +139,7 @@
             </hw-form-item>
             <hw-form-item v-if="enableManageProxy" :label="$t('page.vpconfig.manage_cdn_provider')">
               <hw-space>
-                <hw-select v-model="manageCdnProvider" :style="{ width: '240px' }"
+                <hw-select v-model="manageCdnProvider" :style="{ width: 'min(100%, 240px)' }"
                           :placeholder="$t('page.vpconfig.manage_cdn_provider_placeholder')" clearable
                           @change="handleManageCdnProviderChange">
                   <hw-option value="cloudflare" label="Cloudflare" />
@@ -155,7 +155,7 @@
                   </span>
                   <span v-else style="color: var(--td-warning-color);">{{ $t('page.vpconfig.manage_cdn_not_fetched') }}</span>
                 </span>
-                <a class="t-button-link" @click="goCdnPage">{{ $t('page.vpconfig.manage_cdn_link') }}</a>
+                <button type="button" class="t-button-link" @click="goCdnPage">{{ $t('page.vpconfig.manage_cdn_link') }}</button>
               </hw-space>
               <div class="form-item-tips">{{ $t('page.vpconfig.manage_cdn_provider_tips') }}</div>
             </hw-form-item>
@@ -340,7 +340,7 @@
             <div class="step__d">{{ $t('page.vpconfig.access_step1_desc') }}</div>
             <div class="step__c">
               <div class="acc-opts">
-                <div
+                <div role="button" tabindex="0" @keydown.enter.prevent="pickAccessMode(o.key)" @keydown.space.prevent="pickAccessMode(o.key)"
                   v-for="o in accessOptions"
                   :key="o.key"
                   :class="['acc-opt', { 'acc-opt--on': pickedAccessMode === o.key }]"
@@ -426,7 +426,7 @@
 
                 <!-- 三张选择卡：把"我该走哪条路"的判断依据并排摆出来 -->
                 <div class="cert-choices">
-                  <div
+                  <div role="button" tabindex="0" @keydown.enter.prevent="pickedSource = c.key" @keydown.space.prevent="pickedSource = c.key"
                     v-for="c in certChoices"
                     :key="c.key"
                     :class="['cert-choice', { 'cert-choice--on': pickedSource === c.key }]"
@@ -655,7 +655,7 @@
               <hw-input
                 v-model="securityEntryFormData.entry_path"
                 :placeholder="$t('page.vpconfig.security_entry_custom_code_placeholder')"
-                style="width: 280px; font-family: monospace;"
+                style="width: min(100%, 280px); font-family: monospace;"
                 clearable
               />
               <div class="form-item-tips">{{ $t('page.vpconfig.security_entry_custom_code_tips') }}</div>
@@ -675,12 +675,12 @@
               </hw-form-item>
 
               <hw-form-item :label="$t('page.vpconfig.security_entry_code')">
-                <hw-input :value="savedSecurityEntry.entry_path" readonly style="width: 280px; font-family: monospace;" />
+                <hw-input :value="savedSecurityEntry.entry_path" readonly style="width: min(100%, 280px); font-family: monospace;" />
               </hw-form-item>
 
               <hw-form-item :label="$t('page.vpconfig.security_entry_url')">
                 <hw-space direction="vertical" style="width: 100%">
-                  <hw-input :value="securityEntryFullUrl" readonly style="width: 520px; font-family: monospace;" />
+                  <hw-input :value="securityEntryFullUrl" readonly style="width: min(100%, 520px); font-family: monospace;" />
                   <div class="form-item-tips">{{ $t('page.vpconfig.security_entry_url_tips') }}</div>
                   <hw-space>
                     <hw-button theme="primary" @click="copySecurityUrl">{{ $t('page.vpconfig.security_entry_copy_url') }}</hw-button>
@@ -715,7 +715,7 @@
           <hw-form :data="adminTitlesFormData" :label-width="180">
             <hw-form-item :label="$t('page.vpconfig.admin_titles_title')">
               <hw-input v-model="adminTitlesFormData.admin_title" :placeholder="$t('login.login_sub_title')"
-                       :maxlength="100" style="width: 100%; max-width: 520px;" clearable />
+                       :maxlength="100" style="width: 100%; max-width: min(100%, 520px);" clearable />
             </hw-form-item>
             <hw-form-item>
               <div class="form-item-tips">{{ $t('page.vpconfig.admin_titles_tips') }}</div>
@@ -745,7 +745,7 @@
               <hw-input
                 v-model="noticeTitleFormData.notice_title"
                 :placeholder="$t('page.vpconfig.notice_title_placeholder')"
-                style="width: 320px;"
+                style="width: min(100%, 320px);"
                 clearable
               />
               <div class="form-item-tips">{{ $t('page.vpconfig.notice_title_tips') }}</div>
@@ -2381,7 +2381,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
     }
 
     &__hint {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--td-warning-color, #e37318);
       white-space: nowrap;
     }
@@ -2410,7 +2410,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
 
     &__title {
       padding: 0 16px 8px;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--td-text-color-placeholder, rgba(0, 0, 0, 0.4));
     }
 
@@ -2495,7 +2495,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
 
   /* ===== 管理端访问与证书：编号步骤 + 三选一 ===== */
   .access-dirty {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-brand-color, #0052d9);
     white-space: nowrap;
   }
@@ -2530,7 +2530,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
       border-radius: 50%;
       background: var(--td-brand-color, #0052d9);
       color: #fff;
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 400;
       display: flex;
       align-items: center;
@@ -2547,7 +2547,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
 
     &__d {
       margin: 4px 0 12px 26px;
-      font-size: 12px;
+      font-size: 13px;
       color: rgba(0, 0, 0, 0.4);
       line-height: 1.7;
     }
@@ -2590,7 +2590,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
       margin-top: 3px;
       border-radius: 50%;
       border: 1px solid #c6c6c6;
-      background: #fff;
+      background: var(--hw-panel);
       box-sizing: border-box;
     }
 
@@ -2613,14 +2613,14 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
 
     &__s {
       margin-top: 3px;
-      font-size: 12px;
+      font-size: 13px;
       color: rgba(0, 0, 0, 0.6);
       line-height: 1.7;
     }
 
     &__w {
       margin-top: 5px;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--td-warning-color, #e37318);
       line-height: 1.7;
     }
@@ -2638,7 +2638,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
 
   .form-item-tips {
     color: var(--td-text-color-secondary);
-    font-size: 12px;
+    font-size: 13px;
     margin-top: 8px;
   }
 
@@ -2736,14 +2736,14 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
     border-radius: 3px;
     padding: 16px;
     cursor: pointer;
-    background: #fff;
+    background: var(--hw-panel);
     display: flex;
     flex-direction: column;
     transition: border-color 0.2s, box-shadow 0.2s;
 
     &:hover {
       border-color: var(--td-brand-color, #0052d9);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      box-shadow: none;
     }
   }
 
@@ -2764,7 +2764,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
   }
 
   .cert-choice__who {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-brand-color, #0052d9);
     margin-bottom: 10px;
     min-height: 32px;
@@ -2773,7 +2773,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
   .cert-choice__list {
     margin: 0;
     padding-left: 16px;
-    font-size: 12px;
+    font-size: 13px;
     color: rgba(0, 0, 0, 0.6);
     line-height: 1.9;
     flex: 1;
@@ -2781,7 +2781,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
 
   .cert-choice__foot {
     margin-top: 12px;
-    font-size: 12px;
+    font-size: 13px;
     color: rgba(0, 0, 0, 0.4);
     border-top: 1px dashed var(--td-component-stroke, #e7e7e7);
     padding-top: 8px;
@@ -2799,7 +2799,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
   }
 
   .cert-fp__label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-secondary, rgba(0, 0, 0, 0.6));
     margin-bottom: 2px;
   }
@@ -2807,7 +2807,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
   .cert-fp__val {
     display: block;
     font-family: Consolas, Monaco, monospace;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.7;
     word-break: break-all;
     color: var(--td-text-color-primary, rgba(0, 0, 0, 0.9));
@@ -2845,7 +2845,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
   .cert-panel {
     border: 2px solid var(--td-brand-color, #0052d9);
     border-top: none;
-    background: #fff;
+    background: var(--hw-panel);
     padding: 18px;
     border-radius: 0 0 3px 3px;
   }
@@ -2872,7 +2872,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
 
     .preset-label {
       color: rgba(0, 0, 0, 0.6);
-      font-size: 12px;
+      font-size: 13px;
       margin-right: 4px;
     }
   }

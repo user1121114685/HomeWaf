@@ -8,7 +8,7 @@
         class="placement top center"
         :content="$t('page.host.custom_response_headers.is_enable_tips')"
         placement="top"
-        :overlay-style="{ width: '300px' }"
+        :overlay-style="{ width: 'min(100%, 300px)' }"
         show-arrow
       >
         <hw-radio-group v-model="localConfig.is_enable_custom_headers" @change="updateParent">
@@ -121,7 +121,7 @@
                   v-model="rule.match_value"
                   @change="updateParent"
                   :placeholder="getMatchValuePlaceholder(rule.match_type)"
-                  style="width: 260px;"
+                  style="width: min(100%, 260px);"
                 />
               </div>
 
@@ -131,7 +131,7 @@
                 <hw-select
                   v-model="rule.merge_mode"
                   @change="updateParent"
-                  style="width: 220px;"
+                  style="width: min(100%, 220px);"
                 >
                   <hw-option value="merge" :label="$t('page.host.custom_response_headers.merge_mode_merge')" />
                   <hw-option value="override" :label="$t('page.host.custom_response_headers.merge_mode_override')" />
@@ -161,7 +161,7 @@
                         v-model="header.header_name"
                         @change="updateParent"
                         :placeholder="$t('page.host.custom_response_headers.header_name_placeholder')"
-                        style="width: 220px;"
+                        style="width: min(100%, 220px);"
                       />
                     </div>
 
@@ -171,7 +171,7 @@
                         v-model="header.header_value"
                         @change="updateParent"
                         :placeholder="$t('page.host.custom_response_headers.header_value_placeholder')"
-                        style="min-width: 260px;"
+                        style="min-width: min(100%, 260px);"
                       >
                         <template #suffix>
                           <hw-dropdown
@@ -444,7 +444,7 @@ export default {
 .custom-response-headers-config {
   .section-title {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary);
     margin-bottom: 12px;
     padding-left: 8px;
@@ -478,7 +478,7 @@ export default {
 
     &:hover {
       border-color: var(--td-brand-color);
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      box-shadow: none;
     }
 
     &:last-child {
@@ -529,7 +529,7 @@ export default {
     }
 
     .field-label {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--td-text-color-secondary);
       font-weight: 500;
       line-height: 1.5;
@@ -587,7 +587,7 @@ export default {
         gap: 4px;
 
         .field-label {
-          font-size: 12px;
+          font-size: 13px;
           color: var(--td-text-color-secondary);
           font-weight: 500;
         }

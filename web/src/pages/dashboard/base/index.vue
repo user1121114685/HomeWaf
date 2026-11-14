@@ -22,7 +22,7 @@
     >
       <template #message>{{ upgradeTipMessage }}</template>
       <template #operation>
-        <span class="tips-link" @click="handleUpgradeNoticeOperation">{{ $t('dashboard.upgrade_notice_link') }}</span>
+        <span role="button" tabindex="0" @keydown.enter.prevent="handleUpgradeNoticeOperation" @keydown.space.prevent="handleUpgradeNoticeOperation" class="tips-link" @click="handleUpgradeNoticeOperation">{{ $t('dashboard.upgrade_notice_link') }}</span>
       </template>
     </hw-alert>
 
@@ -39,9 +39,9 @@
       <hw-swiper-item v-for="(item, index) in visibleTips" :key="index">
         <hw-alert :theme="item.tipsType" :message="$t(item.message)">
           <template #operation>
-            <span v-if="item.name==='emptyHost'" class="tips-link" @click="handleCreateWebOperation">{{$t('dashboard.tip_create_website_link')}}</span>
-            <span v-if="item.name==='defaultAccount'" class="tips-link" @click="handleModifyDefaultPassWebOperation">{{$t('dashboard.tip_modify_pwd_link')}}</span>
-            <span v-if="item.name==='emptyOtp'" class="tips-link" @click="handleModify2FaWebOperation">{{$t('dashboard.tip_empty_otp_link')}}</span>
+            <span role="button" tabindex="0" @keydown.enter.prevent="handleCreateWebOperation" @keydown.space.prevent="handleCreateWebOperation" v-if="item.name==='emptyHost'" class="tips-link" @click="handleCreateWebOperation">{{$t('dashboard.tip_create_website_link')}}</span>
+            <span role="button" tabindex="0" @keydown.enter.prevent="handleModifyDefaultPassWebOperation" @keydown.space.prevent="handleModifyDefaultPassWebOperation" v-if="item.name==='defaultAccount'" class="tips-link" @click="handleModifyDefaultPassWebOperation">{{$t('dashboard.tip_modify_pwd_link')}}</span>
+            <span role="button" tabindex="0" @keydown.enter.prevent="handleModify2FaWebOperation" @keydown.space.prevent="handleModify2FaWebOperation" v-if="item.name==='emptyOtp'" class="tips-link" @click="handleModify2FaWebOperation">{{$t('dashboard.tip_empty_otp_link')}}</span>
           </template>
         </hw-alert>
       </hw-swiper-item>
@@ -369,7 +369,7 @@ export default {
 
   :deep(.t-card__title) {
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 500;
   }
 }
 

@@ -9,8 +9,8 @@
           </svg>
         </div>
         <div>
-          <div class="brand-eyebrow">HOMEWAF <span>SECURITY MONITOR</span></div>
-          <h1>Web 安全防护监控大屏</h1>
+          <div class="brand-eyebrow">HomeWaf <span>安全监控</span></div>
+          <h1>安全监控</h1>
         </div>
       </div>
       <div class="header-actions">

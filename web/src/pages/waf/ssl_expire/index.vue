@@ -42,8 +42,8 @@
              </span>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -61,7 +61,7 @@
 
 
           <hw-form-item :label="$t('page.ssl_expire.domain')" name="domain">
-            <hw-input :style="{ width: '480px' }" v-model="formData.domain" ></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.domain" ></hw-input>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.ssl_expire.port')" name="port">
@@ -84,7 +84,7 @@
 
 
           <hw-form-item :label="$t('page.ssl_expire.domain')" name="domain">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.domain" ></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.domain" ></hw-input>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.ssl_expire.port')" name="port">

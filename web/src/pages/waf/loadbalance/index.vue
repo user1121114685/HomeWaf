@@ -39,8 +39,8 @@
           </template>
 
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -52,16 +52,16 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
           <hw-form-item :label="$t('page.host.loadbalance.remote_ip')" name="remote_ip">
-            <hw-input :style="{ width: '480px' }" v-model="formData.remote_ip" ></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.remote_ip" ></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.host.loadbalance.remote_port')" name="remote_port">
-            <hw-input-number :style="{ width: '480px' }" v-model="formData.remote_port" min="1" max="65535"></hw-input-number>
+            <hw-input-number :style="{ width: 'min(100%, 480px)' }" v-model="formData.remote_port" min="1" max="65535"></hw-input-number>
           </hw-form-item>
           <hw-form-item :label="$t('page.host.loadbalance.weight')" name="weight" >
-            <hw-input-number :style="{ width: '480px' }" v-model="formData.weight" min="1" defaultValue="5"  max="10"></hw-input-number>
+            <hw-input-number :style="{ width: 'min(100%, 480px)' }" v-model="formData.weight" min="1" defaultValue="5"  max="10"></hw-input-number>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks"  name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks"  name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -76,16 +76,16 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100">
          <hw-form-item :label="$t('page.host.loadbalance.remote_ip')" name="remote_ip">
-           <hw-input :style="{ width: '480px' }" v-model="formEditData.remote_ip"></hw-input>
+           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remote_ip"></hw-input>
          </hw-form-item>
           <hw-form-item :label="$t('page.host.loadbalance.remote_port')" name="remote_port">
-            <hw-input-number :style="{ width: '480px' }" v-model="formEditData.remote_port" min="1" max="65535"></hw-input-number>
+            <hw-input-number :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remote_port" min="1" max="65535"></hw-input-number>
           </hw-form-item>
           <hw-form-item :label="$t('page.host.loadbalance.weight')" name="weight">
-            <hw-input-number :style="{ width: '480px' }" v-model="formEditData.weight" min="1" defaultValue="5"  max="10"></hw-input-number>
+            <hw-input-number :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.weight" min="1" defaultValue="5"  max="10"></hw-input-number>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks"  name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks"  name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">

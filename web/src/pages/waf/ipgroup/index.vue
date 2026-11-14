@@ -24,7 +24,7 @@
       <help-block :summary="$t('page.ipgroup.alert_message')" doc="guide/IPGroup">
         <!-- 手工维护之外还能定时批量导入，这里给个入口，否则用户不知道有这功能 -->
         <template #actions>
-          <span class="link-text" @click="handleJumpBatchTask">{{ $t('page.ipgroup.goto_batch_task') }}</span>
+          <span role="button" tabindex="0" @keydown.enter.prevent="handleJumpBatchTask" @keydown.space.prevent="handleJumpBatchTask" class="link-text" @click="handleJumpBatchTask">{{ $t('page.ipgroup.goto_batch_task') }}</span>
         </template>
       </help-block>
       <div class="table-container">
@@ -35,9 +35,9 @@
             <hw-tag theme="primary" variant="light">{{ row.item_count }}</hw-tag>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleManageItems(slotProps.row)">{{ $t('page.ipgroup.button_manage_ip') }}</a>
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleManageItems(slotProps.row)">{{ $t('page.ipgroup.button_manage_ip') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -48,10 +48,10 @@
       <template #body><div >
         <hw-form :data="formData" ref="addForm" :rules="rules" @submit="onSubmit" :labelWidth="100">
           <hw-form-item :label="$t('page.ipgroup.label_name')" name="group_name">
-            <hw-input :style="{ width: '480px' }" v-model="formData.group_name"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.group_name"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks" name="remarks"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks" name="remarks"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
@@ -66,14 +66,14 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="editForm" :rules="editRules" @submit="onSubmitEdit" :labelWidth="100">
           <hw-form-item :label="$t('page.ipgroup.label_name')" name="group_name">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.group_name"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.group_name"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.ipgroup.label_code')">
-            <hw-input :style="{ width: '480px' }" :value="formEditData.group_code" disabled></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" :value="formEditData.group_code" disabled></hw-input>
             <div class="form-tips">{{ $t('page.ipgroup.code_immutable_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks" name="remarks"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" name="remarks"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="editFormVisible = false">{{ $t('common.close') }}</hw-button>
@@ -100,9 +100,9 @@
               {{ $t('page.ipgroup.button_clear_items') }}
             </hw-button>
             <!-- 一次性手工批量添加之外，还能建定时任务从文件/远程源自动同步 -->
-            <a class="t-button-link" style="margin-left: 8px" @click="handleJumpBatchTask">
+            <button type="button" class="t-button-link" style="margin-left: 8px" @click="handleJumpBatchTask">
               {{ $t('page.ipgroup.goto_batch_task') }}
-            </a>
+            </button>
           </div>
           <div class="right-operation-container">
             <hw-form :data="itemSearchData" :label-width="40" layout="inline" colon :style="{ marginBottom: '8px' }">
@@ -119,8 +119,8 @@
           :pagination="itemPagination" :selected-row-keys="selectedItemKeys" :loading="itemLoading"
           @page-change="rehandleItemPageChange" @select-change="rehandleItemSelectChange">
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleEditItem(slotProps.row)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleDelItem(slotProps.row)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleEditItem(slotProps.row)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleDelItem(slotProps.row)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -132,12 +132,12 @@
       <template #body><div >
         <hw-form :data="itemFormData" ref="itemForm" :rules="itemRules" @submit="onSubmitItem" :labelWidth="100">
           <hw-form-item label="IP" name="ip">
-            <hw-input :style="{ width: '480px' }" v-model="itemFormData.ip"
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="itemFormData.ip"
               :placeholder="$t('page.ipgroup.ip_placeholder')"></hw-input>
             <div class="form-tips">{{ $t('page.ipgroup.ip_pattern_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="itemFormData.remarks"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="itemFormData.remarks"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="itemFormVisible = false">{{ $t('common.close') }}</hw-button>
@@ -631,7 +631,7 @@ export default defineComponent({
 
 .form-tips {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 

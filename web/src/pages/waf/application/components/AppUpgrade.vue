@@ -36,9 +36,9 @@
     <hw-table :data="backups" :columns="backupColumns" row-key="filename" size="small"
       :empty="$t('page.application.no_backups')">
       <template #op="slotProps">
-        <a class="t-button-link" @click="doRollback(slotProps.row.filename)">
+        <button type="button" class="t-button-link" @click="doRollback(slotProps.row.filename)">
           {{ $t('page.application.rollback') }}
-        </a>
+        </button>
       </template>
     </hw-table>
 

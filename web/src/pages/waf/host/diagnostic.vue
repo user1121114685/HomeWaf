@@ -721,7 +721,7 @@ h4 {
 .scope-note,
 .site-title {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   margin-top: 6px;
 }
@@ -749,7 +749,7 @@ h4 {
 }
 .url-error {
   color: var(--td-error-color);
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 6px;
 }
 .proxy-option {
@@ -761,7 +761,7 @@ h4 {
 }
 .proxy-option span {
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
 }
 .custom-headers {
@@ -774,7 +774,7 @@ h4 {
   margin-bottom: 12px;
 }
 .custom-headers p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   margin-top: 8px;
 }
@@ -817,7 +817,7 @@ h4 {
   margin: 20px 0 12px;
 }
 .result-heading span {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 .result-layout {
@@ -857,7 +857,7 @@ h4 {
 }
 .phase-button span,
 .phase-button small {
-  font-size: 12px;
+  font-size: 13px;
 }
 .phase-button small {
   color: var(--td-text-color-secondary);
@@ -935,7 +935,7 @@ h4 {
   color: var(--td-text-color-secondary);
 }
 .packet-heading {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 .packet-text {

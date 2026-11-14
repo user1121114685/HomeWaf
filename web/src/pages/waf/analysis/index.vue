@@ -14,7 +14,7 @@
   </section>
 </template>
 <script>
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import {BarChart} from 'echarts/charts';
 import {GridComponent,TooltipComponent} from 'echarts/components';
 import {CanvasRenderer} from 'echarts/renderers';

@@ -1,263 +1,263 @@
 <template>
-  <div class="workspace-nav">
-    <div v-if="!collapsed" class="nav-section-label">日常管理</div>
-    <nav aria-label="常用功能">
+  <nav class="workspace-nav" aria-label="管理功能">
+    <label v-if="!collapsed" class="nav-search"
+      ><Search aria-hidden="true" /><input v-model="query" placeholder="查找功能" aria-label="查找功能" /><kbd
+        v-if="!query"
+        >/</kbd
+      ><button v-else aria-label="清除搜索" @click="query = ''"><Close /></button
+    ></label>
+    <div class="nav-pinned">
       <RouterLink
-        v-for="item in links"
+        v-for="item in pinned"
         :key="item.name"
         :to="item.path"
         class="workspace-link"
-        :class="{ active: route.path === item.path }"
-        :title="item.label"
+        :title="item.title"
         :aria-current="route.path === item.path ? 'page' : undefined"
       >
-        <component :is="item.icon" aria-hidden="true" /><span v-if="!collapsed">{{ item.label }}</span>
+        <component :is="icons[item.name] || Document" aria-hidden="true" /><span v-if="!collapsed">{{
+          item.title
+        }}</span>
       </RouterLink>
-    </nav>
-    <div v-if="!collapsed" class="nav-section-label nav-tools-label">更多工具</div>
-    <button
-      class="workspace-link nav-all-toggle"
-      :aria-expanded="allVisible"
-      aria-controls="workspace-all-functions"
-      :title="allVisible ? '收起全部功能' : '查看全部功能'"
-      :aria-label="allVisible ? '收起全部功能' : '查看全部功能'"
-      @click="allVisible = !allVisible"
-    >
-      <Grid aria-hidden="true" /><span v-if="!collapsed">全部功能</span
-      ><ArrowDown v-if="!collapsed" class="nav-chevron" :class="{ expanded: allVisible }" aria-hidden="true" />
-    </button>
-    <div v-if="allVisible" id="workspace-all-functions" class="nav-all-functions">
-      <template v-if="!collapsed">
-        <label class="nav-search"
-          ><Search aria-hidden="true" /><input v-model="query" placeholder="搜索功能" aria-label="搜索全部功能"
-        /></label>
-        <template v-for="group in groups" :key="group.title">
-          <details :open="!!query || group.items.some((item) => item.path === route.path)">
-            <summary>{{ group.title }}</summary>
-            <RouterLink
-              v-for="item in group.items"
-              :key="item.path"
-              :to="item.path"
-              :aria-current="route.path === item.path ? 'page' : undefined"
-              :target="item.newTab ? '_blank' : undefined"
-              :rel="item.newTab ? 'noopener noreferrer' : undefined"
-              >{{ item.title }}</RouterLink
-            >
-          </details>
-        </template>
-        <p v-if="!groups.length" class="nav-no-results">没有找到相关功能，试试“证书”或“日志”。</p>
-      </template>
-      <button v-else class="nav-expand" @click="store.commit('setting/showSidebarCompact', false)">展开</button>
     </div>
+    <div v-if="!collapsed" class="nav-directory-label">功能目录</div>
+    <template v-for="group in groups" :key="group.title">
+      <details
+        v-if="!collapsed"
+        class="nav-group"
+        :open="!!query || group.items.some((item) => route.path === item.path)"
+      >
+        <summary>
+          <component :is="group.icon" aria-hidden="true" /><span>{{ group.title }}</span
+          ><ArrowDown class="nav-chevron" />
+        </summary>
+        <RouterLink
+          v-for="item in group.items"
+          :key="item.path"
+          :to="item.path"
+          :aria-current="route.path === item.path ? 'page' : undefined"
+          :target="item.newTab ? '_blank' : undefined"
+          :rel="item.newTab ? 'noopener noreferrer' : undefined"
+          >{{ item.title }}<TopRight v-if="item.newTab" aria-hidden="true"
+        /></RouterLink>
+      </details>
+      <button
+        v-else
+        class="workspace-link nav-expand-group"
+        :title="group.title"
+        :aria-label="'展开' + group.title"
+        @click="store.commit('setting/showSidebarCompact', false)"
+      >
+        <component :is="group.icon" aria-hidden="true" />
+      </button>
+    </template>
+    <p v-if="!collapsed && !groups.length && !pinned.length" class="nav-no-results">没有找到相关功能。</p>
     <RouterLink to="/help" class="workspace-link nav-help" title="使用指南"
       ><Reading aria-hidden="true" /><span v-if="!collapsed">使用指南</span></RouterLink
     >
-  </div>
+  </nav>
 </template>
-
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import type { PropType } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
   ArrowDown,
+  Close,
   Connection,
-  DataAnalysis,
   Document,
   Grid,
   House,
   Reading,
   Search,
-  SetUp,
+  TopRight,
   Warning,
 } from '@element-plus/icons-vue';
+import { navigationItems, filterNavigation } from '@/ui/navigation';
 import store from '@/store';
-const props = defineProps({ menu: { type: Array as PropType<any[]>, default: () => [] }, collapsed: Boolean });
+const props = defineProps({ menu: { type: Array, default: () => [] }, collapsed: Boolean });
 const route = useRoute(),
-  { t } = useI18n();
-const allVisible = ref(false),
+  { t } = useI18n(),
   query = ref('');
-const catalog = computed(() =>
-  (props.menu || []).map((group) => ({
-    title: t(group.meta?.title || ''),
-    items: (group.children?.length ? group.children : [group])
-      .filter((item) => !item.meta?.hidden)
-      .map((item) => ({
-        name: item.name,
-        title: t(item.meta?.title || ''),
-        path: item.path.startsWith('/') || !group.children?.length ? item.path : `${group.path}/${item.path}`,
-        newTab: !!item.meta?.openInNewTab,
-      })),
-  })),
-);
-const links = computed(() => {
-  const items = catalog.value.flatMap((group) => group.items);
-  return [
-    { name: 'DashboardStart', label: '工作台', icon: House },
-    { name: 'WafPipeline', label: '服务接入', icon: Connection },
-    { name: 'WafvisitLog', label: '访问记录', icon: Document },
-    { name: 'WafAttackLog', label: '安全事件', icon: Warning },
-    { name: 'DashboardBase', label: '流量概览', icon: DataAnalysis },
-    { name: 'WafPipelineTemplates', label: '策略模板', icon: SetUp },
-  ].flatMap((item) => {
-    const found = items.find((route) => route.name === item.name);
-    return found ? [{ ...item, path: found.path }] : [];
-  });
+const icons = { DashboardStart: House, WafPipeline: Connection, WafvisitLog: Document, WafAttackLog: Warning };
+const pinnedNames = Object.keys(icons);
+const items = computed(() => filterNavigation(navigationItems(props.menu, t), query.value));
+const pinned = computed(() => pinnedNames.flatMap((name) => items.value.filter((item) => item.name === name)));
+const groups = computed(() => {
+  const grouped = new Map<string, ReturnType<typeof navigationItems>>();
+  for (const item of items.value.filter((item) => !pinnedNames.includes(item.name))) {
+    const group = item.group || '其他功能';
+    grouped.set(group, [...(grouped.get(group) || []), item]);
+  }
+  return [...grouped].map(([title, items]) => ({
+    title,
+    items,
+    icon: (props.menu as any[]).find((group) => t(group.meta?.title || '') === title)?.meta?.icon || Grid,
+  }));
 });
-const groups = computed(() =>
-  catalog.value
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) =>
-        `${group.title} ${item.title}`.toLowerCase().includes(query.value.trim().toLowerCase()),
-      ),
-    }))
-    .filter((group) => group.items.length),
-);
+function focusSearch(event: KeyboardEvent) {
+  if (
+    event.key !== '/' ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    (event.target as HTMLElement)?.closest('input, textarea, select, [contenteditable="true"]')
+  )
+    return;
+  event.preventDefault();
+  store.commit('setting/showSidebarCompact', false);
+  requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.nav-search input')?.focus());
+}
+onMounted(() => window.addEventListener('keydown', focusSearch));
+onUnmounted(() => window.removeEventListener('keydown', focusSearch));
 </script>
-
 <style scoped>
 .workspace-nav {
   padding: 16px 12px;
   font-size: 14px;
 }
-.nav-section-label {
-  padding: 8px 12px 12px;
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  letter-spacing: 0.5px;
-}
-.nav-tools-label {
-  margin-top: 28px;
-}
-.workspace-link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 10px 12px;
-  margin-bottom: 4px;
-  border-radius: 8px;
-  text-decoration: none;
-  color: var(--el-text-color-regular);
-  font: inherit;
-  line-height: 24px;
-  transition:
-    background 150ms,
-    color 150ms;
-  box-sizing: border-box;
-}
-.workspace-link > svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-.workspace-link:hover {
-  color: var(--el-text-color-primary);
-  background: var(--el-fill-color-light);
-}
-.workspace-link.active {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-  font-weight: 500;
-}
-.workspace-link:focus-visible,
-.nav-all-functions a:focus-visible,
-summary:focus-visible {
-  outline: 2px solid var(--el-color-primary);
-  outline-offset: 2px;
-}
-.nav-all-toggle {
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-}
-.workspace-link .nav-chevron {
-  width: 14px;
-  height: 14px;
-  margin-left: auto;
-  transition: transform 150ms;
-}
-.nav-chevron.expanded {
-  transform: rotate(180deg);
-}
-.nav-all-functions {
-  margin: 12px 0 20px;
-}
 .nav-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
+  height: 40px;
   padding: 0 10px;
-  margin-bottom: 12px;
-  min-height: 44px;
+  margin-bottom: 20px;
+  border: 1px solid var(--hw-line);
+  background: var(--hw-subtle);
+  border-radius: var(--hw-r-md);
+  color: var(--hw-muted);
 }
 .nav-search svg {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: var(--el-text-color-regular);
 }
 .nav-search input {
   width: 100%;
   min-width: 0;
-  background: transparent;
-  color: var(--el-text-color-primary);
   border: 0;
-  font: inherit;
   outline: 0;
+  background: transparent;
+  color: var(--hw-ink);
+  font: inherit;
 }
-.nav-search:focus-within {
-  outline: 2px solid var(--el-color-primary);
-  outline-offset: 1px;
+.nav-search input:focus-visible {
+  outline: 2px solid var(--hw-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
-.nav-all-functions summary {
-  cursor: pointer;
-  line-height: 24px;
-  padding: 10px 12px;
-  color: var(--el-text-color-primary);
-  font-size: 13px;
+.nav-search kbd {
+  border: 1px solid var(--hw-line);
+  border-radius: 3px;
+  font: 13px var(--font-mono);
+  padding: 0 4px;
 }
-.nav-all-functions a {
-  display: block;
-  padding: 10px 12px 10px 28px;
-  min-height: 44px;
-  color: var(--el-text-color-regular);
-  text-decoration: none;
-  font-size: 13px;
-  line-height: 24px;
-  border-radius: 6px;
-}
-.nav-all-functions a:hover,
-.nav-all-functions a[aria-current] {
-  background: var(--el-fill-color-light);
-  color: var(--el-color-primary);
-}
-.nav-no-results {
-  font-size: 13px;
-  line-height: 1.7;
-  padding: 0 12px;
-}
-.nav-expand {
-  background: none;
+.nav-search button {
   border: 0;
-  color: var(--el-color-primary);
-  padding: 8px 0;
+  padding: 0;
+  background: transparent;
+  display: flex;
+  color: inherit;
+}
+.workspace-link,
+.nav-group summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-height: 44px;
+  padding: 10px 12px;
+  color: var(--hw-muted);
+  font: inherit;
+  line-height: 24px;
+  border-radius: var(--hw-r-md);
+  transition:
+    background 150ms,
+    color 150ms;
+}
+.workspace-link > svg,
+.nav-group summary > svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.workspace-link:hover,
+.nav-group summary:hover {
+  color: var(--hw-ink);
+  background: var(--hw-subtle);
+}
+.workspace-link[aria-current] {
+  background: var(--hw-accent-soft);
+  color: var(--hw-accent);
+  font-weight: 500;
+}
+.nav-directory-label {
+  padding: 24px 12px 8px;
+  font-size: 13px;
+  color: var(--hw-muted);
+}
+.nav-group summary {
   cursor: pointer;
+  list-style: none;
+}
+.nav-group summary::-webkit-details-marker {
+  display: none;
+}
+.nav-group summary .nav-chevron {
+  margin-left: auto;
+  width: 12px;
+  transition: transform 150ms;
+}
+.nav-group[open] summary .nav-chevron {
+  transform: rotate(180deg);
+}
+.nav-group > a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px 8px 42px;
+  font-size: 13px;
+  color: var(--hw-muted);
+  border-radius: 4px;
+}
+.nav-group > a svg {
+  width: 12px;
+  height: 12px;
+}
+.nav-group > a:hover,
+.nav-group > a[aria-current] {
+  color: var(--hw-accent);
+  background: var(--hw-subtle);
+}
+.nav-group > a[aria-current] {
+  box-shadow: inset 2px 0 var(--hw-accent);
+  font-weight: 500;
 }
 .nav-help {
-  margin-top: 12px;
+  margin-top: 24px;
+  border-top: 1px solid var(--hw-line);
+  border-radius: 0;
+  padding-top: 16px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .workspace-link,
-  .nav-chevron {
-    transition: none;
+.nav-no-results {
+  padding: 16px 12px;
+  color: var(--hw-muted);
+}
+.nav-expand-group {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  .nav-group > a {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .nav-search {
+    height: 44px;
   }
 }
 </style>

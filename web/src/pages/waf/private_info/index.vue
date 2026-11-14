@@ -25,8 +25,8 @@
           :headerAffixedTop="true" :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
 
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -40,15 +40,15 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
             <hw-form-item :label="$t('page.private_info.private_key')" name="private_key">
-                  <hw-input :style="{ width: '480px' }" v-model="formData.private_key" ></hw-input>
+                  <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.private_key" ></hw-input>
             </hw-form-item>
 
               <hw-form-item :label="$t('page.private_info.private_value')" name="private_value">
-                  <hw-input :style="{ width: '480px' }" v-model="formData.private_value" ></hw-input>
+                  <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.private_value" ></hw-input>
             </hw-form-item>
 
               <hw-form-item :label="$t('page.private_info.remarks')" name="remarks">
-                  <hw-input :style="{ width: '480px' }" v-model="formData.remarks" ></hw-input>
+                  <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks" ></hw-input>
             </hw-form-item>
 
           <hw-form-item style="float: right">
@@ -63,15 +63,15 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100">
                      <hw-form-item :label="$t('page.private_info.private_key')" name="private_key">
-                           <hw-input :style="{ width: '480px' }" v-model="formEditData.private_key" ></hw-input>
+                           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.private_key" ></hw-input>
                       </hw-form-item>
 
                         <hw-form-item :label="$t('page.private_info.private_value')" name="private_value">
-                           <hw-input :style="{ width: '480px' }" v-model="formEditData.private_value" ></hw-input>
+                           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.private_value" ></hw-input>
                       </hw-form-item>
 
                         <hw-form-item :label="$t('page.private_info.remarks')" name="remarks">
-                           <hw-input :style="{ width: '480px' }" v-model="formEditData.remarks" ></hw-input>
+                           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" ></hw-input>
                       </hw-form-item>
 
           <hw-form-item style="float: right">

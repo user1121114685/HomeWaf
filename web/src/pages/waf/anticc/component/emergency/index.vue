@@ -14,7 +14,7 @@
 
     <hw-form label-width="130px" class="emg-form">
       <hw-form-item :label="$t('page.ccrule.emg_scope')">
-        <hw-select v-model="hostCode" filterable :style="{ width: '320px' }">
+        <hw-select v-model="hostCode" filterable :style="{ width: 'min(100%, 320px)' }">
           <hw-option v-for="h in hosts" :key="h.value" :value="h.value" :label="h.label" />
         </hw-select>
         <template #help>{{ $t('page.ccrule.emg_scope_hint') }}</template>
@@ -50,7 +50,7 @@
       <span class="t">{{ untilText(row) }}</span>
       <!-- 开着但站点防护是关的：紧急模式挂在 CC 检测下，防护关了它一样不生效，不说会以为开了就有用 -->
       <span v-if="row.guard_status !== 1" class="g">{{ $t('page.ccrule.emg_guard_off') }}</span>
-      <a class="t-button-link" @click="turnOff(row.host_code)">{{ $t('page.ccrule.emg_turn_off') }}</a>
+      <button type="button" class="t-button-link" @click="turnOff(row.host_code)">{{ $t('page.ccrule.emg_turn_off') }}</button>
     </div>
 
     <div class="emg-foot">

@@ -65,7 +65,7 @@
 
           <hw-table :columns="hitColumns" :data="result.hits || []" rowKey="id" empty="-">
             <template #id="{ row }">
-              <a class="rule-id-link" @click="onViewRule(row.id)">{{ row.id }}</a>
+              <button type="button" class="rule-id-link" @click="onViewRule(row.id)">{{ row.id }}</button>
             </template>
             <template #severity="{ row }">
               <hw-tag :theme="severityTheme(row.severity)" variant="light">{{ row.severity || '-' }}</hw-tag>
@@ -637,7 +637,7 @@ export default defineComponent({
 }
 .score-counted {
   color: var(--td-success-color);
-  font-weight: 600;
+  font-weight: 500;
   cursor: help;
 }
 .score-not-counted {

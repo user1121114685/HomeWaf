@@ -25,18 +25,18 @@
             <div class="tab-body">
 
               <hw-form-item :label="$t('page.access.config.label_center_origin')" name="center_origin" requiredMark>
-                <hw-select :style="{ width: '520px' }" v-model="formData.center_origin" filterable creatable clearable
+                <hw-select :style="{ width: 'min(100%, 520px)' }" v-model="formData.center_origin" filterable creatable clearable
                   :placeholder="$t('page.access.config.center_origin_placeholder')"
                   @create="onCreateCenterOrigin">
                   <hw-option v-for="h in centerHostOptions" :key="h.origin" :value="h.origin" :label="h.label"></hw-option>
                 </hw-select>
                 <div class="form-tips">{{ $t('page.access.config.center_origin_tips') }}</div>
-                <hw-alert v-if="centerHostOptions.length === 0" theme="warning" :style="{ width: '520px', marginTop: '8px' }"
+                <hw-alert v-if="centerHostOptions.length === 0" theme="warning" :style="{ width: 'min(100%, 520px)', marginTop: '8px' }"
                   :message="$t('page.access.config.center_origin_empty')"></hw-alert>
               </hw-form-item>
 
               <hw-form-item :label="$t('page.access.config.label_session_ttl')" name="session_ttl_minutes">
-                <hw-input-number :style="{ width: '220px' }" v-model="formData.session_ttl_minutes" :min="1" theme="column"></hw-input-number>
+                <hw-input-number :style="{ width: 'min(100%, 220px)' }" v-model="formData.session_ttl_minutes" :min="1" theme="column"></hw-input-number>
                 <span class="unit">{{ $t('page.access.unit_minute') }}</span>
                 <div class="form-tips">{{ $t('page.access.config.session_ttl_tips') }}</div>
               </hw-form-item>
@@ -59,13 +59,13 @@
               </hw-form-item>
 
               <hw-form-item :label="$t('page.access.config.label_exclude_paths')" name="global_exclude_paths">
-                <hw-textarea :style="{ width: '520px' }" v-model="formData.global_exclude_paths"
+                <hw-textarea :style="{ width: 'min(100%, 520px)' }" v-model="formData.global_exclude_paths"
                   :autosize="{ minRows: 3, maxRows: 8 }" :placeholder="excludePathsPlaceholder"></hw-textarea>
                 <div class="form-tips">{{ $t('page.access.config.exclude_paths_tips') }}</div>
               </hw-form-item>
 
               <hw-form-item :label="$t('page.access.config.label_bypass_ip_group')" name="bypass_ip_group_code">
-                <hw-select :style="{ width: '520px' }" v-model="formData.bypass_ip_group_code" clearable
+                <hw-select :style="{ width: 'min(100%, 520px)' }" v-model="formData.bypass_ip_group_code" clearable
                   :placeholder="$t('common.select_placeholder')">
                   <hw-option v-for="g in ipGroups" :key="g.group_code" :value="g.group_code" :label="g.group_name"></hw-option>
                 </hw-select>
@@ -82,11 +82,11 @@
               <hw-divider align="left">{{ $t('page.access.config.section_path') }}</hw-divider>
 
               <hw-form-item :label="$t('page.access.config.label_path_prefix')" name="path_prefix">
-                <hw-input :style="{ width: '520px' }" v-model="formData.path_prefix" placeholder="/samwaf_access"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 520px)' }" v-model="formData.path_prefix" placeholder="/samwaf_access"></hw-input>
                 <div class="form-tips">{{ $t('page.access.config.path_prefix_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_cookie_prefix')" name="cookie_prefix">
-                <hw-input :style="{ width: '520px' }" v-model="formData.cookie_prefix" placeholder="samwaf_ac"></hw-input>
+                <hw-input :style="{ width: 'min(100%, 520px)' }" v-model="formData.cookie_prefix" placeholder="samwaf_ac"></hw-input>
                 <div class="form-tips">{{ $t('page.access.config.cookie_prefix_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_force_secure')" name="force_secure_cookie">
@@ -107,22 +107,22 @@
               <hw-divider align="left">{{ $t('page.access.config.section_ttl') }}</hw-divider>
 
               <hw-form-item :label="$t('page.access.config.label_token_ttl')" name="token_ttl_minutes">
-                <hw-input-number :style="{ width: '220px' }" v-model="formData.token_ttl_minutes" :min="1" theme="column"></hw-input-number>
+                <hw-input-number :style="{ width: 'min(100%, 220px)' }" v-model="formData.token_ttl_minutes" :min="1" theme="column"></hw-input-number>
                 <span class="unit">{{ $t('page.access.unit_minute') }}</span>
                 <div class="form-tips">{{ $t('page.access.config.token_ttl_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_ticket_ttl')" name="ticket_ttl_seconds">
-                <hw-input-number :style="{ width: '220px' }" v-model="formData.ticket_ttl_seconds" :min="1" :max="300" theme="column"></hw-input-number>
+                <hw-input-number :style="{ width: 'min(100%, 220px)' }" v-model="formData.ticket_ttl_seconds" :min="1" :max="300" theme="column"></hw-input-number>
                 <span class="unit">{{ $t('page.access.unit_second') }}</span>
                 <div class="form-tips">{{ $t('page.access.config.ticket_ttl_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_idle_timeout')" name="idle_timeout_minutes">
-                <hw-input-number :style="{ width: '220px' }" v-model="formData.idle_timeout_minutes" :min="0" theme="column"></hw-input-number>
+                <hw-input-number :style="{ width: 'min(100%, 220px)' }" v-model="formData.idle_timeout_minutes" :min="0" theme="column"></hw-input-number>
                 <span class="unit">{{ $t('page.access.unit_minute') }}</span>
                 <div class="form-tips">{{ $t('page.access.config.idle_timeout_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_cache_ttl')" name="cache_positive_ttl_sec">
-                <hw-input-number :style="{ width: '220px' }" v-model="formData.cache_positive_ttl_sec" :min="1" :max="60" theme="column"></hw-input-number>
+                <hw-input-number :style="{ width: 'min(100%, 220px)' }" v-model="formData.cache_positive_ttl_sec" :min="1" :max="60" theme="column"></hw-input-number>
                 <span class="unit">{{ $t('page.access.unit_second') }}</span>
                 <div class="form-tips">{{ $t('page.access.config.cache_ttl_tips') }}</div>
               </hw-form-item>
@@ -147,12 +147,12 @@
               <hw-divider align="left">{{ $t('page.access.config.section_bypass') }}</hw-divider>
 
               <hw-form-item :label="$t('page.access.config.label_service_token_header')" name="service_token_header">
-                <hw-input :style="{ width: '520px' }" v-model="formData.service_token_header"
+                <hw-input :style="{ width: 'min(100%, 520px)' }" v-model="formData.service_token_header"
                   placeholder="X-Service-Token"></hw-input>
                 <div class="form-tips">{{ $t('page.access.config.service_token_header_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_service_tokens')" name="service_tokens">
-                <hw-textarea :style="{ width: '520px' }" v-model="formData.service_tokens"
+                <hw-textarea :style="{ width: 'min(100%, 520px)' }" v-model="formData.service_tokens"
                   :autosize="{ minRows: 2, maxRows: 6 }"
                   :placeholder="hasServiceToken ? $t('page.access.config.service_tokens_set_placeholder') : ''"></hw-textarea>
                 <div class="form-tips">{{ $t('page.access.config.service_tokens_tips') }}</div>
@@ -161,23 +161,23 @@
               <hw-divider align="left">{{ $t('page.access.config.section_cors') }}</hw-divider>
 
               <hw-form-item :label="$t('page.access.config.label_cors_allow_origins')" name="cors_allow_origins">
-                <hw-textarea :style="{ width: '520px' }" v-model="formData.cors_allow_origins"
+                <hw-textarea :style="{ width: 'min(100%, 520px)' }" v-model="formData.cors_allow_origins"
                   :autosize="{ minRows: 2, maxRows: 6 }"
                   placeholder="https://app.example.com&#10;https://admin.example.com:8443"></hw-textarea>
                 <div class="form-tips">{{ $t('page.access.config.cors_allow_origins_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_cors_allow_methods')" name="cors_allow_methods">
-                <hw-input :style="{ width: '520px' }" v-model="formData.cors_allow_methods"
+                <hw-input :style="{ width: 'min(100%, 520px)' }" v-model="formData.cors_allow_methods"
                   placeholder="GET,POST,PUT,PATCH,DELETE,OPTIONS"></hw-input>
                 <div class="form-tips">{{ $t('page.access.config.cors_allow_methods_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_cors_allow_headers')" name="cors_allow_headers">
-                <hw-input :style="{ width: '520px' }" v-model="formData.cors_allow_headers"
+                <hw-input :style="{ width: 'min(100%, 520px)' }" v-model="formData.cors_allow_headers"
                   placeholder="Content-Type,Authorization,X-Requested-With"></hw-input>
                 <div class="form-tips">{{ $t('page.access.config.cors_allow_headers_tips') }}</div>
               </hw-form-item>
               <hw-form-item :label="$t('page.access.config.label_cors_max_age')" name="cors_max_age">
-                <hw-input-number :style="{ width: '200px' }" v-model="formData.cors_max_age"
+                <hw-input-number :style="{ width: 'min(100%, 200px)' }" v-model="formData.cors_max_age"
                   theme="column" :min="0" :max="7200"></hw-input-number>
                 <div class="form-tips">{{ $t('page.access.config.cors_max_age_tips') }}</div>
               </hw-form-item>
@@ -476,14 +476,14 @@ export default defineComponent({
 }
 
 .master-title {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .master-tips {
   flex: 1;
   min-width: 260px;
   color: var(--td-text-color-secondary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 20px;
 }
 
@@ -499,7 +499,7 @@ export default defineComponent({
 
 .form-tips {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 20px;
   margin-top: 4px;
   // t-form-item 的控件区是 flex 容器，光靠 div 是块级元素并不会换行——

@@ -1,7 +1,7 @@
 <!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
 
 <template>
-  <!-- AI 助手：悬浮入口 + 对话抽屉 + 参数设置。放在布局外层，三种布局(side/top/mix)都能用 -->
+  <!-- Open from the account menu or a contextual log/rule action. -->
   <div>
     <hw-drawer v-model:visible="aiChatBoxVisible" :closeBtn="true" size="560px" class="ai-chat-drawer">
       <template #header>
@@ -44,7 +44,7 @@
           <div class="welcome-desc">{{ $t('page.gpt.welcome_desc') }}</div>
           <div class="welcome-suggest-title">{{ $t('page.gpt.suggest_title') }}</div>
           <div class="suggest-list">
-            <div class="suggest-item" v-for="(s, sIndex) in suggestions" :key="sIndex"
+            <div role="button" tabindex="0" @keydown.enter.prevent="useSuggestion(s)" @keydown.space.prevent="useSuggestion(s)" class="suggest-item" v-for="(s, sIndex) in suggestions" :key="sIndex"
                  @click="useSuggestion(s)">
               <div class="suggest-main">
                 <div class="suggest-label">{{ s.label }}</div>
@@ -125,22 +125,16 @@
     <!-- AI 参数设置（与规则编排页共用同一个弹窗组件） -->
     <gpt-config-dialog v-model:visible="gptConfigVisible" @saved="onGptConfigSaved" />
 
-    <!-- z-index：t-sticky-tool 自身没有层级，会被表格的固定列（position:relative + 背景）
-         压在下面，右下角点不到。给个明确层级，仍低于 drawer/dialog(2500+)。 -->
-    <hw-sticky-tool :style="{ position: 'fixed', right: '20px', overflow: 'hidden', height: '70px', zIndex: 100 }"
-                   @click="openChat">
-      <hw-sticky-item :label="$t('page.gpt.assistant')" :aria-label="$t('page.gpt.assistant')" :icon="renderChatIcon"/>
-    </hw-sticky-tool>
   </div>
 </template>
 
 <script lang="ts">
-import {defineComponent, h} from 'vue';
+import {defineComponent} from 'vue';
 
 
 import { marked } from 'marked';
 import {
-  ChatIcon, UserIcon, LogoAndroidIcon, ErrorCircleIcon,
+  UserIcon, LogoAndroidIcon, ErrorCircleIcon,
   ClearIcon, SettingIcon, CopyIcon, SendIcon, ChevronRightIcon,
 } from '@/ui/icons';
 
@@ -209,9 +203,11 @@ export default defineComponent({
   },
   mounted() {
     this.$bus.$on('sendAi', this.onBusSendAi);
+    this.$bus.$on('openAi', this.openChat);
   },
   beforeUnmount() {
     this.$bus.$off('sendAi', this.onBusSendAi);
+    this.$bus.$off('openAi', this.openChat);
   },
   methods: {
     // 其他页面（日志详情/OWASP规则）把内容甩过来：
@@ -394,8 +390,7 @@ export default defineComponent({
         }
       });
     },
-    openChat(e: any) {
-      if (e.item?.label === this.$t('page.gpt.assistant')) {
+    openChat() {
         this.aiChatBoxVisible = true;
         // 从悬浮球进来且没有历史对话，就是自由提问，别沿用上次日志分析的场景
         if (this.questionList.length === 0) {
@@ -403,10 +398,6 @@ export default defineComponent({
         }
         // 每次打开都检测一次，配置可能在别处（规则编排页/系统配置）刚改过
         this.checkGptConfig();
-      }
-    },
-    renderChatIcon() {
-      return h(ChatIcon);
     },
   },
 });
@@ -426,16 +417,16 @@ export default defineComponent({
 
 .chat-header-title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
 }
 
 .chat-header-scene {
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: var(--hw-r-lg);
   background: var(--td-brand-color-1, #f2f3ff);
   color: var(--td-brand-color, #0052d9);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
 }
 
@@ -499,7 +490,7 @@ export default defineComponent({
 
 .text {
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: var(--hw-r-lg);
   background: var(--td-bg-color-component);
   color: var(--td-text-color-primary);
   font-size: 14px;
@@ -535,7 +526,7 @@ export default defineComponent({
 .text :deep(h4) {
   margin: 12px 0 6px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.5;
 }
 .text :deep(h1:first-child),
@@ -592,7 +583,7 @@ export default defineComponent({
 }
 .text :deep(th) {
   background: var(--td-bg-color-secondarycontainer, rgba(0, 0, 0, 0.04));
-  font-weight: 600;
+  font-weight: 500;
 }
 .text :deep(blockquote) {
   margin: 8px 0;
@@ -662,7 +653,7 @@ export default defineComponent({
 .welcome-title {
   margin-top: 12px;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
 }
 
@@ -675,7 +666,7 @@ export default defineComponent({
 
 .welcome-suggest-title {
   margin: 20px 0 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 
@@ -714,7 +705,7 @@ export default defineComponent({
 
 .suggest-q {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--td-text-color-secondary);
 }
@@ -729,7 +720,7 @@ export default defineComponent({
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .welcome-links-split {
@@ -738,7 +729,7 @@ export default defineComponent({
 
 .welcome-foot {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--td-text-color-placeholder);
 }
@@ -764,7 +755,7 @@ export default defineComponent({
 
 .input-hint {
   flex: 1 1 auto;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 
@@ -803,7 +794,7 @@ export default defineComponent({
 
 .gpt-unset-hint {
   margin-top: 12px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--td-text-color-placeholder);
 }

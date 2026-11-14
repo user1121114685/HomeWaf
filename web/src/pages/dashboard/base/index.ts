@@ -2,7 +2,7 @@
 
 import i18n from '@/i18n';
 import dayjs from 'dayjs';
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import { getChartListColor } from '@/utils/color';
 import { getRandomArray } from '@/utils/charts';
 

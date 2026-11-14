@@ -607,7 +607,7 @@ defineExpose({ getMap: () => map, resetView });
   outline-offset: -1px;
 }
 .map-canvas :deep(.maplibregl-ctrl-attrib) {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--screen-muted);
   background: var(--screen-panel);
 }
@@ -629,7 +629,7 @@ defineExpose({ getMap: () => map, resetView });
   border-radius: 8px;
   color: var(--screen-text);
   background: var(--screen-panel);
-  box-shadow: 0 6px 24px #101d3326;
+  box-shadow: none;
 }
 .map-canvas :deep(.origin-ip-popup .maplibregl-popup-close-button) {
   right: 5px;
@@ -672,7 +672,7 @@ defineExpose({ getMap: () => map, resetView });
 .map-canvas :deep(.source-popup-hint),
 .map-canvas :deep(.source-popup-empty) {
   color: var(--screen-muted);
-  font-size: 10px;
+  font-size: 13px;
 }
 .map-canvas :deep(.source-popup ul) {
   list-style: none;
@@ -696,7 +696,7 @@ defineExpose({ getMap: () => map, resetView });
 .map-canvas :deep(.source-popup li small) {
   display: block;
   color: var(--screen-muted);
-  font-size: 10px;
+  font-size: 13px;
 }
 .map-toolbar {
   position: absolute;
@@ -730,13 +730,13 @@ defineExpose({ getMap: () => map, resetView });
 .map-toolbar output {
   width: 43px;
   text-align: center;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--screen-muted);
   font-variant-numeric: tabular-nums;
 }
 .map-toolbar .map-reset {
   width: 42px;
-  font-size: 11px;
+  font-size: 13px;
   border-left: 1px solid var(--screen-border);
   border-radius: 0 4px 4px 0;
 }
@@ -747,7 +747,7 @@ defineExpose({ getMap: () => map, resetView });
   left: 10px;
   right: 10px;
   text-align: center;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--screen-muted);
 }
 .map-canvas :deep(.protection-node) {
@@ -765,7 +765,7 @@ defineExpose({ getMap: () => map, resetView });
   background: var(--screen-panel);
   color: #428d87;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 500;
   box-shadow: 0 0 0 5px #5aaba622;
 }
 .map-canvas :deep(.node-copy) {
@@ -784,9 +784,9 @@ defineExpose({ getMap: () => map, resetView });
 }
 .map-canvas :deep(.node-copy strong) {
   display: block;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--screen-text);
-  font-weight: 600;
+  font-weight: 500;
 }
 .map-canvas :deep(.node-copy small) {
   display: block;
@@ -805,12 +805,12 @@ defineExpose({ getMap: () => map, resetView });
   background: var(--screen-panel);
   border: 1px solid var(--screen-border);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   pointer-events: none;
 }
 .map-callout strong {
   color: var(--screen-text);
-  font-weight: 600;
+  font-weight: 500;
 }
 .map-callout span {
   color: #b65e46;
@@ -818,7 +818,7 @@ defineExpose({ getMap: () => map, resetView });
 }
 .map-callout small,
 .map-empty {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--screen-muted);
 }
 .map-signal {
@@ -835,7 +835,7 @@ defineExpose({ getMap: () => map, resetView });
   max-width: calc(100% - 24px);
   left: 50%;
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: 13px;
   color: var(--screen-muted);
   display: flex;
   align-items: center;
@@ -878,7 +878,7 @@ defineExpose({ getMap: () => map, resetView });
   background: var(--screen-panel);
   text-align: center;
   color: var(--screen-muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .map-error button {
   margin-left: 12px;
@@ -901,7 +901,7 @@ defineExpose({ getMap: () => map, resetView });
     left: 0;
     top: 0;
     padding: 8px;
-    font-size: 11px;
+    font-size: 13px;
     gap: 7px;
     max-width: calc(100% - 170px);
     flex-wrap: wrap;

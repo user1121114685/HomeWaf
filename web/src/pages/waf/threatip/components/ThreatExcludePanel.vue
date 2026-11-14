@@ -25,14 +25,14 @@
             <div class="tie-bar">
               <hw-input
                 v-model="form.entry"
-                :style="{ width: '220px' }"
+                :style="{ width: 'min(100%, 220px)' }"
                 :placeholder="$t('page.threatip.exclude.entry_placeholder')"
                 clearable
                 @change="onEntryChange"
               />
               <hw-input
                 v-model="form.remarks"
-                :style="{ width: '280px' }"
+                :style="{ width: 'min(100%, 280px)' }"
                 :placeholder="$t('page.threatip.exclude.remarks_placeholder')"
                 clearable
               />
@@ -80,7 +80,7 @@
                 <hw-switch :value="row.enable" :custom-value="[1, 0]" size="small" @change="(v) => onToggle(row, v)" />
               </template>
               <template #op="{ row }">
-                <a class="t-button-link" @click="onDel(row)">{{ $t('common.delete') }}</a>
+                <button type="button" class="t-button-link" @click="onDel(row)">{{ $t('common.delete') }}</button>
               </template>
             </hw-table>
           </hw-tab-panel>
@@ -370,17 +370,17 @@ export default defineComponent({
 }
 .tie-note {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
 }
 .tie-reason {
   margin-left: 6px;
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
 }
 .tie-code {
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 12px;
+  font-size: 13px;
   padding: 1px 6px;
   border-radius: 2px;
   background: var(--td-bg-color-secondarycontainer);

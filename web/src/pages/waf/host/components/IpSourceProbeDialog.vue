@@ -18,7 +18,7 @@
       <hw-alert v-else theme="info">
         <div>
           {{ $t('page.host.ip_probe_tips') }}
-          <a class="t-button-link" style="margin-left: 6px;" @click="toggleProbe(false)">{{ $t('page.host.ip_probe_disable_btn') }}</a>
+          <button type="button" class="t-button-link" style="margin-left: 6px;" @click="toggleProbe(false)">{{ $t('page.host.ip_probe_disable_btn') }}</button>
         </div>
       </hw-alert>
 
@@ -66,7 +66,7 @@
         <table class="ip-probe-table">
           <thead>
             <tr>
-              <th style="width: 210px;">{{ $t('page.host.ip_probe_col_name') }}</th>
+              <th style="width: min(100%, 210px);">{{ $t('page.host.ip_probe_col_name') }}</th>
               <th>{{ $t('page.host.ip_probe_col_value') }}</th>
               <th style="width: 150px;">{{ $t('page.host.ip_probe_col_ip') }}</th>
               <th v-if="canUseHeader" style="width: 100px;">{{ $t('page.host.ip_probe_col_action') }}</th>
@@ -81,7 +81,7 @@
               </td>
               <td>{{ header.parsed_ip || '-' }}</td>
               <td v-if="canUseHeader">
-                <a v-if="header.parsed_ip" class="t-button-link" @click="$emit('use-header', header.name)">{{ $t('page.host.ip_probe_use_header') }}</a>
+                <button type="button" v-if="header.parsed_ip" class="t-button-link" @click="$emit('use-header', header.name)">{{ $t('page.host.ip_probe_use_header') }}</button>
               </td>
             </tr>
           </tbody>
@@ -241,7 +241,7 @@ export default defineComponent({
   display: flex;
   justify-content: space-between;
   color: var(--td-text-color-secondary, rgba(0, 0, 0, 0.6));
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 6px;
 }
 .ip-probe-req {
@@ -257,7 +257,7 @@ export default defineComponent({
   margin-left: 24px;
 }
 .ip-probe-tip {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   margin-bottom: 4px;
 }
@@ -271,7 +271,7 @@ export default defineComponent({
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 6px;
 }
 .ip-probe-table th,

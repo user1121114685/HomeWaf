@@ -4,8 +4,8 @@
   <div class="detail-base">
     <hw-alert theme="info" :message="$t('page.rule.detail.recommend_message')" close>
       <template #operation>
-        <span @click="handleJumpAttackLogOperation">{{ $t('page.rule.detail.jump_visit_log') }} </span>
-        <span @click="handleJumpOnlineUrl"> {{ $t('page.rule.detail.jump_visit_log') }} </span>
+        <span role="button" tabindex="0" @keydown.enter.prevent="handleJumpAttackLogOperation" @keydown.space.prevent="handleJumpAttackLogOperation" @click="handleJumpAttackLogOperation">{{ $t('page.rule.detail.jump_visit_log') }} </span>
+        <span role="button" tabindex="0" @keydown.enter.prevent="handleJumpOnlineUrl" @keydown.space.prevent="handleJumpOnlineUrl" @click="handleJumpOnlineUrl"> {{ $t('page.rule.detail.jump_visit_log') }} </span>
       </template>
     </hw-alert>
     <hw-form :data="formData" @submit="onSubmit" :labelWidth="180">
@@ -15,7 +15,7 @@
           <hw-input :placeholder="$t('common.placeholder')" v-model="formData.rule_base.rule_name" />
         </hw-form-item>
         <hw-form-item :label="$t('page.rule.detail.rule_domain_code')" name="rule_domain_code">
-          <hw-select v-model="formData.rule_base.rule_domain_code" clearable filterable :style="{ width: '480px' }">
+          <hw-select v-model="formData.rule_base.rule_domain_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
             <hw-option v-for="(item, index) in host_options" :value="item.value" :label="item.label" :key="index">
               {{ item.label }}
             </hw-option>
@@ -30,14 +30,14 @@
           </div>
         </hw-form-item>
         <hw-form-item :label="$t('page.rule.detail.rule_manual')" name="is_manual_rule">
-          <hw-select :style="{ width: '480px' }" @change="changeManualRule" v-model="formData.is_manual_rule">
+          <hw-select :style="{ width: 'min(100%, 480px)' }" @change="changeManualRule" v-model="formData.is_manual_rule">
             <hw-option v-for="(item, index) in rule_manual_option" :value="item.value" :label="item.label" :key="index">
               {{ item.label }}
             </hw-option>
           </hw-select>
         </hw-form-item>
         <hw-form-item :label="$t('page.rule.detail.rule_status')" name="rule_status">
-          <hw-select :style="{ width: '480px' }" v-model="formData.rule_status">
+          <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formData.rule_status">
             <hw-option v-for="(item, index) in rule_status_option" :value="item.value" :label="item.label" :key="index">
               {{ item.label }}
             </hw-option>
@@ -51,14 +51,14 @@
         <!--命中动作 开始-->
         <hw-card :title="$t('page.rule.detail.rule_action')">
           <hw-form-item :label="$t('page.rule.detail.rule_action')" name="rule_action">
-            <hw-select :style="{ width: '480px' }" v-model="formData.rule_action" @change="onRuleActionChange">
+            <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formData.rule_action" @change="onRuleActionChange">
               <hw-option v-for="(item, index) in rule_action_option" :value="item.value" :label="item.label" :key="index">
                 {{ item.label }}
               </hw-option>
             </hw-select>
           </hw-form-item>
           <hw-form-item v-if="formData.rule_action === 'allow'" :label="$t('page.rule.detail.rule_action_skips')" name="rule_action_skips">
-            <hw-select :style="{ width: '480px' }" multiple :min-collapsed-num="4"
+            <hw-select :style="{ width: 'min(100%, 480px)' }" multiple :min-collapsed-num="4"
               v-model="formData.rule_action_skips" @change="onRuleActionSkipsChange"
               :placeholder="$t('page.rule.detail.rule_action_skips_placeholder')">
               <hw-option v-for="(item, index) in rule_skip_module_option" :value="item.value" :label="item.label" :key="index">
@@ -78,7 +78,7 @@
           </hw-button>
           <hw-form-item :label="$t('page.rule.detail.relation')" name="relation_symbol"
             v-if="formData.rule_condition.relation_detail.length > 1">
-            <hw-select clearable :style="{ width: '480px' }" v-model="formData.rule_condition.relation_symbol" @change="onFormChange">
+            <hw-select clearable :style="{ width: 'min(100%, 480px)' }" v-model="formData.rule_condition.relation_symbol" @change="onFormChange">
               <hw-option v-for="(item, index) in relation_symbol_option" :value="item.value" :label="item.label"
                 :key="index">
                 {{ item.label }}
@@ -91,7 +91,7 @@
               <hw-col :span="5">
                 <div>
                   <hw-form-item :label="$t('page.rule.detail.scope')" name="attr" :labelWidth="80">
-                    <hw-select clearable :style="{ width: '200px' }" v-model="condition_item.attr"
+                    <hw-select clearable :style="{ width: 'min(100%, 200px)' }" v-model="condition_item.attr"
                       @change="onAttrChange(condition_item)">
                       <hw-option
                         v-for="(item, index) in attr_option.filter(option => !option.value.toLowerCase().startsWith('get'))"
@@ -105,7 +105,7 @@
               <hw-col :span="5">
                 <div>
                   <hw-form-item :label="$t('page.rule.detail.judgment')" name="attr_judge" :labelWidth="80">
-                    <hw-select clearable :style="{ width: '200px' }" v-model="condition_item.attr_judge" @change="onAttrJudgeChange(condition_item)">
+                    <hw-select clearable :style="{ width: 'min(100%, 200px)' }" v-model="condition_item.attr_judge" @change="onAttrJudgeChange(condition_item)">
                       <hw-option v-for="(item, index) in attr_judge_option" :value="item.value" :label="item.label" :key="index">
                         {{ item.label }}
                       </hw-option>
@@ -116,7 +116,7 @@
               <hw-col :span="5">
                 <div>
                   <hw-form-item :label="$t('page.rule.detail.value')" name="att_val" :labelWidth="80">
-                    <hw-input :style="{ width: '200px' }" placeholder="请输入内容" v-model="condition_item.attr_val" @change="onFormChange" />
+                    <hw-input :style="{ width: 'min(100%, 200px)' }" placeholder="请输入内容" v-model="condition_item.attr_val" @change="onFormChange" />
                   </hw-form-item>
                 </div>
               </hw-col>
@@ -1433,15 +1433,15 @@ export default {
 @import './index';
 
 .form-item-tips {
-  color: #999;
-  font-size: 12px;
+  color: var(--hw-muted);
+  font-size: 13px;
   margin-top: 4px;
   line-height: 1.5;
 }
 
 .rule-example-container {
   margin-top: 16px;
-  border: 1px solid #e7e7e7;
+  border: 1px solid var(--hw-line);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -1450,24 +1450,24 @@ export default {
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #e7e7e7;
+  background-color: var(--hw-subtle);
+  border-bottom: 1px solid var(--hw-line);
 
   .t-icon {
     margin-right: 8px;
-    color: #0052d9;
+    color: var(--hw-accent);
   }
 }
 
 .rule-example-title {
   font-weight: 500;
-  color: #333;
+  color: var(--hw-ink);
 }
 
 .rule-example-code {
   margin: 0;
   padding: 12px;
-  background-color: #fafafa;
+  background-color: var(--hw-subtle);
   font-family: Consolas, Monaco, 'Andale Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
@@ -1497,8 +1497,8 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid #e7e7e7;
-  background-color: #fafafa;
+  border-bottom: 1px solid var(--hw-line);
+  background-color: var(--hw-subtle);
 }
 
 .example-view-switch {
@@ -1521,7 +1521,7 @@ export default {
 }
 
 .example-card {
-  border: 1px solid #e7e7e7;
+  border: 1px solid var(--hw-line);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -1531,13 +1531,13 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background-color: #f5f7fa;
+  background-color: var(--hw-subtle);
   border-bottom: 1px solid #eee;
 }
 
 .example-card-title {
   font-weight: 500;
-  color: #333;
+  color: var(--hw-ink);
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -1548,15 +1548,15 @@ export default {
 
 .example-card-desc {
   padding: 8px 10px 0;
-  color: #666;
-  font-size: 12px;
+  color: var(--hw-muted);
+  font-size: 13px;
   line-height: 1.6;
 }
 
 .example-code {
   margin: 8px 10px 10px;
   padding: 10px;
-  background-color: #fafafa;
+  background-color: var(--hw-subtle);
   border-radius: 4px;
   font-family: Consolas, Monaco, 'Andale Mono', monospace;
   font-size: 13px;
@@ -1584,21 +1584,21 @@ export default {
 }
 
 .explain-title {
-  font-weight: 600;
-  color: #333;
+  font-weight: 500;
+  color: var(--hw-ink);
 }
 
 .explain-desc {
   margin-top: 6px;
-  color: #666;
-  font-size: 12px;
+  color: var(--hw-muted);
+  font-size: 13px;
   line-height: 1.6;
 }
 
 .explain-effect {
   margin: 6px 0 8px;
   color: #555;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .explain-ops {
@@ -1609,19 +1609,19 @@ export default {
 
 .explain-multi-tip {
   color: #e37318;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .ai-prompt-tip {
   margin-bottom: 8px;
-  color: #666;
+  color: var(--hw-muted);
   font-size: 13px;
   line-height: 1.6;
 }
 
 .ai-prompt-textarea :deep(textarea) {
   font-family: Consolas, Monaco, 'Andale Mono', monospace;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
@@ -1649,7 +1649,7 @@ export default {
   border-radius: 4px;
   background-color: var(--td-warning-color-1, #fff1e9);
   color: var(--td-warning-color-7, #be6a1b);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -1673,7 +1673,7 @@ export default {
 }
 .ai-gen-title {
   font-weight: 500;
-  color: #333;
+  color: var(--hw-ink);
   flex: 1 1 auto;
 }
 .ai-gen-body {
@@ -1686,12 +1686,12 @@ export default {
   margin-top: 8px;
 }
 .ai-gen-hint {
-  color: #999;
-  font-size: 12px;
+  color: var(--hw-muted);
+  font-size: 13px;
 }
 .ai-gen-result {
   margin-top: 12px;
-  border-top: 1px dashed #e7e7e7;
+  border-top: 1px dashed var(--hw-line);
   padding-top: 10px;
 }
 .ai-gen-result-head {
@@ -1702,7 +1702,7 @@ export default {
 }
 .ai-gen-err {
   color: #e37318;
-  font-size: 12px;
+  font-size: 13px;
 }
 .ai-gen-result-ops {
   display: flex;

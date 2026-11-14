@@ -287,7 +287,7 @@ export default defineComponent({
   margin-top: 20px;
   padding-top: 12px;
   border-top: 1px solid var(--td-component-stroke);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--td-text-color-primary);
 }
 

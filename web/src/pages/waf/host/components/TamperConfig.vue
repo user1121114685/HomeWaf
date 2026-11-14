@@ -16,8 +16,8 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.tamper.action')">
       <hw-tooltip class="placement top center" :content="$t('page.host.tamper.action_tips')" placement="top"
-                 :overlay-style="{ width: '340px' }" show-arrow>
-        <hw-select v-model="local.action" :style="{ width: '280px' }" @change="updateParent">
+                 :overlay-style="{ width: 'min(100%, 340px)' }" show-arrow>
+        <hw-select v-model="local.action" :style="{ width: 'min(100%, 280px)' }" @change="updateParent">
           <hw-option value="replace" :label="$t('page.host.tamper.action_replace')" />
           <hw-option value="alert" :label="$t('page.host.tamper.action_alert')" />
         </hw-select>
@@ -25,7 +25,7 @@
     </hw-form-item>
     <hw-form-item :label="$t('page.host.tamper.max_size_kb')">
       <hw-tooltip class="placement top center" :content="$t('page.host.tamper.max_size_kb_tips')" placement="top"
-                 :overlay-style="{ width: '320px' }" show-arrow>
+                 :overlay-style="{ width: 'min(100%, 320px)' }" show-arrow>
         <hw-input-number v-model="local.max_size_kb" :min="1" :style="{ width: '180px' }" @change="updateParent" />
       </hw-tooltip>
     </hw-form-item>
@@ -60,10 +60,10 @@
           <span>{{ formatSize(row.content_size) }}</span>
         </template>
         <template #op="slotProps">
-          <a class="t-button-link" @click="handleViewBaseline(slotProps)">{{ $t('page.host.tamper.view_baseline') }}</a>
-          <a class="t-button-link" @click="handleRelearn(slotProps)">{{ $t('page.host.tamper.relearn') }}</a>
-          <a class="t-button-link" @click="handleEdit(slotProps)">{{ $t('common.edit') }}</a>
-          <a class="t-button-link" @click="handleDelete(slotProps)">{{ $t('common.delete') }}</a>
+          <button type="button" class="t-button-link" @click="handleViewBaseline(slotProps)">{{ $t('page.host.tamper.view_baseline') }}</button>
+          <button type="button" class="t-button-link" @click="handleRelearn(slotProps)">{{ $t('page.host.tamper.relearn') }}</button>
+          <button type="button" class="t-button-link" @click="handleEdit(slotProps)">{{ $t('common.edit') }}</button>
+          <button type="button" class="t-button-link" @click="handleDelete(slotProps)">{{ $t('common.delete') }}</button>
         </template>
       </hw-table>
     </template>
@@ -74,11 +74,11 @@
       <template #body><div >
         <hw-form :data="formData" ref="ruleForm" :rules="rules" @submit="onSubmit" :labelWidth="120">
           <hw-form-item :label="$t('page.host.tamper.url')" name="url">
-            <hw-input :style="{ width: '440px' }" v-model="formData.url" :placeholder="$t('page.host.tamper.url_placeholder')" />
+            <hw-input :style="{ width: 'min(100%, 440px)' }" v-model="formData.url" :placeholder="$t('page.host.tamper.url_placeholder')" />
             <div class="form-item-tips">{{ $t('page.host.tamper.url_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('page.host.tamper.rule_name')" name="rule_name">
-            <hw-input :style="{ width: '440px' }" v-model="formData.rule_name" />
+            <hw-input :style="{ width: 'min(100%, 440px)' }" v-model="formData.rule_name" />
           </hw-form-item>
           <hw-form-item :label="$t('page.host.tamper.rule_enable')" name="is_enable">
             <hw-radio-group v-model="formData.is_enable">
@@ -88,7 +88,7 @@
           </hw-form-item>
           <hw-form-item :label="$t('page.host.tamper.ignore_query')" name="ignore_query">
             <hw-tooltip class="placement top center" :content="$t('page.host.tamper.ignore_query_tips')" placement="top"
-                       :overlay-style="{ width: '340px' }" show-arrow>
+                       :overlay-style="{ width: 'min(100%, 340px)' }" show-arrow>
               <hw-radio-group v-model="formData.ignore_query">
                 <hw-radio value="1">{{ $t('common.yes') }}</hw-radio>
                 <hw-radio value="0">{{ $t('common.no') }}</hw-radio>
@@ -96,7 +96,7 @@
             </hw-tooltip>
           </hw-form-item>
           <hw-form-item :label="$t('page.host.tamper.remarks')" name="remarks">
-            <hw-input :style="{ width: '440px' }" v-model="formData.remarks" />
+            <hw-input :style="{ width: 'min(100%, 440px)' }" v-model="formData.remarks" />
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="formVisible = false">{{ $t('common.close') }}</hw-button>
@@ -125,9 +125,9 @@
         <!-- 文本：小直显 / 大截断+展开 -->
         <template v-if="baselineData.is_text">
           <pre class="baseline-pre">{{ displayBaselineText }}</pre>
-          <a v-if="baselineData.content && baselineData.content.length > 300" class="t-button-link" @click="baselineExpanded = !baselineExpanded">
+          <button type="button" v-if="baselineData.content && baselineData.content.length > 300" class="t-button-link" @click="baselineExpanded = !baselineExpanded">
             {{ baselineExpanded ? $t('page.host.tamper.collapse') : $t('page.host.tamper.expand') }}
-          </a>
+          </button>
         </template>
         <!-- 图片：base64 渲染 -->
         <template v-else-if="isImage(baselineData.content_type) && baselineData.content_base64">
@@ -142,7 +142,7 @@
       <template #body><div >
         <hw-alert theme="info" :message="$t('page.host.tamper.extract_hint')" style="margin-bottom: 12px;" />
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-          <hw-select v-model="extractDomain" :style="{ width: '220px' }" :placeholder="$t('page.host.tamper.extract_domain')">
+          <hw-select v-model="extractDomain" :style="{ width: 'min(100%, 220px)' }" :placeholder="$t('page.host.tamper.extract_domain')">
             <hw-option v-for="d in domainOptions" :key="d" :value="d" :label="d" />
           </hw-select>
           <hw-input v-model="extractPageUrl" :placeholder="$t('page.host.tamper.extract_placeholder')" style="flex: 1;" @enter="doExtract" />
@@ -557,19 +557,19 @@ export default {
 
 <style scoped>
 .form-item-tips {
-  color: #999;
-  font-size: 12px;
+  color: var(--hw-muted);
+  font-size: 13px;
   margin-top: 4px;
 }
 .baseline-pre {
   max-height: 360px;
   overflow: auto;
-  background: #f7f7f7;
+  background: var(--hw-subtle);
   padding: 8px;
   border-radius: 4px;
   white-space: pre-wrap;
   word-break: break-all;
-  font-size: 12px;
+  font-size: 13px;
 }
 .t-button-link + .t-button-link {
   margin-left: 8px;

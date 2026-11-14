@@ -80,17 +80,17 @@
 
           <template #op="slotProps">
             <template v-if="actingCode !== slotProps.row.code">
-              <a class="t-button-link" @click="handleStart(slotProps)"   v-if="slotProps.row.run_status !== 1">{{ $t('page.application.start') }}</a>
-              <a class="t-button-link" @click="handleStop(slotProps)"    v-if="slotProps.row.run_status === 1">{{ $t('page.application.stop') }}</a>
-              <a class="t-button-link" @click="handleRestart(slotProps)">{{ $t('page.application.restart') }}</a>
-              <a class="t-button-link" @click="handleShowLogs(slotProps)">{{ $t('page.application.view_logs') }}</a>
-              <a class="t-button-link" @click="handleShowUpgrade(slotProps)">{{ $t('page.application.upgrade') }}</a>
-              <a class="t-button-link" @click="handleShowNetwork(slotProps)">{{ $t('page.application.network') }}</a>
+              <button type="button" class="t-button-link" @click="handleStart(slotProps)"   v-if="slotProps.row.run_status !== 1">{{ $t('page.application.start') }}</button>
+              <button type="button" class="t-button-link" @click="handleStop(slotProps)"    v-if="slotProps.row.run_status === 1">{{ $t('page.application.stop') }}</button>
+              <button type="button" class="t-button-link" @click="handleRestart(slotProps)">{{ $t('page.application.restart') }}</button>
+              <button type="button" class="t-button-link" @click="handleShowLogs(slotProps)">{{ $t('page.application.view_logs') }}</button>
+              <button type="button" class="t-button-link" @click="handleShowUpgrade(slotProps)">{{ $t('page.application.upgrade') }}</button>
+              <button type="button" class="t-button-link" @click="handleShowNetwork(slotProps)">{{ $t('page.application.network') }}</button>
               <hw-badge :count="unreadChangeCount(slotProps.row)" :max-count="99" size="small" style="margin-right:8px">
-                <a class="t-button-link" @click="handleShowChangeLogs(slotProps)">{{ $t('page.application.change_logs') }}</a>
+                <button type="button" class="t-button-link" @click="handleShowChangeLogs(slotProps)">{{ $t('page.application.change_logs') }}</button>
               </hw-badge>
-              <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-              <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+              <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+              <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
             </template>
             <span v-else class="t-button-link acting-text">{{ $t('page.application.acting') }}</span>
           </template>
@@ -535,5 +535,5 @@ export default defineComponent({
 .table-container { margin-top: 8px; }
 .t-button-link { color: var(--td-brand-color); cursor: pointer; margin-right: 8px; }
 .t-button-link:hover { text-decoration: underline; }
-.acting-text { color: #999; cursor: default; }
+.acting-text { color: var(--hw-muted); cursor: default; }
 </style>

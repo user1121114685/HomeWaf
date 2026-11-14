@@ -69,8 +69,8 @@
             <hw-switch :value="row.is_enable === 1" @change="(v) => onToggle(row, v)" />
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -84,7 +84,7 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
           <hw-form-item :label="$t('page.ipallow.label_website')" name="host_code">
-            <hw-select v-model="formData.host_code" clearable filterable :style="{ width: '480px' }">
+            <hw-select v-model="formData.host_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                 :key="index">
                 {{ item }}
@@ -98,24 +98,24 @@
             </hw-radio-group>
           </hw-form-item>
           <hw-form-item v-if="formData.ip_type !== 'group'" :label="$t('page.ipallow.label_ip')" name="ip">
-            <hw-input :style="{ width: '480px' }" v-model="formData.ip"
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.ip"
               :placeholder="$t('page.ipallow.ip_placeholder')"></hw-input>
             <div class="form-tips">{{ $t('page.ipallow.ip_pattern_tips') }}</div>
           </hw-form-item>
           <hw-form-item v-else :label="$t('page.ipallow.label_group')" name="group_code">
-            <hw-select v-model="formData.group_code" clearable filterable :style="{ width: '480px' }">
+            <hw-select v-model="formData.group_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="g in group_options" :key="g.group_code" :value="g.group_code"
                 :label="g.group_name + ' (' + g.item_count + ')'"></hw-option>
             </hw-select>
-            <a class="t-button-link" style="margin-left:8px" @click="$router.push({ name: 'WafIpGroup' })">
+            <button type="button" class="t-button-link" style="margin-left:8px" @click="$router.push({ name: 'WafIpGroup' })">
               {{ $t('page.ipallow.goto_group_manage') }}
-            </a>
+            </button>
           </hw-form-item>
           <hw-form-item :label="$t('page.ipallow.col_enable')" name="is_enable">
             <hw-switch v-model="formData.is_enable" :custom-value="[1, 0]" />
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formData.remarks"  name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks"  name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -130,7 +130,7 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="editRules" @submit="onSubmitEdit" :labelWidth="100">
           <hw-form-item :label="$t('page.ipallow.label_website')"  name="host_code">
-            <hw-select v-model="formEditData.host_code" clearable filterable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.host_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item"
                 :key="index">
                 {{ item }}
@@ -144,12 +144,12 @@
             </hw-radio-group>
           </hw-form-item>
           <hw-form-item v-if="formEditData.ip_type !== 'group'" :label="$t('page.ipallow.label_ip')" name="ip">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.ip"
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.ip"
               :placeholder="$t('page.ipallow.ip_placeholder')"></hw-input>
             <div class="form-tips">{{ $t('page.ipallow.ip_pattern_tips') }}</div>
           </hw-form-item>
           <hw-form-item v-else :label="$t('page.ipallow.label_group')" name="group_code">
-            <hw-select v-model="formEditData.group_code" clearable filterable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.group_code" clearable filterable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="g in group_options" :key="g.group_code" :value="g.group_code"
                 :label="g.group_name + ' (' + g.item_count + ')'"></hw-option>
             </hw-select>
@@ -158,7 +158,7 @@
             <hw-switch v-model="formEditData.is_enable" :custom-value="[1, 0]" />
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks"  name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks"  name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -729,7 +729,7 @@ import {defineComponent} from 'vue';
 
   .form-tips {
     margin-top: 4px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-secondary);
   }
 

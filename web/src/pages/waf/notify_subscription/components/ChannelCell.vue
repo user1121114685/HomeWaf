@@ -24,9 +24,9 @@
           <span v-if="channelType === 'email' && channel.subscription.recipients" class="channel-detail">
             {{ channel.subscription.recipients }}
           </span>
-          <a v-if="channelType === 'email'" class="edit-link-inline" @click="$emit('edit-recipients', { messageType: messageType, channel: channel })">
+          <button type="button" v-if="channelType === 'email'" class="edit-link-inline" @click="$emit('edit-recipients', { messageType: messageType, channel: channel })">
             {{ $t('common.edit') }}
-          </a>
+          </button>
           <!-- 配置摘要：只显示改过的项，一眼看出哪个格子被单独配过 -->
           <span class="config-summary" :title="summaryTitle(channel.subscription)">{{ summary(channel.subscription) }}</span>
         </div>
@@ -131,21 +131,21 @@ export default defineComponent({
 
         .channel-name {
           font-size: 13px;
-          color: #333;
+          color: var(--hw-ink);
           font-weight: 500;
         }
 
         .channel-detail {
-          font-size: 12px;
-          color: #0052d9;
+          font-size: 13px;
+          color: var(--hw-accent);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
 
         .edit-link-inline {
-          font-size: 12px;
-          color: #0052d9;
+          font-size: 13px;
+          color: var(--hw-accent);
           cursor: pointer;
           text-decoration: none;
 
@@ -155,8 +155,8 @@ export default defineComponent({
         }
 
         .config-summary {
-          font-size: 12px;
-          color: #999;
+          font-size: 13px;
+          color: var(--hw-muted);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -164,19 +164,19 @@ export default defineComponent({
       }
 
       .config-icon-inline {
-        color: #666;
+        color: var(--hw-muted);
         cursor: pointer;
         transition: all 0.2s;
         flex-shrink: 0;
 
         &:hover {
-          color: #0052d9;
+          color: var(--hw-accent);
           transform: scale(1.15);
         }
       }
 
       .delete-icon-inline {
-        color: #666;
+        color: var(--hw-muted);
         cursor: pointer;
         transition: all 0.2s;
         flex-shrink: 0;

@@ -138,7 +138,7 @@ import {defineComponent} from 'vue';
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
 import { LineChart } from 'echarts/charts';
 import { CanvasRenderer } from 'echarts/renderers';
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import SystemMonitor from '@/pages/waf/monitor/index.vue';
 import {
   getDiagSnapshotApi,
@@ -459,17 +459,17 @@ export default defineComponent({
 
 .val-warn {
   color: #ed7b2f;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .val-danger {
   color: #e34d59;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .sample-time {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 32px;
 }
 

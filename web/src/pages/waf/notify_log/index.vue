@@ -30,10 +30,10 @@
               </hw-select>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_log.label_start_time')" name="start_time">
-              <hw-date-picker v-model="searchformData.start_time" enable-time-picker format="YYYY-MM-DD HH:mm:ss" :style="{ width: '200px' }"></hw-date-picker>
+              <hw-date-picker v-model="searchformData.start_time" enable-time-picker format="YYYY-MM-DD HH:mm:ss" :style="{ width: 'min(100%, 200px)' }"></hw-date-picker>
             </hw-form-item>
             <hw-form-item :label="$t('page.notify_log.label_end_time')" name="end_time">
-              <hw-date-picker v-model="searchformData.end_time" enable-time-picker format="YYYY-MM-DD HH:mm:ss" :style="{ width: '200px' }"></hw-date-picker>
+              <hw-date-picker v-model="searchformData.end_time" enable-time-picker format="YYYY-MM-DD HH:mm:ss" :style="{ width: 'min(100%, 200px)' }"></hw-date-picker>
             </hw-form-item>
             <hw-form-item>
               <hw-button theme="primary" @click="getList">{{ $t('common.search') }}</hw-button>
@@ -66,8 +66,8 @@
             </span>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleViewDetail(slotProps)">{{ $t('page.notify_log.view_detail') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleViewDetail(slotProps)">{{ $t('page.notify_log.view_detail') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>

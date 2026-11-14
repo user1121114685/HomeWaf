@@ -29,11 +29,11 @@
           <span>{{ formatTs(row.last_sync_at) }}</span>
         </template>
         <template #op="{ row }">
-          <a v-if="row.fetch_kind !== 'none'" class="t-button-link" @click="onRefresh(row)">{{ $t('page.cdnip.refresh_now') }}</a>
-          <a v-if="row.count > 0" class="t-button-link" @click="onViewIPs(row)">{{ $t('page.cdnip.view_ips') }}</a>
-          <a v-if="row.need_credential" class="t-button-link" @click="onOpenCredential(row)">
+          <button type="button" v-if="row.fetch_kind !== 'none'" class="t-button-link" @click="onRefresh(row)">{{ $t('page.cdnip.refresh_now') }}</button>
+          <button type="button" v-if="row.count > 0" class="t-button-link" @click="onViewIPs(row)">{{ $t('page.cdnip.view_ips') }}</button>
+          <button type="button" v-if="row.need_credential" class="t-button-link" @click="onOpenCredential(row)">
             {{ row.has_credential ? $t('page.cdnip.edit_credential') : $t('page.cdnip.set_credential') }}
-          </a>
+          </button>
         </template>
       </hw-table>
     </hw-card>
@@ -63,34 +63,34 @@
             <div class="form-item-tips">{{ $t('page.cdnip.eo_edition_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('page.cdnip.secret_id')" name="secret_id">
-            <hw-input v-model="credForm.secret_id" :style="{ width: '420px' }" autocomplete="off"
+            <hw-input v-model="credForm.secret_id" :style="{ width: 'min(100%, 420px)' }" autocomplete="off"
                      :placeholder="credHasCredential ? $t('page.cdnip.secret_keep') : credSecretIdPlaceholder" />
             <div class="form-item-tips">{{ credSecretTips }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('page.cdnip.secret_key')" name="secret_key">
-            <hw-input v-model="credForm.secret_key" type="password" :style="{ width: '420px' }" autocomplete="new-password"
+            <hw-input v-model="credForm.secret_key" type="password" :style="{ width: 'min(100%, 420px)' }" autocomplete="new-password"
                      :placeholder="credHasCredential ? $t('page.cdnip.secret_keep') : credSecretKeyPlaceholder" />
           </hw-form-item>
           <!-- EdgeOne 站点ID -->
           <template v-if="credProvider === 'edgeone'">
             <hw-form-item :label="$t('page.cdnip.eo_zone_id')" name="zone_id">
-              <hw-input v-model="eoForm.zone_id" :style="{ width: '420px' }" placeholder="zone-xxxxxxxxxxxx" />
+              <hw-input v-model="eoForm.zone_id" :style="{ width: 'min(100%, 420px)' }" placeholder="zone-xxxxxxxxxxxx" />
               <div class="form-item-tips">{{ $t('page.cdnip.eo_zone_id_tips') }}</div>
             </hw-form-item>
           </template>
           <!-- 阿里云 加速域名 + 地域 -->
           <template v-else-if="credProvider === 'aliyun'">
             <hw-form-item :label="$t('page.cdnip.ali_domain')" name="domain">
-              <hw-input v-model="aliForm.domain" :style="{ width: '420px' }" placeholder="cdn.example.com" />
+              <hw-input v-model="aliForm.domain" :style="{ width: 'min(100%, 420px)' }" placeholder="cdn.example.com" />
               <div class="form-item-tips">{{ $t('page.cdnip.ali_domain_tips') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.cdnip.ali_region')" name="region">
-              <hw-input v-model="aliForm.region" :style="{ width: '420px' }" placeholder="cn-hangzhou" />
+              <hw-input v-model="aliForm.region" :style="{ width: 'min(100%, 420px)' }" placeholder="cn-hangzhou" />
             </hw-form-item>
           </template>
           <!-- 其它厂商：保留原始 JSON 输入 -->
           <hw-form-item v-else :label="$t('page.cdnip.extra_param')" name="extra_param">
-            <hw-input v-model="credForm.extra_param" :style="{ width: '420px' }" />
+            <hw-input v-model="credForm.extra_param" :style="{ width: 'min(100%, 420px)' }" />
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button v-if="credHasCredential" theme="danger" variant="outline" @click="onClearCredential">{{ $t('page.cdnip.clear_credential') }}</hw-button>
@@ -106,7 +106,7 @@
       <template #body><div >
         <hw-form :data="ipSearch" layout="inline" colon :style="{ marginBottom: '8px' }">
           <hw-form-item :label="'IP'" name="keyword">
-            <hw-input v-model="ipSearch.keyword" clearable :style="{ width: '260px' }" @enter="reloadIPs" />
+            <hw-input v-model="ipSearch.keyword" clearable :style="{ width: 'min(100%, 260px)' }" @enter="reloadIPs" />
           </hw-form-item>
           <hw-form-item>
             <hw-button theme="primary" @click="reloadIPs">{{ $t('common.search') }}</hw-button>
@@ -116,7 +116,7 @@
                  :pagination="ipPagination" :loading="ipLoading" @page-change="onIPPageChange">
           <template #ip="{ row }">
             <hw-tooltip :content="$t('common.ip_lookup.click_tip')">
-              <a class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</a>
+              <button type="button" class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</button>
             </hw-tooltip>
           </template>
         </hw-table>
@@ -379,14 +379,14 @@ import {defineComponent} from 'vue';
     margin-bottom: 12px;
   }
   .cred-guide-title {
-    font-weight: 600;
+    font-weight: 500;
     margin-bottom: 6px;
   }
   .cred-guide-list {
     margin: 0;
     padding-left: 18px;
     color: var(--td-text-color-secondary);
-    font-size: 12px;
+    font-size: 13px;
     line-height: 20px;
   }
   .cred-guide-link {
@@ -395,7 +395,7 @@ import {defineComponent} from 'vue';
   }
   .form-item-tips {
     color: var(--td-text-color-placeholder);
-    font-size: 12px;
+    font-size: 13px;
     margin-top: 4px;
   }
   .t-button-link + .t-button-link {

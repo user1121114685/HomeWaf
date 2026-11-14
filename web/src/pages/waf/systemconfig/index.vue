@@ -22,19 +22,19 @@
         <div class="config-layout">
           <!-- 左侧：分组导航 -->
           <div class="config-sidebar">
-            <div
+            <button type="button"
               class="config-cate"
-              :class="{ active: selectedGroup === '__all__' }"
+              :class="{ active: selectedGroup === '__all__' }" :aria-pressed="selectedGroup === '__all__'"
               @click="selectedGroup = '__all__'"
             >
               <span class="config-cate-title">{{ $t('common.all') }}</span>
               <hw-tag size="small" variant="light" theme="default">{{ filteredData.length }}</hw-tag>
-            </div>
-            <div
+            </button>
+            <button type="button"
               v-for="cate in categories"
               :key="cate.key"
               class="config-cate"
-              :class="{ active: selectedGroup === cate.key }"
+              :class="{ active: selectedGroup === cate.key }" :aria-pressed="selectedGroup === cate.key"
               @click="selectedGroup = cate.key"
             >
               <span class="config-cate-title" :title="cate.title">{{ cate.title }}</span>
@@ -44,7 +44,7 @@
                 :theme="selectedGroup === cate.key ? 'primary' : 'default'"
                 >{{ cate.count }}</hw-tag
               >
-            </div>
+            </button>
           </div>
 
           <!-- 右侧：配置项明细 -->
@@ -65,7 +65,7 @@
                   >
                 </div>
                 <div class="config-item-ops">
-                  <a class="t-button-link" @click="handleClickEditRow(row)">{{ $t('common.edit') }}</a>
+                  <button type="button" class="t-button-link" @click="handleClickEditRow(row)">{{ $t('common.edit') }}</button>
                 </div>
               </div>
               <div v-if="row.remarks" class="config-item-key" :title="row.item">{{ row.item }}</div>
@@ -93,11 +93,11 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="150">
           <hw-form-item :label="$t('page.systemconfig.label_configuration_item')" name="item">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.item" readonly></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.item" readonly></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.systemconfig.label_configuration_value')" name="value">
             <!-- 密钥类：不回显原文，密码框输入新值；留空=保持原值；清空需显式点按钮 -->
-            <div v-if="formEditData.is_sensitive" :style="{ width: '480px' }">
+            <div v-if="formEditData.is_sensitive" :style="{ width: 'min(100%, 480px)' }">
               <hw-input
                 v-model="formEditData.value"
                 type="password"
@@ -113,23 +113,23 @@
               ></hw-input>
               <div class="config-secret-ops">
                 <span class="config-secret-tip">{{ $t('page.systemconfig.secret_tip') }}</span>
-                <a v-if="formEditData.has_value && !secretCleared" class="t-button-link" @click="onClickClearSecret">
+                <button type="button" v-if="formEditData.has_value && !secretCleared" class="t-button-link" @click="onClickClearSecret">
                   {{ $t('page.systemconfig.secret_clear') }}
-                </a>
-                <a v-if="secretCleared" class="t-button-link" @click="onClickCancelClearSecret">
+                </button>
+                <button type="button" v-if="secretCleared" class="t-button-link" @click="onClickCancelClearSecret">
                   {{ $t('page.systemconfig.secret_cancel_clear') }}
-                </a>
+                </button>
               </div>
             </div>
             <hw-textarea
               v-else
-              :style="{ width: '480px' }"
+              :style="{ width: 'min(100%, 480px)' }"
               :autosize="{ minRows: 1, maxRows: 12 }"
               v-model="formEditData.value"
             ></hw-textarea>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '480px' }" v-model="formEditData.remarks" name="remarks">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" name="remarks">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -345,10 +345,10 @@ export default defineComponent({
 
   /* 左右布局 */
   .config-layout {
-    display: flex;
-    align-items: stretch;
-    gap: 16px;
-    min-height: 420px;
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    align-items: start;
+    gap: 32px;
   }
 
   .config-sidebar {
@@ -358,11 +358,16 @@ export default defineComponent({
     border: 1px solid var(--td-component-stroke);
     border-radius: var(--td-radius-medium);
     background: var(--td-bg-color-container);
-    max-height: calc(100vh - 220px);
-    overflow-y: auto;
+
   }
 
   .config-cate {
+    width: 100%;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font: inherit;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -380,7 +385,7 @@ export default defineComponent({
     &.active {
       background: var(--td-brand-color-light);
       color: var(--td-brand-color);
-      font-weight: 600;
+      font-weight: 500;
     }
   }
 
@@ -394,8 +399,7 @@ export default defineComponent({
     flex: 1;
     min-width: 0;
     padding: 4px 8px;
-    max-height: calc(100vh - 220px);
-    overflow-y: auto;
+
   }
 
   .config-empty {
@@ -405,7 +409,7 @@ export default defineComponent({
   }
 
   .config-row {
-    padding: 10px 4px;
+    padding: 20px 0;
     border-bottom: 1px solid var(--td-component-stroke);
 
     &:last-child {
@@ -420,7 +424,7 @@ export default defineComponent({
   }
 
   .config-item-title {
-    font-weight: 600;
+    font-weight: 500;
     font-size: 14px;
     color: var(--td-text-color-primary);
     word-break: break-all;
@@ -428,8 +432,8 @@ export default defineComponent({
 
   .config-item-key {
     margin-top: 2px;
-    font-family: var(--td-font-family-medium, monospace);
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
     word-break: break-all;
   }
@@ -449,13 +453,21 @@ export default defineComponent({
     padding: 6px 8px;
     background: var(--td-bg-color-container-hover);
     border-radius: var(--td-radius-small);
-    font-family: var(--td-font-family-medium, monospace);
+    font-family: var(--font-mono);
     font-size: 13px;
     color: var(--td-text-color-secondary);
     white-space: pre-wrap;
     word-break: break-all;
     max-height: 200px;
     overflow: auto;
+  }
+  @media(max-width: 760px) {
+    .config-layout { grid-template-columns: 1fr; gap: 24px; }
+    .config-sidebar { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; border: 0; gap: 4px; }
+    .config-detail { padding: 0; }
+    .config-item-title { overflow-wrap: anywhere; }
+    .config-row-main { align-items: flex-start; gap: 16px; }
+    .config-search-input { width: 100%; }
   }
 </style>
 
@@ -469,7 +481,7 @@ export default defineComponent({
 
 .config-secret-tip {
   flex: 1;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
   line-height: 1.5;
 }

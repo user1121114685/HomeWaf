@@ -271,7 +271,7 @@ async function copyLink() {
   padding: 8px 11px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .control-button.primary {
@@ -285,7 +285,7 @@ async function copyLink() {
 }
 .control-dialog {
   border: 1px solid var(--screen-border);
-  border-radius: 14px;
+  border-radius: var(--hw-r-lg);
   background: var(--screen-panel);
   color: var(--screen-text);
   width: min(580px, calc(100vw - 32px));
@@ -315,7 +315,7 @@ async function copyLink() {
 }
 .control-dialog p {
   color: var(--screen-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   margin: 16px 0;
 }
@@ -323,7 +323,7 @@ async function copyLink() {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   margin: 16px 0;
   flex: 1;
   min-width: 0;
@@ -352,7 +352,7 @@ async function copyLink() {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 10px 16px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
 }
 .node-discovery dt {
@@ -380,7 +380,7 @@ async function copyLink() {
 }
 .control-links a {
   color: var(--screen-accent);
-  font-size: 12px;
+  font-size: 13px;
   text-decoration: none;
 }
 .share-list-title {
@@ -394,7 +394,7 @@ async function copyLink() {
   padding: 24px;
   text-align: center;
   color: var(--screen-muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 .share-records {
   padding: 0;
@@ -412,12 +412,12 @@ async function copyLink() {
 }
 .share-records strong {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
 }
 .share-records span {
   display: block;
   color: var(--screen-muted);
-  font-size: 11px;
+  font-size: 13px;
   margin-top: 7px;
 }
 .control-button:focus-visible,

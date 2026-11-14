@@ -1,52 +1,27 @@
 .traffic-analysis {
-  --traffic-bg: #f2f4f7;
-  --traffic-panel: #ffffff;
-  --traffic-inset: #f5f6f8;
-  --traffic-accent: #a96d3e;
-  --traffic-accent-soft: #f1dac6;
-  --traffic-accent-text: #3d2819;
-  --traffic-text: #273340;
-  --traffic-muted: #626d79;
-  --traffic-subtle: #6e7884;
-  --traffic-border: #dfe4eb;
-  --traffic-hover: #f6ede5;
-  --traffic-status: #648272;
-  --traffic-warning: #a35d29;
-  --traffic-warning-bg: #fff0e2;
-  --traffic-accent-link: #996032;
-  --traffic-accent-hover: #75441f;
-  --traffic-track: #e0e5eb;
-
-  padding: 20px;
-  background: var(--traffic-bg);
-  color: var(--traffic-text);
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.5;
+  --traffic-bg: var(--hw-canvas);
+  --traffic-panel: var(--hw-panel);
+  --traffic-inset: var(--hw-subtle);
+  --traffic-accent: var(--hw-accent);
+  --traffic-accent-soft: var(--hw-accent-soft);
+  --traffic-accent-text: var(--hw-accent);
+  --traffic-text: var(--hw-ink);
+  --traffic-muted: var(--hw-muted);
+  --traffic-subtle: var(--hw-muted);
+  --traffic-border: var(--hw-line);
+  --traffic-hover: var(--hw-subtle);
+  --traffic-status: var(--hw-success);
+  --traffic-warning: var(--hw-warning);
+  --traffic-warning-bg: var(--el-color-warning-light-9);
+  --traffic-accent-link: var(--hw-accent);
+  --traffic-accent-hover: var(--hw-accent);
+  --traffic-track: var(--hw-line);
+  padding: 0;
+  color: var(--hw-ink);
+  font-size: 14px;
+  line-height: 1.6;
   min-width: 0;
-  color-scheme: light;
 }
-.traffic-analysis[data-theme='dark'] {
-  --traffic-bg: #191919;
-  --traffic-panel: #242424;
-  --traffic-inset: #30302f;
-  --traffic-accent: #edc5a7;
-  --traffic-accent-soft: #edc5a7;
-  --traffic-accent-text: #30251c;
-  --traffic-text: #f0efed;
-  --traffic-muted: #aaa7a2;
-  --traffic-subtle: #99958f;
-  --traffic-border: #3a3835;
-  --traffic-hover: #302c28;
-  --traffic-status: #b8b49e;
-  --traffic-warning: #edb18d;
-  --traffic-warning-bg: #443129;
-  --traffic-accent-link: #d0b296;
-  --traffic-accent-hover: #ffe0c8;
-  --traffic-track: #393938;
-  color-scheme: dark;
-}
-
 .traffic-analysis * {
   box-sizing: border-box;
 }
@@ -70,10 +45,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 24px;
   background: var(--traffic-panel);
   padding: 9px 12px;
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
 }
 .traffic-navigation,
 .traffic-filters {
@@ -95,7 +70,7 @@
 .traffic-tab.active {
   color: var(--traffic-accent-text);
   background: var(--traffic-accent-soft);
-  font-weight: 600;
+  font-weight: 500;
 }
 .traffic-tab:hover:not(.active) {
   color: var(--traffic-accent);
@@ -106,7 +81,7 @@
   min-width: 116px;
   padding: 4px 10px;
   border: 1px solid var(--traffic-border);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   background: transparent;
   color: var(--traffic-text);
 }
@@ -126,7 +101,7 @@
   width: 30px;
   height: 30px;
   border: 1px solid var(--traffic-border);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   background: transparent;
   color: var(--traffic-accent);
   font-size: 16px;
@@ -145,7 +120,7 @@
   align-items: center;
   gap: 18px;
   color: var(--traffic-subtle);
-  font-size: 11px;
+  font-size: 13px;
   padding: 7px 1px;
   flex-wrap: wrap;
 }
@@ -178,7 +153,7 @@
   padding: 12px;
   background: var(--traffic-inset);
   margin-top: 8px;
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
 }
 .custom-period label {
   display: flex;
@@ -190,7 +165,7 @@
   max-width: 160px;
   border: 1px solid var(--traffic-border);
   background: var(--traffic-inset);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   color: var(--traffic-text);
   padding: 5px 8px;
 }
@@ -198,32 +173,34 @@
   background: var(--traffic-accent-soft);
   color: var(--traffic-accent-text);
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   padding: 6px 16px;
 }
 .traffic-main-grid {
   display: grid;
   grid-template-columns: minmax(0, 3.05fr) minmax(250px, 1fr);
   grid-template-areas: 'metrics qps' 'regions trends';
-  gap: 16px;
+  gap: 24px;
 }
 .traffic-panel {
+  border: 1px solid var(--hw-line);
   background: var(--traffic-panel);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   min-width: 0;
-  padding: 20px;
+  padding: 24px;
   position: relative;
 }
 .traffic-metrics {
   grid-area: metrics;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 .metric-group {
+  border: 1px solid var(--hw-line);
   display: flex;
   background: var(--traffic-panel);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   padding: 18px 0;
   min-width: 0;
   flex: 1;
@@ -239,7 +216,7 @@
 }
 .metric-label {
   color: var(--traffic-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 18px;
   display: flex;
   align-items: center;
@@ -248,13 +225,13 @@
 }
 .metric-help {
   color: var(--traffic-accent-link);
-  font-size: 11px;
+  font-size: 13px;
 }
 .metric-number {
   display: block;
   color: var(--traffic-text);
   font-size: clamp(18px, 1.35vw, 25px);
-  font-weight: 650;
+  font-weight: 500;
   line-height: 1.4;
   margin-top: 8px;
   font-variant-numeric: tabular-nums;
@@ -269,7 +246,7 @@
 }
 .traffic-analysis button.metric-number {
   font-size: clamp(18px, 1.35vw, 25px);
-  font-weight: 650;
+  font-weight: 500;
   line-height: 1.4;
 }
 .metric-link:hover {
@@ -278,7 +255,7 @@
 .secondary-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 24px;
   flex: 1;
 }
 .secondary-metrics .metric-number {
@@ -294,14 +271,14 @@
 .panel-heading h2 {
   font-size: 13px;
   line-height: 1.5;
-  font-weight: 600;
+  font-weight: 500;
   margin: 0;
   color: var(--traffic-text);
 }
 .panel-meta {
   margin-left: auto;
   color: var(--traffic-muted);
-  font-size: 11px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .panel-meta strong {
@@ -320,7 +297,7 @@
   background: var(--traffic-inset);
   padding: 1px 10px;
   color: var(--traffic-text);
-  font-size: 12px;
+  font-size: 13px;
   min-width: 40px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -330,7 +307,7 @@
   min-height: 116px;
 }
 .chart-note {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--traffic-subtle);
   position: absolute;
   bottom: 7px;
@@ -352,7 +329,7 @@
   padding: 3px;
   gap: 2px;
   border: 1px solid var(--traffic-border);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
 }
 .segmented button {
   border: 0;
@@ -360,14 +337,14 @@
   border-radius: 3px;
   background: transparent;
   color: var(--traffic-muted);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 18px;
   white-space: nowrap;
 }
 .segmented button.active {
   color: var(--traffic-accent-text);
   background: var(--traffic-accent-soft);
-  font-weight: 600;
+  font-weight: 500;
 }
 .segmented button:hover:not(.active) {
   color: var(--traffic-accent);
@@ -379,13 +356,13 @@
   flex: 1;
   padding: 18px 20px;
   background: var(--traffic-inset);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
 }
 .ranking-caption {
   display: flex;
   justify-content: space-between;
   color: var(--traffic-subtle);
-  font-size: 10px;
+  font-size: 13px;
 }
 .region-row {
   display: flex;
@@ -398,7 +375,7 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .region-row span {
   color: var(--traffic-muted);
@@ -413,25 +390,25 @@
 .rank-track {
   height: 3px;
   background: var(--traffic-track);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   overflow: hidden;
 }
 .rank-track i {
   display: block;
   height: 100%;
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   background: var(--traffic-accent);
 }
 .source-regions-note {
   margin: 12px 0 0;
   color: var(--traffic-subtle);
-  font-size: 10px;
+  font-size: 13px;
 }
 .traffic-trends {
   grid-area: trends;
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 24px;
 }
 .trend-panel {
   display: flex;
@@ -445,7 +422,7 @@
 .traffic-breakdowns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 24px;
   margin-top: 16px;
 }
 .text-button {
@@ -455,7 +432,7 @@
   color: var(--traffic-accent-link);
   padding: 0;
   text-decoration: none;
-  font-size: 12px;
+  font-size: 13px;
 }
 .text-button:hover {
   color: var(--traffic-accent-hover);
@@ -489,12 +466,12 @@
   font-variant-numeric: tabular-nums;
 }
 .donut-center span {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--traffic-subtle);
 }
 .distribution-list {
   background: var(--traffic-inset);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   padding: 18px;
   flex: 1;
   min-width: 0;
@@ -502,8 +479,8 @@
 .distribution-row {
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: 12px;
+  gap: 24px;
+  font-size: 13px;
   margin-bottom: 14px;
 }
 .distribution-row > span {
@@ -529,13 +506,13 @@
   text-align: right;
 }
 .distribution-list p {
-  font-size: 10px;
+  font-size: 13px;
   color: var(--traffic-subtle);
   margin: 0;
   line-height: 1.7;
 }
 .ip-list {
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   overflow: hidden;
 }
 .ip-row {
@@ -551,7 +528,7 @@
 }
 .rank-index {
   color: var(--traffic-subtle);
-  font-size: 11px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .ip-description {
@@ -562,7 +539,7 @@
   gap: 3px;
 }
 .ip-address {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--traffic-text);
   border: 0;
   padding: 0;
@@ -578,13 +555,13 @@
 }
 .ip-location {
   color: var(--traffic-subtle);
-  font-size: 10px;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ip-row > strong {
-  font-size: 12px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .ip-row :deep(.ip-tag-cell) {
@@ -597,12 +574,12 @@
   background: var(--traffic-warning-bg);
   border-radius: 3px;
   padding: 2px 7px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .log-button {
   color: var(--traffic-accent-link);
   border: 1px solid var(--traffic-border);
-  border-radius: 4px;
+  border-radius: var(--hw-r-md);
   background: transparent;
   width: 26px;
   height: 26px;
@@ -615,7 +592,7 @@
   display: grid;
   place-items: center;
   min-height: 180px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .traffic-footer {
   margin-top: 15px;
@@ -623,7 +600,7 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--traffic-subtle);
-  font-size: 10px;
+  font-size: 13px;
   flex-wrap: wrap;
 }
 @media (max-width: 1500px) {
@@ -631,7 +608,7 @@
     padding: 0 12px;
   }
   .metric-label {
-    font-size: 11px;
+    font-size: 13px;
   }
   .region-ranking {
     padding: 15px;
@@ -670,6 +647,7 @@
     gap: 8px;
   }
   .secondary-metrics .metric-group {
+    border: 1px solid var(--hw-line);
     display: grid;
     gap: 14px;
   }
@@ -713,6 +691,7 @@
     height: 190px;
   }
   .secondary-metrics .metric-group {
+    border: 1px solid var(--hw-line);
     display: flex;
     gap: 0;
   }
@@ -723,10 +702,10 @@
 @media (max-width: 650px) {
   .traffic-analysis {
     padding: 12px;
-    border-radius: 4px;
+    border-radius: var(--hw-r-md);
   }
   .traffic-tab {
-    font-size: 12px;
+    font-size: 13px;
     padding: 4px 8px;
   }
   .traffic-navigation {
@@ -744,7 +723,7 @@
     margin-right: auto;
     min-width: auto;
     border: 0;
-    font-size: 11px;
+    font-size: 13px;
   }
   .traffic-status {
     gap: 6px;
@@ -762,16 +741,18 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .metric-group {
+    border: 1px solid var(--hw-line);
     padding: 14px 0;
   }
   .metric-label {
-    font-size: 11px;
+    font-size: 13px;
   }
   .metric-number,
   .secondary-metrics .metric-number {
     font-size: 20px;
   }
   .traffic-panel {
+    border: 1px solid var(--hw-line);
     padding: 14px;
   }
   .source-regions-heading {
@@ -800,7 +781,7 @@
   }
   .distribution-row {
     flex-wrap: wrap;
-    font-size: 11px;
+    font-size: 13px;
   }
   .distribution-row small {
     display: none;
@@ -809,7 +790,7 @@
     gap: 8px;
   }
   .traffic-footer {
-    font-size: 10px;
+    font-size: 13px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

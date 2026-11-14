@@ -20,11 +20,11 @@
         <!-- 防护告警与系统消息性质完全不同：一个是外面来的攻击，一个是软件自己的事。
              混在一列里，攻击一多就会把连接异常冲走 -->
         <div class="msg-tabs">
-          <div :class="['msg-tab', { active: activeTab === 'guard' }]" @click="switchTab('guard')">
+          <div role="button" tabindex="0" @keydown.enter.prevent="switchTab('guard')" @keydown.space.prevent="switchTab('guard')" :class="['msg-tab', { active: activeTab === 'guard' }]" @click="switchTab('guard')">
             <span>{{ $t('page.notice.tab_guard') }}</span>
             <span v-if="guardMsg.length" :class="['tab-count', { mute: activeTab !== 'guard' }]">{{ guardMsg.length }}</span>
           </div>
-          <div :class="['msg-tab', { active: activeTab === 'system' }]" @click="switchTab('system')">
+          <div role="button" tabindex="0" @keydown.enter.prevent="switchTab('system')" @keydown.space.prevent="switchTab('system')" :class="['msg-tab', { active: activeTab === 'system' }]" @click="switchTab('system')">
             <span>{{ $t('page.notice.tab_system') }}</span>
             <span v-if="systemMsg.length" :class="['tab-count', { mute: activeTab !== 'system' }]">{{ systemMsg.length }}</span>
           </div>
@@ -296,7 +296,7 @@ export default defineComponent({
 
     &.active {
       color: var(--td-brand-color);
-      font-weight: 600;
+      font-weight: 500;
       border-bottom-color: var(--td-brand-color);
     }
   }
@@ -304,7 +304,7 @@ export default defineComponent({
   .tab-count {
     background: var(--td-error-color);
     color: #fff;
-    font-size: 10px;
+    font-size: 13px;
     line-height: 15px;
     min-width: 15px;
     text-align: center;
@@ -319,7 +319,7 @@ export default defineComponent({
   // 「连接 / 运维」小标签：同在系统页签里，来源不同
   .msg-tag {
     display: inline-block;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 16px;
     border-radius: 2px;
     padding: 0 5px;
@@ -342,12 +342,12 @@ export default defineComponent({
     display: inline-block;
     background: var(--td-error-color);
     color: #fff;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 16px;
     border-radius: 9px;
     padding: 0 6px;
     margin-left: 6px;
-    font-weight: 600;
+    font-weight: 500;
   }
 }
 

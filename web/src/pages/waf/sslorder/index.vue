@@ -27,7 +27,7 @@
       </hw-row>
       <help-block :summary="$t('page.sslorder.alert_message')" doc="guide/SSL">
         <template #actions>
-          <span @click="handleSslHttpCheck" class="highlight-link">{{ $t('page.sslorder.ssl_http_check_setting') }}</span>
+          <span role="button" tabindex="0" @keydown.enter.prevent="handleSslHttpCheck" @keydown.space.prevent="handleSslHttpCheck" @click="handleSslHttpCheck" class="highlight-link">{{ $t('page.sslorder.ssl_http_check_setting') }}</span>
         </template>
       </help-block>
       <div class="table-container">
@@ -53,8 +53,8 @@
             </p>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.renew') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.renew') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -67,7 +67,7 @@
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="240">
           <hw-form-item :label="$t('page.sslorder.label_website')" name="host_code">
-            <hw-select v-model="formData.host_code" clearable :style="{ width: '480px' }" @change="changeHostCode">
+            <hw-select v-model="formData.host_code" clearable :style="{ width: 'min(100%, 480px)' }" @change="changeHostCode">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item" :key="index">
                 {{ item }}
               </hw-option>
@@ -75,7 +75,7 @@
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_platform')" name="apply_platform">
             <div style="display: flex; align-items: center;">
-              <hw-select v-model="formData.apply_platform" clearable :style="{ width: '250px' }">
+              <hw-select v-model="formData.apply_platform" clearable :style="{ width: 'min(100%, 250px)' }">
                 <hw-option v-for="item in sslorder_platform_type" :value="item.value" :label="`${item.label}`">
                 </hw-option>
               </hw-select>
@@ -86,7 +86,7 @@
             </div>
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_method')" name="apply_method">
-            <hw-select v-model="formData.apply_method" clearable :style="{ width: '480px' }" @change="handleApplyMethodChange">
+            <hw-select v-model="formData.apply_method" clearable :style="{ width: 'min(100%, 480px)' }" @change="handleApplyMethodChange">
               <hw-option v-for="item in sslorder_apply_method_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
             </hw-select>
@@ -97,7 +97,7 @@
           </hw-form-item>
           <hw-form-item v-if="formData.apply_method === 'dns01'" :label="$t('page.sslorder.label_apply_dns')"
             name="apply_dns">
-            <hw-select v-model="formData.apply_dns" clearable :style="{ width: '480px' }"  @change="handleDnsChange">
+            <hw-select v-model="formData.apply_dns" clearable :style="{ width: 'min(100%, 480px)' }"  @change="handleDnsChange">
               <hw-option v-for="item in sslorder_apply_dns_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
             </hw-select>
@@ -115,7 +115,7 @@
           <hw-form-item v-if="formData.apply_method === 'dns01' && formData.apply_dns"
             :label="$t('page.sslorder.label_private_group')" name="private_group_name">
             <div style="display: flex; align-items: center;">
-              <hw-select v-model="formData.private_group_name" :style="{ width: '200px' }">
+              <hw-select v-model="formData.private_group_name" :style="{ width: 'min(100%, 200px)' }">
                 <hw-option v-for="item in privateGroupList" :value="item.private_group_name"
                   :label="`${item.private_group_name}`">
                 </hw-option>
@@ -145,10 +145,10 @@
             </hw-form-item>
           </template>
           <hw-form-item :label="$t('page.sslorder.label_apply_email')" name="apply_email">
-            <hw-input :style="{ width: '480px' }" v-model="formData.apply_email"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.apply_email"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
-            <hw-textarea v-model="formData.apply_domain" :style="{ width: '480px' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
@@ -161,7 +161,7 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="240">
           <hw-form-item :label="$t('page.sslorder.label_website')" name="host_code">
-            <hw-select v-model="formEditData.host_code" clearable :style="{ width: '480px' }" @change="changeHostCodeEdit">
+            <hw-select v-model="formEditData.host_code" clearable :style="{ width: 'min(100%, 480px)' }" @change="changeHostCodeEdit">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item" :key="index">
                 {{ item }}
               </hw-option>
@@ -169,7 +169,7 @@
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_platform')" name="apply_platform">
             <div style="display: flex; align-items: center;">
-              <hw-select v-model="formEditData.apply_platform" clearable :style="{ width: '250px' }">
+              <hw-select v-model="formEditData.apply_platform" clearable :style="{ width: 'min(100%, 250px)' }">
                 <hw-option v-for="item in sslorder_platform_type" :value="item.value" :label="`${item.label}`">
                 </hw-option>
               </hw-select>
@@ -180,7 +180,7 @@
             </div>
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_method')" name="apply_method">
-            <hw-select v-model="formEditData.apply_method" clearable :style="{ width: '480px' }" @change="handleApplyMethodChangeEdit">
+            <hw-select v-model="formEditData.apply_method" clearable :style="{ width: 'min(100%, 480px)' }" @change="handleApplyMethodChangeEdit">
               <hw-option v-for="item in sslorder_apply_method_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
             </hw-select>
@@ -191,7 +191,7 @@
           </hw-form-item>
           <hw-form-item v-if="formEditData.apply_method === 'dns01'" :label="$t('page.sslorder.label_apply_dns')"
             name="apply_dns">
-            <hw-select v-model="formEditData.apply_dns" clearable :style="{ width: '480px' }" @change="handleDnsChange">
+            <hw-select v-model="formEditData.apply_dns" clearable :style="{ width: 'min(100%, 480px)' }" @change="handleDnsChange">
               <hw-option v-for="item in sslorder_apply_dns_type" :value="item.value" :label="`${item.label}`">
               </hw-option>
             </hw-select>
@@ -209,7 +209,7 @@
           <hw-form-item v-if="formEditData.apply_method === 'dns01' && formEditData.apply_dns"
             :label="$t('page.sslorder.label_private_group')" name="private_group_name">
             <div style="display: flex; align-items: center;">
-              <hw-select v-model="formEditData.private_group_name" :style="{ width: '200px' }">
+              <hw-select v-model="formEditData.private_group_name" :style="{ width: 'min(100%, 200px)' }">
                 <hw-option v-for="item in privateGroupList" :value="item.private_group_name"
                   :label="`${item.private_group_name}`">
                 </hw-option>
@@ -238,10 +238,10 @@
             </hw-form-item>
           </template>
           <hw-form-item :label="$t('page.sslorder.label_apply_email')" name="apply_email">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.apply_email"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.apply_email"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
-            <hw-textarea v-model="formEditData.apply_domain" :style="{ width: '480px' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formEditData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
@@ -263,22 +263,22 @@
         <hw-form :data="privateFormData" ref="privateForm" :rules="privateRules" @submit="onPrivateSubmit"
           :labelWidth="200">
           <hw-form-item :label="$t('page.private_info.private_group_name')" name="private_group_name">
-            <hw-input v-model="privateFormData.private_group_name" :style="{ width: '480px' }"
+            <hw-input v-model="privateFormData.private_group_name" :style="{ width: 'min(100%, 480px)' }"
               :disabled="privateFormMode === 'edit'"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.private_info.private_group_belong_cloud')" name="private_group_belong_cloud">
-            <hw-input v-model="privateFormData.private_group_belong_cloud" :style="{ width: '480px' }"
+            <hw-input v-model="privateFormData.private_group_belong_cloud" :style="{ width: 'min(100%, 480px)' }"
               :disabled="privateFormMode === 'edit'"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.private_info.private_key')" name="private_key">
-            <hw-input v-model="privateFormData.private_key" :style="{ width: '480px' }"
+            <hw-input v-model="privateFormData.private_key" :style="{ width: 'min(100%, 480px)' }"
               :disabled="privateFormMode === 'edit'"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.private_info.private_value')" name="private_value">
-            <hw-input v-model="privateFormData.private_value" :style="{ width: '480px' }"></hw-input>
+            <hw-input v-model="privateFormData.private_value" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.private_info.remarks')" name="remarks">
-            <hw-input v-model="privateFormData.remarks" :style="{ width: '480px' }"></hw-input>
+            <hw-input v-model="privateFormData.remarks" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="privateFormVisible = false">{{ $t('common.close') }}</hw-button>
@@ -296,10 +296,10 @@
         <hw-form :data="sslHttpCheckFormData" ref="sslHttpCheckForm" :rules="sslHttpCheckRules"
           @submit="onSubmitSslHttpCheck" :labelWidth="150">
           <hw-form-item :label="$t('page.systemconfig.label_configuration_item')" name="item">
-            <hw-input :style="{ width: '480px' }" v-model="sslHttpCheckFormData.item" disabled></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="sslHttpCheckFormData.item" disabled></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.systemconfig.label_configuration_value')" name="value">
-            <hw-select v-model="sslHttpCheckFormData.value" :style="{ width: '480px' }">
+            <hw-select v-model="sslHttpCheckFormData.value" :style="{ width: 'min(100%, 480px)' }">
               <hw-option value="1" :label="$t('page.sslorder.ssl_http_check_strict')"></hw-option>
               <hw-option value="0" :label="$t('page.sslorder.ssl_http_check_loose')"></hw-option>
             </hw-select>
@@ -321,10 +321,10 @@
         <hw-form :data="privateGroupFormData" ref="privateGroupForm" :rules="privateGroupRules"
           @submit="onPrivateGroupSubmit" :labelWidth="200">
           <hw-form-item :label="$t('page.private_group.private_group_name')" name="private_group_name">
-            <hw-input v-model="privateGroupFormData.private_group_name" :style="{ width: '480px' }"></hw-input>
+            <hw-input v-model="privateGroupFormData.private_group_name" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.private_group.private_group_belong_cloud')" name="private_group_belong_cloud">
-            <hw-input v-model="privateGroupFormData.private_group_belong_cloud" :style="{ width: '480px' }"
+            <hw-input v-model="privateGroupFormData.private_group_belong_cloud" :style="{ width: 'min(100%, 480px)' }"
               disabled></hw-input>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -347,8 +347,8 @@
         <hw-table :columns="caServerColumns" :data="caServerList" :rowKey="'id'"
           :loading="caServerLoading">
           <template #op="{ row }">
-            <a class="t-button-link" @click="handleEditCaServer(row)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleDeleteCaServer(row)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleEditCaServer(row)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleDeleteCaServer(row)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
 
@@ -364,14 +364,14 @@
         <hw-form :data="caServerFormData" ref="caServerForm" :rules="caServerRules"
           @submit="onCaServerSubmit" :labelWidth="200">
           <hw-form-item :label="$t('page.ca_server_info.ca_server_name')" name="ca_server_name">
-            <hw-input v-model="caServerFormData.ca_server_name" :style="{ width: '480px' }"
+            <hw-input v-model="caServerFormData.ca_server_name" :style="{ width: 'min(100%, 480px)' }"
               :disabled="caServerFormMode === 'edit'"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.ca_server_info.ca_server_address')" name="ca_server_address">
-            <hw-input v-model="caServerFormData.ca_server_address" :style="{ width: '480px' }"></hw-input>
+            <hw-input v-model="caServerFormData.ca_server_address" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.ca_server_info.ca_server_remarks')" name="remarks">
-            <hw-input v-model="caServerFormData.remarks" :style="{ width: '480px' }"></hw-input>
+            <hw-input v-model="caServerFormData.remarks" :style="{ width: 'min(100%, 480px)' }"></hw-input>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="caServerFormVisible = false">{{ $t('common.close') }}</hw-button>
@@ -1509,7 +1509,7 @@ export default defineComponent({
   color: #e34d59;
   /* 红色 */
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 500;
 }
 
 .highlight-link:hover {

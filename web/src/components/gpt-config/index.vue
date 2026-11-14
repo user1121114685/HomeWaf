@@ -36,12 +36,12 @@
       </hw-form>
       <div class="gpt-token-tip">
         <span>{{ $t('page.gpt.config.token_tip') }}</span>
-        <a v-if="gptConfig.has_token && !tokenCleared" class="t-button-link gpt-token-clear" @click="onClickClearToken">
+        <button type="button" v-if="gptConfig.has_token && !tokenCleared" class="t-button-link gpt-token-clear" @click="onClickClearToken">
           {{ $t('page.gpt.config.token_clear') }}
-        </a>
-        <a v-if="tokenCleared" class="t-button-link gpt-token-clear" @click="onClickCancelClearToken">
+        </button>
+        <button type="button" v-if="tokenCleared" class="t-button-link gpt-token-clear" @click="onClickCancelClearToken">
           {{ $t('page.gpt.config.token_cancel_clear') }}
-        </a>
+        </button>
       </div>
 
       <div class="gpt-preset-title">{{ $t('page.gpt.config.preset_title') }}</div>
@@ -195,7 +195,7 @@ export default {
 <style scoped>
 .gpt-token-tip {
   color: var(--td-text-color-placeholder, #999);
-  font-size: 12px;
+  font-size: 13px;
   margin: 4px 0 12px 110px;
   display: flex;
   align-items: center;
@@ -231,11 +231,11 @@ export default {
 }
 .gpt-preset-desc {
   color: var(--td-text-color-secondary, #888);
-  font-size: 12px;
+  font-size: 13px;
 }
 .gpt-preset-url {
   color: var(--td-text-color-secondary, #666);
-  font-size: 12px;
+  font-size: 13px;
   margin: 2px 0;
   word-break: break-all;
 }

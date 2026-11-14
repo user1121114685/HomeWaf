@@ -21,10 +21,10 @@
             </hw-popup>
           </hw-form-item>
           <hw-form-item :label="$t('page.otp.issuer')" name="issuer">
-            <hw-input :style="{ width: '480px' }" v-model="formData.issuer" :placeholder="$t('page.otp.issuer_placeholder')"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.issuer" :placeholder="$t('page.otp.issuer_placeholder')"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.otp.secret_code')" name="secret_code">
-            <hw-input :style="{ width: '480px' }" v-model="formData.secret_code" ></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.secret_code" ></hw-input>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button theme="primary" type="submit">{{ $t('page.otp.bind') }}</hw-button>
@@ -35,10 +35,10 @@
           <span>{{ $t('page.otp.bind_success_tip') }}</span>
           <hw-form :data="formBindData" ref="unBindForm" :rules="rules" @submit="onUnBindSubmit" :labelWidth="200">
             <hw-form-item :label="$t('page.otp.issuer')" name="issuer">
-              <hw-input :style="{ width: '480px' }" v-model="formBindData.issuer" :readonly="true" :placeholder="$t('page.otp.current_issuer')"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formBindData.issuer" :readonly="true" :placeholder="$t('page.otp.current_issuer')"></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.otp.secret_code')" name="secret_code">
-              <hw-input :style="{ width: '480px' }" v-model="formBindData.secret_code" ></hw-input>
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formBindData.secret_code" ></hw-input>
             </hw-form-item>
             <hw-form-item style="float: right">
               <hw-button theme="primary" type="submit">{{ $t('page.otp.unbind') }}</hw-button>

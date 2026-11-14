@@ -16,15 +16,15 @@
       <!-- autocomplete 关掉：否则浏览器会把保存的登录口令自动填进三个密码框 -->
       <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="120" autocomplete="off">
         <hw-form-item v-if="!hideOld" :label="$t('page.account.old_password')" name="old_password">
-          <hw-input :style="{ width: '380px' }" type="password" autocomplete="new-password" v-model="formData.old_password"
+          <hw-input :style="{ width: 'min(100%, 380px)' }" type="password" autocomplete="new-password" v-model="formData.old_password"
                    :placeholder="$t('common.placeholder') + $t('page.account.old_password')"></hw-input>
         </hw-form-item>
         <hw-form-item :label="$t('page.account.new_password')" name="new_password">
-          <hw-input :style="{ width: '380px' }" type="password" autocomplete="new-password" v-model="formData.new_password"
+          <hw-input :style="{ width: 'min(100%, 380px)' }" type="password" autocomplete="new-password" v-model="formData.new_password"
                    :placeholder="$t('common.placeholder') + $t('page.account.new_password')"></hw-input>
         </hw-form-item>
         <hw-form-item :label="$t('page.account.confirm_password')" name="new_password2">
-          <hw-input :style="{ width: '380px' }" type="password" autocomplete="new-password" v-model="formData.new_password2"
+          <hw-input :style="{ width: 'min(100%, 380px)' }" type="password" autocomplete="new-password" v-model="formData.new_password2"
                    :placeholder="$t('common.placeholder') + $t('page.account.confirm_password')"></hw-input>
         </hw-form-item>
         <hw-form-item style="float: right">

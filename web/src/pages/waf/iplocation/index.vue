@@ -24,7 +24,7 @@
       <div class="test-section">
         <hw-form layout="inline" :label-width="120">
           <hw-form-item :label="$t('page.iplocation.test_ip')">
-            <hw-input v-model="testIP" :placeholder="$t('page.iplocation.test_ip_placeholder')" style="width: 280px;"></hw-input>
+            <hw-input v-model="testIP" :placeholder="$t('page.iplocation.test_ip_placeholder')" style="width: min(100%, 280px);"></hw-input>
             <hw-popup trigger="hover" placement="right" :overlay-inner-style="{ padding: '10px 14px' }">
               <help-circle-icon style="margin-left: 8px; cursor: pointer; color: var(--td-text-color-secondary); font-size: 16px; vertical-align: middle;" />
               <template #content>
@@ -1038,7 +1038,7 @@ export default defineComponent({
 .test-result-box {
   margin-top: 10px;
   padding: 10px 14px;
-  background: #f5f5f5;
+  background: var(--hw-subtle);
   border-radius: 4px;
   display: flex;
   flex-wrap: wrap;
@@ -1068,8 +1068,8 @@ export default defineComponent({
 }
 
 .sec-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   letter-spacing: 0.08em;
   color: var(--td-text-color-secondary);
   white-space: nowrap;
@@ -1127,7 +1127,7 @@ export default defineComponent({
 
 .cfg-card-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   flex: 1;
   min-width: 0;
 }
@@ -1163,14 +1163,14 @@ export default defineComponent({
 
 .compat-struct {
   font-family: Consolas, Monaco, monospace;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   word-break: break-all;
 }
 
 .compat-meta {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--td-text-color-secondary);
 }
@@ -1185,8 +1185,8 @@ export default defineComponent({
 }
 
 .run-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   letter-spacing: 0.06em;
   color: var(--td-text-color-secondary);
 }
@@ -1197,7 +1197,7 @@ export default defineComponent({
   grid-template-columns: auto 1fr;
   gap: 5px 14px;
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
 
   dt {
     color: var(--td-text-color-placeholder);
@@ -1232,7 +1232,7 @@ export default defineComponent({
 .savebar-msg {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 
   .savebar.is-dirty & {
@@ -1265,7 +1265,7 @@ export default defineComponent({
 
 .pathbar-label {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -1275,14 +1275,14 @@ export default defineComponent({
   background: var(--td-bg-color-container, #fff);
   border: 1px solid var(--td-component-border, #e7e7e7);
   font-family: Consolas, Monaco, monospace;
-  font-size: 12px;
+  font-size: 13px;
   // 路径可能很长，允许换行而不是把整行撑破
   word-break: break-all;
 }
 
 .pathbar-hint {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--td-text-color-secondary);
 }
@@ -1296,7 +1296,7 @@ export default defineComponent({
   padding: 16px;
   border: 1px dashed var(--td-component-border, #e7e7e7);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 
@@ -1308,7 +1308,7 @@ export default defineComponent({
 }
 
 .use-none {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 
@@ -1316,7 +1316,7 @@ export default defineComponent({
   padding: 12px 14px;
   margin-bottom: 12px;
   border-radius: 4px;
-  background: #f5f5f5;
+  background: var(--hw-subtle);
 }
 
 .download-progress-head {
@@ -1342,7 +1342,7 @@ export default defineComponent({
 }
 
 .download-progress-tip {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
 }
 
@@ -1359,7 +1359,7 @@ export default defineComponent({
   background: var(--td-bg-color-container, #fff);
   border: 1px solid var(--td-component-border, #e7e7e7);
   font-family: Consolas, Monaco, monospace;
-  font-size: 12px;
+  font-size: 13px;
   word-break: break-all;
 }
 
@@ -1377,7 +1377,7 @@ export default defineComponent({
 
 // 行内「手动下载」浮层：下哪个文件、去哪下、放哪里，一次说完
 .manual-pop {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
@@ -1399,7 +1399,7 @@ export default defineComponent({
 
   &.is-warn {
     color: var(--td-warning-color, #e37318);
-    font-weight: 600;
+    font-weight: 500;
   }
 }
 
@@ -1431,20 +1431,20 @@ export default defineComponent({
   border-radius: 3px;
   background: var(--td-bg-color-secondarycontainer, #f3f3f3);
   font-family: Consolas, Monaco, monospace;
-  font-size: 12px;
+  font-size: 13px;
   word-break: break-all;
   cursor: pointer;
 }
 
 .local-meta {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--td-text-color-secondary);
 }
 
 .obtain-hint {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--td-text-color-secondary);
 }

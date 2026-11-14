@@ -48,5 +48,5 @@ const clearSecret = (field: ProviderField) => {
 <style scoped>
 .provider-field { width: 480px; max-width: 100%; }
 .provider-hint { margin: 12px 0 20px; }
-.provider-tip { margin-top: 6px; font-size: 12px; line-height: 1.6; color: var(--td-text-color-secondary); overflow-wrap: anywhere; }
+.provider-tip { margin-top: 6px; font-size: 13px; line-height: 1.6; color: var(--td-text-color-secondary); overflow-wrap: anywhere; }
 </style>

@@ -118,7 +118,7 @@
 import {defineComponent} from 'vue';
 
 
-import * as echarts from 'echarts/core';
+import * as echarts from '@/ui/charts';
 import { PieChart, LineChart } from 'echarts/charts';
 import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -265,7 +265,7 @@ export default defineComponent({
   }
   .stat-value {
     font-size: 22px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--td-text-color-primary);
     &.stat-active {
       color: #52c41a;
@@ -280,7 +280,7 @@ export default defineComponent({
       color: #faad14;
     }
     &.stat-sub {
-      color: #1677ff;
+      color: var(--hw-accent);
     }
     &.stat-small {
       font-size: 14px;
@@ -288,7 +288,7 @@ export default defineComponent({
     }
   }
   .stat-hint {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--td-text-color-placeholder);
     margin-top: 4px;
   }
@@ -297,8 +297,8 @@ export default defineComponent({
   cursor: pointer;
   transition: box-shadow 0.2s, border-color 0.2s;
   &:hover {
-    border-color: #1677ff;
-    box-shadow: 0 2px 8px rgba(22, 119, 255, 0.2);
+    border-color: var(--hw-accent);
+    box-shadow: none;
   }
 }
 .source-card {
@@ -324,7 +324,7 @@ export default defineComponent({
   color: var(--td-text-color-placeholder);
 }
 .source-hint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-placeholder);
 }
 .chart-card,

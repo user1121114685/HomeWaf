@@ -8,7 +8,7 @@
         <span class="sp-lb">{{ $t('page.source_path.label_day') }}</span>
         <hw-date-picker v-model="day" :style="{ width: '150px' }" @change="reload" />
         <span class="sp-lb">{{ $t('page.source_path.label_host') }}</span>
-        <hw-select v-model="hostCode" clearable filterable :style="{ width: '200px' }"
+        <hw-select v-model="hostCode" clearable filterable :style="{ width: 'min(100%, 200px)' }"
                   :placeholder="$t('page.source_path.all_hosts')" @change="reload">
           <hw-option v-for="item in hostOptions" :key="item.value" :value="item.value" :label="item.label" />
         </hw-select>
@@ -464,7 +464,7 @@ export default defineComponent({
 }
 .sp-tip {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
 }
 .sp-flex {
   flex: 1;
@@ -485,7 +485,7 @@ export default defineComponent({
   }
   .v {
     font-size: 26px;
-    font-weight: 600;
+    font-weight: 500;
     margin-top: 6px;
     line-height: 1.2;
     &.warn {
@@ -494,7 +494,7 @@ export default defineComponent({
   }
   .d {
     color: var(--td-text-color-placeholder);
-    font-size: 12px;
+    font-size: 13px;
     margin-top: 2px;
   }
 }
@@ -513,11 +513,11 @@ export default defineComponent({
 }
 .sp-danger {
   color: var(--td-error-color);
-  font-weight: 600;
+  font-weight: 500;
 }
 .sp-warn {
   color: var(--td-warning-color);
-  font-weight: 600;
+  font-weight: 500;
 }
 .sp-muted {
   color: var(--td-text-color-placeholder);

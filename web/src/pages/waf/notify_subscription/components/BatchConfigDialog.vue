@@ -24,7 +24,7 @@
         </hw-form-item>
 
         <hw-form-item v-if="form.throttle_mode === 'cooldown'" :label="$t('page.notify_subscription.label_cooldown_steps')">
-          <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: '260px' }" />
+          <hw-input v-model="cooldownStepsText" placeholder="60,300,900" :style="{ width: 'min(100%, 260px)' }" />
           <div class="form-tip">{{ $t('page.notify_subscription.cooldown_steps_tip') }}</div>
         </hw-form-item>
 
@@ -34,7 +34,7 @@
         </hw-form-item>
 
         <hw-form-item v-if="form.throttle_mode !== 'inherit'" :label="$t('page.notify_subscription.label_quiet_hours')">
-          <hw-input v-model="form.throttle.quiet_hours" placeholder="23:00-07:00" :style="{ width: '200px' }" />
+          <hw-input v-model="form.throttle.quiet_hours" placeholder="23:00-07:00" :style="{ width: 'min(100%, 200px)' }" />
           <div class="form-tip">{{ $t('page.notify_subscription.quiet_hours_tip') }}</div>
         </hw-form-item>
 
@@ -146,8 +146,8 @@ export default defineComponent({
 
 <style lang="less" scoped>
 .form-tip {
-  font-size: 12px;
-  color: #888;
+  font-size: 13px;
+  color: var(--hw-muted);
   margin-top: 4px;
 }
 </style>

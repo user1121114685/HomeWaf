@@ -19,11 +19,11 @@
       </hw-form-item>
 
       <hw-form-item :label="$t('page.ssl.label_cert_content')" name="cert_content">
-        <hw-textarea v-model="formData.cert_content" :style="{ width: '480px' }" rows="4" ></hw-textarea>
+        <hw-textarea v-model="formData.cert_content" :style="{ width: 'min(100%, 480px)' }" rows="4" ></hw-textarea>
       </hw-form-item>
 
       <hw-form-item :label="$t('page.ssl.label_key_content')" name="key_content">
-        <hw-textarea v-model="formData.key_content" :style="{ width: '480px' }" rows="4" ></hw-textarea>
+        <hw-textarea v-model="formData.key_content" :style="{ width: 'min(100%, 480px)' }" rows="4" ></hw-textarea>
       </hw-form-item>
 
       <!-- 编辑模式下显示自动更新相关字段 -->
@@ -32,10 +32,10 @@
           <b>{{$t("page.ssl.label_auto_tip")}}</b>
         </hw-form-item>
         <hw-form-item :label="$t('page.ssl.label_auto_crt_path')" name="cert_path">
-          <hw-textarea v-model="formData.cert_path" :style="{ width: '480px' }" rows="4"></hw-textarea>
+          <hw-textarea v-model="formData.cert_path" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
         </hw-form-item>
         <hw-form-item :label="$t('page.ssl.label_auto_key_path')" name="key_path">
-          <hw-textarea v-model="formData.key_path" :style="{ width: '480px' }" rows="4"></hw-textarea>
+          <hw-textarea v-model="formData.key_path" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
         </hw-form-item>
       </template>
 

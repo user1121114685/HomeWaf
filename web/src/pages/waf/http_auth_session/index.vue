@@ -79,12 +79,12 @@
 
           <template #op="slotProps">
             <div v-if="slotProps.row.status === 1" class="op-cell">
-              <a class="t-button-link" @click="handleKick(slotProps)">
+              <button type="button" class="t-button-link" @click="handleKick(slotProps)">
                 {{ $t('page.http_auth_session.button_kick') }}
-              </a>
-              <a class="t-button-link" @click="handleKickByUser(slotProps)">
+              </button>
+              <button type="button" class="t-button-link" @click="handleKickByUser(slotProps)">
                 {{ $t('page.http_auth_session.button_kick_user') }}
-              </a>
+              </button>
             </div>
             <span v-else>-</span>
           </template>
@@ -306,7 +306,7 @@ import {defineComponent} from 'vue';
   // 归属地跟在登录IP下面，用弱化色，避免为它单开一列把「操作」挤出可视区
   .sub-text {
     color: var(--td-text-color-placeholder);
-    font-size: 12px;
+    font-size: 13px;
     line-height: 18px;
   }
 

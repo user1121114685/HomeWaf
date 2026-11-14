@@ -35,9 +35,9 @@
             <span>{{ slotProps.row.is_restore === 0 ? $t('page.one_key_mod.label_is_restore_0') : $t('page.one_key_mod.label_is_restore_1') }}</span>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{$t('common.details')}}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{$t('common.delete')}}</a>
-            <a class="t-button-link" v-if="slotProps.row.is_restore === 0" @click="handleOneKeyRestore(slotProps.row.id)">{{$t('common.restore')}}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{$t('common.details')}}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{$t('common.delete')}}</button>
+            <button type="button" class="t-button-link" v-if="slotProps.row.is_restore === 0" @click="handleOneKeyRestore(slotProps.row.id)">{{$t('common.restore')}}</button>
           </template>
         </hw-table>
       </div>
@@ -56,21 +56,21 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :labelWidth="100">
           <hw-form-item :label="$t('page.one_key_mod.label_op_system')" name="op_system">
-           <hw-input :style="{ width: '480px' }" v-model="formEditData.op_system" placeholder=""></hw-input>
+           <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.op_system" placeholder=""></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.one_key_mod.label_file_path')" name="file_path">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.file_path" placeholder=""></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.file_path" placeholder=""></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.one_key_mod.label_before_content')" name="before_content">
-            <hw-textarea :style="{ width: '480px' }"  :autosize="{ minRows: 5, maxRows: 10 }"  v-model="formEditData.before_content" name="before_content">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }"  :autosize="{ minRows: 5, maxRows: 10 }"  v-model="formEditData.before_content" name="before_content">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item :label="$t('page.one_key_mod.label_after_content')" name="after_content">
-            <hw-textarea :style="{ width: '480px' }" :autosize="{ minRows: 5, maxRows: 10 }"  v-model="formEditData.after_content"  name="after_content">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" :autosize="{ minRows: 5, maxRows: 10 }"  v-model="formEditData.after_content"  name="after_content">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item :label="$t('page.one_key_mod.label_is_restore')" name="is_restore">
-            <hw-select :style="{ width: '480px' }" v-model="formEditData.is_restore" placeholder="">
+            <hw-select :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.is_restore" placeholder="">
               <hw-option value="0">{{ $t('page.one_key_mod.label_is_restore_0') }}</hw-option>
               <hw-option value="1">{{ $t('page.one_key_mod.label_is_restore_1') }}</hw-option>
             </hw-select>

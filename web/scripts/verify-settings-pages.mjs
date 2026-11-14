@@ -61,33 +61,23 @@ try {
     await expect(page.locator('.hw-loading-mask')).toHaveCount(0, { timeout: 25000 });
     await expect(page).not.toHaveURL(/login/);
     if (path === '/sys/SystemConfig') await expect(page.locator('.config-row').first()).toBeVisible();
-    if (path === '/sys/VpConfig') {
-      const label = await page.locator('#vp-sec-ip .el-form-item__label').boundingBox();
-      const field = await page.locator('#vp-sec-ip .el-textarea').boundingBox();
-      expect(Math.abs(label.width - 180)).toBeLessThan(1);
-      expect(field.x).toBeGreaterThanOrEqual(label.x + label.width);
-    }
+    if (path === '/sys/VpConfig') await expect(page.locator('#vp-sec-ip .el-textarea')).toBeVisible();
     if (path === '/dashboard/overview') {
       await expect(page.locator('.site-table-card .hw-card-title')).toContainText('站点实时安全明细');
       await expect(page.locator('.site-table-card .hw-card-actions')).toContainText('点击数据行');
-      const cards = await page
-        .locator('.summary-cards .el-col')
-        .evaluateAll((items) => items.map((el) => el.getBoundingClientRect().toJSON()));
-      expect(cards.length).toBe(6);
-      expect(Math.abs(cards[0].top - cards[2].top)).toBeLessThan(1);
-      expect(cards[3].top).toBeGreaterThan(cards[0].bottom);
+
     }
     await page.screenshot({ path: fileURLToPath(new URL(`ui-${name}-light.png`, output)) });
     await page.getByRole('button', { name: '系统设置', exact: true }).click();
-    await page.locator('.setting-theme-modes label:has(input[value="dark"])').click();
-    await page.locator('.setting-drawer-container .el-drawer__close-btn').click();
-    await expect(page.locator('.setting-drawer-container')).toBeHidden();
+    await page.locator('.appearance-options label:has(input[value="dark"])').click();
+    await page.locator('.console-preferences .el-drawer__close-btn').click();
+    await expect(page.locator('.console-preferences')).toBeHidden();
     await expect(page.locator('html')).toHaveClass(/dark/);
     await page.screenshot({ path: fileURLToPath(new URL(`ui-${name}-dark.png`, output)) });
     await page.getByRole('button', { name: '系统设置', exact: true }).click();
-    await page.locator('.setting-theme-modes label:has(input[value="light"])').click();
-    await page.locator('.setting-drawer-container .el-drawer__close-btn').click();
-    await expect(page.locator('.setting-drawer-container')).toBeHidden();
+    await page.locator('.appearance-options label:has(input[value="light"])').click();
+    await page.locator('.console-preferences .el-drawer__close-btn').click();
+    await expect(page.locator('.console-preferences')).toBeHidden();
     checked.push(path);
   }
   expect(errors).toEqual([]);

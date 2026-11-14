@@ -429,7 +429,7 @@ export default {
     }
   },
   menu: {
-	  pipeline: { parent_title: 'Port protection', ports: 'Ports and policies', templates: 'Policy templates' },
+	  pipeline: { parent_title: 'Services and policies', ports: 'Services', templates: 'Policy templates' },
     dashboard: {
       parent_title: "Dashboard",
       dashboard_title: "Overview Dashboard",

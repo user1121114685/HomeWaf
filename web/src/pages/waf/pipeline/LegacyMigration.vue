@@ -70,5 +70,5 @@ async function commit() { await run(async () => { if (!canImport.value) throw ne
 </script>
 
 <style scoped>
-.legacy-migration{margin-top:20px}.space{margin:12px 0}.accounts{display:grid;grid-template-columns:1fr 1fr;gap:16px}.accounts label,.source-label{display:flex;flex-direction:column;gap:8px}.actions{display:flex;gap:12px;margin:16px 0}pre{max-height:300px;overflow:auto;font-size:12px}p{line-height:1.7}summary{cursor:pointer;margin:16px 0}@media(max-width:760px){.accounts{grid-template-columns:1fr}.actions{flex-wrap:wrap}}
+.legacy-migration{margin-top:20px}.space{margin:12px 0}.accounts{display:grid;grid-template-columns:1fr 1fr;gap:16px}.accounts label,.source-label{display:flex;flex-direction:column;gap:8px}.actions{display:flex;gap:12px;margin:16px 0}pre{max-height:300px;overflow:auto;font-size: 13px}p{line-height:1.7}summary{cursor:pointer;margin:16px 0}@media(max-width:760px){.accounts{grid-template-columns:1fr}.actions{flex-wrap:wrap}}
 </style>

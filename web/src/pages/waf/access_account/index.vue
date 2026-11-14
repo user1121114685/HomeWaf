@@ -41,11 +41,11 @@
             </hw-tooltip>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleEdit(slotProps.row)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleResetPwd(slotProps.row)">{{ $t('page.access.account.button_resetpwd') }}</a>
-            <a class="t-button-link" @click="handleOtp(slotProps.row)">{{ $t('page.access.account.button_otp') }}</a>
-            <a class="t-button-link" @click="handleKick(slotProps.row)">{{ $t('page.access.account.button_kick') }}</a>
-            <a class="t-button-link" @click="handleDelete(slotProps.row)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleEdit(slotProps.row)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleResetPwd(slotProps.row)">{{ $t('page.access.account.button_resetpwd') }}</button>
+            <button type="button" class="t-button-link" @click="handleOtp(slotProps.row)">{{ $t('page.access.account.button_otp') }}</button>
+            <button type="button" class="t-button-link" @click="handleKick(slotProps.row)">{{ $t('page.access.account.button_kick') }}</button>
+            <button type="button" class="t-button-link" @click="handleDelete(slotProps.row)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -62,16 +62,16 @@
                与管理员同名同密码、而且是公网可登录的访客账号。
                Chrome 只认 new-password（off 对密码框无效），所以两个都得给。 -->
           <hw-form-item :label="$t('page.access.account.label_name')" name="account_name">
-            <hw-input :style="{ width: '460px' }" v-model="formData.account_name"
+            <hw-input :style="{ width: 'min(100%, 460px)' }" v-model="formData.account_name"
               autocomplete="off"></hw-input>
             <div class="form-tips">{{ $t('page.access.account.name_immutable_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_password')" name="password">
-            <hw-input type="password" :style="{ width: '460px' }" v-model="formData.password"
+            <hw-input type="password" :style="{ width: 'min(100%, 460px)' }" v-model="formData.password"
               autocomplete="new-password"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_nickname')" name="nick_name">
-            <hw-input :style="{ width: '460px' }" v-model="formData.nick_name"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 460px)' }" v-model="formData.nick_name"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_status')" name="status">
             <hw-radio-group v-model="formData.status">
@@ -88,20 +88,20 @@
             <div class="form-tips">{{ $t('page.access.account.force_otp_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_allow_hosts')" name="allow_host_codes">
-            <hw-select :style="{ width: '460px' }" v-model="addAllowHosts" multiple filterable clearable
+            <hw-select :style="{ width: 'min(100%, 460px)' }" v-model="addAllowHosts" multiple filterable clearable
               :placeholder="$t('page.access.account.allow_hosts_placeholder')">
               <hw-option v-for="h in hostOptions" :key="h.value" :value="h.value" :label="h.label"></hw-option>
             </hw-select>
             <div class="form-tips">{{ $t('page.access.account.allow_hosts_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_expire')" name="expire_time">
-            <hw-date-picker :style="{ width: '460px' }" v-model="formData.expire_time" enable-time-picker clearable
+            <hw-date-picker :style="{ width: 'min(100%, 460px)' }" v-model="formData.expire_time" enable-time-picker clearable
               format="YYYY-MM-DD HH:mm:ss" value-type="YYYY-MM-DD HH:mm:ss"
               :placeholder="$t('page.access.account.expire_placeholder')"></hw-date-picker>
             <div class="form-tips">{{ $t('page.access.account.expire_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '460px' }" v-model="formData.remarks"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 460px)' }" v-model="formData.remarks"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="addFormVisible = false">{{ $t('common.close') }}</hw-button>
@@ -116,11 +116,11 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="editForm" :rules="editRules" @submit="onSubmitEdit" :labelWidth="120">
           <hw-form-item :label="$t('page.access.account.label_name')">
-            <hw-input :style="{ width: '460px' }" :value="formEditData.account_name" disabled></hw-input>
+            <hw-input :style="{ width: 'min(100%, 460px)' }" :value="formEditData.account_name" disabled></hw-input>
             <div class="form-tips">{{ $t('page.access.account.name_immutable_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_nickname')" name="nick_name">
-            <hw-input :style="{ width: '460px' }" v-model="formEditData.nick_name"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 460px)' }" v-model="formEditData.nick_name"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_status')" name="status">
             <hw-radio-group v-model="formEditData.status">
@@ -137,20 +137,20 @@
             </hw-radio-group>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_allow_hosts')" name="allow_host_codes">
-            <hw-select :style="{ width: '460px' }" v-model="editAllowHosts" multiple filterable clearable
+            <hw-select :style="{ width: 'min(100%, 460px)' }" v-model="editAllowHosts" multiple filterable clearable
               :placeholder="$t('page.access.account.allow_hosts_placeholder')">
               <hw-option v-for="h in hostOptions" :key="h.value" :value="h.value" :label="h.label"></hw-option>
             </hw-select>
             <div class="form-tips">{{ $t('page.access.account.allow_hosts_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('page.access.account.label_expire')" name="expire_time">
-            <hw-date-picker :style="{ width: '460px' }" v-model="formEditData.expire_time" enable-time-picker clearable
+            <hw-date-picker :style="{ width: 'min(100%, 460px)' }" v-model="formEditData.expire_time" enable-time-picker clearable
               format="YYYY-MM-DD HH:mm:ss" value-type="YYYY-MM-DD HH:mm:ss"
               :placeholder="$t('page.access.account.expire_placeholder')"></hw-date-picker>
             <div class="form-tips">{{ $t('page.access.account.expire_tips') }}</div>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
-            <hw-textarea :style="{ width: '460px' }" v-model="formEditData.remarks"></hw-textarea>
+            <hw-textarea :style="{ width: 'min(100%, 460px)' }" v-model="formEditData.remarks"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="editFormVisible = false">{{ $t('common.close') }}</hw-button>
@@ -167,7 +167,7 @@
         <hw-form :data="resetPwdData" ref="resetForm" :rules="resetRules" @submit="onSubmitResetPwd" :labelWidth="120"
           autocomplete="off">
           <hw-form-item :label="$t('page.access.account.label_new_password')" name="password">
-            <hw-input type="password" :style="{ width: '380px' }" v-model="resetPwdData.password"
+            <hw-input type="password" :style="{ width: 'min(100%, 380px)' }" v-model="resetPwdData.password"
               autocomplete="new-password"></hw-input>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -195,10 +195,10 @@
           </div>
           <hw-form :data="otpData" ref="otpForm" @submit="onOtpBind" :labelWidth="120">
             <hw-form-item :label="$t('page.access.account.label_otp_secret')">
-              <hw-input :style="{ width: '380px' }" :value="otpData.secret" readonly></hw-input>
+              <hw-input :style="{ width: 'min(100%, 380px)' }" :value="otpData.secret" readonly></hw-input>
             </hw-form-item>
             <hw-form-item :label="$t('page.access.account.label_otp_code')" name="code">
-              <hw-input :style="{ width: '380px' }" v-model="otpData.code" maxlength="6" placeholder="000000"></hw-input>
+              <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="otpData.code" maxlength="6" placeholder="000000"></hw-input>
             </hw-form-item>
             <hw-form-item style="float: right">
               <hw-button variant="outline" @click="otpVisible = false">{{ $t('common.close') }}</hw-button>
@@ -537,7 +537,7 @@ export default defineComponent({
 
 .form-tips {
   color: var(--td-text-color-placeholder);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 20px;
   margin-top: 4px;
 }

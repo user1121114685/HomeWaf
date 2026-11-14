@@ -40,8 +40,8 @@
             </hw-tag>
           </template>
           <template #op="slotProps">
-            <a class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</a>
-            <a class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</a>
+            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
+            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
           </template>
         </hw-table>
       </div>
@@ -52,22 +52,22 @@
       <template #body><div >
         <hw-form :data="formData" ref="addForm" :rules="rules" @submit="onSubmit" :labelWidth="120">
           <hw-form-item :label="$t('page.path_rule.host_code')" name="host_code">
-            <hw-select v-model="formData.host_code" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formData.host_code" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item" :key="index">{{ item }}</hw-option>
             </hw-select>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.path_rule.rule_name')" name="rule_name">
-            <hw-input :style="{ width: '480px' }" v-model="formData.rule_name" />
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.rule_name" />
           </hw-form-item>
 
           <hw-form-item :label="$t('page.path_rule.path')" name="path">
-            <hw-input :style="{ width: '480px' }" v-model="formData.path" :placeholder="$t('page.path_rule.path_placeholder')" />
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.path" :placeholder="$t('page.path_rule.path_placeholder')" />
             <div class="form-item-tips">{{ $t('page.path_rule.path_tips') }}</div>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.path_rule.match_type')" name="match_type">
-            <hw-select v-model="formData.match_type" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formData.match_type" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in match_type_options" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
           </hw-form-item>
@@ -78,7 +78,7 @@
           </hw-form-item>
 
           <hw-form-item :label="$t('page.path_rule.target_type')" name="target_type">
-            <hw-select v-model="formData.target_type" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formData.target_type" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in target_type_options" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
           </hw-form-item>
@@ -95,19 +95,19 @@
           <!-- target_type=1: 后端代理 -->
           <template v-if="formData.target_type === '1'">
             <hw-form-item :label="$t('page.path_rule.remote_scheme')" name="remote_scheme">
-              <hw-select v-model="formData.remote_scheme" :style="{ width: '200px' }">
+              <hw-select v-model="formData.remote_scheme" :style="{ width: 'min(100%, 200px)' }">
                 <hw-option v-for="item in scheme_options" :value="item.value" :label="item.label" :key="item.value" />
               </hw-select>
               <div class="form-item-tips">{{ $t('page.path_rule.remote_scheme_tips') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.remote_host')" name="remote_host">
-              <hw-input :style="{ width: '480px' }" v-model="formData.remote_host" :placeholder="$t('page.path_rule.remote_host_placeholder')" />
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.remote_host" :placeholder="$t('page.path_rule.remote_host_placeholder')" />
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.remote_port')" name="remote_port">
               <hw-input-number :style="{ width: '150px' }" v-model="formData.remote_port" />
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.remote_ip')" name="remote_ip">
-              <hw-input :style="{ width: '480px' }" v-model="formData.remote_ip" :placeholder="$t('page.path_rule.remote_ip_placeholder')" />
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.remote_ip" :placeholder="$t('page.path_rule.remote_ip_placeholder')" />
               <div class="form-item-tips">{{ $t('page.path_rule.remote_ip_tips') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.response_time_out')" name="response_time_out">
@@ -135,7 +135,7 @@
           <!-- target_type=2: 静态文件 -->
           <template v-if="formData.target_type === '2'">
             <hw-form-item :label="$t('page.path_rule.static_root')" name="static_root">
-              <hw-input :style="{ width: '480px' }" v-model="formData.static_root" :placeholder="$t('page.path_rule.static_root_placeholder')" />
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.static_root" :placeholder="$t('page.path_rule.static_root_placeholder')" />
               <div class="form-item-tips">{{ $t('page.path_rule.static_root_tips') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.spa_fallback')" name="spa_fallback">
@@ -150,10 +150,10 @@
           <!-- target_type=3: 重定向 -->
           <template v-if="formData.target_type === '3'">
             <hw-form-item :label="$t('page.path_rule.redirect_url')" name="redirect_url">
-              <hw-input :style="{ width: '480px' }" v-model="formData.redirect_url" :placeholder="$t('page.path_rule.redirect_url_placeholder')" />
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.redirect_url" :placeholder="$t('page.path_rule.redirect_url_placeholder')" />
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.redirect_code')" name="redirect_code">
-              <hw-select v-model="formData.redirect_code" :style="{ width: '200px' }">
+              <hw-select v-model="formData.redirect_code" :style="{ width: 'min(100%, 200px)' }">
                 <hw-option value="302" label="302 Found" />
                 <hw-option value="301" label="301 Moved Permanently" />
               </hw-select>
@@ -161,7 +161,7 @@
           </template>
 
           <hw-form-item :label="$t('page.path_rule.remarks')" name="remarks">
-            <hw-input :style="{ width: '480px' }" v-model="formData.remarks" />
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.remarks" />
           </hw-form-item>
 
           <hw-form-item style="float: right">
@@ -177,22 +177,22 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="editForm" :rules="rules" @submit="onSubmitEdit" :labelWidth="120">
           <hw-form-item :label="$t('page.path_rule.host_code')" name="host_code">
-            <hw-select v-model="formEditData.host_code" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.host_code" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="(item, index) in host_dic" :value="index" :label="item" :key="index">{{ item }}</hw-option>
             </hw-select>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.path_rule.rule_name')" name="rule_name">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.rule_name" />
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.rule_name" />
           </hw-form-item>
 
           <hw-form-item :label="$t('page.path_rule.path')" name="path">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.path" :placeholder="$t('page.path_rule.path_placeholder')" />
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.path" :placeholder="$t('page.path_rule.path_placeholder')" />
             <div class="form-item-tips">{{ $t('page.path_rule.path_tips') }}</div>
           </hw-form-item>
 
           <hw-form-item :label="$t('page.path_rule.match_type')" name="match_type">
-            <hw-select v-model="formEditData.match_type" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.match_type" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in match_type_options" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
           </hw-form-item>
@@ -203,7 +203,7 @@
           </hw-form-item>
 
           <hw-form-item :label="$t('page.path_rule.target_type')" name="target_type">
-            <hw-select v-model="formEditData.target_type" clearable :style="{ width: '480px' }">
+            <hw-select v-model="formEditData.target_type" clearable :style="{ width: 'min(100%, 480px)' }">
               <hw-option v-for="item in target_type_options" :value="item.value" :label="item.label" :key="item.value" />
             </hw-select>
           </hw-form-item>
@@ -218,19 +218,19 @@
 
           <template v-if="formEditData.target_type === '1'">
             <hw-form-item :label="$t('page.path_rule.remote_scheme')" name="remote_scheme">
-              <hw-select v-model="formEditData.remote_scheme" :style="{ width: '200px' }">
+              <hw-select v-model="formEditData.remote_scheme" :style="{ width: 'min(100%, 200px)' }">
                 <hw-option v-for="item in scheme_options" :value="item.value" :label="item.label" :key="item.value" />
               </hw-select>
               <div class="form-item-tips">{{ $t('page.path_rule.remote_scheme_tips') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.remote_host')" name="remote_host">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.remote_host" :placeholder="$t('page.path_rule.remote_host_placeholder')" />
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remote_host" :placeholder="$t('page.path_rule.remote_host_placeholder')" />
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.remote_port')" name="remote_port">
               <hw-input-number :style="{ width: '150px' }" v-model="formEditData.remote_port" />
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.remote_ip')" name="remote_ip">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.remote_ip" :placeholder="$t('page.path_rule.remote_ip_placeholder')" />
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remote_ip" :placeholder="$t('page.path_rule.remote_ip_placeholder')" />
               <div class="form-item-tips">{{ $t('page.path_rule.remote_ip_tips') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.response_time_out')" name="response_time_out">
@@ -257,7 +257,7 @@
 
           <template v-if="formEditData.target_type === '2'">
             <hw-form-item :label="$t('page.path_rule.static_root')" name="static_root">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.static_root" :placeholder="$t('page.path_rule.static_root_placeholder')" />
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.static_root" :placeholder="$t('page.path_rule.static_root_placeholder')" />
               <div class="form-item-tips">{{ $t('page.path_rule.static_root_tips') }}</div>
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.spa_fallback')" name="spa_fallback">
@@ -271,10 +271,10 @@
 
           <template v-if="formEditData.target_type === '3'">
             <hw-form-item :label="$t('page.path_rule.redirect_url')" name="redirect_url">
-              <hw-input :style="{ width: '480px' }" v-model="formEditData.redirect_url" :placeholder="$t('page.path_rule.redirect_url_placeholder')" />
+              <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.redirect_url" :placeholder="$t('page.path_rule.redirect_url_placeholder')" />
             </hw-form-item>
             <hw-form-item :label="$t('page.path_rule.redirect_code')" name="redirect_code">
-              <hw-select v-model="formEditData.redirect_code" :style="{ width: '200px' }">
+              <hw-select v-model="formEditData.redirect_code" :style="{ width: 'min(100%, 200px)' }">
                 <hw-option value="302" label="302 Found" />
                 <hw-option value="301" label="301 Moved Permanently" />
               </hw-select>
@@ -282,7 +282,7 @@
           </template>
 
           <hw-form-item :label="$t('page.path_rule.remarks')" name="remarks">
-            <hw-input :style="{ width: '480px' }" v-model="formEditData.remarks" />
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.remarks" />
           </hw-form-item>
 
           <hw-form-item style="float: right">
@@ -598,8 +598,8 @@ export default defineComponent({
 }
 
 .form-item-tips {
-  color: #999;
-  font-size: 12px;
+  color: var(--hw-muted);
+  font-size: 13px;
   margin-top: 4px;
   line-height: 1.5;
 }

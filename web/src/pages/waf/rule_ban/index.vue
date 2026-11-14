@@ -16,12 +16,12 @@
               :pagination="pagination" :loading="dataLoading" @page-change="rehandlePageChange">
               <template #ip="{ row }">
                 <hw-tooltip :content="$t('common.ip_lookup.click_tip')">
-                  <a class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</a>
+                  <button type="button" class="ipl-link" @click="openIpLookup(row.ip)">{{ row.ip }}</button>
                 </hw-tooltip>
               </template>
               <template #op="slotProps">
-                <a class="t-button-link" @click="handleClickDetail(slotProps)">{{ $t('common.details') }}</a>
-                <a class="t-button-link" @click="handleClickUnban(slotProps)" style="margin-left: 8px;">{{ $t('page.rule_ban.unban') }}</a>
+                <button type="button" class="t-button-link" @click="handleClickDetail(slotProps)">{{ $t('common.details') }}</button>
+                <button type="button" class="t-button-link" @click="handleClickUnban(slotProps)" style="margin-left: 8px;">{{ $t('page.rule_ban.unban') }}</button>
               </template>
             </hw-table>
           </div>
@@ -258,7 +258,7 @@ export default defineComponent({
   margin: 0 0 20px;
 }
 .desc {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--td-text-color-secondary);
   margin-top: 4px;
 }
@@ -284,7 +284,7 @@ export default defineComponent({
 
     .example-title {
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 500;
     }
 
     .example-ops {
@@ -297,17 +297,17 @@ export default defineComponent({
     padding: 14px 16px;
     margin: 0;
     font-family: Consolas, "Courier New", monospace;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.7;
     color: var(--td-text-color-primary);
-    background: #fff;
+    background: var(--hw-panel);
     overflow-x: auto;
   }
 
   .example-foot {
     padding: 8px 16px 12px;
     color: var(--td-text-color-placeholder);
-    font-size: 12px;
+    font-size: 13px;
   }
 }
 .cfg-foot {

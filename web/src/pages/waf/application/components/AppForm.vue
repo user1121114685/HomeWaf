@@ -414,7 +414,7 @@ export default defineComponent({
 }
 .dir-preview {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.8;
   word-break: break-all;
 }
@@ -425,11 +425,11 @@ export default defineComponent({
   gap: 4px;
 }
 .dir-preview-label {
-  color: #999;
+  color: var(--hw-muted);
   flex-shrink: 0;
 }
 .dir-preview-muted {
-  color: #999;
+  color: var(--hw-muted);
 }
 .dir-preview-warn {
   color: #e37318;
@@ -441,11 +441,11 @@ export default defineComponent({
   background: var(--td-bg-color-secondarycontainer, #f3f3f3);
   border-radius: 3px;
   padding: 0 4px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .upload-retry-tip {
   margin-top: 6px;
   color: #e37318;
-  font-size: 12px;
+  font-size: 13px;
 }
 </style>

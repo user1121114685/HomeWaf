@@ -10,7 +10,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build --mode release && node scripts/check-dist.mjs",
     "typecheck": "node scripts/typecheck.mjs",
-    "test": "node scripts/verify-app-flow.mjs",
+    "test": "node --test scripts/verify-navigation.test.mjs && node scripts/verify-app-flow.mjs",
     "test:screen": "node --test scripts/verify-screen-data.test.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "postinstall": "node scripts/patch-dependencies.mjs"

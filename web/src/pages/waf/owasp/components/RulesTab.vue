@@ -4,7 +4,7 @@
   <div>
     <hw-form ref="form" :data="searchForm" layout="inline" :style="{ marginBottom: '8px' }">
       <hw-form-item :label="$t('page.owasp.rules.file')">
-        <hw-input v-model="searchForm.file" :placeholder="$t('page.owasp.rules.file_ph')" clearable style="width:220px" />
+        <hw-input v-model="searchForm.file" :placeholder="$t('page.owasp.rules.file_ph')" clearable style="width: min(100%, 220px)" />
       </hw-form-item>
       <hw-form-item :label="$t('page.owasp.rules.severity')">
         <hw-select v-model="searchForm.severity" clearable style="width:140px">
@@ -30,7 +30,7 @@
         </hw-select>
       </hw-form-item>
       <hw-form-item>
-        <hw-input v-model="searchForm.keyword" :placeholder="$t('page.owasp.rules.keyword_ph')" clearable style="width:220px" />
+        <hw-input v-model="searchForm.keyword" :placeholder="$t('page.owasp.rules.keyword_ph')" clearable style="width: min(100%, 220px)" />
       </hw-form-item>
       <hw-form-item>
         <hw-button theme="primary" @click="getList">{{ $t('common.search') }}</hw-button>
@@ -101,10 +101,10 @@
         <hw-tag :theme="severityTheme(row.severity)" variant="light">{{ row.severity || '-' }}</hw-tag>
       </template>
       <template #op="{ row }">
-        <a class="t-button-link" @click="onView(row)">{{ $t('page.owasp.rules.view') }}</a>
-        <a class="t-button-link" @click="onToggle(row)">{{ row.disabled ? $t('page.owasp.rules.enable') : $t('page.owasp.rules.disable') }}</a>
-        <a class="t-button-link" @click="onEdit(row)">{{ $t('page.owasp.rules.override') }}</a>
-        <a v-if="row.modified || row.disabled" class="t-button-link" @click="onReset(row)">{{ $t('page.owasp.rules.reset') }}</a>
+        <button type="button" class="t-button-link" @click="onView(row)">{{ $t('page.owasp.rules.view') }}</button>
+        <button type="button" class="t-button-link" @click="onToggle(row)">{{ row.disabled ? $t('page.owasp.rules.enable') : $t('page.owasp.rules.disable') }}</button>
+        <button type="button" class="t-button-link" @click="onEdit(row)">{{ $t('page.owasp.rules.override') }}</button>
+        <button type="button" v-if="row.modified || row.disabled" class="t-button-link" @click="onReset(row)">{{ $t('page.owasp.rules.reset') }}</button>
       </template>
     </hw-table>
 

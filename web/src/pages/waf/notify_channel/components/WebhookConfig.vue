@@ -5,8 +5,8 @@
     <hw-alert theme="info" :message="$t('page.notify_channel.webhook_config_tip')" style="margin-bottom: 16px;"></hw-alert>
 
     <hw-form-item :label="$t('page.notify_channel.webhook_preset')" name="webhook_preset">
-      <div :style="{ width: '480px' }">
-        <hw-select :value="preset" :style="{ width: '480px' }" @change="applyPreset">
+      <div :style="{ width: 'min(100%, 480px)' }">
+        <hw-select :value="preset" :style="{ width: 'min(100%, 480px)' }" @change="applyPreset">
           <hw-option v-for="item in presetOptions" :key="item.value" :value="item.value" :label="item.label"></hw-option>
         </hw-select>
         <div class="webhook-tip">💡 {{ $t('page.notify_channel.webhook_preset_tip') }}</div>
@@ -14,29 +14,29 @@
     </hw-form-item>
 
     <hw-form-item :label="$t('page.notify_channel.label_webhook_url')" name="webhook_url">
-      <div :style="{ width: '480px' }">
+      <div :style="{ width: 'min(100%, 480px)' }">
         <hw-input v-model="form.webhook_url" :placeholder="urlPlaceholder"></hw-input>
         <div v-if="presetHint" class="webhook-tip">📝 {{ presetHint }}</div>
       </div>
     </hw-form-item>
 
     <hw-form-item :label="$t('page.notify_channel.webhook_method')" name="webhook_method">
-      <hw-select v-model="form.webhook_method" :style="{ width: '480px' }">
+      <hw-select v-model="form.webhook_method" :style="{ width: 'min(100%, 480px)' }">
         <hw-option v-for="m in methods" :key="m" :value="m" :label="m"></hw-option>
       </hw-select>
     </hw-form-item>
 
     <hw-form-item :label="$t('page.notify_channel.webhook_content_type')" name="webhook_content_type">
-      <hw-select v-model="form.webhook_content_type" :style="{ width: '480px' }" filterable creatable>
+      <hw-select v-model="form.webhook_content_type" :style="{ width: 'min(100%, 480px)' }" filterable creatable>
         <hw-option v-for="c in contentTypes" :key="c" :value="c" :label="c"></hw-option>
       </hw-select>
     </hw-form-item>
 
     <hw-form-item :label="$t('page.notify_channel.webhook_headers')" name="webhook_headers">
-      <div :style="{ width: '480px' }">
+      <div :style="{ width: 'min(100%, 480px)' }">
         <div v-for="(header, index) in form.webhook_headers" :key="index" class="webhook-header-row">
           <hw-input v-model="header.key" :placeholder="$t('page.notify_channel.webhook_header_key')" style="width: 180px;"></hw-input>
-          <hw-input v-model="header.value" :placeholder="$t('page.notify_channel.webhook_header_value')" style="width: 240px;"></hw-input>
+          <hw-input v-model="header.value" :placeholder="$t('page.notify_channel.webhook_header_value')" style="width: min(100%, 240px);"></hw-input>
           <hw-button variant="text" theme="danger" @click="removeHeader(index)">{{ $t('common.delete') }}</hw-button>
         </div>
         <hw-button variant="dashed" size="small" :disabled="form.webhook_headers.length >= maxHeaders" @click="addHeader">
@@ -47,7 +47,7 @@
     </hw-form-item>
 
     <hw-form-item :label="$t('page.notify_channel.webhook_body')" name="webhook_body_template">
-      <div :style="{ width: '480px' }">
+      <div :style="{ width: 'min(100%, 480px)' }">
         <!-- 两层模板最容易被混淆，直接在变量上方讲清楚分工，否则用户会把订阅模板的
              Domain / Ip 之类变量写到这里，保存时才被后端拦下来 -->
         <hw-alert theme="info" :message="$t('page.notify_channel.webhook_body_layer_tip')"
@@ -148,8 +148,8 @@ export default defineComponent({
 
 <style lang="less" scoped>
 .webhook-tip {
-  font-size: 12px;
-  color: #666;
+  font-size: 13px;
+  color: var(--hw-muted);
   margin-top: 4px;
   line-height: 1.5;
 }
@@ -169,6 +169,6 @@ export default defineComponent({
   margin-right: 6px;
   margin-bottom: 6px;
   cursor: pointer;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 </style>
