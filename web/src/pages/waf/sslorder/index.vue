@@ -1,7 +1,7 @@
 <!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
 
 <template>
-  <div>
+  <div class="ssl-order-page">
     <hw-card class="list-card-container">
       <hw-row justify="space-between">
         <div class="left-operation-container">
@@ -25,7 +25,7 @@
           </hw-form>
         </div>
       </hw-row>
-      <help-block :summary="$t('page.sslorder.alert_message')" doc="guide/SSL">
+      <help-block summary="家庭网络推荐 DNS 验证：无需公网 IP 或入站 80/443 端口。申请成功后可自动续期，请保留 DNS 凭据和验证记录。" doc="guide/SSL">
         <template #actions>
           <span role="button" tabindex="0" @keydown.enter.prevent="handleSslHttpCheck" @keydown.space.prevent="handleSslHttpCheck" @click="handleSslHttpCheck" class="highlight-link">{{ $t('page.sslorder.ssl_http_check_setting') }}</span>
         </template>
@@ -95,60 +95,21 @@
               {{ $t('page.sslorder.http01_no_80_tips') }}
             </div>
           </hw-form-item>
-          <hw-form-item v-if="formData.apply_method === 'dns01'" :label="$t('page.sslorder.label_apply_dns')"
-            name="apply_dns">
-            <hw-select v-model="formData.apply_dns" clearable :style="{ width: 'min(100%, 480px)' }"  @change="handleDnsChange">
-              <hw-option v-for="item in sslorder_apply_dns_type" :value="item.value" :label="`${item.label}`">
-              </hw-option>
-            </hw-select>
-          </hw-form-item>
-          <hw-form-item v-if="formData.apply_method === 'dns01'" :label="$t('page.sslorder.label_skip_dns_verify')"
-            name="skip_dns_verify">
+          <DnsProviderConfig v-if="addFormVisible && formData.apply_method === 'dns01'"
+            v-model:provider="formData.apply_dns" v-model:group="formData.private_group_name"
+            :revision="dnsRevision" @configure="handlePrivateInfo" @add-group="handleAddPrivateGroup" />
+          <hw-form-item v-if="formData.apply_method === 'dns01'" label="本地 DNS 传播检查" name="skip_dns_verify">
             <hw-radio-group v-model="formData.skip_dns_verify">
-              <hw-radio :value="0">{{ $t('page.sslorder.skip_dns_verify_off') }}</hw-radio>
-              <hw-radio :value="1">{{ $t('page.sslorder.skip_dns_verify_on') }}</hw-radio>
+              <hw-radio :value="0">检查后验证（推荐）</hw-radio>
+              <hw-radio :value="1">等待后直接验证</hw-radio>
             </hw-radio-group>
-            <div class="form-item-tips">{{ $t('page.sslorder.skip_dns_verify_tips') }}</div>
+            <p class="form-item-tips">通常保留检查。跳过只影响本地预检查，证书机构仍会验证公网 TXT 记录。</p>
           </hw-form-item>
-
-          <!-- 密钥分组选择 -->
-          <hw-form-item v-if="formData.apply_method === 'dns01' && formData.apply_dns"
-            :label="$t('page.sslorder.label_private_group')" name="private_group_name">
-            <div style="display: flex; align-items: center;">
-              <hw-select v-model="formData.private_group_name" :style="{ width: 'min(100%, 200px)' }">
-                <hw-option v-for="item in privateGroupList" :value="item.private_group_name"
-                  :label="`${item.private_group_name}`">
-                </hw-option>
-              </hw-select>
-              <hw-button theme="primary" variant="text" style="margin-left: 10px;"
-                @click="handleAddPrivateGroup(formData.apply_dns)">
-                {{ $t('page.sslorder.label_private_group_add') }}
-              </hw-button>
-            </div>
-          </hw-form-item>
-
-          <!-- DNS服务商密钥配置信息 -->
-          <template v-if="formData.apply_method === 'dns01' && formData.apply_dns">
-            <hw-form-item v-for="(item, index) in dns_env[formData.apply_dns]" :key="index" :label="item.label">
-              <div style="display: flex; align-items: center;">
-                <hw-tag theme="success" v-if="hasPrivateKey(item.value, formData.apply_dns, formData.private_group_name)">
-                  {{ $t('page.sslorder.key_configured') }}
-                </hw-tag>
-                <hw-tag theme="warning" v-else>
-                  {{ $t('page.sslorder.key_not_configured') }}
-                </hw-tag>
-                <hw-button theme="primary" variant="text" style="margin-left: 10px;"
-                  @click="handlePrivateInfo(item.value, formData.apply_dns, formData.private_group_name, hasPrivateKey(item.value, formData.apply_dns, formData.private_group_name) ? 'edit' : 'add')">
-                  {{ hasPrivateKey(item.value, formData.apply_dns, formData.private_group_name) ? $t('common.edit') : $t('common.add') }}
-                </hw-button>
-              </div>
-            </hw-form-item>
-          </template>
           <hw-form-item :label="$t('page.sslorder.label_apply_email')" name="apply_email">
             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.apply_email"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
-            <hw-textarea v-model="formData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4" placeholder="example.com, *.example.com（多个域名用逗号或换行分隔）"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
@@ -189,59 +150,21 @@
               {{ $t('page.sslorder.http01_no_80_tips') }}
             </div>
           </hw-form-item>
-          <hw-form-item v-if="formEditData.apply_method === 'dns01'" :label="$t('page.sslorder.label_apply_dns')"
-            name="apply_dns">
-            <hw-select v-model="formEditData.apply_dns" clearable :style="{ width: 'min(100%, 480px)' }" @change="handleDnsChange">
-              <hw-option v-for="item in sslorder_apply_dns_type" :value="item.value" :label="`${item.label}`">
-              </hw-option>
-            </hw-select>
-          </hw-form-item>
-          <hw-form-item v-if="formEditData.apply_method === 'dns01'" :label="$t('page.sslorder.label_skip_dns_verify')"
-            name="skip_dns_verify">
+          <DnsProviderConfig v-if="editFormVisible && formEditData.apply_method === 'dns01'"
+            v-model:provider="formEditData.apply_dns" v-model:group="formEditData.private_group_name"
+            :revision="dnsRevision" @configure="handlePrivateInfo" @add-group="handleAddPrivateGroup" />
+          <hw-form-item v-if="formEditData.apply_method === 'dns01'" label="本地 DNS 传播检查" name="skip_dns_verify">
             <hw-radio-group v-model="formEditData.skip_dns_verify">
-              <hw-radio :value="0">{{ $t('page.sslorder.skip_dns_verify_off') }}</hw-radio>
-              <hw-radio :value="1">{{ $t('page.sslorder.skip_dns_verify_on') }}</hw-radio>
+              <hw-radio :value="0">检查后验证（推荐）</hw-radio>
+              <hw-radio :value="1">等待后直接验证</hw-radio>
             </hw-radio-group>
-            <div class="form-item-tips">{{ $t('page.sslorder.skip_dns_verify_tips') }}</div>
+            <p class="form-item-tips">通常保留检查。跳过只影响本地预检查，证书机构仍会验证公网 TXT 记录。</p>
           </hw-form-item>
-
-          <!-- 密钥分组选择 -->
-          <hw-form-item v-if="formEditData.apply_method === 'dns01' && formEditData.apply_dns"
-            :label="$t('page.sslorder.label_private_group')" name="private_group_name">
-            <div style="display: flex; align-items: center;">
-              <hw-select v-model="formEditData.private_group_name" :style="{ width: 'min(100%, 200px)' }">
-                <hw-option v-for="item in privateGroupList" :value="item.private_group_name"
-                  :label="`${item.private_group_name}`">
-                </hw-option>
-              </hw-select>
-              <hw-button theme="primary" variant="text" style="margin-left: 10px;"
-                @click="handleAddPrivateGroup(formEditData.apply_dns)">
-                {{ $t('page.sslorder.label_private_group_add') }}
-              </hw-button>
-            </div>
-          </hw-form-item>
-          <!-- DNS服务商密钥配置信息 -->
-          <template v-if="formEditData.apply_method === 'dns01' && formEditData.apply_dns">
-            <hw-form-item v-for="(item, index) in dns_env[formEditData.apply_dns]" :key="index" :label="item.label">
-              <div style="display: flex; align-items: center;">
-                <hw-tag theme="success" v-if="hasPrivateKey(item.value, formEditData.apply_dns, formEditData.private_group_name)">
-                  {{ $t('page.sslorder.key_configured') }}
-                </hw-tag>
-                <hw-tag theme="warning" v-else>
-                  {{ $t('page.sslorder.key_not_configured') }}
-                </hw-tag>
-                <hw-button theme="primary" variant="text" style="margin-left: 10px;"
-                  @click="handlePrivateInfo(item.value, formEditData.apply_dns, formEditData.private_group_name, hasPrivateKey(item.value, formEditData.apply_dns, formEditData.private_group_name) ? 'edit' : 'add')">
-                  {{ hasPrivateKey(item.value, formEditData.apply_dns, formEditData.private_group_name) ? $t('common.edit') : $t('common.add') }}
-                </hw-button>
-              </div>
-            </hw-form-item>
-          </template>
           <hw-form-item :label="$t('page.sslorder.label_apply_email')" name="apply_email">
             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.apply_email"></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.sslorder.label_apply_domain')" name="apply_domain">
-            <hw-textarea v-model="formEditData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4"></hw-textarea>
+            <hw-textarea v-model="formEditData.apply_domain" :style="{ width: 'min(100%, 480px)' }" rows="4" placeholder="example.com, *.example.com（多个域名用逗号或换行分隔）"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
@@ -264,18 +187,33 @@
           :labelWidth="200">
           <hw-form-item :label="$t('page.private_info.private_group_name')" name="private_group_name">
             <hw-input v-model="privateFormData.private_group_name" :style="{ width: 'min(100%, 480px)' }"
-              :disabled="privateFormMode === 'edit'"></hw-input>
+              disabled></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.private_info.private_group_belong_cloud')" name="private_group_belong_cloud">
             <hw-input v-model="privateFormData.private_group_belong_cloud" :style="{ width: 'min(100%, 480px)' }"
-              :disabled="privateFormMode === 'edit'"></hw-input>
+              disabled></hw-input>
           </hw-form-item>
           <hw-form-item :label="$t('page.private_info.private_key')" name="private_key">
             <hw-input v-model="privateFormData.private_key" :style="{ width: 'min(100%, 480px)' }"
-              :disabled="privateFormMode === 'edit'"></hw-input>
+              disabled></hw-input>
           </hw-form-item>
-          <hw-form-item :label="$t('page.private_info.private_value')" name="private_value">
-            <hw-input v-model="privateFormData.private_value" :style="{ width: 'min(100%, 480px)' }"></hw-input>
+          <template v-if="privateFormData.private_key === 'HURRICANE_TOKENS'">
+            <p>填写验证域名及对应 TXT 记录的 DDNS Key。根域名和泛域名只需一行。</p>
+            <label v-if="privateFormMode === 'edit'" class="credential-replace"><input v-model="hurricaneReplace" type="checkbox" /> 更新 DDNS 密钥（需重新填写本分组全部域名）</label>
+            <div v-if="hurricaneReplace" class="hurricane-credentials">
+              <div v-for="(row, index) in hurricaneRows" :key="index" class="hurricane-credential">
+                <hw-form-item :label="`验证域名 ${index + 1}`"><hw-input v-model="row.domain" :aria-label="`验证域名 ${index + 1}`" placeholder="example.com" /></hw-form-item>
+                <hw-form-item :label="`DDNS Key ${index + 1}`"><hw-input v-model="row.token" :aria-label="`DDNS Key ${index + 1}`" type="password" autocomplete="new-password" placeholder="从 dns.he.net 复制的 Token" /></hw-form-item>
+                <hw-button v-if="hurricaneRows.length > 1" variant="text" @click="hurricaneRows.splice(index, 1)">移除此域名</hw-button>
+              </div>
+              <hw-button variant="outline" @click="hurricaneRows.push({ domain: '', token: '' })">添加验证域名</hw-button>
+            </div>
+            <p v-else>密钥已保存；保持此选项关闭会保留原值。</p>
+          </template>
+          <hw-form-item v-else :label="$t('page.private_info.private_value')" name="private_value">
+            <hw-textarea v-if="privateMultiline" v-model="privateFormData.private_value" :placeholder="privateFormMode === 'edit' ? '留空保留原值' : '粘贴完整 JSON、PEM 或多行配置'" rows="5" />
+            <hw-input v-else v-model="privateFormData.private_value" type="password" autocomplete="new-password" :placeholder="privateFormMode === 'edit' ? '留空保留原值' : '填写配置值'" />
+            <label class="credential-replace"><input v-model="privateMultiline" type="checkbox" /> 多行输入（JSON / PEM，内容可见）</label>
           </hw-form-item>
           <hw-form-item :label="$t('page.private_info.remarks')" name="remarks">
             <hw-input v-model="privateFormData.remarks" :style="{ width: 'min(100%, 480px)' }"></hw-input>
@@ -394,19 +332,21 @@ import Trend from '@/components/trend/index.vue';
 import {
   prefix
 } from '@/config/global';
+import DnsProviderConfig from './DnsProviderConfig.vue';
+import { serializeHurricaneCredentials } from './hurricane';
 import {
   sslOrderDetailApi, sslOrderAddApi, sslOrderDelApi, sslOrderEditApi, sslOrderListApi
 } from '@/apis/sslorder';
 
 import {
-  wafPrivateInfoListApi, wafPrivateInfoDelApi, wafPrivateInfoEditApi, wafPrivateInfoAddApi, wafPrivateInfoDetailApi
+  wafPrivateInfoEditApi, wafPrivateInfoAddApi
 } from '@/apis/private_info.ts';
 import {
   allhost, alldomainbyhostcode, getHostDetail
 } from '@/apis/host';
 import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemconfig';
 import {
-  wafPrivateGroupListByBelongCloudApi, wafPrivateGroupAddApi
+  wafPrivateGroupAddApi
 } from '@/apis/private_group.ts';
 import {
    wafCaServerInfoListApi, wafCaServerInfoDelApi, wafCaServerInfoEditApi, wafCaServerInfoAddApi, wafCaServerInfoDetailApi
@@ -415,7 +355,7 @@ import {
 const INITIAL_DATA = {
   host_code: "",
   apply_platform: "letsencrypt",
-  apply_method: "http01",
+  apply_method: "dns01",
   skip_dns_verify: 0,
   apply_dns: "",
   apply_email: "",
@@ -430,6 +370,7 @@ export default defineComponent({
   components: {
     SearchIcon,
     Trend,
+    DnsProviderConfig,
   },
   props: {
     //原主机码
@@ -472,8 +413,10 @@ export default defineComponent({
       },
       dataLoading: false,
       data: [], // 列表数据信息
-      private_data: [],// 私有信息
-      privateGroupList: [], // 密钥分组列表
+      dnsRevision: 0,
+      hurricaneReplace: false,
+      hurricaneRows: [{ domain: '', token: '' }],
+      privateMultiline: false,
       // 私钥信息表单
       privateFormVisible: false,
       privateFormMode: 'add', // 'add' 或 'edit'
@@ -490,11 +433,7 @@ export default defineComponent({
           message: this.$t('common.placeholder') + this.$t('page.private_info.private_key'),
           type: 'error'
         }],
-        private_value: [{
-          required: true,
-          message: this.$t('common.placeholder') + this.$t('page.private_info.private_value'),
-          type: 'error'
-        }]
+
       },
       //分组
       privateGroupFormVisible: false,
@@ -656,92 +595,14 @@ export default defineComponent({
       //申请方式
       sslorder_apply_method_type: [
         {
-          label: this.$t('page.sslorder.sslorder_apply_method_type.http01'),
+          label: 'HTTP 文件验证（需要公网 80 端口）',
           value: 'http01'
         },
         {
-          label: this.$t('page.sslorder.sslorder_apply_method_type.dns01'),
+          label: 'DNS 验证（家庭网络推荐，无需入站端口）',
           value: 'dns01'
         },
       ],
-      sslorder_apply_dns_type: [
-        {
-          label: this.$t('page.sslorder.sslorder_apply_dns_type.aliyun'),
-          value: 'alidns'
-        },
-        {
-          label: this.$t('page.sslorder.sslorder_apply_dns_type.huaweicloud'),
-          value: 'huaweicloud'
-        },
-        {
-          label: this.$t('page.sslorder.sslorder_apply_dns_type.tencentcloud'),
-          value: 'tencentcloud'
-        },
-        {
-          label: this.$t('page.sslorder.sslorder_apply_dns_type.cloudflare'),
-          value: 'cloudflare'
-        },
-        {
-          label: this.$t('page.sslorder.sslorder_apply_dns_type.baiducloud'),
-          value:'baiducloud'
-        }
-
-      ],
-      dns_env: {
-        alidns: [
-          {
-            value: 'ALICLOUD_ACCESS_KEY',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.alidns.access_key'),
-          },
-          {
-            value: 'ALICLOUD_SECRET_KEY',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.alidns.secret_key'),
-          },
-          {
-            value: 'ALICLOUD_SECURITY_TOKEN',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.alidns.security_token'),
-          }
-        ],
-        huaweicloud: [
-          {
-            value: 'HUAWEICLOUD_ACCESS_KEY_ID',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.huaweicloud.access_key'),
-          },
-          {
-            value: 'HUAWEICLOUD_SECRET_ACCESS_KEY',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.huaweicloud.secret_key'),
-          },
-          {
-            value: 'HUAWEICLOUD_REGION',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.huaweicloud.region'),
-          }
-        ],
-        tencentcloud: [
-          {
-            value: 'TENCENTCLOUD_SECRET_ID',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.tencentcloud.secret_id'),
-          }, {
-            value: 'TENCENTCLOUD_SECRET_KEY',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.tencentcloud.secret_key'),
-          }
-        ],
-        cloudflare: [
-          {
-            value: 'CF_DNS_API_TOKEN',
-            label: this.$t('page.sslorder.sslorder_apply_dns_config.cloudflare.dns_api_token'),
-          }
-        ],
-        baiducloud:[
-          {
-            value:'BAIDUCLOUD_ACCESS_KEY_ID',
-            label:this.$t('page.sslorder.sslorder_apply_dns_config.baiducloud.access_key')
-          },
-          {
-            value:'BAIDUCLOUD_SECRET_ACCESS_KEY',
-            label:this.$t('page.sslorder.sslorder_apply_dns_config.baiducloud.secret_key')
-          }
-        ]
-      },
       // CA服务器维护相关
       caServerMaintenanceVisible: false,
       caServerFormVisible: false,
@@ -832,7 +693,6 @@ export default defineComponent({
     reloadInitData(){
         this.loadHostList().then(() => {
               this.getList("");
-              this.getPrivateList("")
               // 加载CA服务器信息
               this.loadCaServerList();
         });
@@ -1037,7 +897,9 @@ export default defineComponent({
               that.$message.success(res.msg || that.$t('common.tips.save_success'));
               that.privateGroupFormVisible = false;
               // 刷新分组列表
-              that.getPrivateGroupList(that.privateGroupFormData.private_group_belong_cloud);
+              const active = that.editFormVisible ? that.formEditData : that.formData;
+              active.private_group_name = that.privateGroupFormData.private_group_name;
+              that.dnsRevision++;
             } else {
               that.$message.warning(res.msg || that.$t('common.tips.save_failed'));
             }
@@ -1050,48 +912,6 @@ export default defineComponent({
         console.log('Errors: ', result);
         that.$message.warning(firstError);
       }
-    },
-    // 处理DNS服务商变更
-    handleDnsChange(value) {
-      if (value) {
-        // 获取对应云服务商的密钥分组列表
-        this.getPrivateGroupList(value);
-        // 同时刷新私钥列表
-        this.getPrivateList("");
-      } else {
-        this.privateGroupList = [];
-        // 清空表单中的分组选择
-        if (this.formData.apply_dns === '') {
-          this.formData.private_group_name = '';
-        }
-        if (this.formEditData.apply_dns === '') {
-          this.formEditData.private_group_name = '';
-        }
-      }
-    },
-
-    // 获取密钥分组列表
-    getPrivateGroupList(cloudType) {
-      wafPrivateGroupListByBelongCloudApi({
-        private_group_belong_cloud: cloudType,
-        pageSize: 100,
-        pageIndex: 1
-      }).then(res => {
-        if (res.code === 0) {
-          this.privateGroupList = res.data.list || [];
-          console.log("getPrivateGroupList", this.privateGroupList);
-          if (this.privateGroupList.length > 0) {
-            // 如果分组列表不为空，默认选择第一个分组
-            this.formData.private_group_name = this.privateGroupList[0].private_group_name;
-            this.formEditData.private_group_name = this.privateGroupList[0].private_group_name;
-          }
-        } else {
-          this.$message.warning(res.msg || this.$t('common.tips.get_failed'));
-        }
-      }).catch(err => {
-        console.error('获取密钥分组列表失败:', err);
-        this.$message.error(this.$t('common.tips.get_failed'));
-      });
     },
     // 处理证书文件验证方式设置
     handleSslHttpCheck() {
@@ -1130,51 +950,52 @@ export default defineComponent({
         });
       }
     },
-    // 处理私钥信息
-    handlePrivateInfo(keyName, cloudType, groupName,action) {
-      console.log(`处理云 ${cloudType}  分组 ${groupName} 私钥信息: ${keyName}, 操作类型: ${action}`);
-
-      if (action === 'edit') {
-        // 编辑现有私钥
-        const privateInfo = this.private_data.find(item => item.private_key === keyName&&
-        item.private_group_belong_cloud === cloudType &&
-        item.private_group_name === groupName);
-        if (privateInfo) {
-          this.privateFormMode = 'edit';
-          this.privateFormData = { ...privateInfo };
-          this.privateFormVisible = true;
-        } else {
-          this.$message.warning(this.$t('common.data_not_found'));
-        }
-      } else {
-        // 添加新私钥
-        this.privateFormMode = 'add';
-        this.privateFormData = {
-          private_group_belong_cloud:cloudType,
-          private_group_name: groupName,
-          private_key: keyName,
-          private_value: '',
-          remarks: ''
-        };
-        this.privateFormVisible = true;
-      }
+    // The status endpoint intentionally never returns credential values.
+    handlePrivateInfo(keyName, cloudType, groupName, action) {
+      this.privateFormMode = action;
+      this.privateFormData = {
+        private_group_belong_cloud: cloudType,
+        private_group_name: groupName,
+        private_key: keyName,
+        private_value: '',
+        remarks: '',
+      };
+      this.hurricaneRows = [{ domain: '', token: '' }];
+      this.hurricaneReplace = action === 'add';
+      this.privateMultiline = false;
+      this.privateFormVisible = true;
     },
 
     // 提交私钥信息表单
     onPrivateSubmit({ result, firstError }) {
       let that = this;
       if (!firstError) {
+        const payload = { ...this.privateFormData };
+        if (payload.private_key === 'HURRICANE_TOKENS') {
+          try {
+            payload.private_value = this.hurricaneReplace
+              ? serializeHurricaneCredentials(this.hurricaneRows)
+              : '****';
+          } catch (error) {
+            this.$message.warning(error.message);
+            return;
+          }
+        } else if (!payload.private_value) {
+          if (this.privateFormMode === 'edit') payload.private_value = '****';
+          else { this.$message.warning('请填写配置值'); return; }
+        }
+
         if (this.privateFormMode === 'add') {
           // 添加新私钥
-          wafPrivateInfoAddApi({ ...this.privateFormData })
+          wafPrivateInfoAddApi(payload)
             .then((res) => {
               if (res.code === 0) {
                 that.$message.success(res.msg);
                 that.privateFormVisible = false;
                 // 刷新私钥列表
-                that.getPrivateList("");
+                that.dnsRevision++;
               } else {
-                that.$message.warning(res.msg);
+                  that.$message.warning(res.msg);
               }
             })
             .catch((e) => {
@@ -1182,13 +1003,13 @@ export default defineComponent({
             });
         } else {
           // 编辑私钥
-          wafPrivateInfoEditApi({ ...this.privateFormData })
+          wafPrivateInfoEditApi(payload)
             .then((res) => {
               if (res.code === 0) {
                 that.$message.success(res.msg);
                 that.privateFormVisible = false;
                 // 刷新私钥列表
-                that.getPrivateList("");
+                that.dnsRevision++;
               } else {
                 that.$message.warning(res.msg);
               }
@@ -1201,35 +1022,6 @@ export default defineComponent({
         console.log('Errors: ', result);
         that.$message.warning(firstError);
       }
-    },
-    // 检查是否已配置特定的私有密钥
-    hasPrivateKey(keyName, cloudType, groupName) {
-      return this.private_data.some(item =>
-        item.private_key === keyName &&
-        item.private_group_belong_cloud === cloudType &&
-        item.private_group_name === groupName
-      );
-    },
-    getPrivateList(keyword) {
-      let that = this
-      wafPrivateInfoListApi({
-        pageSize: 100,
-        pageIndex: 1,
-      })
-        .then((res) => {
-          let resdata = res
-          console.log(resdata)
-          if (resdata.code === 0) {
-
-            that.private_data = resdata.data.list ?? [];
-            console.log("private_data", this.private_data)
-          }
-        })
-        .catch((e: Error) => {
-          console.log(e);
-        })
-        .finally(() => {
-        });
     },
     // 检测所选主机是否具备80端口（主端口 或 绑定更多端口，逗号分隔），与后端 check80Port 保持一致
     evalHost80(hostCode) {
@@ -1426,9 +1218,6 @@ export default defineComponent({
         ...row,
         skip_dns_verify: row.skip_dns_verify ?? 0
       };
-      if (row.apply_method === 'dns01' && row.apply_dns) {
-        this.getPrivateGroupList(row.apply_dns);
-      }
       // 文件验证方式：检测该主机是否具备80端口
       this.editHost80Ok = true;
       if (row.apply_method === 'http01' && row.host_code) {
@@ -1505,6 +1294,9 @@ export default defineComponent({
   width: 200px;
 }
 
+.credential-replace { display: flex; align-items: center; gap: 8px; margin-block: 12px; line-height: 1.5; }
+.hurricane-credential { padding-block: 12px; border-bottom: 1px solid var(--el-border-color-lighter); margin-bottom: 12px; }
+
 .highlight-link {
   color: #e34d59;
   /* 红色 */
@@ -1514,5 +1306,15 @@ export default defineComponent({
 
 .highlight-link:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .ssl-order-page :deep(.hb-row) { flex-wrap: wrap; align-items: flex-start; }
+  .ssl-order-page :deep(.hb-txt) { flex-basis: calc(100% - 30px); min-width: 0; }
+  .ssl-order-page :deep(.hb-actions) { margin-left: 24px; }
+  .left-operation-container { display: flex; flex-wrap: wrap; gap: 8px; }
+  .left-operation-container :deep(.el-button) { margin-left: 0 !important; }
+  .right-operation-container { width: 100%; margin-top: 12px; }
+  .search-input { width: 100%; }
 }
 </style>

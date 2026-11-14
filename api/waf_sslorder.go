@@ -10,6 +10,7 @@ import (
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
 	"HomeWaf/model/spec"
+	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
 	"encoding/json"
 	"errors"
@@ -47,6 +48,11 @@ func (w *WafSslOrderApi) AddApi(c *gin.Context) {
 		if req.ApplyMethod != "dns01" {
 			req.SkipDNSVerify = 0
 		}
+		req.ApplyDomain, err = waf_service.ValidateSSLOrderChallenge(req.ApplyMethod, req.ApplyDns, req.PrivateGroupName, req.ApplyDomain, req.SkipDNSVerify)
+		if err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
+		}
 		hostBean := wafHostService.GetDetailByCodeApi(req.HostCode)
 		if hostBean.Id == "" {
 			response.FailWithMessage("查找主机未找到", c)
@@ -64,12 +70,8 @@ func (w *WafSslOrderApi) AddApi(c *gin.Context) {
 			response.FailWithMessage("未指定域名情况不能使用http文件验证方式", c)
 			return
 		}
-		//检测是否是IP地址，IP地址只能使用http01验证方式
-		isIpAddress := utils.IsIP(hostBean.Host)
-		if isIpAddress && req.ApplyMethod != "http01" {
-			response.FailWithMessage("IP证书只支持HTTP文件验证方式(http01)，不支持DNS验证方式", c)
-			return
-		}
+		// ValidateSSLOrderChallenge checks requested identifiers. A NAS host may
+		// use a private IP internally while obtaining a domain certificate via DNS.
 		if req.ApplyPlatform == "zerossl" {
 
 			if global.CurrentSettings().GCONFIG_ZEROSSL_EAB_KID == "" || global.CurrentSettings().GCONFIG_ZEROSSL_EAB_HMAC_KEY == "" {
@@ -195,6 +197,11 @@ func (w *WafSslOrderApi) ModifyApi(c *gin.Context) {
 		if req.ApplyMethod != "dns01" {
 			req.SkipDNSVerify = 0
 		}
+		req.ApplyDomain, err = waf_service.ValidateSSLOrderChallenge(req.ApplyMethod, req.ApplyDns, req.PrivateGroupName, req.ApplyDomain, req.SkipDNSVerify)
+		if err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
+		}
 		existingOrder := wafSslOrderService.GetDetailById(req.Id)
 		if existingOrder.Id == "" {
 			response.FailWithMessage("SSL订单不存在", c)
@@ -207,13 +214,15 @@ func (w *WafSslOrderApi) ModifyApi(c *gin.Context) {
 		}
 		// 续期与申请走同一套挑战：http01 同样要求 80 端口是 HTTP 明文，
 		// 否则每次续期都会在 ACME 侧失败（还会消耗服务商的失败频率配额）
-		if existingOrder.ApplyMethod == "http01" {
-			hostBean := wafHostService.GetDetailByCodeApi(existingOrder.HostCode)
-			if hostBean.Id != "" {
-				if ok, proto := w.check80Port(hostBean); !ok {
-					response.FailWithMessage(http01PortHint(proto), c)
-					return
-				}
+		hostBean := wafHostService.GetDetailByCodeApi(req.HostCode)
+		if hostBean.Id == "" {
+			response.FailWithMessage("查找主机未找到", c)
+			return
+		}
+		if req.ApplyMethod == "http01" {
+			if ok, proto := w.check80Port(hostBean); !ok {
+				response.FailWithMessage(http01PortHint(proto), c)
+				return
 			}
 		}
 		if len(existingOrder.ResultPrivateKey) == 0 || len(existingOrder.ResultCertificate) == 0 {

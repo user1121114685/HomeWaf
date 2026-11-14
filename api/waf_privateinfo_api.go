@@ -3,14 +3,11 @@
 package api
 
 import (
-	"HomeWaf/common/zlog"
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
 	"errors"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"os"
 )
 
 type WafPrivateInfoApi struct {
@@ -37,7 +34,7 @@ func (w *WafPrivateInfoApi) AddApi(c *gin.Context) {
 			if err == nil {
 				response.OkWithMessage("添加成功", c)
 			} else {
-				response.FailWithMessage("添加失败", c)
+				response.FailWithMessage("添加失败："+err.Error(), c)
 			}
 			return
 		} else {
@@ -123,18 +120,13 @@ func (w *WafPrivateInfoApi) DelApi(c *gin.Context) {
 	var req request.WafPrivateInfoDelReq
 	err := c.ShouldBind(&req)
 	if err == nil {
-		info := wafPrivateInfoService.GetDetailByIdApi(req.Id)
-		key := info.PrivateKey
 		err = wafPrivateInfoService.DelApi(req)
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 			response.FailWithMessage("请检测参数", c)
 		} else if err != nil {
 			response.FailWithMessage("发生错误", c)
 		} else {
-			err := os.Unsetenv(key)
-			if err == nil {
-				zlog.Info(fmt.Sprintf("ENV `%s` REMOVED", key))
-			}
+			// Running orders own a scoped snapshot; deletion affects subsequent orders only.
 			response.OkWithMessage("删除成功", c)
 		}
 	} else {

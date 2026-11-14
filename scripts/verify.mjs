@@ -55,3 +55,5 @@ run(["test", "./wafnet", "./supervisor", "-count=1"]);
 run(["test", "./waftask", "-run", "^TestEveryCleanupTableHasSeededPolicy$", "-count=1"]);
 run(["test", "./middleware", "-run", "^TestOpenApiLocalOnlySchemaPreservesKeys$", "-count=1"]);
 run(["test", "./wafenginecore", "./cmd/homewaf", "-run", "Test(ProxyReadiness|WorkerReadiness|Graceful)", "-count=1"]);
+run(["run", "./scripts/generate-dns-providers", "-check"]);
+run(["test", "./internal/dnsproviders", "./utils/ssl", "./service/waf_service", "./api", "-run", "^Test(DNS|Hurricane)", "-count=1"]);

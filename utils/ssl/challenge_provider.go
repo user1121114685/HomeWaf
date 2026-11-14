@@ -4,6 +4,7 @@ package ssl
 
 import (
 	"HomeWaf/common/zlog"
+	"HomeWaf/internal/dnsproviders"
 	"HomeWaf/wafacme"
 	"fmt"
 	"os"
@@ -68,6 +69,7 @@ func (p *loggingWebrootProvider) Present(domain, token, keyAuth string) error {
 	path := p.challengeFilePath(token)
 
 	if err := p.inner.Present(domain, token, keyAuth); err != nil {
+		err = fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
 		zlog.Error(fmt.Sprintf("%s文件校验-挑战文件写入失败 域名=%s 路径=%s 错误=%v", acmeLogPrefix, domain, path, err))
 		return err
 	}
@@ -100,6 +102,7 @@ func (p *loggingWebrootProvider) CleanUp(domain, token, keyAuth string) error {
 	wafacme.CleanUp(p.hostCode, token)
 
 	if err := p.inner.CleanUp(domain, token, keyAuth); err != nil {
+		err = fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
 		// 删不掉只是留下一个残留文件，不该影响签发结果，所以只告警不升级成错误。
 		// 但要留痕：残留文件会让下一次同名 token 的排查产生误判。
 		zlog.Warn(fmt.Sprintf("%s文件校验-挑战文件清理失败 域名=%s 路径=%s 错误=%v", acmeLogPrefix, domain, path, err))
@@ -129,6 +132,7 @@ func (p *loggingDNSProvider) Present(domain, token, keyAuth string) error {
 	info := dns01.GetChallengeInfo(domain, keyAuth)
 
 	if err := p.inner.Present(domain, token, keyAuth); err != nil {
+		err = fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
 		zlog.Error(fmt.Sprintf("%sDNS校验-记录写入失败 域名=%s 渠道=%s 记录=TXT %s 记录值=%s 错误=%v",
 			acmeLogPrefix, domain, p.dnsName, info.FQDN, info.Value, err))
 		return err
@@ -147,6 +151,7 @@ func (p *loggingDNSProvider) CleanUp(domain, token, keyAuth string) error {
 	info := dns01.GetChallengeInfo(domain, keyAuth)
 
 	if err := p.inner.CleanUp(domain, token, keyAuth); err != nil {
+		err = fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
 		// 同 HTTP-01：删不掉只是留下一条残留 TXT，不该影响签发，但必须留痕，
 		// 否则下次申请时控制台里堆着多条 _acme-challenge 记录，排查会被带偏。
 		zlog.Warn(fmt.Sprintf("%sDNS校验-记录清理失败 域名=%s 渠道=%s 记录=TXT %s 错误=%v",
@@ -172,9 +177,34 @@ func (p *loggingDNSProviderTimeout) Timeout() (time.Duration, time.Duration) {
 	return p.timeout.Timeout()
 }
 
+type sequentialDNSProvider interface{ Sequential() time.Duration }
+type loggingDNSProviderSequential struct {
+	challenge.Provider
+	sequential sequentialDNSProvider
+}
+
+func (p *loggingDNSProviderSequential) Sequential() time.Duration { return p.sequential.Sequential() }
+
+type loggingDNSProviderSequentialTimeout struct {
+	*loggingDNSProviderSequential
+	timeout challenge.ProviderTimeout
+}
+
+func (p *loggingDNSProviderSequentialTimeout) Timeout() (time.Duration, time.Duration) {
+	return p.timeout.Timeout()
+}
+
 // newLoggingDNSProvider 按内层 provider 的能力返回对应的包装类型。
 func newLoggingDNSProvider(inner challenge.Provider, dnsName string) challenge.Provider {
 	base := &loggingDNSProvider{inner: inner, dnsName: dnsName}
+	// HE/DDNS providers overwrite one TXT record. Preserve sequential apex/wildcard validation.
+	if s, ok := inner.(sequentialDNSProvider); ok {
+		wrapped := &loggingDNSProviderSequential{Provider: base, sequential: s}
+		if t, ok := inner.(challenge.ProviderTimeout); ok {
+			return &loggingDNSProviderSequentialTimeout{wrapped, t}
+		}
+		return wrapped
+	}
 	if t, ok := inner.(challenge.ProviderTimeout); ok {
 		timeout, interval := t.Timeout()
 		zlog.Info(fmt.Sprintf("%sDNS校验-使用渠道 %s 自带的传播等待参数 超时=%v 间隔=%v", acmeLogPrefix, dnsName, timeout, interval))

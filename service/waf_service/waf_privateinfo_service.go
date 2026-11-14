@@ -6,6 +6,7 @@ import (
 	"HomeWaf/common/uuid"
 	"HomeWaf/customtype"
 	"HomeWaf/global"
+	"HomeWaf/internal/dnsproviders"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
@@ -18,6 +19,9 @@ type WafPrivateInfoService struct{}
 var WafPrivateInfoServiceApp = new(WafPrivateInfoService)
 
 func (receiver *WafPrivateInfoService) AddApi(req request.WafPrivateInfoAddReq) error {
+	if err := validatePrivateDNSField(req.PrivateGroupBelongCloud, req.PrivateGroupName, req.PrivateKey, req.PrivateValue); err != nil {
+		return err
+	}
 	var bean = &model.PrivateInfo{
 		BaseOrm: baseorm.BaseOrm{
 			Id:          uuid.GenUUID(),
@@ -144,12 +148,20 @@ func (receiver *WafPrivateInfoService) ModifyWithOutValueApi(req request.WafPriv
 		"PrivateGroupBelongCloud": req.PrivateGroupBelongCloud,
 		"UPDATE_TIME":             customtype.JsonTime(time.Now()),
 	}
-	err := global.GWAF_LOCAL_DB.Model(model.PrivateInfo{}).Where("private_key = ?", req.PrivateKey).Updates(beanMap).Error
-
-	return err
+	result := global.GWAF_LOCAL_DB.Model(model.PrivateInfo{}).Where("private_key = ? AND private_group_name = ? AND private_group_belong_cloud = ?", req.PrivateKey, req.PrivateGroupName, req.PrivateGroupBelongCloud).Updates(beanMap)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("配置项已不存在，请刷新后重新添加")
+	}
+	return nil
 }
 
 func (receiver *WafPrivateInfoService) ModifyApi(req request.WafPrivateInfoEditReq) error {
+	if err := validatePrivateDNSField(req.PrivateGroupBelongCloud, req.PrivateGroupName, req.PrivateKey, req.PrivateValue); err != nil {
+		return err
+	}
 	// 根据唯一字段生成查询条件（只有在UniFields不为空时才进行存在性检查）
 
 	var total int64 = 0
@@ -213,9 +225,14 @@ func (receiver *WafPrivateInfoService) ModifyApi(req request.WafPrivateInfoEditR
 
 		"UPDATE_TIME": customtype.JsonTime(time.Now()),
 	}
-	err := global.GWAF_LOCAL_DB.Model(model.PrivateInfo{}).Where("private_key = ?", req.PrivateKey).Updates(beanMap).Error
-
-	return err
+	result := global.GWAF_LOCAL_DB.Model(model.PrivateInfo{}).Where("private_key = ? AND private_group_name = ? AND private_group_belong_cloud = ?", req.PrivateKey, req.PrivateGroupName, req.PrivateGroupBelongCloud).Updates(beanMap)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("配置项已不存在，请刷新后重新添加")
+	}
+	return nil
 }
 func (receiver *WafPrivateInfoService) GetDetailApi(req request.WafPrivateInfoDetailReq) model.PrivateInfo {
 	var bean model.PrivateInfo
@@ -262,4 +279,14 @@ func (receiver *WafPrivateInfoService) GetListByGroupAndBelongCloudPureApi(group
 	global.GWAF_LOCAL_DB.Model(&model.PrivateInfo{}).Where("private_group_name = ? and private_group_belong_cloud=?", groupName, belongCloud).Count(&total)
 
 	return list, total, nil
+}
+
+func validatePrivateDNSField(provider, group, key, value string) error {
+	if _, known := dnsproviders.Lookup(provider); !known {
+		return nil
+	}
+	if group == "" {
+		return errors.New("请填写 DNS 密钥分组")
+	}
+	return dnsproviders.ValidateField(provider, key, value)
 }

@@ -4,6 +4,7 @@ package ssl
 
 import (
 	"HomeWaf/common/zlog"
+	"HomeWaf/internal/dnsproviders"
 	"fmt"
 	"strings"
 
@@ -21,15 +22,15 @@ import (
 type legoLogger struct{}
 
 func (legoLogger) Print(args ...any) {
-	zlog.Info(acmeLogPrefix + fmt.Sprint(args...))
+	zlog.Info(dnsproviders.Redact(acmeLogPrefix + fmt.Sprint(args...)))
 }
 
 func (legoLogger) Println(args ...any) {
-	zlog.Info(acmeLogPrefix + strings.TrimRight(fmt.Sprintln(args...), "\n"))
+	zlog.Info(dnsproviders.Redact(acmeLogPrefix + strings.TrimRight(fmt.Sprintln(args...), "\n")))
 }
 
 func (legoLogger) Printf(format string, args ...any) {
-	zlog.Info(acmeLogPrefix + fmt.Sprintf(format, args...))
+	zlog.Info(dnsproviders.Redact(acmeLogPrefix + fmt.Sprintf(format, args...)))
 }
 
 // Fatal 系列一律降级成 Error。
@@ -39,15 +40,15 @@ func (legoLogger) Printf(format string, args ...any) {
 // 当前版本的 lego 运行时路径并不调用 Fatal（只有它自带的代码生成器在用），
 // 这里是防御性写法，避免将来升级 lego 时被动踩坑。
 func (legoLogger) Fatal(args ...any) {
-	zlog.Error(acmeLogPrefix + fmt.Sprint(args...))
+	zlog.Error(dnsproviders.Redact(acmeLogPrefix + fmt.Sprint(args...)))
 }
 
 func (legoLogger) Fatalln(args ...any) {
-	zlog.Error(acmeLogPrefix + strings.TrimRight(fmt.Sprintln(args...), "\n"))
+	zlog.Error(dnsproviders.Redact(acmeLogPrefix + strings.TrimRight(fmt.Sprintln(args...), "\n")))
 }
 
 func (legoLogger) Fatalf(format string, args ...any) {
-	zlog.Error(acmeLogPrefix + fmt.Sprintf(format, args...))
+	zlog.Error(dnsproviders.Redact(acmeLogPrefix + fmt.Sprintf(format, args...)))
 }
 
 // init 只做变量赋值、不写日志，所以不依赖 zlog 是否已经初始化；

@@ -5,6 +5,7 @@ package ssl
 import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/customtype"
+	"HomeWaf/internal/dnsproviders"
 	"HomeWaf/model"
 	"HomeWaf/utils"
 	"crypto"
@@ -25,11 +26,7 @@ import (
 	"github.com/go-acme/lego/v4/challenge"
 	"github.com/go-acme/lego/v4/challenge/dns01"
 	"github.com/go-acme/lego/v4/lego"
-	"github.com/go-acme/lego/v4/providers/dns/alidns"
-	"github.com/go-acme/lego/v4/providers/dns/baiducloud"
-	"github.com/go-acme/lego/v4/providers/dns/cloudflare"
-	"github.com/go-acme/lego/v4/providers/dns/huaweicloud"
-	"github.com/go-acme/lego/v4/providers/dns/tencentcloud"
+	"github.com/go-acme/lego/v4/providers/dns"
 	"github.com/go-acme/lego/v4/registration"
 )
 
@@ -50,6 +47,16 @@ func (u *MyUser) GetPrivateKey() crypto.PrivateKey {
 }
 
 func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress string, applyPlatform string, eab_kid string, eab_hmac_key string) (model.SslOrder, error) {
+	var dnsProvider challenge.Provider
+	if order.ApplyMethod == "dns01" {
+		var err error
+		dnsProvider, err = GetDnsProvider(order.ApplyDns)
+		if err != nil {
+			return order, err
+		}
+	} else if order.ApplyMethod != "http01" {
+		return order, fmt.Errorf("unsupported ACME challenge method: %s", order.ApplyMethod)
+	}
 	isIpSSL := utils.IsIP(order.ApplyDomain)
 	myUser := MyUser{
 		Email: order.ApplyEmail,
@@ -106,16 +113,13 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 			// 原来这里的 err 被后面的注册流程覆盖掉了，设置失败会静默变成
 			// 一次"莫名其妙的校验超时"。不改控制流，但至少要留下证据。
 			zlog.Error(fmt.Sprintf("设置HTTP-01 provider失败 域名=%s 错误=%v", order.ApplyDomain, err))
-		}
-	case "dns01":
-		dnsProvider, err := GetDnsProvider(order.ApplyDns)
-		if err != nil {
-			zlog.Error(fmt.Sprintf("%sDNS校验-初始化渠道失败 渠道=%s 错误=%v", acmeLogPrefix, order.ApplyDns, err))
 			return order, err
 		}
+	case "dns01":
 		err = setDNS01ProviderWithRetry(client, newLoggingDNSProvider(dnsProvider, order.ApplyDns), order.SkipDNSVerify)
 		if err != nil {
 			zlog.Error(fmt.Sprintf("%sDNS校验-设置provider失败 渠道=%s 错误=%v", acmeLogPrefix, order.ApplyDns, err))
+			return order, err
 		}
 	}
 
@@ -235,6 +239,16 @@ func RegistrationSSL(order model.SslOrder, savePath string, caServerAddress stri
 }
 
 func ReNewSSL(order model.SslOrder, savePath string, caServerAddress string, applyPlatform string, eab_kid string, eab_hmac_key string) (model.SslOrder, error) {
+	var dnsProvider challenge.Provider
+	if order.ApplyMethod == "dns01" {
+		var err error
+		dnsProvider, err = GetDnsProvider(order.ApplyDns)
+		if err != nil {
+			return order, err
+		}
+	} else if order.ApplyMethod != "http01" {
+		return order, fmt.Errorf("unsupported ACME challenge method: %s", order.ApplyMethod)
+	}
 	// 判断是否是IP证书
 	isIpSSL := utils.IsIP(order.ApplyDomain)
 
@@ -292,17 +306,14 @@ func ReNewSSL(order model.SslOrder, savePath string, caServerAddress string, app
 		}
 		if err = client.Challenge.SetHTTP01Provider(provider); err != nil {
 			zlog.Error(fmt.Sprintf("续期设置HTTP-01 provider失败 域名=%s 错误=%v", order.ApplyDomain, err))
+			return order, err
 		}
 	} else if order.ApplyMethod == "dns01" {
 		// 与申请走同一套包装：续期是无人值守的那一次，日志比申请时更要紧
-		dnsProvider, err := GetDnsProvider(order.ApplyDns)
-		if err != nil {
-			zlog.Error(fmt.Sprintf("%s续期-DNS校验-初始化渠道失败 渠道=%s 错误=%v", acmeLogPrefix, order.ApplyDns, err))
-			return order, err
-		}
 		err = setDNS01ProviderWithRetry(client, newLoggingDNSProvider(dnsProvider, order.ApplyDns), order.SkipDNSVerify)
 		if err != nil {
 			zlog.Error(fmt.Sprintf("%s续期-DNS校验-设置provider失败 渠道=%s 错误=%v", acmeLogPrefix, order.ApplyDns, err))
+			return order, err
 		}
 	}
 	// New users will need to register
@@ -463,21 +474,14 @@ func pemToPrivateKey(pemStr string) (*ecdsa.PrivateKey, error) {
 }
 
 func GetDnsProvider(dnsName string) (challenge.Provider, error) {
-
-	switch dnsName {
-	case "alidns":
-		return alidns.NewDNSProvider()
-	case "huaweicloud":
-		return huaweicloud.NewDNSProvider()
-	case "tencentcloud":
-		return tencentcloud.NewDNSProvider()
-	case "cloudflare":
-		return cloudflare.NewDNSProvider()
-	case "baiducloud":
-		return baiducloud.NewDNSProvider()
-	default:
-		return nil, fmt.Errorf("unrecognized DNS provider: %s", dnsName)
+	if err := dnsproviders.ValidateProvider(dnsName); err != nil {
+		return nil, err
 	}
+	provider, err := dns.NewDNSChallengeProviderByName(dnsName)
+	if err != nil {
+		return nil, fmt.Errorf("%s", dnsproviders.Redact(err.Error()))
+	}
+	return provider, nil
 }
 
 func setDNS01ProviderWithRetry(client *lego.Client, dnsProvider challenge.Provider, skipDNSVerify int64) error {
