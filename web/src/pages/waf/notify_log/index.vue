@@ -48,9 +48,7 @@
           :pagination="pagination" :loading="dataLoading" @page-change="rehandlePageChange" @change="rehandleChange"
           :headerAffixedTop="true" :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
           <template #channel_type="{ row }">
-            <hw-tag v-if="row.channel_type === 'dingtalk'" theme="primary">{{ $t('page.notify_channel.type_dingtalk') }}</hw-tag>
-            <hw-tag v-else-if="row.channel_type === 'feishu'" theme="success">{{ $t('page.notify_channel.type_feishu') }}</hw-tag>
-            <hw-tag v-else theme="default">{{ row.channel_type }}</hw-tag>
+            <hw-tag theme="primary">{{ channelNames[row.channel_type] || row.channel_type }}</hw-tag>
           </template>
           <template #message_type="{ row }">
             <hw-tag theme="primary">{{ getMessageTypeName(row.message_type) }}</hw-tag>
@@ -83,9 +81,7 @@
             <span>{{ detailData.channel_name }}</span>
           </hw-form-item>
           <hw-form-item :label="$t('page.notify_log.label_channel_type')">
-            <hw-tag v-if="detailData.channel_type === 'dingtalk'" theme="primary">{{ $t('page.notify_channel.type_dingtalk') }}</hw-tag>
-            <hw-tag v-else-if="detailData.channel_type === 'feishu'" theme="success">{{ $t('page.notify_channel.type_feishu') }}</hw-tag>
-            <hw-tag v-else theme="default">{{ detailData.channel_type }}</hw-tag>
+            <hw-tag theme="primary">{{ channelNames[detailData.channel_type] || detailData.channel_type }}</hw-tag>
           </hw-form-item>
           <hw-form-item :label="$t('page.notify_log.label_message_type')">
             <hw-tag theme="primary">{{ getMessageTypeName(detailData.message_type) }}</hw-tag>
@@ -140,11 +136,13 @@ import {defineComponent} from 'vue';
 
 import { MessagePlugin } from '@/ui';
 import { getNotifyLogList, deleteNotifyLog } from '@/apis/notify_log';
+import { getNotifyChannelTypes } from '@/apis/notify_channel';
 
 export default defineComponent({
   name: 'NotifyLog',
   data() {
     return {
+      channelNames: {} as Record<string, string>,
       data: [],
       dataLoading: false,
       columns: [
@@ -188,8 +186,12 @@ export default defineComponent({
       offsetTop: 0,
     };
   },
-  mounted() {
+  async mounted() {
     this.getList();
+    try {
+      const res = await getNotifyChannelTypes();
+      if (res.code === 0 && Array.isArray(res.data)) this.channelNames = Object.fromEntries(res.data.map((item: any) => [item.type, item.name]));
+    } catch { /* Keep raw type names available when the catalogue is unavailable. */ }
   },
   methods: {
     getContainer() {

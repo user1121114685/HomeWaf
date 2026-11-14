@@ -22,6 +22,7 @@ type NotifyChannel struct {
 	Remarks     string `gorm:"size:500" json:"remarks"`                                 // 备注
 
 	//瞬态字段(不落库)：列表/详情接口不回显 Secret/AccessToken 原文，用下面两个布尔告知前端“是否已配置”。
-	HasSecret      bool `gorm:"-" json:"has_secret"`
-	HasAccessToken bool `gorm:"-" json:"has_access_token"`
+	HasConfigSecrets map[string]bool `gorm:"-" json:"has_config_secrets,omitempty"`
+	HasSecret        bool            `gorm:"-" json:"has_secret"`
+	HasAccessToken   bool            `gorm:"-" json:"has_access_token"`
 }

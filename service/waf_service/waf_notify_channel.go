@@ -11,13 +11,10 @@ import (
 	"HomeWaf/model/request"
 	"HomeWaf/utils"
 	"HomeWaf/wafdb/dialect"
-	"HomeWaf/wafnotify/dingtalk"
-	"HomeWaf/wafnotify/email"
-	"HomeWaf/wafnotify/feishu"
-	"HomeWaf/wafnotify/serverchan"
+	"HomeWaf/wafnotify/channels"
 	"HomeWaf/wafnotify/webhook"
-	"HomeWaf/wafnotify/wechatwork"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -36,6 +33,7 @@ func MaskNotifyChannelSecret(bean *model.NotifyChannel) {
 	bean.HasAccessToken = strings.TrimSpace(bean.AccessToken) != ""
 	bean.Secret = ""
 	bean.AccessToken = ""
+	bean.ConfigJSON, bean.HasConfigSecrets = channels.MaskConfig(bean.Type, bean.ConfigJSON)
 }
 
 // AddApi 添加通知渠道
@@ -149,58 +147,14 @@ func (receiver *WafNotifyChannelService) TestChannelApi(req request.WafNotifyCha
 		return errors.New("通知渠道不存在")
 	}
 
-	title := "SamWAF 测试通知"
+	title := "HomeWaf 测试通知"
 	if global.GWAF_NOTICE_TITLE != "" {
 		title = "[" + global.GWAF_NOTICE_TITLE + "] " + title
 	}
 	content := "这是一条测试消息，发送时间：" + time.Now().Format("2006-01-02 15:04:05")
 
-	// N5
-	if channel.Type == "dingtalk" || channel.Type == "feishu" || channel.Type == "wechatwork" {
-		if ok, reason := utils.IsAllowedOutboundURL(channel.WebhookURL); !ok {
-			return errors.New("WebhookURL 目标不被允许：" + reason)
-		}
-	}
-
-	switch channel.Type {
-	case "dingtalk":
-		notifier := dingtalk.NewDingTalkNotifier(channel.WebhookURL, channel.Secret)
-		return notifier.SendMarkdown(title, content)
-	case "feishu":
-		notifier := feishu.NewFeishuNotifier(channel.WebhookURL, channel.Secret)
-		return notifier.SendMarkdown(title, content)
-	case "wechatwork":
-		notifier := wechatwork.NewWechatWorkNotifier(channel.WebhookURL)
-		return notifier.SendMarkdown(title, content)
-	case "email":
-		notifier, err := email.NewEmailNotifier(channel.ConfigJSON)
-		if err != nil {
-			return err
-		}
-		return notifier.SendMarkdown(title, content)
-	case "serverchan":
-		notifier, err := serverchan.NewServerChanNotifier(channel.AccessToken)
-		if err != nil {
-			return err
-		}
-		return notifier.SendMarkdown(title, content)
-	case "webhook":
-		notifier, err := webhook.NewWebhookNotifier(channel.ConfigJSON)
-		if err != nil {
-			return err
-		}
-		return notifier.Send(webhook.Message{
-			Title:           title,
-			Content:         content,
-			Time:            time.Now().Format("2006-01-02 15:04:05"),
-			MessageType:     model.MSG_TYPE_OPERATION_NOTICE,
-			MessageTypeName: GetMessageTypeName(model.MSG_TYPE_OPERATION_NOTICE),
-			Severity:        GetMessageTypeSeverity(model.MSG_TYPE_OPERATION_NOTICE),
-			ServerName:      global.GWAF_CUSTOM_SERVER_NAME,
-		})
-	default:
-		return errors.New("不支持的通知类型")
-	}
+	_, err = WafNotifySenderServiceApp.deliverToChannel(channel, model.NotifySubscription{}, model.MSG_TYPE_OPERATION_NOTICE, title, content)
+	return err
 }
 
 // ValidateChannelConfig 渠道配置校验（新增/编辑保存前调用）
@@ -212,7 +166,11 @@ func ValidateChannelConfig(channelType, configJSON string) error {
 		_, err := webhook.ParseConfig(configJSON)
 		return err
 	}
-	return nil
+	if channelType == "email" {
+		return nil
+	}
+	_, err := channels.Parse(channelType, configJSON)
+	return err
 }
 
 // GetAllChannels 获取所有启用的通知渠道
@@ -220,4 +178,21 @@ func (receiver *WafNotifyChannelService) GetAllChannels() []model.NotifyChannel 
 	var channels []model.NotifyChannel
 	global.GWAF_LOCAL_DB.Where(dialect.Q("status")+" = ?", 1).Find(&channels)
 	return channels
+}
+
+// ValidateNotifyChannel validates the complete configuration after masked secrets
+// have been merged. Saved legacy configurations remain compatible.
+func ValidateNotifyChannel(kind, configJSON, webhookURL, accessToken string) error {
+	if err := ValidateChannelConfig(kind, configJSON); err != nil {
+		return err
+	}
+	if kind == "dingtalk" || kind == "feishu" || kind == "wechatwork" {
+		if ok, _ := utils.PrecheckOutboundURL(webhookURL); !ok {
+			return fmt.Errorf("请填写允许的机器人 Webhook 地址")
+		}
+	}
+	if kind == "serverchan" && strings.TrimSpace(accessToken) == "" {
+		return fmt.Errorf("Server酱 SendKey 不能为空")
+	}
+	return nil
 }

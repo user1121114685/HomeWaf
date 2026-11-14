@@ -6,6 +6,7 @@ import (
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
 	"HomeWaf/service/waf_service"
+	"HomeWaf/wafnotify/channels"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -40,16 +41,21 @@ func (w *WafNotifyChannelApi) AddApi(c *gin.Context) {
 	var req request.WafNotifyChannelAddReq
 	err := c.ShouldBindJSON(&req)
 	if err == nil {
-		if cfgErr := waf_service.ValidateChannelConfig(req.Type, req.ConfigJSON); cfgErr != nil {
-			response.FailWithMessage(cfgErr.Error(), c)
-			return
-		}
 		// 新建没有"原值"可保留，哨兵值在这里等同于留空；防止它被当成密钥本身存进去。
 		if req.Secret == waf_service.ConfigClearSentinel {
 			req.Secret = ""
 		}
 		if req.AccessToken == waf_service.ConfigClearSentinel {
 			req.AccessToken = ""
+		}
+		req.ConfigJSON, err = channels.MergeSecrets(req.Type, req.ConfigJSON, "", waf_service.ConfigClearSentinel)
+		if err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
+		}
+		if err = waf_service.ValidateNotifyChannel(req.Type, req.ConfigJSON, req.WebhookURL, req.AccessToken); err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
 		}
 		err = wafNotifyChannelService.CheckIsExistApi(req)
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
@@ -161,14 +167,27 @@ func (w *WafNotifyChannelApi) ModifyApi(c *gin.Context) {
 	var req request.WafNotifyChannelEditReq
 	err := c.ShouldBindJSON(&req)
 	if err == nil {
-		if cfgErr := waf_service.ValidateChannelConfig(req.Type, req.ConfigJSON); cfgErr != nil {
-			response.FailWithMessage(cfgErr.Error(), c)
-			return
-		}
 		// Secret/AccessToken：留空=保持原值(不回显导致的空提交不该冲掉)，清空需提交哨兵值。
 		existing := wafNotifyChannelService.GetDetailApi(request.WafNotifyChannelDetailReq{Id: req.Id})
-		req.Secret = resolveMaskedSecret(req.Secret, existing.Secret)
-		req.AccessToken = resolveMaskedSecret(req.AccessToken, existing.AccessToken)
+		if existing.Id == "" {
+			response.FailWithMessage("通知渠道不存在", c)
+			return
+		}
+		oldConfig, oldSecret, oldToken := "", "", ""
+		if existing.Type == req.Type {
+			oldConfig, oldSecret, oldToken = existing.ConfigJSON, existing.Secret, existing.AccessToken
+		}
+		req.Secret = resolveMaskedSecret(req.Secret, oldSecret)
+		req.AccessToken = resolveMaskedSecret(req.AccessToken, oldToken)
+		req.ConfigJSON, err = channels.MergeSecrets(req.Type, req.ConfigJSON, oldConfig, waf_service.ConfigClearSentinel)
+		if err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
+		}
+		if err = waf_service.ValidateNotifyChannel(req.Type, req.ConfigJSON, req.WebhookURL, req.AccessToken); err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
+		}
 		err = wafNotifyChannelService.ModifyApi(req)
 		if err != nil {
 			response.FailWithMessage("编辑发生错误", c)
@@ -194,4 +213,9 @@ func (w *WafNotifyChannelApi) TestApi(c *gin.Context) {
 	} else {
 		response.FailWithMessage("解析失败", c)
 	}
+}
+
+// GetTypesApi returns the authoritative provider catalogue and form fields.
+func (w *WafNotifyChannelApi) GetTypesApi(c *gin.Context) {
+	response.OkWithDetailed(channels.Catalogue(), "获取成功", c)
 }
