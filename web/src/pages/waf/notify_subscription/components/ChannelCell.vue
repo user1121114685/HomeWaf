@@ -5,9 +5,14 @@
     <div v-for="channel in channels" :key="channel.id" class="channel-item-inline">
       <!-- 还没订阅：显示添加按钮 -->
       <div v-if="!channel.subscription" class="add-btn-inline">
-        <hw-button size="small" variant="dashed" :disabled="channel.status === 0" @click="$emit('add', { messageType: messageType, channel: channel })">
+        <hw-button
+          size="small"
+          variant="dashed"
+          :disabled="channel.status === 0"
+          @click="$emit('add', { messageType: messageType, channel: channel })"
+        >
           <hw-icon name="add" size="14px" />
-          {{ channel.name }}
+          订阅到 {{ channel.name }}
         </hw-button>
       </div>
 
@@ -15,34 +20,52 @@
       <div v-else class="subscription-inline">
         <hw-switch
           :value="channel.subscription.status === 1"
+          :aria-label="channel.name + '接收' + messageType"
           :disabled="channel.status === 0"
           size="small"
           @change="(val) => $emit('toggle', { messageType: messageType, channel: channel, value: val })"
         />
         <div class="channel-info-inline">
-          <span class="channel-name">{{ channel.name }}</span>
+          <span class="channel-name">{{ channel.name }}<span v-if="channel.status === 0">（渠道已停用）</span></span>
           <span v-if="channelType === 'email' && channel.subscription.recipients" class="channel-detail">
             {{ channel.subscription.recipients }}
           </span>
-          <button type="button" v-if="channelType === 'email'" class="edit-link-inline" @click="$emit('edit-recipients', { messageType: messageType, channel: channel })">
+          <button
+            type="button"
+            v-if="channelType === 'email'"
+            class="edit-link-inline"
+            @click="$emit('edit-recipients', { messageType: messageType, channel: channel })"
+          >
             {{ $t('common.edit') }}
           </button>
           <!-- 配置摘要：只显示改过的项，一眼看出哪个格子被单独配过 -->
-          <span class="config-summary" :title="summaryTitle(channel.subscription)">{{ summary(channel.subscription) }}</span>
+          <span class="config-summary" :title="summaryTitle(channel.subscription)">{{
+            summary(channel.subscription)
+          }}</span>
         </div>
         <hw-tooltip :content="$t('page.notify_subscription.config_title')">
-          <hw-icon name="setting" size="16px" class="config-icon-inline" @click="$emit('config', { messageType: messageType, channel: channel })" />
+          <hw-button
+            variant="text"
+            size="small"
+            :aria-label="'设置' + channel.name + '订阅'"
+            @click="$emit('config', { messageType: messageType, channel: channel })"
+            >设置</hw-button
+          >
         </hw-tooltip>
-        <hw-icon name="close-circle-filled" size="16px" class="delete-icon-inline" @click="$emit('remove', { messageType: messageType, channelId: channel.id })" />
+        <hw-button
+          variant="text"
+          size="small"
+          :aria-label="'移除' + channel.name + '订阅'"
+          @click="$emit('remove', { messageType: messageType, channelId: channel.id })"
+          >移除</hw-button
+        >
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import {defineComponent} from 'vue';
-
-
+import { defineComponent } from 'vue';
 
 export default defineComponent({
   name: 'NotifySubscriptionChannelCell',
@@ -118,6 +141,7 @@ export default defineComponent({
 
     .subscription-inline {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 8px;
       width: 100%;

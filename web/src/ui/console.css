@@ -445,6 +445,97 @@ button.ipl-link {
   line-height: 1.7;
   padding: 12px;
 }
+.el-input:not(.el-input--small):not(.el-input--large) {
+  --el-input-height: 40px;
+}
+.el-select:not(.el-select--small):not(.el-select--large) .el-select__wrapper,
+.el-date-editor.el-input__wrapper:not(.el-range-editor--small) {
+  min-height: 40px;
+  box-sizing: border-box;
+}
+.hw-column-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.hw-column-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--hw-r-sm);
+  background: transparent;
+  color: var(--hw-muted);
+  cursor: pointer;
+}
+.hw-column-filter.is-active {
+  color: var(--hw-accent);
+  background: var(--hw-accent-soft);
+}
+.hw-column-filter:focus-visible {
+  outline: 2px solid var(--hw-accent);
+  outline-offset: 2px;
+}
+.hw-column-filter-panel {
+  display: grid;
+  gap: 12px;
+}
+.hw-column-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.hw-column-filter-actions .el-button {
+  margin: 0;
+}
+@media (max-width: 760px) {
+  .hw-column-filter {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .hw-date-range-popup .el-date-range-picker {
+    width: min(100%, 360px);
+    max-width: calc(100vw - 24px);
+  }
+  .hw-date-range-popup .el-picker-panel__body-wrapper {
+    max-height: 75dvh;
+    overflow-y: auto;
+  }
+  .hw-date-range-popup .el-picker-panel__body {
+    min-width: 0;
+    margin-left: 0;
+  }
+  .hw-date-range-popup .el-date-range-picker__content {
+    width: 100%;
+    float: none;
+    border: 0;
+  }
+  .hw-date-range-popup .el-picker-panel__sidebar {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    border: 0;
+    gap: 4px;
+    padding: 8px;
+  }
+  .hw-date-range-popup .el-picker-panel__shortcut {
+    width: auto;
+    min-height: 40px;
+  }
+  .hw-date-range-popup .el-date-range-picker__time-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .hw-date-range-popup .el-date-range-picker__editors-wrap {
+    float: none;
+    width: 100%;
+  }
+}
 .el-form-item {
   margin-bottom: 24px;
 }
@@ -477,7 +568,8 @@ button.ipl-link {
   margin-left: 0 !important;
 }
 .hw-form.el-form--inline .el-form-item__content {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .hw-form.el-form--inline .el-form-item__label {
   font-size: 13px;

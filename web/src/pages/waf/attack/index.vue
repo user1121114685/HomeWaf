@@ -1,376 +1,368 @@
 <!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
 
 <template>
-  <div>
-    <help-block :summary="$t('page.visit_log.visit_log')" doc="guide/VisitLog">
-      <template #actions><ip-lookup ref="ipLookup" /></template>
-    </help-block>
-
-    <!-- 日志配置区域 -->
-    <hw-card class="log-config-card" style="margin-bottom: 16px;">
-      <div @click="toggleLogConfig" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-        <div style="display: flex; align-items: center;">
-          <hw-icon :name="logConfigVisible ? 'chevron-down' : 'chevron-right'" style="margin-right: 8px;" />
-          <span style="font-weight: 500; font-size: 14px;">日志配置</span>
+  <div class="visit-log-page" data-testid="visit-log-page">
+    <hw-card class="list-card-container visit-log-card">
+      <hw-form
+        ref="form"
+        :data="searchformData"
+        class="visit-filter-form"
+        @submit="getList('all')"
+        @reset="resetSearch"
+      >
+        <div class="visit-filter-grid">
+          <hw-form-item :label="text('服务', 'Service')" name="host_code">
+            <hw-select
+              v-model="searchformData.host_code"
+              clearable
+              filterable
+              :loading="hostLoading"
+              :placeholder="text('全部服务', 'All services')"
+              data-testid="log-service-filter"
+            >
+              <hw-option v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="item.label" />
+            </hw-select>
+          </hw-form-item>
+          <hw-form-item :label="text('时间范围', 'Time range')">
+            <hw-select v-model="timePreset" :disabled="isUuidLookup" @change="changeTimePreset">
+              <hw-option value="today" :label="text('今天', 'Today')" />
+              <hw-option value="24h" :label="text('最近 24 小时', 'Last 24 hours')" />
+              <hw-option value="7d" :label="text('最近 7 天', 'Last 7 days')" />
+              <hw-option value="custom" :label="text('自定义时间', 'Custom range')" />
+            </hw-select>
+          </hw-form-item>
+          <hw-form-item :label="text('访问情况', 'Result')" name="request_outcome">
+            <hw-select
+              v-model="searchformData.request_outcome"
+              :disabled="isUuidLookup"
+              :placeholder="text('全部访问', 'All requests')"
+            >
+              <hw-option value="" :label="text('全部访问', 'All requests')" />
+              <hw-option value="normal" :label="text('正常', 'Normal')" />
+              <hw-option value="abnormal" :label="text('异常', 'Abnormal')" />
+            </hw-select>
+          </hw-form-item>
+          <hw-form-item :label="text('来源 IP', 'Source IP')" name="src_ip">
+            <hw-input v-model="searchformData.src_ip" clearable :placeholder="text('输入 IP 地址', 'IP address')" />
+          </hw-form-item>
+          <hw-form-item :label="text('访问路径', 'Request path')" name="url_keyword">
+            <hw-input
+              v-model="searchformData.url_keyword"
+              clearable
+              :maxlength="2048"
+              :placeholder="text('例如 /photos', 'For example /photos')"
+            />
+          </hw-form-item>
         </div>
-        <hw-button theme="primary" size="small" @click.stop="saveLogConfig" :loading="logConfigSaving">
-          保存配置
-        </hw-button>
-      </div>
-
-      <div v-show="logConfigVisible" style="margin-top: 16px;">
-        <hw-form :data="logConfig" :label-width="200" layout="inline">
-          <hw-row :gutter="16">
-            <hw-col :span="6">
-              <hw-form-item label="是否记录响应报文" name="record_resp">
-                <hw-select v-model="logConfig.record_resp" style="width: 100%;">
-                  <hw-option value="1" label="是" />
-                  <hw-option value="0" label="否" />
-                </hw-select>
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="记录原始请求BODY报文" name="record_all_src_byte_info">
-                <hw-select v-model="logConfig.record_all_src_byte_info" style="width: 100%;">
-                  <hw-option value="1" label="启动" />
-                  <hw-option value="0" label="关闭" />
-                </hw-select>
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="日志记录类型" name="record_log_type">
-                <hw-select v-model="logConfig.record_log_type" style="width: 100%;">
-                  <hw-option value="all" label="全部" />
-                  <hw-option value="abnormal" label="非正常" />
-                </hw-select>
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="记录请求最大报文(字节)" name="record_max_req_body_length">
-                <hw-input-number v-model="logConfig.record_max_req_body_length" style="width: 100%;" :min="0" />
-              </hw-form-item>
-            </hw-col>
-          </hw-row>
-
-          <hw-row :gutter="16">
-            <hw-col :span="6">
-              <hw-form-item label="记录响应最大报文(字节)" name="record_max_res_body_length">
-                <hw-input-number v-model="logConfig.record_max_res_body_length" style="width: 100%;" :min="0" />
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="删除历史日志(天)" name="delete_history_log_day">
-                <hw-input-number v-model="logConfig.delete_history_log_day" style="width: 100%;" :min="1" />
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="日志归档最大记录数" name="log_db_size">
-                <hw-input-number v-model="logConfig.log_db_size" style="width: 100%;" :min="0" />
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="日志归档最大文件(MB)" name="db_file_size">
-                <hw-input-number v-model="logConfig.db_file_size" style="width: 100%;" :min="0" />
-              </hw-form-item>
-            </hw-col>
-          </hw-row>
-
-          <hw-row :gutter="16">
-            <hw-col :span="6">
-              <hw-form-item label="是否开启日志持久化" name="log_persist_enable">
-                <hw-select v-model="logConfig.log_persist_enable" style="width: 100%;">
-                  <hw-option value="1" label="开启" />
-                  <hw-option value="0" label="关闭" />
-                </hw-select>
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="数据库批量插入数量" name="batch_insert">
-                <hw-input-number v-model="logConfig.batch_insert" style="width: 100%;" :min="1" />
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="IP Tag 存放位置" name="ip_tag_db">
-                <hw-select v-model="logConfig.ip_tag_db" style="width: 100%;">
-                  <hw-option value="0" label="主库" />
-                  <hw-option value="1" label="读取 stat库" />
-                </hw-select>
-              </hw-form-item>
-            </hw-col>
-          </hw-row>
-
-          <hw-row :gutter="16">
-            <hw-col :span="6">
-              <hw-form-item label="访问日志档位" name="access_log_mode">
-                <hw-select v-model="logConfig.access_log_mode" style="width: 100%;">
-                  <hw-option value="db" label="全部入库" />
-                  <hw-option value="sample" label="采样入库" />
-                  <hw-option value="off" label="仅安全事件" />
-                </hw-select>
-                <div v-if="logConfig.access_log_mode !== 'db'" class="log-config-hint">
-                  「仅安全事件」会失去 CC 阈值推荐、AI 训练负样本与异常 IP 的正常行为回溯
-                </div>
-              </hw-form-item>
-            </hw-col>
-
-            <hw-col :span="6">
-              <hw-form-item label="访问日志保留天数" name="access_log_retention_days">
-                <hw-input-number v-model="logConfig.access_log_retention_days" style="width: 100%;" :min="1" />
-              </hw-form-item>
-            </hw-col>
-
-          </hw-row>
-
-          <hw-row :gutter="16">
-            <hw-col :span="12">
-              <hw-form-item label="全局排除记录日志的IP" name="exclude_ip_log">
-                <hw-textarea v-model="logConfig.exclude_ip_log" :placeholder="'单IP/CIDR/通配符/区间，或 group:组短码 引用IP组；逗号或换行分隔，#开头为注释。只静音正常请求，安全事件照常记录；站点级清单在网站编辑里'"
-                            :autosize="{ minRows: 2, maxRows: 6 }" style="width: 100%;" />
-              </hw-form-item>
-            </hw-col>
-          </hw-row>
-        </hw-form>
-      </div>
-    </hw-card>
-
-    <hw-card class="list-card-container">
-      <hw-row justify="space-between">
-        <hw-form ref="form" :data="searchformData" :label-width="150" colon layout="inline"
-          :style="{ marginBottom: '8px' }">
-          <hw-form-item :label="$t('page.visit_log.website')" name="website">
-            <hw-select v-model="searchformData.host_code" clearable filterable :style="{ width: '150px' }">
-              <hw-option v-for="(item, index) in host_dic" :value="index" :label="item" :key="index">
-                {{ item }}
-              </hw-option>
+        <div v-if="timePreset === 'custom'" class="visit-custom-range">
+          <hw-form-item :label="text('起止时间', 'Start and end time')">
+            <hw-date-range-picker
+              v-model="dateControl.range1"
+              :presets="dateControl.presets"
+              :enable-time-picker="true"
+              :disabled="isUuidLookup"
+              value-type="YYYY-MM-DD HH:mm:ss"
+            />
+          </hw-form-item>
+        </div>
+        <div v-show="advancedVisible" id="visit-advanced-filters" class="visit-filter-grid visit-advanced">
+          <hw-form-item :label="text('命中规则', 'Matched rule')" name="rule"
+            ><hw-input v-model="searchformData.rule" clearable
+          /></hw-form-item>
+          <hw-form-item :label="text('请求编号', 'Request ID')" name="req_uuid"
+            ><hw-input v-model="searchformData.req_uuid" clearable :maxlength="64"
+          /></hw-form-item>
+          <hw-form-item :label="text('防护处置', 'Protection action')" name="action"
+            ><hw-select v-model="searchformData.action" :options="action_options"
+          /></hw-form-item>
+          <hw-form-item :label="text('HTTP 响应码', 'HTTP status')" name="status_code"
+            ><hw-input v-model="searchformData.status_code" clearable placeholder="200 / 403 / 500"
+          /></hw-form-item>
+          <hw-form-item :label="text('请求方法', 'Method')" name="method"
+            ><hw-select v-model="searchformData.method" :options="method_options"
+          /></hw-form-item>
+          <hw-form-item :label="text('日志范围', 'Log source')" name="view_type">
+            <hw-select v-model="searchformData.view_type" @change="onViewTypeChange">
+              <hw-option value="access" :label="text('全部访问记录', 'All access records')" />
+              <hw-option value="event" :label="text('仅安全事件', 'Security events only')" />
             </hw-select>
           </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.url_keyword')" name="url_keyword">
-            <hw-input v-model="searchformData.url_keyword" class="form-item-content" type="search"
-              :maxlength="2048" clearable :placeholder="$t('page.visit_log.url_keyword_placeholder')"
-              :style="{ minWidth: '240px' }" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.rule_name')" name="rule">
-            <hw-input v-model="searchformData.rule" class="form-item-content" type="search"
-              :placeholder="$t('common.placeholder') + $t('page.visit_log.rule_name')" :style="{ minWidth: '134px' }" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.req_uuid')" name="req_uuid">
-            <hw-input v-model="searchformData.req_uuid" class="form-item-content" type="search"
-              :placeholder="$t('common.placeholder') + $t('page.visit_log.req_uuid')" :style="{ minWidth: '200px' }" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.access_status')" name="action">
-            <hw-select v-model="searchformData.action" class="form-item-content`" :options="action_options"
-              :placeholder="$t('common.select_placeholder') + $t('page.visit_log.access_status')"
-              :style="{ width: '100px' }" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.status_code')" name="status_code">
-            <hw-input v-model="searchformData.status_code" class="form-item-content"
-              :placeholder="$t('common.placeholder') + $t('page.visit_log.status_code')"
-              :style="{ minWidth: '100px' }" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.source_ip')" name="src_ip">
-            <hw-input v-model="searchformData.src_ip" class="form-item-content"
-              :placeholder="$t('common.placeholder') + $t('page.visit_log.source_ip')" :style="{ minWidth: '100px' }" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.access_date')" name="unix_add_time" v-if="attack_ip == ''">
-            <hw-tooltip :content="$t('page.visit_log.date_disabled_tip')" :disabled="!isUuidLookup">
-              <hw-date-range-picker v-model="dateControl.range1" :presets="dateControl.presets" enable-time-picker
-                :disabled="isUuidLookup" valueType="YYYY-MM-DD HH:mm:ss" />
-            </hw-tooltip>
-          </hw-form-item>
-          <!-- 内嵌在风险日志 IP 明细里时没有日期控件，给一个时间范围快选，默认近 30 天 -->
-          <hw-form-item :label="$t('page.visit_log.access_date')" name="quick_range" v-else>
-            <hw-select v-model="quickRange" :disabled="isUuidLookup" :style="{ width: '130px' }"
-                      @change="applyQuickRange">
-              <hw-option value="1" :label="$t('page.visit_log.date_range_today')" />
-              <hw-option value="7" :label="$t('page.visit_log.date_range_last_7_days')" />
-              <hw-option value="30" :label="$t('page.visit_log.range_last_30_days')" />
-              <hw-option value="0" :label="$t('page.visit_log.range_all')" />
+          <hw-form-item :label="text('归档分区', 'Archive')" name="current_db_name">
+            <hw-select v-model="searchformData.current_db_name" :disabled="isUuidLookup">
+              <hw-option value="auto" :label="$t('page.visit_log.shard_auto')" />
+              <hw-option-group v-for="g in shardGroups" :key="g.label" :label="g.label"
+                ><hw-option
+                  v-for="it in g.options"
+                  :key="it.value"
+                  :value="it.value"
+                  :label="it.label"
+                  :disabled="it.disabled"
+              /></hw-option-group>
             </hw-select>
           </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.access_method')" name="method">
-            <hw-select v-model="searchformData.method" class="form-item-content`" :options="method_options"
-              :placeholder="$t('common.placeholder') + $t('page.visit_log.access_method')"
-              :style="{ width: '100px' }" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.visit_log.log_archive_db')" name="sharedb">
-            <hw-tooltip :content="$t('page.visit_log.shard_disabled_tip')" :disabled="!isUuidLookup">
-              <hw-select v-model="searchformData.current_db_name" :disabled="isUuidLookup"
-                        :style="{ width: '190px' }">
-                <hw-option value="auto" :label="$t('page.visit_log.shard_auto')">
-                  <span :title="$t('page.visit_log.shard_auto_tip')">{{ $t('page.visit_log.shard_auto') }}</span>
-                </hw-option>
-                <hw-option-group v-for="g in shardGroups" :key="g.label" :label="g.label">
-                  <hw-option v-for="it in g.options" :key="it.value" :value="it.value" :label="it.label"
-                            :disabled="it.disabled">
-                    <span :title="it.value">{{ it.label }}</span>
-                  </hw-option>
-                </hw-option-group>
-              </hw-select>
-            </hw-tooltip>
-          </hw-form-item>
-          <hw-form-item>
-            <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getList('all')"> {{ $t('common.search') }}
-            </hw-button>
-            <hw-button v-if="attack_ip === '' && $route.name === 'WafvisitLog'" theme="primary" style="margin-left:8px" @click="$refs.logExport.open()">{{ $t('logExport.title') }}</hw-button>
-
-            <hw-button type="reset" variant="base" theme="default"> {{ $t('common.reset') }} </hw-button>
-            <hw-button theme="primary" variant="outline" :style="{ marginLeft: '8px' }" @click="handleIPExtractIssue">
-              {{ $t('page.visit_log.detail.ip_extract_issue') }}
-            </hw-button>
-          </hw-form-item>
-        </hw-form>
-      </hw-row>
-
+          <div class="visit-support">
+            <ip-lookup ref="ipLookup" />
+            <hw-button variant="text" @click="handleIPExtractIssue">{{
+              text('排查来源 IP', 'Diagnose source IP')
+            }}</hw-button>
+          </div>
+        </div>
+        <div class="visit-search-actions">
+          <hw-button theme="primary" type="submit" :loading="dataLoading">{{ $t('common.search') }}</hw-button>
+          <hw-button type="button" variant="outline" @click="resetSearch">{{ $t('common.reset') }}</hw-button>
+          <hw-button
+            variant="text"
+            :aria-expanded="advancedVisible"
+            aria-controls="visit-advanced-filters"
+            @click="advancedVisible = !advancedVisible"
+          >
+            {{ advancedVisible ? text('收起高级筛选', 'Hide advanced filters') : text('高级筛选', 'Advanced filters')
+            }}<span v-if="advancedFilterCount"> ({{ advancedFilterCount }})</span>
+          </hw-button>
+        </div>
+      </hw-form>
+      <hw-alert v-if="hostError" theme="warning" :message="hostError" class="visit-notice"
+        ><hw-button variant="text" @click="loadHostList">{{
+          text('重新读取服务', 'Reload services')
+        }}</hw-button></hw-alert
+      >
+      <div class="visit-results-heading">
+        <div>
+          <h2>
+            {{ text('访问记录', 'Access records') }} <span class="visit-result-count">{{ pagination.total }}</span>
+          </h2>
+          <p>
+            {{
+              text(
+                '异常包含被拦截、命中防护规则或响应失败的访问。',
+                'Abnormal requests include blocks, security matches and failed responses.',
+              )
+            }}
+          </p>
+        </div>
+        <div class="visit-result-actions">
+          <hw-button
+            v-if="attack_ip === '' && $route.name === 'WafvisitLog'"
+            variant="outline"
+            @click="$refs.logExport.open()"
+            >{{ $t('logExport.title') }}</hw-button
+          >
+          <hw-button variant="outline" @click="toggleColumnController">{{ text('显示列', 'Columns') }}</hw-button>
+          <hw-button v-if="attack_ip === ''" variant="text" @click="logConfigVisible = true">{{
+            text('日志设置', 'Log settings')
+          }}</hw-button>
+        </div>
+      </div>
       <div class="table-container">
-        <hw-alert v-if="isUuidLookup" theme="info" style="margin-bottom:12px"
-                 :message="$t('page.visit_log.uuid_filters_tip')" />
-        <!-- 查不到老数据时，最先该看的就是保留期：直接摆在列表上方，点一下就能去改 -->
-        <div style="margin-bottom:8px;color:rgba(0,0,0,.6);font-size:12px">
-          {{ $t('page.visit_log.retention_line', {
-            d: logConfig.delete_history_log_day || '-',
-            a: logConfig.access_log_retention_days || '-'
-          }) }}
-          <button type="button" class="t-button-link" @click="openRetentionSetting">{{ $t('page.visit_log.retention_setting') }}</button>
-        </div>
-
+        <hw-alert v-if="queryError" theme="error" :message="queryError" class="visit-notice"
+          ><hw-button variant="text" @click="getList('')">{{ text('重试', 'Retry') }}</hw-button></hw-alert
+        >
+        <hw-alert
+          v-if="isUuidLookup"
+          theme="info"
+          style="margin-bottom: 12px"
+          :message="$t('page.visit_log.uuid_filters_tip')"
+        />
         <!-- 查询超出后端预算：给出「能怎么办」，而不是让人对着不完整的数字猜 -->
-        <hw-alert v-if="queryMeta.partial" theme="warning" style="margin-bottom:12px">
+        <hw-alert v-if="queryMeta.partial" theme="warning" style="margin-bottom: 12px">
           <template #message>
             {{ $t('page.visit_log.query_partial', { ms: queryMeta.took_ms }) }}
-            <button type="button" class="t-button-link" style="margin-left:8px" @click="narrowRange">{{ $t('page.visit_log.query_partial_narrow') }}</button>
+            <button type="button" class="t-button-link" style="margin-left: 8px" @click="narrowRange">
+              {{ $t('page.visit_log.query_partial_narrow') }}
+            </button>
           </template>
         </hw-alert>
 
         <!-- 分区登记还在、存储却不在了（或文件里一行都没有）：说清楚是哪个，给出处理入口；
              缺失分区一多整屏都是告警，超过 5 条默认折叠成一行概括，要看再展开 -->
-        <hw-alert v-if="queryMeta.issues && queryMeta.issues.length > 0" theme="warning" style="margin-bottom:12px">
+        <hw-alert v-if="queryMeta.issues && queryMeta.issues.length > 0" theme="warning" style="margin-bottom: 12px">
           <template #message>
             <template v-if="queryMeta.issues.length > 5 && !issExpanded">
               {{ $t('page.visit_log.shard_issue_collapsed', { n: queryMeta.issues.length }) }}
-              <button type="button" class="t-button-link" @click="issExpanded = true">{{ $t('page.visit_log.shard_issue_expand') }}</button>
+              <button type="button" class="t-button-link" @click="issExpanded = true">
+                {{ $t('page.visit_log.shard_issue_expand') }}
+              </button>
             </template>
             <template v-else>
               <div>{{ $t('page.visit_log.shard_issue_title') }}</div>
-              <div v-for="iss in queryMeta.issues" :key="iss.name" :title="iss.name" style="margin-top:2px">
-                {{ shardTitle(iss.name) }}：{{ iss.kind === 'missing'
-                  ? $t('page.visit_log.shard_issue_missing', { n: iss.registered })
-                  : $t('page.visit_log.shard_issue_empty', { n: iss.registered }) }}
+              <div v-for="iss in queryMeta.issues" :key="iss.name" :title="iss.name" style="margin-top: 2px">
+                {{ shardTitle(iss.name) }}：{{
+                  iss.kind === 'missing'
+                    ? $t('page.visit_log.shard_issue_missing', { n: iss.registered })
+                    : $t('page.visit_log.shard_issue_empty', { n: iss.registered })
+                }}
               </div>
-              <button type="button" v-if="queryMeta.issues.length > 5" class="t-button-link" @click="issExpanded = false">
+              <button
+                type="button"
+                v-if="queryMeta.issues.length > 5"
+                class="t-button-link"
+                @click="issExpanded = false"
+              >
                 {{ $t('page.visit_log.shard_cover_fold') }}
               </button>
             </template>
-            <button type="button" v-if="attack_ip == ''" class="t-button-link" @click="openShardManage">{{ $t('page.visit_log.shard_issue_manage') }}</button>
+            <button type="button" v-if="attack_ip == ''" class="t-button-link" @click="openShardManage">
+              {{ $t('page.visit_log.shard_issue_manage') }}
+            </button>
           </template>
         </hw-alert>
 
         <!-- 这次查了哪些分区：自动模式下用户没选分区，界面得说明数据从哪来 -->
-        <hw-alert v-if="queryMeta.uuid_lookup && queryMeta.found_in" theme="success" style="margin-bottom:12px"
-                 :message="$t('page.visit_log.uuid_found', { shard: shardTitle(queryMeta.found_in), n: queryMeta.scanned })" />
-        <hw-alert v-else-if="queryMeta.uuid_lookup" theme="warning" style="margin-bottom:12px">
+        <hw-alert
+          v-if="queryMeta.uuid_lookup && queryMeta.found_in"
+          theme="success"
+          style="margin-bottom: 12px"
+          :message="$t('page.visit_log.uuid_found', { shard: shardTitle(queryMeta.found_in), n: queryMeta.scanned })"
+        />
+        <hw-alert v-else-if="queryMeta.uuid_lookup" theme="warning" style="margin-bottom: 12px">
           <template #message>
             <div>{{ $t('page.visit_log.uuid_miss', { n: queryMeta.scanned }) }}</div>
-            <ul style="margin:6px 0 0 18px;padding:0">
+            <ul style="margin: 6px 0 0 18px; padding: 0">
               <li>{{ $t('page.visit_log.uuid_miss_r1') }}</li>
               <li>{{ $t('page.visit_log.uuid_miss_r2') }}</li>
               <li>{{ $t('page.visit_log.uuid_miss_r3') }}</li>
             </ul>
           </template>
         </hw-alert>
-        <hw-alert v-else-if="queryMeta.shards && queryMeta.shards.length > 1" theme="info" style="margin-bottom:12px">
+        <hw-alert v-else-if="queryMeta.shards && queryMeta.shards.length > 1" theme="info" style="margin-bottom: 12px">
           <template #message>
             <!-- 分区多的时候全列出来就是一大堆，默认只给一行概括，要看再展开 -->
             {{ $t('page.visit_log.shard_cover', { n: queryMeta.shards.length }) }}
-            <span style="color:rgba(0,0,0,.6)">{{ shardCoverSummary }}</span>
+            <span style="color: var(--hw-muted)">{{ shardCoverSummary }}</span>
             <button type="button" class="t-button-link" @click="covExpanded = !covExpanded">
               {{ covExpanded ? $t('page.visit_log.shard_cover_fold') : $t('page.visit_log.shard_cover_detail') }}
             </button>
-            <span v-if="queryMeta.sort_forced_time" style="color:rgba(0,0,0,.6)">
+            <span v-if="queryMeta.sort_forced_time" style="color: var(--hw-muted)">
               {{ $t('page.visit_log.sort_forced_time') }}
             </span>
-            <div v-show="covExpanded" style="margin-top:6px">
-              <span v-for="sh in queryMeta.shards" :key="sh.name" :title="sh.name"
-                    style="display:inline-block;margin:2px 6px 2px 0;padding:0 8px;background:#f3f3f3;border-radius:2px">
+            <div v-show="covExpanded" style="margin-top: 6px">
+              <span
+                v-for="sh in queryMeta.shards"
+                :key="sh.name"
+                :title="sh.name"
+                style="
+                  display: inline-block;
+                  margin: 2px 6px 2px 0;
+                  padding: 0 8px;
+                  background: var(--hw-subtle);
+                  border-radius: 2px;
+                "
+              >
                 {{ shardTitle(sh.name) }} · {{ sh.count }}
               </span>
             </div>
           </template>
         </hw-alert>
 
-        <!-- 自定义工具栏，将所有按钮放在一起 -->
-        <div class="table-toolbar"
-          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <div class="left-actions">
-            <!-- 视图切换：访问日志=全量窄行（事件双写在内），安全事件=命中子集。
-                 内嵌在风险日志详情里时，访问日志视图就是该 IP 的「全部行为」 -->
-            <hw-radio-group v-model="searchformData.view_type" variant="default-filled" size="small"
-              @change="onViewTypeChange">
-              <hw-radio-button value="access">{{ accessViewLabel }}</hw-radio-button>
-              <hw-radio-button value="event">{{ $t('page.visit_log.view_event') }}</hw-radio-button>
-            </hw-radio-group>
-          </div>
-          <div class="right-actions">
-            <hw-space>
-              <!-- 列配置按钮排在第一位 -->
-              <hw-button theme="default" variant="outline" size="small" @click="toggleColumnController">
-                <template #icon>
-                  <hw-icon name="setting" />
-                </template>
-                {{ $t('common.column_config') }}
-              </hw-button>
-              <!-- 重置列配置按钮 -->
-              <hw-button theme="default" variant="outline" size="small" @click="resetColumnConfig">
-                {{ $t('common.reset_column_config') }}
-              </hw-button>
-              <!-- 分区管理：看每个分区还剩哪些层，并可主动删除腾空间 -->
-              <hw-button v-if="attack_ip == ''" theme="default" variant="outline" size="small"
-                        @click="openShardManage">
-                {{ $t('page.visit_log.shard_manage') }}
-              </hw-button>
-            </hw-space>
-          </div>
-        </div>
-        <!-- 空态给线索：查不到日志最常见的原因就那么几条，别让人对着「暂无数据」猜 -->
-        <template v-if="data.length === 0 && !queryMeta.uuid_lookup">
-          <div class="empty-hint" style="padding:6px 0 10px;color:rgba(0,0,0,.6);font-size:12px">
-            {{ $t('page.visit_log.empty_hint') }}
-            <button type="button" class="t-button-link" @click="openIpLookupForHint">{{ $t('common.ip_lookup.title') }}</button>
-          </div>
-        </template>
-        <hw-table :columns="columns" :data="data" size="small" :rowKey="rowKey" :verticalAlign="verticalAlign"
-          v-model:displayColumns="displayColumns"
-          :pagination="pagination" :selected-row-keys="selectedRowKeys" :loading="dataLoading"
-          @page-change="rehandlePageChange" :sort="sorts" @change="rehandleChange" @select-change="rehandleSelectChange"
-          @sort-change="onSortChange" @filter-change="onFilterChange"
-          :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
-
-
-          <template #action="{ row }">
-            <hw-tag v-if="row.action === '放行'" shape="round" theme="success">{{ row.action }}</hw-tag>
-            <hw-tag v-if="row.action === '阻止'" shape="round" theme="danger">{{ row.action }}</hw-tag>
-            <hw-tag v-if="row.action === '禁止'" shape="round" theme="warning">{{ row.action }}</hw-tag>
-
+        <hw-table
+          ref="logTable"
+          :columns="responsiveColumns"
+          :data="data"
+          size="small"
+          :rowKey="rowKey"
+          :verticalAlign="verticalAlign"
+          :display-columns="compactView ? ['summary'] : displayColumns"
+          :show-header="!compactView"
+          :pagination="pagination"
+          :selected-row-keys="selectedRowKeys"
+          :loading="dataLoading"
+          @page-change="rehandlePageChange"
+          :sort="sorts"
+          @change="rehandleChange"
+          @select-change="rehandleSelectChange"
+          @sort-change="onSortChange"
+          @filter-change="onFilterChange"
+          :max-height="compactView ? '' : 640"
+        >
+          <template #summary="{ row }">
+            <dl class="visit-compact-record">
+              <template v-for="key in displayColumns.filter((key) => key !== 'op')" :key="key">
+                <dt>{{ columnLabel(key) }}</dt>
+                <dd v-if="key === 'outcome'">
+                  <hw-tag :theme="outcome(row).abnormal ? (outcome(row).blocked ? 'danger' : 'warning') : 'success'">{{
+                    outcome(row).abnormal ? text('异常', 'Abnormal') : text('正常', 'Normal')
+                  }}</hw-tag
+                  ><span v-if="outcome(row).abnormal" class="visit-compact-reason">{{ outcomeReason(row) }}</span>
+                </dd>
+                <dd v-else-if="key === 'src_ip'">
+                  <button type="button" class="ipl-link" @click="openIpLookup(row.src_ip)">{{ row.src_ip }}</button>
+                </dd>
+                <dd v-else-if="key === 'ai_mark_action'">
+                  <hw-button variant="text" @click="openAiMarkDialog(row)">{{ text('标记', 'Label') }}</hw-button>
+                </dd>
+                <dd v-else>{{ compactValue(row, key) }}</dd>
+              </template>
+            </dl>
+            <button type="button" class="t-button-link" @click="handleClickDetail({ row })">
+              {{ text('查看详情', 'View details') }}
+            </button>
           </template>
+
+          <template #empty>
+            <div class="table-empty-state">
+              <strong>{{
+                dataLoading
+                  ? text('正在查询…', 'Loading…')
+                  : queryError
+                    ? text('暂时无法读取日志', 'Logs unavailable')
+                    : text('没有符合条件的访问', 'No matching requests')
+              }}</strong>
+              <p v-if="!dataLoading && !queryError">
+                {{
+                  text(
+                    '调整时间或筛选条件；新服务收到访问后才会产生记录。',
+                    'Adjust the time range or filters. New services need traffic before logs appear.',
+                  )
+                }}
+              </p>
+            </div>
+          </template>
+          <template #outcome="{ row }">
+            <div class="visit-outcome">
+              <hw-tag :theme="outcome(row).abnormal ? (outcome(row).blocked ? 'danger' : 'warning') : 'success'">{{
+                outcome(row).abnormal ? text('异常', 'Abnormal') : text('正常', 'Normal')
+              }}</hw-tag>
+              <span v-if="outcome(row).abnormal">{{ outcomeReason(row) }}</span>
+            </div>
+          </template>
+          <template #service="{ row }"
+            ><span :title="row.host">{{
+              host_nickname_dic[row.host_code] ||
+              host_dic[row.host_code] ||
+              row.host ||
+              text('未归属服务', 'Unassigned')
+            }}</span></template
+          >
+          <template #url="{ row }"
+            ><div class="visit-request-path" :title="row.url">
+              <span>{{ row.method }}</span
+              ><span>{{ row.url || '/' }}</span>
+            </div></template
+          >
+          <template #status_code="{ row }"
+            ><span :class="{ 'visit-response-error': Number(row.status_code) >= 400 }">{{
+              row.status_code || '—'
+            }}</span></template
+          >
+          <template #risk_level="{ row }">{{ riskLabel(row.risk_level) }}</template>
           <template #rule="{ row }">
             <hw-tag v-if="row.rule !== ''" shape="round" theme="primary" variant="outline">{{ row.rule }}</hw-tag>
           </template>
           <template #log_only_mode="{ row }">
             <hw-tag :theme="row.log_only_mode == '1' ? 'danger' : 'success'" variant="light-outline">
-              {{ row.log_only_mode == '1' ? $t('page.visit_log.log_only_mode_on') : $t('page.visit_log.log_only_mode_off') }}
+              {{
+                row.log_only_mode == '1'
+                  ? $t('page.visit_log.log_only_mode_on')
+                  : $t('page.visit_log.log_only_mode_off')
+              }}
             </hw-tag>
           </template>
           <template #ai_score="{ row }">
-            <hw-tag v-if="row.ai_score > 0"
-              :theme="row.ai_score >= 0.9 ? 'danger' : (row.ai_score >= 0.6 ? 'warning' : 'primary')"
-              variant="light">
+            <hw-tag
+              v-if="row.ai_score > 0"
+              :theme="row.ai_score >= 0.9 ? 'danger' : row.ai_score >= 0.6 ? 'warning' : 'primary'"
+              variant="light"
+            >
               {{ Number(row.ai_score).toFixed(2) }}
             </hw-tag>
             <span v-else>-</span>
@@ -383,66 +375,255 @@
               <button type="button" class="ipl-link" @click="openIpLookup(row.src_ip)">{{ row.src_ip }}</button>
             </hw-tooltip>
           </template>
-          <template #op="slotProps">
-            <button type="button" class="t-button-link" @click="handleClickIPDetail(slotProps)" v-if="attack_ip == ''">{{
-              $t('common.search')
-              + $t('page.visit_log.source_ip') }}</button>
-            <button type="button" class="t-button-link" @click="handleClickDetail(slotProps)">{{ $t('common.details') }}</button>
-            <button type="button" class="t-button-link" style="margin-left: 8px" @click="openAiMarkDialog(slotProps.row)">
-              <hw-tag v-if="aiMarkMap[slotProps.row.req_uuid] && aiMarkMap[slotProps.row.req_uuid].mark"
-                :theme="aiMarkMap[slotProps.row.req_uuid].mark === 'attack' ? 'danger' : (aiMarkMap[slotProps.row.req_uuid].mark === 'normal' ? 'success' : 'default')"
-                variant="light" size="small">
-                {{ aiMarkText(aiMarkMap[slotProps.row.req_uuid]) }}
-              </hw-tag>
-              <span v-else>{{ $t('page.visit_log.ai_mark') }}</span>
-            </button>
-          </template>
+          <template #op="slotProps"
+            ><button type="button" class="t-button-link" @click="handleClickDetail(slotProps)">
+              {{ $t('common.details') }}
+            </button></template
+          >
+          <template #ai_mark_action="{ row }"
+            ><hw-button variant="text" @click="openAiMarkDialog(row)">{{
+              aiMarkMap[row.req_uuid]?.mark ? aiMarkText(aiMarkMap[row.req_uuid]) : $t('page.visit_log.ai_mark')
+            }}</hw-button></template
+          >
         </hw-table>
       </div>
     </hw-card>
+    <hw-drawer
+      v-model:visible="logConfigVisible"
+      :header="text('日志设置', 'Log settings')"
+      width="min(760px, 100vw)"
+      class="visit-log-settings"
+    >
+      <p class="visit-settings-intro">
+        {{ text('设置哪些访问会被记录，以及日志保留多久。', 'Choose what to record and how long to keep logs.') }}
+      </p>
+      <hw-alert v-if="logConfigError" theme="warning" :message="logConfigError"
+        ><hw-button variant="text" @click="loadLogConfig">{{ text('重新读取', 'Reload') }}</hw-button></hw-alert
+      >
+      <hw-loading :loading="logConfigLoading">
+        <hw-form :data="logConfig" :label-width="200" class="log-config-form">
+          <hw-row :gutter="16">
+            <hw-col :span="6">
+              <hw-form-item label="是否记录响应报文" name="record_resp">
+                <hw-select v-model="logConfig.record_resp" style="width: 100%">
+                  <hw-option value="1" label="是" />
+                  <hw-option value="0" label="否" />
+                </hw-select>
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="记录原始请求BODY报文" name="record_all_src_byte_info">
+                <hw-select v-model="logConfig.record_all_src_byte_info" style="width: 100%">
+                  <hw-option value="1" label="启动" />
+                  <hw-option value="0" label="关闭" />
+                </hw-select>
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="日志记录类型" name="record_log_type">
+                <hw-select v-model="logConfig.record_log_type" style="width: 100%">
+                  <hw-option value="all" label="全部" />
+                  <hw-option value="abnormal" label="非正常" />
+                </hw-select>
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="记录请求最大报文(字节)" name="record_max_req_body_length">
+                <hw-input-number v-model="logConfig.record_max_req_body_length" style="width: 100%" :min="0" />
+              </hw-form-item>
+            </hw-col>
+          </hw-row>
+
+          <hw-row :gutter="16">
+            <hw-col :span="6">
+              <hw-form-item label="记录响应最大报文(字节)" name="record_max_res_body_length">
+                <hw-input-number v-model="logConfig.record_max_res_body_length" style="width: 100%" :min="0" />
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="删除历史日志(天)" name="delete_history_log_day">
+                <hw-input-number v-model="logConfig.delete_history_log_day" style="width: 100%" :min="1" />
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="日志归档最大记录数" name="log_db_size">
+                <hw-input-number v-model="logConfig.log_db_size" style="width: 100%" :min="0" />
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="日志归档最大文件(MB)" name="db_file_size">
+                <hw-input-number v-model="logConfig.db_file_size" style="width: 100%" :min="0" />
+              </hw-form-item>
+            </hw-col>
+          </hw-row>
+
+          <hw-row :gutter="16">
+            <hw-col :span="6">
+              <hw-form-item label="是否开启日志持久化" name="log_persist_enable">
+                <hw-select v-model="logConfig.log_persist_enable" style="width: 100%">
+                  <hw-option value="1" label="开启" />
+                  <hw-option value="0" label="关闭" />
+                </hw-select>
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="数据库批量插入数量" name="batch_insert">
+                <hw-input-number v-model="logConfig.batch_insert" style="width: 100%" :min="1" />
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="IP Tag 存放位置" name="ip_tag_db">
+                <hw-select v-model="logConfig.ip_tag_db" style="width: 100%">
+                  <hw-option value="0" label="主库" />
+                  <hw-option value="1" label="读取 stat库" />
+                </hw-select>
+              </hw-form-item>
+            </hw-col>
+          </hw-row>
+
+          <hw-row :gutter="16">
+            <hw-col :span="6">
+              <hw-form-item label="访问日志档位" name="access_log_mode">
+                <hw-select v-model="logConfig.access_log_mode" style="width: 100%">
+                  <hw-option value="db" label="全部入库" />
+                  <hw-option value="sample" label="采样入库" />
+                  <hw-option value="off" label="仅安全事件" />
+                </hw-select>
+                <div v-if="logConfig.access_log_mode === 'off'" class="log-config-hint">
+                  「仅安全事件」会失去 CC 阈值推荐、AI 训练负样本与异常 IP 的正常行为回溯
+                </div>
+              </hw-form-item>
+            </hw-col>
+
+            <hw-col :span="6">
+              <hw-form-item label="访问日志保留天数" name="access_log_retention_days">
+                <hw-input-number v-model="logConfig.access_log_retention_days" style="width: 100%" :min="1" />
+              </hw-form-item>
+            </hw-col>
+          </hw-row>
+
+          <hw-row :gutter="16">
+            <hw-col :span="12">
+              <hw-form-item label="全局排除记录日志的IP" name="exclude_ip_log">
+                <hw-textarea
+                  v-model="logConfig.exclude_ip_log"
+                  :placeholder="'单IP/CIDR/通配符/区间，或 group:组短码 引用IP组；逗号或换行分隔，#开头为注释。只静音正常请求，安全事件照常记录；站点级清单在网站编辑里'"
+                  :autosize="{ minRows: 2, maxRows: 6 }"
+                  style="width: 100%"
+                />
+              </hw-form-item>
+            </hw-col>
+          </hw-row>
+        </hw-form>
+      </hw-loading>
+      <div class="visit-settings-tools">
+        <span>{{
+          $t('page.visit_log.retention_line', {
+            d: logConfig.delete_history_log_day || '—',
+            a: logConfig.access_log_retention_days || '—',
+          })
+        }}</span>
+        <hw-button variant="outline" @click="openShardManage">{{ $t('page.visit_log.shard_manage') }}</hw-button>
+      </div>
+      <template #footer>
+        <hw-button variant="outline" @click="logConfigVisible = false">{{ $t('common.close') }}</hw-button>
+        <hw-button
+          theme="primary"
+          :disabled="logConfigLoading || !!logConfigError || !logConfigDirty"
+          :loading="logConfigSaving"
+          @click="saveLogConfig"
+          >{{ text('保存设置', 'Save settings') }}</hw-button
+        >
+      </template>
+    </hw-drawer>
     <!-- 分区管理 -->
     <log-export-dialog v-if="attack_ip === '' && $route.name === 'WafvisitLog'" ref="logExport" />
-    <hw-dialog :header="$t('page.visit_log.shard_manage')" v-model:visible="shardManageVisible" width="820px"
-      :footer="false" :onClose="() => { this.shardManageVisible = false }">
-      <hw-alert theme="info" :message="$t('page.visit_log.shard_manage_tip')" style="margin-bottom:12px" />
+    <hw-dialog
+      :header="$t('page.visit_log.shard_manage')"
+      v-model:visible="shardManageVisible"
+      width="820px"
+      :footer="false"
+      :onClose="
+        () => {
+          this.shardManageVisible = false;
+        }
+      "
+    >
+      <hw-alert theme="info" :message="$t('page.visit_log.shard_manage_tip')" style="margin-bottom: 12px" />
       <hw-table :data="shardRows" :columns="shardManageColumns" row-key="file_name" size="small" max-height="420">
         <template #label="{ row }">
           <span :title="row.file_name">{{ shardTitle(row.file_name) }}</span>
         </template>
         <template #tiers="{ row }">
-          <span v-if="row.is_current" style="color:rgba(0,0,0,.4)">—</span>
+          <span v-if="row.is_current" style="color: var(--hw-muted)">—</span>
           <hw-tag v-else-if="row.missing" size="small" theme="danger" variant="light">
             {{ $t('page.visit_log.shard_missing') }}
           </hw-tag>
-          <span v-else-if="!row.tiers || row.tiers.length === 0" style="color:rgba(0,0,0,.4)">
+          <span v-else-if="!row.tiers || row.tiers.length === 0" style="color: var(--hw-muted)">
             {{ $t('page.visit_log.shard_tier_unknown') }}
           </span>
-          <hw-tag v-else v-for="t in row.tiers" :key="t" size="small" variant="light"
-                 :theme="t === 'access_log' ? 'primary' : 'default'" style="margin-right:4px">
+          <hw-tag
+            v-else
+            v-for="t in row.tiers"
+            :key="t"
+            size="small"
+            variant="light"
+            :theme="t === 'access_log' ? 'primary' : 'default'"
+            style="margin-right: 4px"
+          >
             {{ tierLabel(t) }}
           </hw-tag>
         </template>
         <template #op="{ row }">
-          <span v-if="row.is_current" style="color:rgba(0,0,0,.4)">{{ $t('page.visit_log.shard_live') }}</span>
-          <button type="button" v-else class="t-button-link" style="color:#d54941" @click="confirmDeleteShard(row)">
+          <span v-if="row.is_current" style="color: var(--hw-muted)">{{ $t('page.visit_log.shard_live') }}</span>
+          <button type="button" v-else class="t-button-link" style="color: #d54941" @click="confirmDeleteShard(row)">
             {{ $t('common.delete') }}
           </button>
         </template>
       </hw-table>
     </hw-dialog>
 
-
-
-    <hw-dialog :header="$t('page.visit_log.pop_detail_header')" v-model:visible="visitDetailVisible" width="80%"
-      :confirmOnEnter="true" :onConfirm="() => { this.visitDetailVisible = false }"
-      :onClose="() => { this.visitDetailVisible = false }">
-      <visit-detail-page :prop_current_db="searchformData.current_db_name"
-        :prop_req_uuid="visitDetailUid"></visit-detail-page>
+    <hw-dialog
+      :header="$t('page.visit_log.pop_detail_header')"
+      v-model:visible="visitDetailVisible"
+      width="80%"
+      :confirmOnEnter="true"
+      :onConfirm="
+        () => {
+          this.visitDetailVisible = false;
+        }
+      "
+      :onClose="
+        () => {
+          this.visitDetailVisible = false;
+        }
+      "
+    >
+      <visit-detail-page
+        :prop_current_db="searchformData.current_db_name"
+        :prop_req_uuid="visitDetailUid"
+      ></visit-detail-page>
     </hw-dialog>
 
     <!-- AI 训练标记弹窗 -->
-    <hw-dialog :header="$t('page.visit_log.ai_mark_dialog_title')" v-model:visible="aiMarkDialogVisible" width="460px"
-      :onClose="() => { this.aiMarkDialogVisible = false }">
+    <hw-dialog
+      :header="$t('page.visit_log.ai_mark_dialog_title')"
+      v-model:visible="aiMarkDialogVisible"
+      width="460px"
+      :onClose="
+        () => {
+          this.aiMarkDialogVisible = false;
+        }
+      "
+    >
       <hw-form labelAlign="top">
         <hw-form-item :label="$t('page.visit_log.ai_mark_verdict')">
           <hw-radio-group v-model="aiMarkForm.verdict">
@@ -456,118 +637,208 @@
         </hw-form-item>
       </hw-form>
       <template #footer>
-        <hw-button v-if="aiMarkDialogRow && aiMarkMap[aiMarkDialogRow.req_uuid]" theme="danger" variant="outline"
-          @click="confirmAiUnmark">{{ $t('page.visit_log.ai_mark_unmark') }}</hw-button>
+        <hw-button
+          v-if="aiMarkDialogRow && aiMarkMap[aiMarkDialogRow.req_uuid]"
+          theme="danger"
+          variant="outline"
+          @click="confirmAiUnmark"
+          >{{ $t('page.visit_log.ai_mark_unmark') }}</hw-button
+        >
         <hw-button theme="default" @click="aiMarkDialogVisible = false">{{ $t('common.cancel') }}</hw-button>
         <hw-button theme="primary" @click="confirmAiMark">{{ $t('common.confirm') }}</hw-button>
       </template>
     </hw-dialog>
 
-    <!-- 列配置弹窗 -->
-    <hw-dialog :header="$t('common.column_config')" v-model:visible="columnControllerVisible" width="500px"
-      @confirm="handleColumnControllerConfirm" @cancel="handleColumnControllerCancel">
-      <div class="column-controller-content">
-        <hw-checkbox-group v-model="tempDisplayColumns" direction="vertical">
-          <hw-checkbox v-for="field in availableFields" :key="field.value" :value="field.value" :label="field.label" />
-        </hw-checkbox-group>
-      </div>
+    <hw-dialog
+      :header="text('显示列与顺序', 'Columns and order')"
+      v-model:visible="columnControllerVisible"
+      width="min(560px, calc(100vw - 32px))"
+      @confirm="handleColumnControllerConfirm"
+      @cancel="handleColumnControllerCancel"
+    >
+      <p class="visit-column-help">
+        {{
+          text(
+            '勾选要看的信息，使用上下按钮调整顺序。设置会随账号保存。',
+            'Choose the information you need and move columns up or down. Saved to your account.',
+          )
+        }}
+      </p>
+      <hw-button variant="text" @click="useRecommendedColumns">{{
+        text('恢复家庭用户推荐列', 'Use recommended columns')
+      }}</hw-button>
+      <ol class="visit-column-list">
+        <li v-for="(key, index) in columnOrderDraft" :key="key">
+          <hw-checkbox
+            :model-value="tempDisplayColumns.includes(key)"
+            :disabled="key === 'op'"
+            @change="toggleDraftColumn(key, $event)"
+            >{{ columnLabel(key) }}</hw-checkbox
+          >
+          <div class="visit-column-move">
+            <button
+              type="button"
+              :disabled="index === 0"
+              :aria-label="text('上移', 'Move up') + columnLabel(key)"
+              @click="moveDraftColumn(index, -1)"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              :disabled="index === columnOrderDraft.length - 1"
+              :aria-label="text('下移', 'Move down') + columnLabel(key)"
+              @click="moveDraftColumn(index, 1)"
+            >
+              ↓
+            </button>
+          </div>
+        </li>
+      </ol>
     </hw-dialog>
-
     <!-- IP提取问题对话框 -->
-    <hw-dialog :header="$t('page.visit_log.detail.ip_extract_issue')" v-model:visible="ipExtractDialogVisible" :width="800" :footer="false">
-      <template #body><div >
-        <!-- 这里改的是全局配置，站点里的「真实IP来源」会覆盖它；不写清楚用户会以为改了全局所有站点都变 -->
-        <hw-alert theme="warning" style="margin-bottom: 16px;">
-          <div>
-            <b>{{ $t('page.visit_log.detail.ip_extract_scope_title') }}</b>
-            <div style="margin-top: 4px;">{{ $t('page.visit_log.detail.ip_extract_scope_desc') }}</div>
-            <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <hw-select v-model="ipExtractHostCode" clearable filterable :style="{ width: 'min(100%, 220px)' }"
-                        :placeholder="$t('page.visit_log.detail.ip_extract_select_host')">
-                <hw-option v-for="item in realHostOptions" :value="item.value" :label="item.label" :key="item.value">{{ item.label }}</hw-option>
-              </hw-select>
-              <hw-button size="small" :disabled="!ipExtractHostCode" @click="gotoHostIpSource">
-                {{ $t('page.visit_log.detail.ip_extract_goto_host') }}
-              </hw-button>
-              <hw-button size="small" variant="outline" :disabled="!ipExtractHostCode" @click="openHostProbe">
-                {{ $t('page.visit_log.detail.ip_extract_view_headers') }}
+    <hw-dialog
+      :header="$t('page.visit_log.detail.ip_extract_issue')"
+      v-model:visible="ipExtractDialogVisible"
+      :width="800"
+      :footer="false"
+    >
+      <template #body
+        ><div>
+          <!-- 这里改的是全局配置，站点里的「真实IP来源」会覆盖它；不写清楚用户会以为改了全局所有站点都变 -->
+          <hw-alert theme="warning" style="margin-bottom: 16px">
+            <div>
+              <b>{{ $t('page.visit_log.detail.ip_extract_scope_title') }}</b>
+              <div style="margin-top: 4px">{{ $t('page.visit_log.detail.ip_extract_scope_desc') }}</div>
+              <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                <hw-select
+                  v-model="ipExtractHostCode"
+                  clearable
+                  filterable
+                  :style="{ width: 'min(100%, 220px)' }"
+                  :placeholder="$t('page.visit_log.detail.ip_extract_select_host')"
+                >
+                  <hw-option
+                    v-for="item in realHostOptions"
+                    :value="item.value"
+                    :label="item.label"
+                    :key="item.value"
+                    >{{ item.label }}</hw-option
+                  >
+                </hw-select>
+                <hw-button size="small" :disabled="!ipExtractHostCode" @click="gotoHostIpSource">
+                  {{ $t('page.visit_log.detail.ip_extract_goto_host') }}
+                </hw-button>
+                <hw-button size="small" variant="outline" :disabled="!ipExtractHostCode" @click="openHostProbe">
+                  {{ $t('page.visit_log.detail.ip_extract_view_headers') }}
+                </hw-button>
+              </div>
+            </div>
+          </hw-alert>
+          <p>{{ $t('page.visit_log.detail.ip_extract_issue_desc') }}</p>
+
+          <!-- 视频教程链接 -->
+          <hw-alert theme="success" style="margin-bottom: 16px">
+            <template #icon>
+              <span style="font-size: 20px">📺</span>
+            </template>
+            <div style="display: flex; align-items: center; justify-content: space-between">
+              <span>{{ $t('page.visit_log.detail.ip_extract_video_tutorial') }}</span>
+              <hw-button theme="primary" size="small" @click="openVideoTutorial">
+                {{ $t('page.visit_log.detail.ip_extract_watch_tutorial') }}
               </hw-button>
             </div>
-          </div>
-        </hw-alert>
-        <p>{{ $t('page.visit_log.detail.ip_extract_issue_desc') }}</p>
+          </hw-alert>
 
-        <!-- 视频教程链接 -->
-        <hw-alert theme="success" style="margin-bottom: 16px;">
-          <template #icon>
-            <span style="font-size: 20px;">📺</span>
-          </template>
-          <div style="display: flex; align-items: center; justify-content: space-between;">
-            <span>{{ $t('page.visit_log.detail.ip_extract_video_tutorial') }}</span>
-            <hw-button theme="primary" size="small" @click="openVideoTutorial">
-              {{ $t('page.visit_log.detail.ip_extract_watch_tutorial') }}
-            </hw-button>
-          </div>
-        </hw-alert>
+          <!-- 常用头信息提示区域 -->
+          <hw-card :title="$t('page.visit_log.detail.ip_extract_common_headers')" style="margin-bottom: 20px">
+            <p style="margin-bottom: 12px; color: #666">
+              {{ $t('page.visit_log.detail.ip_extract_common_headers_desc') }}
+            </p>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px">
+              <hw-button size="small" variant="outline" @click="selectIPHeader('CF-Connecting-IP')">
+                {{ $t('page.visit_log.detail.ip_extract_headers.cloudflare') }}
+              </hw-button>
+              <hw-button size="small" variant="outline" @click="selectIPHeader('True-Client-IP')">
+                {{ $t('page.visit_log.detail.ip_extract_headers.cloudflare_enterprise') }}
+              </hw-button>
+              <hw-button size="small" variant="outline" @click="selectIPHeader('X-Forwarded-For')">
+                {{ $t('page.visit_log.detail.ip_extract_headers.x_forwarded_for') }}
+              </hw-button>
+              <hw-button size="small" variant="outline" @click="selectIPHeader('X-Real-IP')">
+                {{ $t('page.visit_log.detail.ip_extract_headers.x_real_ip') }}
+              </hw-button>
+              <hw-button size="small" variant="outline" @click="selectIPHeader('X-Client-IP')">
+                {{ $t('page.visit_log.detail.ip_extract_headers.x_client_ip') }}
+              </hw-button>
+              <hw-button size="small" variant="outline" @click="selectIPHeader('Fastly-Client-IP')">
+                {{ $t('page.visit_log.detail.ip_extract_headers.fastly') }}
+              </hw-button>
+              <hw-button size="small" variant="outline" @click="selectIPHeader('Incap-Client-IP')">
+                {{ $t('page.visit_log.detail.ip_extract_headers.incapsula') }}
+              </hw-button>
+              <hw-button
+                size="small"
+                variant="outline"
+                @click="selectIPHeader('CF-Connecting-IP,X-Forwarded-For,X-Real-IP')"
+              >
+                {{ $t('page.visit_log.detail.ip_extract_headers.multiple') }}
+              </hw-button>
+            </div>
+            <hw-alert
+              theme="info"
+              :message="$t('page.visit_log.detail.ip_extract_multiple_tips')"
+              style="margin-top: 8px"
+            />
+            <div style="margin-top: 8px; color: #999; font-size: 12px">
+              {{ $t('page.visit_log.detail.ip_extract_example') }}
+            </div>
+          </hw-card>
 
-        <!-- 常用头信息提示区域 -->
-        <hw-card :title="$t('page.visit_log.detail.ip_extract_common_headers')" style="margin-bottom: 20px;">
-          <p style="margin-bottom: 12px; color: #666;">{{ $t('page.visit_log.detail.ip_extract_common_headers_desc') }}</p>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-            <hw-button size="small" variant="outline" @click="selectIPHeader('CF-Connecting-IP')">
-              {{ $t('page.visit_log.detail.ip_extract_headers.cloudflare') }}
-            </hw-button>
-            <hw-button size="small" variant="outline" @click="selectIPHeader('True-Client-IP')">
-              {{ $t('page.visit_log.detail.ip_extract_headers.cloudflare_enterprise') }}
-            </hw-button>
-            <hw-button size="small" variant="outline" @click="selectIPHeader('X-Forwarded-For')">
-              {{ $t('page.visit_log.detail.ip_extract_headers.x_forwarded_for') }}
-            </hw-button>
-            <hw-button size="small" variant="outline" @click="selectIPHeader('X-Real-IP')">
-              {{ $t('page.visit_log.detail.ip_extract_headers.x_real_ip') }}
-            </hw-button>
-            <hw-button size="small" variant="outline" @click="selectIPHeader('X-Client-IP')">
-              {{ $t('page.visit_log.detail.ip_extract_headers.x_client_ip') }}
-            </hw-button>
-            <hw-button size="small" variant="outline" @click="selectIPHeader('Fastly-Client-IP')">
-              {{ $t('page.visit_log.detail.ip_extract_headers.fastly') }}
-            </hw-button>
-            <hw-button size="small" variant="outline" @click="selectIPHeader('Incap-Client-IP')">
-              {{ $t('page.visit_log.detail.ip_extract_headers.incapsula') }}
-            </hw-button>
-            <hw-button size="small" variant="outline" @click="selectIPHeader('CF-Connecting-IP,X-Forwarded-For,X-Real-IP')">
-              {{ $t('page.visit_log.detail.ip_extract_headers.multiple') }}
-            </hw-button>
-          </div>
-          <hw-alert theme="info" :message="$t('page.visit_log.detail.ip_extract_multiple_tips')" style="margin-top: 8px;" />
-          <div style="margin-top: 8px; color: #999; font-size: 12px;">
-            {{ $t('page.visit_log.detail.ip_extract_example') }}
-          </div>
-        </hw-card>
-
-        <hw-form :data="ipExtractFormData" ref="ipExtractForm" :rules="ipExtractRules" @submit="onSubmitIPExtract" :labelWidth="150">
-          <hw-form-item :label="$t('page.systemconfig.label_configuration_item')" name="item">
-            <hw-input :style="{ width: 'min(100%, 600px)' }" v-model="ipExtractFormData.item" disabled></hw-input>
-          </hw-form-item>
-          <hw-form-item :label="$t('page.systemconfig.label_configuration_value')" name="value">
-            <hw-input :style="{ width: 'min(100%, 600px)' }" v-model="ipExtractFormData.value" :placeholder="$t('page.visit_log.detail.ip_extract_issue_tips')"></hw-input>
-            <div class="form-item-tips">{{ $t('page.visit_log.detail.ip_extract_issue_tips') }}</div>
-          </hw-form-item>
-          <hw-form-item style="float: right">
-            <hw-button variant="outline" @click="ipExtractDialogVisible = false">{{ $t('common.close') }}</hw-button>
-            <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
-          </hw-form-item>
-        </hw-form>
-      </div></template>
+          <hw-form
+            :data="ipExtractFormData"
+            ref="ipExtractForm"
+            :rules="ipExtractRules"
+            @submit="onSubmitIPExtract"
+            :labelWidth="150"
+          >
+            <hw-form-item :label="$t('page.systemconfig.label_configuration_item')" name="item">
+              <hw-input :style="{ width: 'min(100%, 600px)' }" v-model="ipExtractFormData.item" disabled></hw-input>
+            </hw-form-item>
+            <hw-form-item :label="$t('page.systemconfig.label_configuration_value')" name="value">
+              <hw-input
+                :style="{ width: 'min(100%, 600px)' }"
+                v-model="ipExtractFormData.value"
+                :placeholder="$t('page.visit_log.detail.ip_extract_issue_tips')"
+              ></hw-input>
+              <div class="form-item-tips">{{ $t('page.visit_log.detail.ip_extract_issue_tips') }}</div>
+            </hw-form-item>
+            <hw-form-item style="float: right">
+              <hw-button variant="outline" @click="ipExtractDialogVisible = false">{{ $t('common.close') }}</hw-button>
+              <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
+            </hw-form-item>
+          </hw-form>
+        </div></template
+      >
     </hw-dialog>
     <!-- 某个站点单独看真实到达的请求头(与站点编辑页共用同一组件) -->
-    <ip-source-probe-dialog v-model:visible="hostProbeVisible" :host-code="ipExtractHostCode"
-                            :host-name="host_dic[ipExtractHostCode] || ''" />
+    <ip-source-probe-dialog
+      v-model:visible="hostProbeVisible"
+      :host-code="ipExtractHostCode"
+      :host-name="host_dic[ipExtractHostCode] || ''"
+    />
   </div>
 </template>
 <script lang="ts">
-import {defineComponent} from 'vue';
-
+import { defineComponent } from 'vue';
+import {
+  recommendedLogColumns,
+  normalizeLogColumns,
+  logColumns,
+  requestOutcome,
+  logDateRange,
+  logTimeBounds,
+} from './logPresentation';
 
 import { SearchIcon } from '@/ui/icons';
 import Trend from '@/components/trend/index.vue';
@@ -576,24 +847,14 @@ import IpSourceProbeDialog from '@/pages/waf/host/components/IpSourceProbeDialog
 import { allsharedblist, delsharedb } from '@/apis/waflog/attacklog';
 import LogExportDialog from './components/LogExportDialog.vue';
 import { aiMarkLabelApi, aiUnmarkLabelApi, aiLabelByUuidsApi } from '@/apis/ai';
-import VisitDetailPage from './detail/index.vue'
+import VisitDetailPage from './detail/index.vue';
 
 import { NowDate, ConvertStringToUnix, ConvertDateToString, ConvertUnixToDate } from '@/utils/date';
-import {
-  allhost
-} from '@/apis/host';
-import {
-  get_detail_by_item_api,
-  edit_system_config_api
-} from '@/apis/systemconfig';
-import {
-  get_ui_preference_api,
-  save_ui_preference_api
-} from '@/apis/uipreference';
+import { allLogServices } from '@/apis/host';
+import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemconfig';
+import { get_ui_preference_api, save_ui_preference_api } from '@/apis/uipreference';
 
-import { CONTRACT_STATUS, CONTRACT_STATUS_OPTIONS, CONTRACT_TYPES, CONTRACT_PAYMENT_TYPES } from '@/constants';
-
-const staticColumn = ['action', 'op'];
+const staticColumn = ['op'];
 
 // 默认不显示的可选列：新增后不会被"新列自动加入"逻辑塞进已有用户的可见列，需用户主动勾选
 const OPT_OUT_NEW_COLUMNS = ['host_nickname', 'ai_score', 'user_agent', 'referer'];
@@ -603,12 +864,24 @@ const OPT_OUT_NEW_COLUMNS = ['host_nickname', 'ai_score', 'user_agent', 'referer
 // 避免 401 清缓存时只保留其中一个，导致列配置被重置（issue #893）
 const COLUMN_CONFIG_KEY = 'attack_table_display_columns';
 const LEGACY_KNOWN_COLUMNS_KEY = 'attack_table_known_columns'; // v1 遗留，迁移后删除
-const COLUMN_CONFIG_VERSION = 2;
+const COLUMN_CONFIG_VERSION = 3;
 const COLUMN_PREF_NAME = 'visit_log_columns'; // 服务端偏好名（后端白名单内）
 
 // 可由外部路由 query 预设的筛选字段（必须是 searchformData 的合法键，防止任意 query 注入）。
 // 不含 unix_add_time_begin/end（由日期控件驱动）和 current_db_name（由 loadShareDbList 异步定值）
-const ROUTE_FILTER_QUERY_KEYS = ['action', 'src_ip', 'host_code', 'url_keyword', 'rule', 'req_uuid', 'status_code', 'method', 'log_only_mode', 'view_type'];
+const ROUTE_FILTER_QUERY_KEYS = [
+  'action',
+  'src_ip',
+  'host_code',
+  'url_keyword',
+  'rule',
+  'req_uuid',
+  'status_code',
+  'method',
+  'log_only_mode',
+  'view_type',
+  'request_outcome',
+];
 // 外部页面可用这两个 query 指定日期区间（形如 2026-07-01 00:00:00），不传则用"今天"
 const ROUTE_DATE_QUERY_KEYS = ['date_begin', 'date_end'];
 
@@ -637,92 +910,137 @@ export default defineComponent({
     IpSourceProbeDialog,
     SearchIcon,
     Trend,
-    VisitDetailPage
+    VisitDetailPage,
   },
   props: {
     attack_ip: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
       // 这次查询覆盖了哪些分区（后端给）：自动模式与识别码直查都靠它向用户解释数据来源
-      queryMeta: { shards: [], found_in: "", scanned: 0, uuid_lookup: false, sort_forced_time: false, partial: false, took_ms: 0, issues: [] },
+      queryMeta: {
+        shards: [],
+        found_in: '',
+        scanned: 0,
+        uuid_lookup: false,
+        sort_forced_time: false,
+        partial: false,
+        took_ms: 0,
+        issues: [],
+      },
       shardGroups: [],
       covExpanded: false,
       issExpanded: false,
       shardManageVisible: false,
       shardRows: [],
-      quickRange: "30",
+      quickRange: '30',
       dateControl: {
         presets: {
-          [this.$t('page.visit_log.date_range_last_300_days')]: [ConvertDateToString(new Date(+new Date() - 86400000 * 299)) + " 00:00:00", ConvertDateToString(new Date()) + " 23:59:59"],
-          [this.$t('page.visit_log.date_range_last_90_days')]: [ConvertDateToString(new Date(+new Date() - 86400000 * 89)) + " 00:00:00", ConvertDateToString(new Date()) + " 23:59:59"],
-          [this.$t('page.visit_log.date_range_last_60_days')]: [ConvertDateToString(new Date(+new Date() - 86400000 * 59)) + " 00:00:00", ConvertDateToString(new Date()) + " 23:59:59"],
-          [this.$t('page.visit_log.date_range_last_30_days')]: [ConvertDateToString(new Date(+new Date() - 86400000 * 29)) + " 00:00:00", ConvertDateToString(new Date()) + " 23:59:59"],
-          [this.$t('page.visit_log.date_range_last_15_days')]: [ConvertDateToString(new Date(+new Date() - 86400000 * 14)) + " 00:00:00", ConvertDateToString(new Date()) + " 23:59:59"],
-          [this.$t('page.visit_log.date_range_last_7_days')]: [ConvertDateToString(new Date(+new Date() - 86400000 * 6)) + " 00:00:00", ConvertDateToString(new Date()) + " 23:59:59"],
-          [this.$t('page.visit_log.date_range_last_3_days')]: [ConvertDateToString(new Date(+new Date() - 86400000 * 2)) + " 00:00:00", ConvertDateToString(new Date()) + " 23:59:59"],
-          [this.$t('page.visit_log.date_range_today')]: [ConvertDateToString(new Date()) + " 00:00:00", ConvertDateToString(new Date()) + " 23:59:59"],
+          [this.$t('page.visit_log.date_range_last_300_days')]: [
+            ConvertDateToString(new Date(+new Date() - 86400000 * 299)) + ' 00:00:00',
+            ConvertDateToString(new Date()) + ' 23:59:59',
+          ],
+          [this.$t('page.visit_log.date_range_last_90_days')]: [
+            ConvertDateToString(new Date(+new Date() - 86400000 * 89)) + ' 00:00:00',
+            ConvertDateToString(new Date()) + ' 23:59:59',
+          ],
+          [this.$t('page.visit_log.date_range_last_60_days')]: [
+            ConvertDateToString(new Date(+new Date() - 86400000 * 59)) + ' 00:00:00',
+            ConvertDateToString(new Date()) + ' 23:59:59',
+          ],
+          [this.$t('page.visit_log.date_range_last_30_days')]: [
+            ConvertDateToString(new Date(+new Date() - 86400000 * 29)) + ' 00:00:00',
+            ConvertDateToString(new Date()) + ' 23:59:59',
+          ],
+          [this.$t('page.visit_log.date_range_last_15_days')]: [
+            ConvertDateToString(new Date(+new Date() - 86400000 * 14)) + ' 00:00:00',
+            ConvertDateToString(new Date()) + ' 23:59:59',
+          ],
+          [this.$t('page.visit_log.date_range_last_7_days')]: [
+            ConvertDateToString(new Date(+new Date() - 86400000 * 6)) + ' 00:00:00',
+            ConvertDateToString(new Date()) + ' 23:59:59',
+          ],
+          [this.$t('page.visit_log.date_range_last_3_days')]: [
+            ConvertDateToString(new Date(+new Date() - 86400000 * 2)) + ' 00:00:00',
+            ConvertDateToString(new Date()) + ' 23:59:59',
+          ],
+          [this.$t('page.visit_log.date_range_today')]: [
+            ConvertDateToString(new Date()) + ' 00:00:00',
+            ConvertDateToString(new Date()) + ' 23:59:59',
+          ],
         },
         range1: ['2023-11-01 00:00:00', '2023-11-16 23:59:59'],
       },
       action_options: [
         {
           label: this.$t('common.defense_status.all'),
-          value: ''
+          value: '',
         },
         {
           label: this.$t('common.defense_status.stop'),
-          value: '阻止'
+          value: '阻止',
         },
         {
           label: this.$t('common.defense_status.pass'),
-          value: '放行'
+          value: '放行',
         },
         {
           label: this.$t('common.defense_status.forbid'),
-          value: '禁止'
+          value: '禁止',
         },
       ],
       method_options: [
         {
           label: this.$t('common.all'),
-          value: ''
+          value: '',
         },
         {
           label: 'POST',
-          value: 'POST'
+          value: 'POST',
         },
         {
           label: 'GET',
-          value: 'GET'
+          value: 'GET',
         },
         {
           label: 'CONNECT',
-          value: 'CONNECT'
-        }
-        ,
+          value: 'CONNECT',
+        },
         {
           label: 'HEAD',
-          value: 'HEAD'
+          value: 'HEAD',
         },
         {
           label: 'OPTIONS',
-          value: 'OPTIONS'
+          value: 'OPTIONS',
         },
         {
+          label: 'PUT',
+          value: 'PUT',
+        },
+        { label: 'PATCH', value: 'PATCH' },
+        { label: 'DELETE', value: 'DELETE' },
+        {
           label: 'PRI',
-          value: 'PRI'
-        }
+          value: 'PRI',
+        },
       ],
-      CONTRACT_STATUS,
-      CONTRACT_STATUS_OPTIONS,
-      CONTRACT_TYPES,
-      CONTRACT_PAYMENT_TYPES,
       prefix,
       dataLoading: false,
+      compactView: window.innerWidth <= 1023,
+      queryError: '',
+      querySequence: 0,
+      hostLoading: false,
+      hostError: '',
+      serviceOptions: [],
+      serviceByCode: {},
+      advancedVisible: false,
+      timePreset: 'today',
+      columnOrderDraft: [],
+      columnEditVersion: 0,
       data: [],
       aiMarkMap: {}, // req_uuid -> { mark, attack_type }，AI训练标签人工修正状态
       aiMarkDialogVisible: false,
@@ -734,205 +1052,10 @@ export default defineComponent({
       columnControllerVisible: false, // 控制列配置弹窗显示
       tempDisplayColumns: [], // 临时存储列配置
       // 默认显示的列配置
-      defaultDisplayColumns: staticColumn.concat(['guest_identification', 'time_spent', 'create_time', 'host', 'method', 'url', 'src_ip', 'country','log_only_mode','req_uuid']),
-      displayColumns: staticColumn.concat(['guest_identification', 'time_spent', 'create_time', 'host', 'method', 'url', 'src_ip', 'country', 'log_only_mode' ]),
-      // 全部列定义（访问日志视图由 computed columns 摘掉 header 列——报文已搬进报文表，窄行没有这一列）
-      allColumns: [
-        {
-          title: this.$t('page.visit_log.guest_identity'),
-          width: 100,
-          ellipsis: true,
-          colKey: 'guest_identification',
-          filter: {
-            type: 'input',
-            resetValue: '',
-            // 按下 Enter 键时也触发确认搜索
-            confirmEvents: ['onEnter'],
-            props: {
-              placeholder: this.$t('common.placeholder'),
-            },
-            // 是否显示重置取消按钮，一般情况不需要显示
-            showConfirmAndReset: true,
-          },
-        },
-        {
-          title: this.$t('page.visit_log.time_spent'),
-          width: 100,
-          ellipsis: true,
-          colKey: 'time_spent',
-          sorter: true
-        },
-        {
-          title: this.$t('page.visit_log.risk_level'),
-          width: 60,
-          ellipsis: true,
-          colKey: 'risk_level',
-        },
-        {
-          title: this.$t('common.status'),
-          width: 60,
-          ellipsis: true,
-          colKey: 'action',
-        },
-        {
-          title: this.$t('page.visit_log.log_only_mode'),
-          width: 120,
-          ellipsis: true,
-          colKey: 'log_only_mode',
-        },
-        {
-          title: this.$t('page.visit_log.ai_score'),
-          width: 90,
-          ellipsis: true,
-          colKey: 'ai_score',
-          sorter: true,
-        },
-        {
-          title: this.$t('page.visit_log.trigger_rule'),
-          align: 'left',
-          width: 150,
-          ellipsis: true,
-          colKey: 'rule',
-        },
-        {
-          title: this.$t('page.visit_log.time'),
-          width: 170,
-          ellipsis: true,
-          colKey: 'create_time',
-          sorter: true
-        },
-        {
-          title: this.$t('page.visit_log.domain'),
-          align: 'left',
-          width: 150,
-          ellipsis: true,
-          colKey: 'host',
-        },
-        {
-          //网站昵称：非 web_logs 真实列，由 host_code 在前端换取，故不支持排序/过滤
-          title: this.$t('page.visit_log.host_nickname'),
-          align: 'left',
-          width: 130,
-          ellipsis: true,
-          colKey: 'host_nickname',
-          cell: 'host_nickname',
-        },
-
-        {
-          title: this.$t('page.visit_log.request'),
-          width: 70,
-          ellipsis: true,
-          colKey: 'method',
-        },
-        {
-          title: this.$t('page.visit_log.source_ip'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'src_ip',
-          cell: 'src_ip',
-        },
-        {
-          title: this.$t('page.visit_log.country'),
-          width: 100,
-          ellipsis: true,
-          colKey: 'country',
-        },
-        {
-          title: this.$t('page.visit_log.province'),
-          width: 100,
-          ellipsis: true,
-          colKey: 'province',
-        }, {
-          title: this.$t('page.visit_log.city'),
-          width: 100,
-          ellipsis: true,
-          colKey: 'city',
-        },
-        {
-          title: this.$t('page.visit_log.req_uuid'),
-          width: 160,
-          ellipsis: true,
-          colKey: 'req_uuid',
-          filter: {
-            type: 'input',
-            resetValue: '',
-            // 按下 Enter 键时也触发确认搜索
-            confirmEvents: ['onEnter'],
-            props: {
-              placeholder: this.$t('common.placeholder'),
-            },
-            // 是否显示重置取消按钮，一般情况不需要显示
-            showConfirmAndReset: true,
-          },
-        },
-        {
-          title: this.$t('page.visit_log.access_url'),
-          width: 160,
-          ellipsis: true,
-          colKey: 'url',
-        },
-        {
-          title: 'Header',
-          width: 300,
-          ellipsis: true,
-          colKey: 'header',
-          filter: {
-            type: 'input',
-            resetValue: '',
-            // 按下 Enter 键时也触发确认搜索
-            confirmEvents: ['onEnter'],
-            props: {
-              placeholder: this.$t('common.placeholder'),
-            },
-            // 是否显示重置取消按钮，一般情况不需要显示
-            showConfirmAndReset: true,
-          },
-        },
-        {
-          title: 'status',
-          width: 100,
-          ellipsis: true,
-          colKey: 'status',
-        },
-        {
-          // UA / Referer：窄行上的列，两个视图都可筛选；访问日志视图靠它们替代「请求」全文筛选
-          title: this.$t('page.visit_log.user_agent'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'user_agent',
-          filter: {
-            type: 'input',
-            resetValue: '',
-            confirmEvents: ['onEnter'],
-            props: {
-              placeholder: this.$t('common.placeholder'),
-            },
-            showConfirmAndReset: true,
-          },
-        },
-        {
-          title: this.$t('page.visit_log.referer'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'referer',
-          filter: {
-            type: 'input',
-            resetValue: '',
-            confirmEvents: ['onEnter'],
-            props: {
-              placeholder: this.$t('common.placeholder'),
-            },
-            showConfirmAndReset: true,
-          },
-        },
-        {
-          align: 'left',
-          width: 120,
-          colKey: 'op',
-          title: this.$t('common.op'),
-        },
-      ],
-      rowKey: 'REQ_UUID',
+      defaultDisplayColumns: [...recommendedLogColumns],
+      displayColumns: [...recommendedLogColumns],
+      allColumns: logColumns((zh, en) => this.text(zh, en)),
+      rowKey: 'req_uuid',
       tableLayout: 'auto',
       verticalAlign: 'top',
       hover: true,
@@ -941,44 +1064,45 @@ export default defineComponent({
       pagination: {
         total: 0,
         current: 1,
-        pageSize: 10
+        pageSize: 10,
       },
       searchValue: '',
       confirmVisible: false,
       deleteIdx: -1,
       //顶部搜索
       searchformData: {
-        url_keyword: "",
-        rule: "",
-        req_uuid: "",
-        action: "",
-        src_ip: "",
-        host_code: "",
-        status_code: "",
-        method: "",
-        unix_add_time_begin: "",
-        unix_add_time_end: "",
-        current_db_name: "auto",
-        log_only_mode: "",
-        view_type: "access", // access=访问日志(全量窄行) event=安全事件
+        request_outcome: '',
+        url_keyword: '',
+        rule: '',
+        req_uuid: '',
+        action: '',
+        src_ip: '',
+        host_code: '',
+        status_code: '',
+        method: '',
+        unix_add_time_begin: '',
+        unix_add_time_end: '',
+        current_db_name: 'auto',
+        log_only_mode: '',
+        view_type: 'access', // access=访问日志(全量窄行) event=安全事件
       },
       //table 字段
       table: {
-        multipleSort: true
+        multipleSort: true,
       },
       //排序字段
       sorts: {
-        sortBy: "unix_add_time",
+        sortBy: 'unix_add_time',
         descending: true,
       },
       //筛选字段
       filters: {
-        filter_by: "",
-        filter_value: "",
+        filter_by: '',
+        filter_value: '',
       },
       //主机字典
       host_dic: {},
-      ipExtractHostCode: "", //IP提取弹窗里选中的站点(用于直达站点配置/查看该站点真实请求头)
+      ipExtractHostCode: '', //IP提取弹窗里选中的站点(用于直达站点配置/查看该站点真实请求头)
       hostProbeVisible: false,
       //「IP提取有问题?」里选站点用的列表：只含真实站点("全局网站"不是站点，没有自己的真实IP来源配置)。
       //必须整体赋值成数组，不能在模板里现算 host_dic —— Vue2 对新增 key 不响应，会渲染成空
@@ -987,11 +1111,14 @@ export default defineComponent({
       host_nickname_dic: {},
       //日志存档字典
       share_db_dic: {},
-      visitDetailVisible: false,//访问详情弹窗
-      visitDetailUid: "",//访问详情id
+      visitDetailVisible: false, //访问详情弹窗
+      visitDetailUid: '', //访问详情id
 
       // 日志配置相关
       logConfigVisible: false, // 日志配置区域是否展开
+      logConfigLoading: false,
+      logConfigError: '',
+      savedLogConfig: {},
       logConfigSaving: false, // 保存配置按钮加载状态
       logConfig: {
         record_log_type: 'all',
@@ -1005,6 +1132,7 @@ export default defineComponent({
         log_persist_enable: '0',
         batch_insert: '0',
         ip_tag_db: '0',
+        exclude_ip_log: '',
         access_log_mode: 'db',
         access_log_retention_days: '30',
       },
@@ -1015,15 +1143,18 @@ export default defineComponent({
       ipExtractFormData: {
         item: 'gwaf_proxy_header',
         value: '',
-        remarks: '获取访客IP头信息（按照顺序）'
+        remarks: '获取访客IP头信息（按照顺序）',
       },
       ipExtractRules: {
         item: [{ required: true, message: '', type: 'error' }],
-        value: [{ required: false, message: '', type: 'error' }]
-      }
+        value: [{ required: false, message: '', type: 'error' }],
+      },
     };
   },
   computed: {
+    responsiveColumns() {
+      return this.compactView ? [{ colKey: 'summary', title: '', minWidth: 220 }] : this.columns;
+    },
     offsetTop() {
       return this.$store.state.setting.isUseTabsRouter ? 48 : 0;
     },
@@ -1048,7 +1179,9 @@ export default defineComponent({
       const list = this.queryMeta.shards || [];
       if (list.length < 2) return '';
       let total = 0;
-      list.forEach((x) => { total += Number(x.count) || 0; });
+      list.forEach((x) => {
+        total += Number(x.count) || 0;
+      });
       // shards 由后端按时间从新到旧给出
       const newest = this.shardTitle(list[0].name).split(' ·')[0];
       const oldest = this.shardTitle(list[list.length - 1].name).split(' ·')[0];
@@ -1089,43 +1222,35 @@ export default defineComponent({
     },
     // 可用字段列表
     availableFields() {
-      return [
-        { value: 'action', label: this.$t('common.status') },
-        { value: 'rule', label: this.$t('page.visit_log.trigger_rule') },
-        { value: 'create_time', label: this.$t('common.create_time') },
-        { value: 'host', label: this.$t('page.visit_log.domain') },
-        { value: 'host_nickname', label: this.$t('page.visit_log.host_nickname') },
-        { value: 'method', label: this.$t('page.visit_log.access_method') },
-        { value: 'url', label: this.$t('page.visit_log.access_url') },
-        { value: 'header', label: this.$t('page.visit_log.request') },
-        { value: 'user_agent', label: this.$t('page.visit_log.user_agent') },
-        { value: 'referer', label: this.$t('page.visit_log.referer') },
-        { value: 'country', label: this.$t('page.visit_log.country') },
-        { value: 'province', label: this.$t('page.visit_log.province') },
-        { value: 'city', label: this.$t('page.visit_log.city') },
-        { value: 'status', label: this.$t('page.visit_log.response_code') },
-        { value: 'risk_level', label: this.$t('page.visit_log.risk_level') },
-        { value: 'guest_identification', label: this.$t('page.visit_log.guest_identity') },
-        { value: 'time_spent', label: this.$t('page.visit_log.time_spent') },
-        { value: 'log_only_mode', label: this.$t('page.visit_log.log_only_mode') },
-        { value: 'req_uuid',label:this.$t('page.visit_log.req_uuid')},
-        { value: 'ai_score', label: this.$t('page.visit_log.ai_score') }
-
-      ];
-    }
+      return this.columns.map((column) => ({ value: column.colKey, label: column.title }));
+    },
+    advancedFilterCount() {
+      return (
+        ['rule', 'req_uuid', 'action', 'status_code', 'method', 'log_only_mode'].filter(
+          (key) => this.searchformData[key],
+        ).length +
+        (this.searchformData.current_db_name !== 'auto' ? 1 : 0) +
+        (this.searchformData.view_type === 'event' ? 1 : 0) +
+        (this.filters.filter_by ? 1 : 0)
+      );
+    },
+    logConfigDirty() {
+      return Object.keys(this.savedLogConfig).some(
+        (key) => String(this.logConfig[key]) !== String(this.savedLogConfig[key]),
+      );
+    },
   },
   created() {
-    console.log(NowDate)
-    this.dateControl.range1[0] = NowDate + " 00:00:00"
-    this.dateControl.range1[1] = NowDate + " 23:59:59"
-    this.searchformData.unix_add_time_begin = ConvertStringToUnix(this.dateControl.range1[0]).toString()
-    this.searchformData.unix_add_time_end = ConvertStringToUnix(this.dateControl.range1[1]).toString()
-    console.log(this.range1)
-
-
+    console.log(NowDate);
+    this.dateControl.range1[0] = NowDate + ' 00:00:00';
+    this.dateControl.range1[1] = NowDate + ' 23:59:59';
+    this.searchformData.unix_add_time_begin = ConvertStringToUnix(this.dateControl.range1[0]).toString();
+    this.searchformData.unix_add_time_end = ConvertStringToUnix(this.dateControl.range1[1]).toString();
+    console.log(this.range1);
   },
   mounted() {
-    console.log("attack list mounted ");
+    window.addEventListener('resize', this.onViewportChange);
+    console.log('attack list mounted ');
     // 先用本地缓存的列配置渲染首屏
     this.loadColumnConfig();
     // 加载日志配置
@@ -1159,18 +1284,22 @@ export default defineComponent({
       // 浅拷贝 + 当前默认对象打底：直接引用 store 里的对象会让后续表单编辑绕过 mutation 改 state，
       // 也会让弹窗内嵌实例把 src_ip 写脏主列表页缓存；历史缓存可能缺字段，打底避免 v-model 绑到 undefined
       this.searchformData = { ...this.searchformData, ...attack.msgData.searchData };
-      console.log('daysrc', attack.msgData.searchData)
-      let newrange = Array()
-      newrange[0] = ConvertUnixToDate(parseInt(attack.msgData.searchData.unix_add_time_begin))
-      newrange[1] = ConvertUnixToDate(parseInt(attack.msgData.searchData.unix_add_time_end))
+      console.log('daysrc', attack.msgData.searchData);
+      let newrange = Array();
+      newrange[0] = ConvertUnixToDate(parseInt(attack.msgData.searchData.unix_add_time_begin));
+      newrange[1] = ConvertUnixToDate(parseInt(attack.msgData.searchData.unix_add_time_end));
       //console.log(this.dateControl.range1)
-      this.$set(this.dateControl, "range1", newrange)
+      this.$set(this.dateControl, 'range1', newrange);
     }
 
-    this.loadShareDbList()
-    this.loadHostList().then(() => {
-      this.getList("");
-    });
+    this.loadShareDbList();
+    this.loadHostList();
+    if (this.attack_ip) this.updateSearchFormAttackPage();
+    else {
+      if (Object.keys(routeFilter).length || this.$store.state.attacklog.msgData) this.timePreset = 'custom';
+      this.advancedVisible = this.advancedFilterCount > 0;
+      this.getList('');
+    }
   },
   watch: {
     // 同一路由内 query 变化（浏览器前进/后退等）；首次进入由 mounted 处理，此处不触发
@@ -1186,29 +1315,121 @@ export default defineComponent({
           this.$set(this.searchformData, key, Object.prototype.hasOwnProperty.call(picked, key) ? picked[key] : '');
         });
         // 日期区间与分页复位，口径与 mounted 分支一致
+        if (!this.searchformData.view_type) this.searchformData.view_type = 'access';
         this.applyRouteDateQuery(picked);
+        this.timePreset = picked.date_begin || picked.date_end ? 'custom' : 'today';
+        this.advancedVisible = this.advancedFilterCount > 0;
         this.pagination.current = 1;
-        this.getList("");
+        this.getList('');
       },
     },
     attack_ip(newVal) {
-      if (newVal !== "") {
-        this.updateSearchFormAttackPage();  // 当 attack_ip 变化时，更新表单数据
+      if (newVal !== '') {
+        this.updateSearchFormAttackPage(); // 当 attack_ip 变化时，更新表单数据
       }
-    }
+    },
   },
   beforeRouteLeave(to, from, next) {
-    console.log("attack list beforeRouteLeave ");
+    console.log('attack list beforeRouteLeave ');
     // vuex 存储操作
-    this.$store.dispatch("attacklog/setAttackMsgData", {
+    const bounds = logTimeBounds(this.dateControl.range1);
+    if (bounds) Object.assign(this.searchformData, bounds);
+    this.querySequence += 1;
+    this.$store.dispatch('attacklog/setAttackMsgData', {
       //query: this.queryParam,
       pagesize: this.pagination.pageSize,
       currentpage: this.pagination.current,
-      searchData: { ...this.searchformData },  // 存快照，避免 store 持有活引用被后续编辑写脏
-    })
+      searchData: { ...this.searchformData }, // 存快照，避免 store 持有活引用被后续编辑写脏
+    });
     next(); // 继续后续的导航解析过程
   },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.onViewportChange);
+    this.querySequence += 1;
+  },
   methods: {
+    onViewportChange() {
+      this.compactView = window.innerWidth <= 1023;
+    },
+    compactValue(row, key) {
+      if (key === 'service') return this.host_nickname_dic[row.host_code] || row.host || '—';
+      if (key === 'url') return [row.method, row.url || '/'].filter(Boolean).join(' ');
+      if (key === 'log_only_mode')
+        return Number(row.log_only_mode) === 1 ? this.text('仅记录', 'Observe only') : this.text('关闭', 'Off');
+      if (key === 'risk_level') return this.riskLabel(row.risk_level);
+      return row[key] === '' || row[key] == null ? '—' : row[key];
+    },
+    text(zh, en) {
+      return this.$i18n.locale === 'en_US' ? en : zh;
+    },
+    outcome: requestOutcome,
+    outcomeReason(row) {
+      const state = requestOutcome(row);
+      if (state.blocked) return this.text('已拦截', 'Blocked');
+      if (state.unknown) return this.text('状态待确认', 'Unknown action');
+      if (state.matched) return this.text('命中规则，未拦截', 'Matched, not blocked');
+      return this.text('响应失败', 'Failed response');
+    },
+    riskLabel(value) {
+      const n = Number(value);
+      return n >= 4
+        ? this.text('严重', 'Critical')
+        : n >= 3
+          ? this.text('高', 'High')
+          : n >= 2
+            ? this.text('中', 'Medium')
+            : n >= 1
+              ? this.text('低', 'Low')
+              : '—';
+    },
+    changeTimePreset() {
+      if (this.timePreset !== 'custom') this.dateControl.range1 = logDateRange(this.timePreset);
+    },
+    resetSearch() {
+      Object.assign(this.searchformData, {
+        request_outcome: '',
+        host_code: '',
+        src_ip: this.attack_ip || '',
+        url_keyword: '',
+        rule: '',
+        req_uuid: '',
+        action: '',
+        status_code: '',
+        method: '',
+        log_only_mode: '',
+        current_db_name: 'auto',
+        view_type: 'access',
+      });
+      this.timePreset = 'today';
+      this.dateControl.range1 = logDateRange('today');
+      this.filters = { filter_by: '', filter_value: '' };
+      this.sorts = { sortBy: 'unix_add_time', descending: true };
+      this.pagination.current = 1;
+      this.$refs.logTable?.clearFilter();
+      this.getList('all');
+    },
+    columnLabel(key) {
+      return this.allColumns.find((column) => column.colKey === key)?.title || key;
+    },
+    toggleDraftColumn(key, checked) {
+      this.tempDisplayColumns = checked
+        ? [...new Set([...this.tempDisplayColumns, key])]
+        : this.tempDisplayColumns.filter((value) => value !== key);
+    },
+    moveDraftColumn(index, direction) {
+      const next = index + direction;
+      if (next < 0 || next >= this.columnOrderDraft.length) return;
+      const order = [...this.columnOrderDraft];
+      [order[index], order[next]] = [order[next], order[index]];
+      this.columnOrderDraft = order;
+    },
+    useRecommendedColumns() {
+      this.tempDisplayColumns = [...recommendedLogColumns];
+      this.columnOrderDraft = [
+        ...recommendedLogColumns,
+        ...this.allColumnFieldKeys().filter((key) => !recommendedLogColumns.includes(key)),
+      ];
+    },
     // 点日志里的 IP 直接开归属查询弹窗，省得用户复制粘贴
     openIpLookup(ip) {
       if (!ip) return;
@@ -1224,7 +1445,7 @@ export default defineComponent({
         if (!Object.prototype.hasOwnProperty.call(query, key)) return;
         const v = query[key];
         // vue-router 对重复 key 会给数组，取第一个；null（?key 无值）归一成空串
-        picked[key] = Array.isArray(v) ? (v[0] == null ? '' : String(v[0])) : (v == null ? '' : String(v));
+        picked[key] = Array.isArray(v) ? (v[0] == null ? '' : String(v[0])) : v == null ? '' : String(v);
       });
       return picked;
     },
@@ -1242,22 +1463,26 @@ export default defineComponent({
     applyRouteDateQuery(picked) {
       const begin = picked.date_begin;
       const end = picked.date_end;
-      const newRange = (begin && end)
-        ? [begin, end]
-        : [NowDate + " 00:00:00", NowDate + " 23:59:59"];
-      this.$set(this.dateControl, "range1", newRange);
+      const newRange = begin && end ? [begin, end] : [NowDate + ' 00:00:00', NowDate + ' 23:59:59'];
+      this.$set(this.dateControl, 'range1', newRange);
       this.searchformData.unix_add_time_begin = ConvertStringToUnix(newRange[0]).toString();
       this.searchformData.unix_add_time_end = ConvertStringToUnix(newRange[1]).toString();
     },
 
     // 切换列配置弹窗
     toggleColumnController() {
+      this.columnEditVersion += 1;
       this.tempDisplayColumns = [...this.displayColumns];
+      this.columnOrderDraft = [
+        ...this.displayColumns,
+        ...this.allColumnFieldKeys().filter((key) => !this.displayColumns.includes(key)),
+      ];
       this.columnControllerVisible = true;
     },
     // 确认列配置
     handleColumnControllerConfirm() {
-      this.displayColumns = [...this.tempDisplayColumns];
+      this.displayColumns = this.columnOrderDraft.filter((key) => this.tempDisplayColumns.includes(key));
+      if (!this.displayColumns.includes('op')) this.displayColumns.push('op');
       this.columnControllerVisible = false;
       // 触发列配置变化回调
       this.handleDisplayColumnsChange(this.displayColumns);
@@ -1291,33 +1516,23 @@ export default defineComponent({
         v: COLUMN_CONFIG_VERSION,
         account: localStorage.getItem('current_account') || '',
         columns: Array.from(new Set(columns)),
-        known: (knownKeys && knownKeys.length) ? Array.from(new Set(knownKeys)) : this.allColumnFieldKeys(),
+        known: knownKeys && knownKeys.length ? Array.from(new Set(knownKeys)) : this.allColumnFieldKeys(),
       };
       localStorage.setItem(COLUMN_CONFIG_KEY, JSON.stringify(payload)); // 异常交由调用方处理
       try {
         localStorage.removeItem(LEGACY_KNOWN_COLUMNS_KEY);
-      } catch (e) { /* ignore */ }
+      } catch (e) {
+        /* ignore */
+      }
     },
 
     // 合并列配置：known 为空则一次性按默认列补齐；否则只补"用户从未见过的新列"
     mergeColumnConfig(columns, known) {
-      const allFieldKeys = this.allColumnFieldKeys();
-      const merged = [...columns];
-      if (!known || known.length === 0) {
-        // 兼容旧缓存（无 known 记录）：仅此一次按默认列补齐，之后以 known 记录为准
-        this.defaultDisplayColumns.forEach((col) => {
-          if (!merged.includes(col)) merged.push(col);
-        });
-      } else {
-        // 仅自动加入"用户从未见过的新功能列"（如新增的 ai_score），
-        // 用户主动取消勾选的列刷新后不再被强行加回
-        allFieldKeys.forEach((col) => {
-          // 默认不显示的新列（需用户主动在列配置里勾选），不参与"新列自动加入"
-          if (OPT_OUT_NEW_COLUMNS.includes(col)) return;
-          if (!known.includes(col) && !merged.includes(col)) merged.push(col);
-        });
-      }
-      return merged;
+      // Preserve the user's selection and order; new fields remain opt-in.
+      return normalizeLogColumns(
+        columns,
+        this.allColumns.map((column) => column.colKey),
+      );
     },
 
     // 落盘本地缓存但不让写失败影响界面（无痕模式/配额满时只告警）
@@ -1383,8 +1598,10 @@ export default defineComponent({
 
     // 从服务端加载列配置（异步，服务端为准，覆盖本地缓存结果）
     loadColumnConfigFromServer() {
+      const editVersion = this.columnEditVersion;
       get_ui_preference_api({ pref_name: COLUMN_PREF_NAME })
         .then((res) => {
+          if (editVersion !== this.columnEditVersion) return;
           if (res.code !== 0) {
             console.warn('获取服务端列配置失败:', res.msg);
             return;
@@ -1401,7 +1618,7 @@ export default defineComponent({
           }
           // 服务端还没有记录：把当前（本地缓存/默认）配置同步上去一次，
           // 让存量用户的 localStorage 配置无感迁移到服务端
-          this.syncColumnConfigToServer().catch(() => { });
+          this.syncColumnConfigToServer().catch(() => {});
         })
         .catch((err) => {
           // 接口不可用（如后端为老版本）时保持本地缓存结果，不打扰用户
@@ -1458,20 +1675,20 @@ export default defineComponent({
       this.saveColumnConfig();
     },
     updateSearchFormAttackPage() {
-      console.log("updateSearchFormAttackPage")
-      if (this.attack_ip != "") {
-        console.log("attack ip index", this.attack_ip)
-        this.searchformData.src_ip = this.attack_ip
+      console.log('updateSearchFormAttackPage');
+      if (this.attack_ip != '') {
+        console.log('attack ip index', this.attack_ip);
+        this.searchformData.src_ip = this.attack_ip;
         // 风险详情默认落在安全事件视图（命中明细）；旁边的「全部行为」页签是该 IP 的访问日志视图
-        this.searchformData.view_type = 'event'
-        this.dateControl.range1[0] = "2022-01-01 00:00:00"
-        this.dateControl.range1[1] = NowDate + " 23:59:59"
-        this.searchformData.unix_add_time_begin = ConvertStringToUnix(this.dateControl.range1[0]).toString()
-        this.searchformData.unix_add_time_end = ConvertStringToUnix(this.dateControl.range1[1]).toString()
-        this.pagination.current = 1
-        this.getList("")
+        this.timePreset = 'custom';
+        this.searchformData.view_type = 'event';
+        this.dateControl.range1[0] = '2022-01-01 00:00:00';
+        this.dateControl.range1[1] = NowDate + ' 23:59:59';
+        this.searchformData.unix_add_time_begin = ConvertStringToUnix(this.dateControl.range1[0]).toString();
+        this.searchformData.unix_add_time_end = ConvertStringToUnix(this.dateControl.range1[1]).toString();
+        this.pagination.current = 1;
+        this.getList('');
       }
-
     },
     // 条数写成人能读的样子：13.5 万条 而不是 135140
     fmtCnt(n) {
@@ -1493,7 +1710,7 @@ export default defineComponent({
       // 登记还在、存储已不在：照样列出来（好让人知道有这么个分区、去分区管理删登记），但选不了
       const note = item.missing
         ? ' · ' + this.$t('page.visit_log.shard_missing')
-        : (item.tiers && item.tiers.length > 0 && item.tiers.indexOf('access_log') < 0)
+        : item.tiers && item.tiers.length > 0 && item.tiers.indexOf('access_log') < 0
           ? ' · ' + this.$t('page.visit_log.shard_only_event')
           : '';
       if (item.period_key && item.period_key.length >= 6) {
@@ -1523,9 +1740,7 @@ export default defineComponent({
       };
       const days = parseInt(this.quickRange, 10);
       const end = d(new Date()) + ' 23:59:59';
-      const start = days > 0
-        ? d(new Date(+new Date() - 86400000 * (days - 1))) + ' 00:00:00'
-        : '1970-01-02 00:00:00';
+      const start = days > 0 ? d(new Date(+new Date() - 86400000 * (days - 1))) + ' 00:00:00' : '1970-01-02 00:00:00';
       this.dateControl.range1 = [start, end];
     },
     // 分区管理：打开前刷一次，免得删完别处看到的还是旧列表
@@ -1589,8 +1804,8 @@ export default defineComponent({
     },
     // 超预算时的一键补救：把时间范围收到最近 7 天再查
     narrowRange() {
-      this.quickRange = "7";
-      this.applyQuickRange();
+      this.timePreset = '7d';
+      this.changeTimePreset();
       this.getList('all');
     },
     // 分区的显示名：优先用下拉里已经算好的标签，取不到就退回原始标识
@@ -1600,133 +1815,134 @@ export default defineComponent({
     },
     loadShareDbList() {
       let that = this;
-      allsharedblist("").then((res) => {
-        let resdata = res
-        console.log("loadShareDbList", resdata)
-        if (resdata.code === 0) {
-          let share_options = resdata.data;
-          let currentName = "";
-          that.shardRows = share_options;
-          const gLive = { label: that.$t('page.visit_log.shard_group_live'), options: [] };
-          const gPeriod = { label: that.$t('page.visit_log.shard_group_period'), options: [] };
-          const gLegacy = { label: that.$t('page.visit_log.shard_group_legacy'), options: [] };
-          for (let i = 0; i < share_options.length; i++) {
-            const it = share_options[i];
-            // 下拉里显示「时间段」而不是文件名/表名：归档分区按月切，用户要找的是某段时间的日志
-            const label = that.shardLabel(it);
-            that.share_db_dic[it.file_name] = label;
-            const opt = { value: it.file_name, label: label, disabled: !!it.missing };
-            // 后端按驱动标记当前(实时)分片：SQLite=local_log.db，MySQL=web_logs
-            if (it.is_current) {
-              currentName = it.file_name;
-              gLive.options.push(opt);
-            } else if (it.period_key) {
-              gPeriod.options.push(opt);
-            } else {
-              gLegacy.options.push(opt);
+      allsharedblist('')
+        .then((res) => {
+          let resdata = res;
+          console.log('loadShareDbList', resdata);
+          if (resdata.code === 0) {
+            let share_options = resdata.data;
+            let currentName = '';
+            that.shardRows = share_options;
+            const gLive = { label: that.$t('page.visit_log.shard_group_live'), options: [] };
+            const gPeriod = { label: that.$t('page.visit_log.shard_group_period'), options: [] };
+            const gLegacy = { label: that.$t('page.visit_log.shard_group_legacy'), options: [] };
+            for (let i = 0; i < share_options.length; i++) {
+              const it = share_options[i];
+              // 下拉里显示「时间段」而不是文件名/表名：归档分区按月切，用户要找的是某段时间的日志
+              const label = that.shardLabel(it);
+              that.share_db_dic[it.file_name] = label;
+              const opt = { value: it.file_name, label: label, disabled: !!it.missing };
+              // 后端按驱动标记当前(实时)分片：SQLite=local_log.db，MySQL=web_logs
+              if (it.is_current) {
+                currentName = it.file_name;
+                gLive.options.push(opt);
+              } else if (it.period_key) {
+                gPeriod.options.push(opt);
+              } else {
+                gLegacy.options.push(opt);
+              }
             }
+            that.shardGroups = [gLive, gPeriod, gLegacy].filter((g) => g.options.length > 0);
+            // 默认停在「自动（按时间范围）」：分区由时间算出来，不再让用户自己猜
+            // （旧默认是实时分片，会出现「日期选了上个月、分区停在实时 → 0 条」）
           }
-          that.shardGroups = [gLive, gPeriod, gLegacy].filter((g) => g.options.length > 0);
-          // 默认停在「自动（按时间范围）」：分区由时间算出来，不再让用户自己猜
-          // （旧默认是实时分片，会出现「日期选了上个月、分区停在实时 → 0 条」）
-        }
-      })
+        })
         .catch((e: Error) => {
           console.log(e);
-        })
+        });
     },
-    loadHostList() {
-      return new Promise((resolve, reject) => {
-        allhost()
-          .then((res) => {
-            let resdata = res;
-            console.log(resdata);
-            if (resdata.code === 0) {
-              let host_options = resdata.data;
-              //昵称字典整体替换赋值，保证表格列能重新渲染(Vue2 对新增 key 不响应)
-              const nicknameDic = {};
-              const realHosts = [];
-              for (let i = 0; i < host_options.length; i++) {
-                this.host_dic[host_options[i].value] = host_options[i].label;
-                nicknameDic[host_options[i].value] = host_options[i].nickname || '';
-                if (host_options[i].global_host !== 1) {
-                  realHosts.push({ value: host_options[i].value, label: host_options[i].label });
-                }
-              }
-              this.host_nickname_dic = nicknameDic;
-              this.realHostOptions = realHosts;
-            }
-            resolve(undefined); // 调用 resolve 表示加载完成
-          })
-          .catch((e: Error) => {
-            console.log(e);
-            reject(e); // 调用 reject 表示加载失败
-          });
-      });
-    },
-    getList(keyword) {
-      console.log("getList")
-      let that = this
-      if (keyword != undefined && keyword == "all") {
-        that.pagination.current = 1
+    async loadHostList() {
+      this.hostLoading = true;
+      this.hostError = '';
+      try {
+        const res = await allLogServices();
+        if (res.code !== 0 || !Array.isArray(res.data))
+          throw new Error(res.msg || this.text('服务列表暂时无法读取', 'Services unavailable'));
+        this.serviceOptions = res.data;
+        this.host_dic = Object.fromEntries(res.data.map((item) => [item.value, item.label]));
+        this.host_nickname_dic = Object.fromEntries(res.data.map((item) => [item.value, item.nickname || item.label]));
+        this.serviceByCode = Object.fromEntries(res.data.map((item) => [item.value, item]));
+        this.realHostOptions = res.data.filter((item) => item.global_host !== 1 && item.source !== 'pipeline');
+      } catch (error) {
+        this.hostError = error.message || this.text('服务列表读取失败，请重试。', 'Could not load services. Retry.');
+      } finally {
+        this.hostLoading = false;
       }
+    },
+    async getList(keyword) {
+      if (keyword === 'all') this.pagination.current = 1;
+      if (this.timePreset !== 'custom' && !this.isUuidLookup) this.dateControl.range1 = logDateRange(this.timePreset);
+      const bounds = logTimeBounds(this.dateControl.range1);
+      const sequence = ++this.querySequence;
+      if (!this.isUuidLookup && !bounds) {
+        this.queryError = this.text(
+          '请选择有效的起止时间，开始时间不能晚于结束时间。',
+          'Choose a valid start and end time.',
+        );
+        this.data = [];
+        this.pagination.total = 0;
+        this.dataLoading = false;
+        return;
+      }
+      if (bounds) Object.assign(this.searchformData, bounds);
       const requestData: Record<string, any> = {
-        ...that.getFilteredSearchData(),
-        pageSize: that.pagination.pageSize,
-        pageIndex: that.pagination.current,
-        sort_by: that.sorts.sortBy,
-        sort_descending: that.sorts.descending ? 'desc' : 'asc',
-        filter_by: that.filters.filter_by,
-        filter_value: that.filters.filter_value,
-        unix_add_time_begin: ConvertStringToUnix(this.dateControl.range1[0]).toString(),
-        unix_add_time_end: ConvertStringToUnix(this.dateControl.range1[1]).toString(),
+        ...this.getFilteredSearchData(),
+        ...bounds,
+        pageSize: this.pagination.pageSize,
+        pageIndex: this.pagination.current,
+        sort_by: this.sorts.sortBy,
+        sort_descending: this.sorts.descending ? 'desc' : 'asc',
+        filter_by: this.filters.filter_by,
+        filter_value: this.filters.filter_value,
       };
       if (requestData.req_uuid) {
         requestData.current_db_name = 'auto';
         delete requestData.unix_add_time_begin;
         delete requestData.unix_add_time_end;
       }
-
-      this.$request
-        .post('/waflog/attack/list', requestData)
-        .then((res) => {
-          let resdata = res
-          console.log(resdata)
-          if (resdata.code === 0) {
-
-            //const { list = [] } = resdata.data.list;
-
-            this.data = resdata.data.list ?? [];
-            // 这次查了哪些分区 / 识别码在哪找到的：自动模式下用户没选分区，界面要能解释
-            this.queryMeta = {
-              shards: resdata.data.shards || [],
-              found_in: resdata.data.found_in || "",
-              scanned: resdata.data.scanned || 0,
-              uuid_lookup: !!resdata.data.uuid_lookup,
-              sort_forced_time: !!resdata.data.sort_forced_time,
-              partial: !!resdata.data.partial,
-              took_ms: resdata.data.took_ms || 0,
-              issues: resdata.data.issues || [],
-            };
-            this.pagination = {
-              ...this.pagination,
-              total: resdata.data.total,
-            };
-            this.loadAiMarks();
-          } else {
-            that.$message.warning(resdata.msg);
-          }
-        })
-        .catch((e: Error) => {
-          console.log(e);
-        })
-        .finally(() => {
-          this.dataLoading = false;
-        });
+      this.queryError = '';
       this.dataLoading = true;
+      try {
+        const res = await this.$request.post('/waflog/attack/list', requestData);
+        if (sequence !== this.querySequence) return;
+        if (res.code !== 0 || !Array.isArray(res.data?.list))
+          throw new Error(res.msg || this.text('读取日志失败', 'Could not load logs'));
+        this.data = res.data.list;
+        this.pagination.total = Number(res.data.total) || 0;
+        this.queryMeta = {
+          shards: res.data.shards || [],
+          found_in: res.data.found_in || '',
+          scanned: res.data.scanned || 0,
+          uuid_lookup: !!res.data.uuid_lookup,
+          sort_forced_time: !!res.data.sort_forced_time,
+          partial: !!res.data.partial,
+          took_ms: res.data.took_ms || 0,
+          issues: res.data.issues || [],
+        };
+        if (res.data.sort_forced_time) this.sorts = { sortBy: 'unix_add_time', descending: this.sorts.descending };
+        this.loadAiMarks();
+      } catch (error) {
+        if (sequence !== this.querySequence) return;
+        this.data = [];
+        this.pagination.total = 0;
+        this.queryMeta = {
+          shards: [],
+          found_in: '',
+          scanned: 0,
+          uuid_lookup: false,
+          sort_forced_time: false,
+          partial: false,
+          took_ms: 0,
+          issues: [],
+        };
+        this.queryError = error.message || this.text('日志读取失败，请重试。', 'Could not load logs. Retry.');
+      } finally {
+        if (sequence === this.querySequence) this.dataLoading = false;
+      }
     },
     // 加载当前页日志的 AI 训练标签修正状态
     loadAiMarks() {
+      const sequence = this.querySequence;
       const uuids = (this.data || []).map((r) => r.req_uuid).filter((u) => !!u);
       if (uuids.length === 0) {
         this.aiMarkMap = {};
@@ -1734,7 +1950,7 @@ export default defineComponent({
       }
       aiLabelByUuidsApi({ req_uuids: uuids })
         .then((res) => {
-          if (res.code === 0) {
+          if (res.code === 0 && sequence === this.querySequence) {
             this.aiMarkMap = res.data || {};
           }
         })
@@ -1820,44 +2036,39 @@ export default defineComponent({
       return document.querySelector('.tdesign-starter-layout');
     },
     rehandlePageChange(curr, pageInfo) {
-      this.pagination.current = curr.current
+      this.pagination.current = curr.current;
       if (this.pagination.pageSize != curr.pageSize) {
-        this.pagination.current = 1
-        this.pagination.pageSize = curr.pageSize
+        this.pagination.current = 1;
+        this.pagination.pageSize = curr.pageSize;
       }
-      this.getList("")
+      this.getList('');
     },
     rehandleSelectChange(selectedRowKeys: number[]) {
       this.selectedRowKeys = selectedRowKeys;
     },
-    rehandleChange(changeParams, triggerAndData) {
-    },
+    rehandleChange(changeParams, triggerAndData) {},
     handleClickDetail(e) {
-      const { req_uuid } = e.row
+      const { req_uuid } = e.row;
       // 行自带来源分区（扇出时后端回填）：带上它详情就能直达，不必再逐个分区找
       const shard = e.row.shard_name || this.searchformData.current_db_name;
 
-      if (this.attack_ip == "") {
-        this.$router.push(
-          {
-            path: '/waf/wafattacklogdetail',
-            query: {
-              req_uuid: req_uuid + "#" + shard,
-            },
+      if (this.attack_ip == '') {
+        this.$router.push({
+          path: '/waf/wafattacklogdetail',
+          query: {
+            req_uuid: req_uuid + '#' + shard,
           },
-        );
+        });
       } else {
-        this.visitDetailUid = req_uuid
-        this.visitDetailVisible = true
+        this.visitDetailUid = req_uuid;
+        this.visitDetailVisible = true;
       }
-
     },
     handleClickIPDetail(e) {
-      console.log(e)
-      const { src_ip } = e.row
-      this.searchformData.src_ip = src_ip
-      this.getList("")
-
+      console.log(e);
+      const { src_ip } = e.row;
+      this.searchformData.src_ip = src_ip;
+      this.getList('all');
     },
     handleClickDelete(row: { rowIndex: any }) {
       this.deleteIdx = row.rowIndex;
@@ -1885,98 +2096,93 @@ export default defineComponent({
      * table 排序
      */
     onSortChange(sorter) {
-      let that = this
+      this.pagination.current = 1;
+      let that = this;
 
       if (sorter != undefined) {
-        this.sorts.sortBy = sorter.sortBy
-        that.sorts.descending = sorter.descending
-
+        this.sorts.sortBy = sorter.sortBy;
+        that.sorts.descending = sorter.descending;
       } else {
-        that.sorts.sortBy = "unix_add_time"
-        that.sorts.descending = true
+        that.sorts.sortBy = 'unix_add_time';
+        that.sorts.descending = true;
       }
-      this.getList("")
+      this.getList('');
     },
     /**
      * 访客身份筛选
      */
-    filterGuestChange(e) {
-    },
+    filterGuestChange(e) {},
     // 切换访问日志/安全事件视图。「请求」全文筛选只在安全事件视图有，切走时摘掉，否则后端会拒
     onViewTypeChange() {
       if (this.searchformData.view_type !== 'event' && this.filters.filter_by.indexOf('header') >= 0) {
-        this.filters.filter_by = "";
-        this.filters.filter_value = "";
+        this.filters.filter_by = '';
+        this.filters.filter_value = '';
       }
       this.pagination.current = 1;
-      this.getList("");
+      this.getList('');
     },
     /**
      * 筛选结果
      */
     onFilterChange(e) {
-      this.filters.filter_by = "";
-      this.filters.filter_value = "";
+      this.pagination.current = 1;
+      this.filters.filter_by = '';
+      this.filters.filter_value = '';
       //访客身份
-      if (e.guest_identification != undefined && e.guest_identification != "") {
-        this.filters.filter_by = "guest_identification";
+      if (e.guest_identification != undefined && e.guest_identification != '') {
+        this.filters.filter_by = 'guest_identification';
         this.filters.filter_value = e.guest_identification;
       }
       //请求ID
-      if (e.req_uuid != undefined && e.req_uuid != "") {
-        if (this.filters.filter_by == "") {
-          this.filters.filter_by = "req_uuid";
+      if (e.req_uuid != undefined && e.req_uuid != '') {
+        if (this.filters.filter_by == '') {
+          this.filters.filter_by = 'req_uuid';
           this.filters.filter_value = e.req_uuid;
         } else {
-          this.filters.filter_by = this.filters.filter_by + "|req_uuid";
-          this.filters.filter_value = this.filters.filter_value + "|" + e.req_uuid;
+          this.filters.filter_by = this.filters.filter_by + '|req_uuid';
+          this.filters.filter_value = this.filters.filter_value + '|' + e.req_uuid;
         }
       }
       //header
-      if (e.header != undefined && e.header != "") {
-        if (this.filters.filter_by == "") {
-          this.filters.filter_by = "header";
+      if (e.header != undefined && e.header != '') {
+        if (this.filters.filter_by == '') {
+          this.filters.filter_by = 'header';
           this.filters.filter_value = e.header;
         } else {
-          this.filters.filter_by = this.filters.filter_by + "|header";
-          this.filters.filter_value = this.filters.filter_value + "|" + e.header;
+          this.filters.filter_by = this.filters.filter_by + '|header';
+          this.filters.filter_value = this.filters.filter_value + '|' + e.header;
         }
       }
       //User-Agent / Referer（窄行列，两个视图都可用）
-      if (e.user_agent != undefined && e.user_agent != "") {
-        if (this.filters.filter_by == "") {
-          this.filters.filter_by = "user_agent";
+      if (e.user_agent != undefined && e.user_agent != '') {
+        if (this.filters.filter_by == '') {
+          this.filters.filter_by = 'user_agent';
           this.filters.filter_value = e.user_agent;
         } else {
-          this.filters.filter_by = this.filters.filter_by + "|user_agent";
-          this.filters.filter_value = this.filters.filter_value + "|" + e.user_agent;
+          this.filters.filter_by = this.filters.filter_by + '|user_agent';
+          this.filters.filter_value = this.filters.filter_value + '|' + e.user_agent;
         }
       }
-      if (e.referer != undefined && e.referer != "") {
-        if (this.filters.filter_by == "") {
-          this.filters.filter_by = "referer";
+      if (e.referer != undefined && e.referer != '') {
+        if (this.filters.filter_by == '') {
+          this.filters.filter_by = 'referer';
           this.filters.filter_value = e.referer;
         } else {
-          this.filters.filter_by = this.filters.filter_by + "|referer";
-          this.filters.filter_value = this.filters.filter_value + "|" + e.referer;
+          this.filters.filter_by = this.filters.filter_by + '|referer';
+          this.filters.filter_value = this.filters.filter_value + '|' + e.referer;
         }
       }
 
-      this.getList("")
+      this.getList('');
     },
     resetState() {
-      console.log("来自上级得状态清理")
-      this.$refs.form.reset()
-      this.dateControl.range1[0] = NowDate + " 00:00:00"
-      this.dateControl.range1[1] = NowDate + " 23:59:59"
-      this.searchformData.unix_add_time_begin = ConvertStringToUnix(this.dateControl.range1[0]).toString()
-      this.searchformData.unix_add_time_end = ConvertStringToUnix(this.dateControl.range1[1]).toString()
+      this.resetSearch();
     },
 
     // 获取过滤后的搜索数据
     getFilteredSearchData() {
       const filteredData = {};
-      Object.keys(this.searchformData).forEach(key => {
+      Object.keys(this.searchformData).forEach((key) => {
         const value = this.searchformData[key];
         if (typeof value === 'string' && key !== 'url_keyword') {
           filteredData[key] = value.trim();
@@ -1994,6 +2200,8 @@ export default defineComponent({
 
     // 加载日志配置
     loadLogConfig() {
+      this.logConfigLoading = true;
+      this.logConfigError = '';
       const configKeys = [
         'record_log_type',
         'record_max_req_body_length',
@@ -2012,24 +2220,39 @@ export default defineComponent({
       ];
 
       // 使用 Promise.all 并行获取所有配置项
-      const promises = configKeys.map(key => {
+      const promises = configKeys.map((key) => {
         return get_detail_by_item_api({ item: key })
-          .then(res => {
+          .then((res) => {
             if (res.code === 0 && res.data) {
               this.logConfigItems[key] = res.data;
-              // 直接使用原始值，不做类型转换
-              this.logConfig[key] = res.data.value;
+              const numeric = [
+                'record_max_req_body_length',
+                'record_max_res_body_length',
+                'delete_history_log_day',
+                'log_db_size',
+                'db_file_size',
+                'batch_insert',
+                'access_log_retention_days',
+              ];
+              this.logConfig[key] = numeric.includes(key) ? Number(res.data.value) : res.data.value;
             }
-            return { key, success: true };
+            return { key, success: res.code === 0 && !!res.data };
           })
-          .catch(err => {
+          .catch((err) => {
             console.error(`加载配置项 ${key} 失败:`, err);
             return { key, success: false };
           });
       });
 
-      Promise.all(promises).then(results => {
-        const failedItems = results.filter(r => !r.success);
+      Promise.all(promises).then((results) => {
+        this.logConfigLoading = false;
+        const failedItems = results.filter((r) => !r.success);
+        if (failedItems.length)
+          this.logConfigError = this.text(
+            '部分设置加载失败，请重新读取后再保存。',
+            'Some settings failed to load. Reload before saving.',
+          );
+        this.savedLogConfig = { ...this.logConfig };
         if (failedItems.length === 0) {
           console.log('日志配置加载成功', this.logConfig);
         } else {
@@ -2039,71 +2262,55 @@ export default defineComponent({
     },
 
     // 保存日志配置
-    saveLogConfig() {
+    async saveLogConfig() {
+      if (this.logConfigLoading || this.logConfigError || !this.logConfigDirty) return;
       this.logConfigSaving = true;
-
-      const configKeys = [
-        'record_log_type',
-        'record_max_req_body_length',
-        'record_max_res_body_length',
-        'record_resp',
-        'record_all_src_byte_info',
-        'delete_history_log_day',
-        'log_db_size',
-        'db_file_size',
-        'log_persist_enable',
-        'batch_insert',
-        'ip_tag_db',
-        'access_log_mode',
-        'access_log_retention_days',
-        'exclude_ip_log',
-      ];
-
-      const savePromises = configKeys.map(key => {
-        const item = this.logConfigItems[key];
-        if (item) {
-          return edit_system_config_api({
+      const changes = Object.keys(this.savedLogConfig)
+        .filter((key) => String(this.savedLogConfig[key]) !== String(this.logConfig[key]))
+        .map((key) => ({ key, value: String(this.logConfig[key]), item: this.logConfigItems[key] }));
+      const results = await Promise.allSettled(
+        changes.map(async ({ key, value, item }) => {
+          if (!item) throw new Error(key);
+          const res = await edit_system_config_api({
             id: item.id,
             category: item.category,
             item: item.item,
-            value: String(this.logConfig[key]),
+            value,
             type: item.type,
             title: item.title,
             options: item.options || '',
-          }).catch(err => {
-            console.error(`保存配置项 ${key} 失败:`, err);
-            throw err;
           });
-        }
-        return Promise.resolve(undefined);
-      });
-
-      Promise.all(savePromises)
-        .then(() => {
-          this.$message.success(this.$t('common.tips.save_success'));
-          // 重新加载日志列表以应用新配置
-          this.getList("");
-        })
-        .catch((e) => {
-          console.error('保存日志配置失败', e);
-          this.$message.error(this.$t('common.tips.save_failed'));
-        })
-        .finally(() => {
-          this.logConfigSaving = false;
-        });
+          if (res.code !== 0) throw new Error(res.msg || key);
+          this.savedLogConfig[key] = value;
+        }),
+      );
+      this.logConfigSaving = false;
+      if (results.some((result) => result.status === 'rejected')) {
+        this.$message.error(this.text('部分设置未保存，请重试。', 'Some settings were not saved. Retry.'));
+      } else {
+        this.$message.success(this.$t('common.tips.save_success'));
+        this.getList('');
+      }
     },
 
     // 处理IP提取问题
     handleIPExtractIssue() {
+      const service = this.serviceByCode[this.searchformData.host_code];
+      if (service?.source === 'pipeline') {
+        this.$router.push({ name: 'WafPipeline', query: { edit: String(service.port) } });
+        return;
+      }
       this.ipExtractDialogVisible = true;
       // 获取当前配置
-      get_detail_by_item_api({ item: 'gwaf_proxy_header' }).then(res => {
-        if (res.code === 0 && res.data) {
-          this.ipExtractFormData = res.data;
-        }
-      }).catch(err => {
-        console.error('获取IP提取配置失败:', err);
-      });
+      get_detail_by_item_api({ item: 'gwaf_proxy_header' })
+        .then((res) => {
+          if (res.code === 0 && res.data) {
+            this.ipExtractFormData = res.data;
+          }
+        })
+        .catch((err) => {
+          console.error('获取IP提取配置失败:', err);
+        });
     },
 
     // 跳到该站点的「真实IP来源」配置(网站防护列表页会自动打开编辑弹窗的"其他配置")
@@ -2131,16 +2338,18 @@ export default defineComponent({
     // 提交IP提取配置
     onSubmitIPExtract({ validateResult }) {
       if (validateResult === true) {
-        edit_system_config_api(this.ipExtractFormData).then(res => {
-          if (res.code === 0) {
-            this.$message.success(res.msg);
-            this.ipExtractDialogVisible = false;
-          } else {
-            this.$message.error(res.msg);
-          }
-        }).catch(err => {
-          this.$message.error(err.message);
-        });
+        edit_system_config_api(this.ipExtractFormData)
+          .then((res) => {
+            if (res.code === 0) {
+              this.$message.success(res.msg);
+              this.ipExtractDialogVisible = false;
+            } else {
+              this.$message.error(res.msg);
+            }
+          })
+          .catch((err) => {
+            this.$message.error(err.message);
+          });
       }
     },
     //end meathod
@@ -2151,7 +2360,7 @@ export default defineComponent({
 <style lang="less" scoped>
 @import '@/style/variables';
 
-.t-button+.t-button {
+.t-button + .t-button {
   margin-left: @spacer;
 }
 
@@ -2170,5 +2379,235 @@ export default defineComponent({
   font-size: 13px;
   color: var(--td-warning-color);
   line-height: 1.4;
+}
+
+.visit-filter-form {
+  margin: 0;
+}
+.visit-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+}
+.visit-filter-grid :deep(.el-form-item) {
+  margin: 0;
+  min-width: 0;
+}
+.visit-filter-grid :deep(.el-form-item__content > .el-input),
+.visit-filter-grid :deep(.el-form-item__content > .el-select) {
+  width: 100%;
+  min-width: 0;
+}
+.visit-search-actions,
+.visit-result-actions,
+.visit-support,
+.visit-settings-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.visit-search-actions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hw-line);
+}
+.visit-search-actions :deep(.el-button),
+.visit-result-actions :deep(.el-button) {
+  margin: 0;
+}
+.visit-custom-range {
+  margin-top: 16px;
+}
+.visit-custom-range :deep(.el-form-item) {
+  margin: 0;
+}
+.visit-custom-range :deep(.el-date-editor) {
+  width: min(100%, 480px);
+}
+.visit-advanced {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hw-line);
+}
+.visit-support {
+  grid-column: 1 / -1;
+}
+.visit-results-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 24px 0 16px;
+}
+.visit-results-heading h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.visit-results-heading p {
+  margin: 6px 0 0;
+  color: var(--hw-muted);
+  font-size: 13px;
+}
+.visit-result-count {
+  margin-left: 8px;
+  color: var(--hw-muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+.visit-notice {
+  margin-top: 16px;
+}
+.visit-outcome {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+}
+.visit-outcome > span:last-child:not(.el-tag) {
+  font-size: 12px;
+  color: var(--hw-muted);
+}
+.visit-request-path {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.visit-request-path > span:first-child {
+  flex: none;
+  color: var(--hw-muted);
+  font-size: 12px;
+}
+.visit-request-path > span:last-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.visit-response-error {
+  color: var(--el-color-danger);
+}
+.visit-compact-record {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 4px 0;
+  font-size: 13px;
+}
+.visit-compact-record dt {
+  color: var(--hw-muted);
+}
+.visit-compact-record dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.visit-compact-reason {
+  display: block;
+  margin-top: 4px;
+  color: var(--hw-muted);
+}
+.visit-column-help,
+.visit-settings-intro {
+  color: var(--hw-muted);
+  margin: 0 0 12px;
+}
+.visit-column-list {
+  padding: 0;
+  margin: 12px 0 0;
+  list-style: none;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.visit-column-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--hw-line);
+}
+.visit-column-move {
+  display: flex;
+  gap: 4px;
+}
+.visit-column-move button {
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--hw-line);
+  border-radius: var(--hw-r-sm);
+  background: var(--hw-surface);
+  color: var(--hw-ink);
+  cursor: pointer;
+}
+.visit-column-move button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.visit-column-move button:focus-visible {
+  outline: 2px solid var(--hw-accent);
+  outline-offset: 2px;
+}
+.visit-settings-tools {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hw-line);
+  color: var(--hw-muted);
+  font-size: 13px;
+}
+.log-config-form :deep(.el-row) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 !important;
+  gap: 16px;
+}
+.log-config-form :deep(.el-col) {
+  max-width: 100%;
+  width: 100%;
+  padding: 0 !important;
+}
+.log-config-form :deep(.el-form-item__label) {
+  font-size: 13px;
+}
+.log-config-form :deep(.el-row:has(textarea)) {
+  grid-template-columns: 1fr;
+}
+.visit-log-card :deep(.el-table td.el-table__cell) {
+  padding: 10px 0;
+}
+.visit-log-card :deep(.el-table .cell) {
+  line-height: 1.5;
+}
+@media (max-width: 1180px) {
+  .visit-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1023px) {
+  .visit-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .visit-results-heading {
+    align-items: flex-start;
+  }
+  .visit-column-move button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+@media (max-width: 520px) {
+  .visit-filter-grid,
+  .log-config-form :deep(.el-row) {
+    grid-template-columns: 1fr;
+  }
+  .visit-search-actions,
+  .visit-result-actions {
+    width: 100%;
+  }
+  .visit-search-actions :deep(.el-button:not(.is-text):not(.is-link)) {
+    flex: 1;
+  }
 }
 </style>

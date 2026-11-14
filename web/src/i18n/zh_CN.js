@@ -438,7 +438,7 @@ export default {
       overview_title: "网站综合访问统计",
     },
     host: {
-      parent_title: "网站防护",
+      parent_title: "服务防护",
       host_title: "网站防护",
       host_detail: "主机防护详情",
       host_protect_rule: "防御规则",

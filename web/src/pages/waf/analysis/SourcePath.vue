@@ -169,7 +169,7 @@ import {defineComponent} from 'vue';
 
 
 import { analysisActorList, analysisPathList, analysisDetail } from '@/apis/analysis_view';
-import { allhost } from '@/apis/host';
+import { allLogServices } from '@/apis/host';
 import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemconfig';
 import IpDisposal from '@/components/ip-disposal/index.vue';
 
@@ -351,10 +351,10 @@ export default defineComponent({
       this.kpiFilter = this.kpiFilter === k ? '' : k;
     },
     loadHosts() {
-      allhost()
+      allLogServices()
         .then((res) => {
           if (res.code === 0) {
-            // allhost 的 json 字段就叫 value / label（model/response/all_host.go 的 tag），
+            // allLogServices 的 json 字段就叫 value / label（model/response/all_host.go 的 tag），
             // 不是 code / host——取错的话下拉全是空白项
             const list = (res.data || []).filter((h: any) => h && h.value);
             this.hostOptions = list.map((h: any) => ({ value: h.value, label: h.label || h.value }));

@@ -26,7 +26,8 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
 await context.addInitScript(() => { localStorage.setItem('access_token', 'isolated-notification-test'); localStorage.setItem('lang', 'zh_CN'); });
 await context.routeWebSocket('**/api/**', socket => socket.close());
-const rows = [], writes = [], errors = [];
+const rows = [], subscriptions = [], writes = [], errors = [];
+let failChannelList = false;
 const mask = row => {
   const result = structuredClone(row), config = JSON.parse(result.config_json || '{}');
   result.has_config_secrets = {};
@@ -42,7 +43,7 @@ await context.route('**/api/**', async route => {
   let input = {};
   if (request.postData()) { try { input = JSON.parse(AesDecrypt(request.postData())); } catch { try { input = JSON.parse(request.postData()); } catch {} } }
   if (endpoint === 'notify/channel/types') return ok(catalogue);
-  if (endpoint === 'notify/channel/list') return ok({ list: rows.filter(row => !input.type || row.type === input.type).map(mask), total: rows.length });
+  if (endpoint === 'notify/channel/list') return failChannelList ? fail('模拟通知渠道读取失败') : ok({ list: rows.filter(row => !input.type || row.type === input.type).map(mask), total: rows.length });
   if (endpoint === 'notify/channel/add') { rows.push({ ...input, id: `channel-${rows.length}`, create_time: '2026-11-14 10:00:00' }); writes.push({ action: 'add', type: input.type }); return ok({}); }
   if (endpoint === 'notify/channel/edit') {
     const old = rows.find(row => row.id === input.id), submitted = JSON.parse(input.config_json), current = JSON.parse(old.config_json);
@@ -54,6 +55,8 @@ await context.route('**/api/**', async route => {
     writes.push({ action: 'edit', type: input.type }); return ok({});
   }
   if (endpoint === 'notify/channel/test') { writes.push({ action: 'test' }); return ok({}); }
+  if (endpoint === 'notify/subscription/list') return ok({ list: subscriptions, total: subscriptions.length });
+  if (endpoint === 'notify/subscription/edit') { Object.assign(subscriptions.find(item=>item.id===input.id),input); writes.push({action:'subscription-edit',channel:input.channel_id}); return ok({}); }
   if (endpoint === 'notify/log/list') return ok({ list: [{ id: 'log-1', channel_name: '测试 bark', channel_type: 'bark', message_type: 'system_error', message_title: '系统错误', status: 1 }], total: 1 });
   if (endpoint.startsWith('notify/') && request.method() !== 'GET' && !endpoint.endsWith('/list')) return fail('Unexpected notification mutation: ' + endpoint);
   return ok({ list: [], total: 0 });
@@ -97,19 +100,49 @@ try {
   expect(JSON.parse(rows.find(row => row.type === 'bark').config_json).server).toBe(samples.server);
   await row.getByText('测试', { exact: true }).click();
   await expect.poll(() => writes.some(write => write.action === 'test')).toBe(true);
+  rows.splice(1);
+  rows[0].status = 1;
+  subscriptions.push({id:'subscription-1',channel_id:rows[0].id,message_type:'system_error',status:1});
   await page.goto(origin + '/#/notify/subscription');
-  await expect(page.locator('th').filter({ hasText: '钉钉群机器人' })).toBeVisible();
+  await expect(page.locator('th')).toHaveCount(2);
+  await expect(page.locator('th').filter({ hasText: 'Bark' })).toBeVisible();
+  await expect(page.locator('th').filter({ hasText: '钉钉群机器人' })).toHaveCount(0);
   await expect(page.locator('th').filter({ hasText: 'dingtalk-title' })).toHaveCount(0);
-  await page.getByRole('button', { name: '钉钉群机器人批量操作', exact: true }).click();
+  await page.getByRole('button', { name: 'Bark订阅批量操作', exact: true }).click();
   await expect(page.locator('.el-dropdown-menu:visible')).toBeVisible();
-  await page.keyboard.press('Escape');
+  await expect(page.locator('.el-dropdown-menu:visible')).toContainText('仅影响 Bark 渠道的全部消息类型');
+  await page.getByRole('menuitem', { name: '暂停已有订阅', exact: true }).click();
+  await expect(dialog()).toContainText('此操作将禁用该渠道的所有订阅。');
+  await dialog().getByRole('button',{name:'确认',exact:true}).click();
+  await expect.poll(()=>subscriptions[0].status).toBe(0);
   await expect(page.getByText('测试 bark', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('预留类型：尚未接入周报定时任务')).toBeVisible();
+  await expect(dialog()).toHaveCount(0);
+  await expect(page.locator('.el-message')).toHaveCount(0,{timeout:10000});
   await page.screenshot({ path: path.join(output, 'subscriptions.png'), fullPage: true });
+  for (const width of [768,390,320]) {
+    await page.setViewportSize({width,height:1000});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2)).toBe(true);
+    await expect(page.locator('.subscription-event-card').first()).toContainText('订阅到');
+    await page.screenshot({path:path.join(output,'subscriptions-'+width+'.png'),fullPage:true});
+  }
   await page.goto(origin + '/#/notify/log');
   await expect(page.locator('.el-table__row').filter({ hasText: '系统错误' }).getByText('Bark', { exact: true })).toBeVisible();
+  await page.evaluate(()=>localStorage.setItem('homewaf.console.preferences',JSON.stringify({mode:'dark'})));
+  await page.goto(origin + '/#/notify/subscription');
+  await page.reload();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await expect(page.locator('.subscription-event-card').first()).toBeVisible();
+  await page.screenshot({path:path.join(output,'subscriptions-dark-320.png'),fullPage:true});
+  rows.length = 0;
+  await page.reload();
+  await expect(page.getByText('先添加一个通知渠道',{exact:true})).toBeVisible();
+  failChannelList = true;
+  await page.reload();
+  await expect(page.getByText('模拟通知渠道读取失败',{exact:true})).toBeVisible();
+  await expect(page.getByText('先添加一个通知渠道',{exact:true})).toHaveCount(0);
   expect(errors).toEqual([]);
-  const report = { providerCount: catalogue.length, created: rows.map(row => row.type), writes, errors, checks: ['create all eight providers', 'edit without losing masked secret', 'toggle status without losing secret', 'test action', 'subscription columns and event availability', 'log channel labels'] };
+  const report = { providerCount: catalogue.length, created: writes.filter(write=>write.action==='add').map(write=>write.type), writes, errors, checks: ['create all eight providers', 'edit without losing masked secret', 'toggle status without losing secret', 'test action', 'only configured Bark column; explicit batch menu and real confirmation body', 'desktop and mobile layouts; dark, empty and error states', 'log channel labels'] };
   fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {

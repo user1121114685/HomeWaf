@@ -287,7 +287,7 @@ function dialog(drawer = false) {
             onOpened: () => emit('opened'),
           },
           {
-            default: slots.body || slots.default,
+            default: slots.body || slots.default || (() => attrs.body || ''),
             header: slots.header,
             footer:
               p.footer === false
@@ -353,10 +353,11 @@ const HwDropdown = defineComponent({
           },
         },
         {
-          default: slots.default,
+          default: () => slots.default?.().filter((node) => node.type !== E.ElDropdownMenu),
           dropdown:
             slots.dropdown ||
             (() =>
+              slots.default?.().find((node) => node.type === E.ElDropdownMenu) ||
               renderNative(E.ElDropdownMenu, {}, () =>
                 p.options
                   ? (p.options || []).map((x: any) =>
@@ -698,8 +699,19 @@ const components: Record<string, any> = {
     format: a.format,
   })),
   'hw-date-range-picker': input('HwDateRangePicker', E.ElDatePicker, (_p, a) => ({
-    type: a.enableTimePicker ? 'datetimerange' : 'daterange',
-    valueFormat: a.enableTimePicker ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD',
+    type: a.enableTimePicker === '' || a.enableTimePicker === true ? 'datetimerange' : 'daterange',
+    valueFormat:
+      a.valueType || (a.enableTimePicker === '' || a.enableTimePicker === true ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD'),
+    shortcuts:
+      a.shortcuts ||
+      Object.entries(a.presets || {}).map(([text, value]: any) => ({
+        text,
+        value: () =>
+          (typeof value === 'function' ? value() : value).map((date: any) =>
+            typeof date === 'string' ? new Date(date.replace(' ', 'T')) : date,
+          ),
+      })),
+    popperClass: ['hw-date-range-popup', a.popperClass].filter(Boolean).join(' '),
     startPlaceholder: a.placeholder?.[0],
     endPlaceholder: a.placeholder?.[1],
   })),
@@ -818,10 +830,9 @@ function openNotification(options: any) {
   // Legacy render callbacks expect Vue's h argument. Element Plus invokes a
   // message function as a slot, without that argument; forwarding it directly
   // throws during the login notice render and interrupts subsequent navigation.
-  const renderPart = (value: any) => typeof value === 'function' ? value(h) : value;
-  const message = () => options.footer
-    ? h('div', [renderPart(content), renderPart(options.footer)])
-    : renderPart(content);
+  const renderPart = (value: any) => (typeof value === 'function' ? value(h) : value);
+  const message = () =>
+    options.footer ? h('div', [renderPart(content), renderPart(options.footer)]) : renderPart(content);
   return E.ElNotification({
     ...options,
     title: options.title || '',

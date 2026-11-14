@@ -385,6 +385,16 @@ func HostDisplayName(h model.Hosts) string {
 }
 
 func (w *WafHostAPi) GetAllListApi(c *gin.Context) {
+	// Log readers need pipeline identities; policy editors remain site-only.
+	if c.Query("scope") == "logs" {
+		options, err := wafHostService.GetLogServiceOptions()
+		if err != nil {
+			response.FailWithMessage("读取服务列表失败", c)
+			return
+		}
+		response.OkWithDetailed(options, "获取成功", c)
+		return
+	}
 	wafHosts := wafHostService.GetAllHostApi()
 	allHostRep := make([]response2.AllHostRep, len(wafHosts)) // 创建数组
 	for i, _ := range wafHosts {

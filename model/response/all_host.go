@@ -14,6 +14,8 @@ type AllHostRep struct {
 	GlobalHost int `json:"global_host"`
 	// GroupCode 所属分组短码，空=未分组。供前端「先选分组再选站点」的下拉做本地筛选。
 	GroupCode string `json:"group_code"`
+	Source    string `json:"source,omitempty"`
+	Port      int    `json:"port,omitempty"`
 }
 
 type AllShareDbRep struct {

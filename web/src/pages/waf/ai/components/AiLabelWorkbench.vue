@@ -166,7 +166,7 @@
 
 <script>
 import { MessagePlugin } from '@/ui';
-import { allhost } from '@/apis/host';
+import { allLogServices } from '@/apis/host';
 import { aiLabelListApi, aiBatchMarkApi, aiBatchUnmarkApi } from '@/apis/ai';
 
 export default {
@@ -263,7 +263,7 @@ export default {
     },
     async loadHosts() {
       try {
-        const res = await allhost();
+        const res = await allLogServices();
         if (res.code === 0 && Array.isArray(res.data)) {
           this.hostOptions = res.data;
         }

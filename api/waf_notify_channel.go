@@ -206,7 +206,7 @@ func (w *WafNotifyChannelApi) TestApi(c *gin.Context) {
 	if err == nil {
 		err = wafNotifyChannelService.TestChannelApi(req)
 		if err != nil {
-			response.FailWithMessage("测试失败: "+err.Error(), c)
+			response.FailWithMessage(err.Error(), c)
 		} else {
 			response.OkWithMessage("测试成功，请检查是否收到通知", c)
 		}

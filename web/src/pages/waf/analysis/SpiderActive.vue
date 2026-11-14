@@ -54,7 +54,7 @@ import {
   LAST_7_DAYS, NowDate
 } from '@/utils/date';
 import {
-  allhost
+  allLogServices
 } from '@/apis/host';
 import * as echarts from "@/ui/charts";
 
@@ -122,7 +122,7 @@ export default defineComponent({
   methods: {
     loadHostList() {
       return new Promise((resolve, reject) => {
-        allhost({})
+        allLogServices()
           .then((res) => {
             let resdata = res;
             console.log("host", resdata);
@@ -144,7 +144,7 @@ export default defineComponent({
 
               // 如果没有找到特定主机，则默认选择第一个
               if (!this.selectedHost && this.hostOptions.length > 0) {
-                this.selectedHost = this.hostOptions[0].pre_host;
+                this.selectedHost = this.hostOptions[0].value;
               }
 
               console.log("hostOptions", this.hostOptions);

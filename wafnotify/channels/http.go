@@ -42,8 +42,8 @@ func New(kind, raw, webhookURL, secret, accessToken string) (*Notifier, error) {
 }
 
 func (n *Notifier) request(method, endpoint string, payload interface{}, headers map[string]string) (Config, error) {
-	if ok, _ := utils.IsAllowedOutboundURL(endpoint); !ok {
-		return nil, fmt.Errorf("通知接口地址不被允许，请检查出站地址允许清单")
+	if ok, reason := utils.IsAllowedOutboundURL(endpoint); !ok {
+		return nil, fmt.Errorf("通知连接检查未通过：%s", reason)
 	}
 	var body io.Reader
 	contentType := "application/json"

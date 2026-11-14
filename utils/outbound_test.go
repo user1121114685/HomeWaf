@@ -66,6 +66,21 @@ func TestIsAllowedOutboundURL_公网地址放行(t *testing.T) {
 	}
 }
 
+func TestOutboundDNSFailureDoesNotRecommendAllowlistOrExposePath(t *testing.T) {
+	setOutboundAllowHosts(t, "")
+	for _, key := range []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"} {
+		t.Setenv(key, "")
+	}
+	ok, reason := IsAllowedOutboundURL("https://homewaf-missing-notification.invalid/private-device-key")
+	if ok || !strings.Contains(reason, "DNS") || strings.Contains(reason, "outbound_allowed_hosts") || strings.Contains(reason, "private-device-key") {
+		t.Fatalf("unexpected DNS diagnostic: allowed=%v reason=%q", ok, reason)
+	}
+	ok, reason = IsAllowedOutboundURL("http://127.0.0.1/private-device-key")
+	if ok || !strings.Contains(reason, "内网") || strings.Contains(reason, "private-device-key") {
+		t.Fatalf("private-address boundary changed: allowed=%v reason=%q", ok, reason)
+	}
+}
+
 func TestIsAllowedOutboundURL_带外清单是唯一的内网逃生门(t *testing.T) {
 	// 未声明前拒
 	setOutboundAllowHosts(t, "")

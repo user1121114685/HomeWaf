@@ -41,26 +41,26 @@ export default [
       {
         path: 'wafrule',
         name: 'WafRule',
-        component: () => import('@/pages/waf/rule/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.host_protect_rule' },
       },
       {
         path: 'wafruleedit',
         name: 'Wafruleedit',
-        component: () => import('@/pages/waf/rule/edit/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.host_protect_rule_edit', keepAlive: false, hidden: true },
       },
       {
         path: 'wafipwhitelist',
         name: 'WafIpWhiteList',
-        component: () => import('@/pages/waf/ipallow/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.allow_ip' },
 
       },
       {
         path: 'wafurlwhitelist',
         name: 'WafUrlWhiteList',
-        component: () => import('@/pages/waf/urlallow/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.allow_url' },
 
       },
@@ -68,7 +68,7 @@ export default [
       {
         path: 'wafipBlocklist',
         name: 'WafIpBlockList',
-        component: () => import('@/pages/waf/ipblock/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.deny_ip' },
 
       },
@@ -82,27 +82,27 @@ export default [
       {
         path: 'wafurlblocklist',
         name: 'WafUrlBlockList',
-        component: () => import('@/pages/waf/urlblock/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.deny_url' },
 
       },
       {
         path: 'wafldpurllist',
         name: 'WafLdpUrlList',
-        component: () => import('@/pages/waf/ldpurl/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.ldp_url' },
 
       }, {
         path: 'wafanticclist',
         name: 'WafAntiCCList',
-        component: () => import('@/pages/waf/anticc/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.cc' },
 
       },
       {
         path: 'wafsensitivelist',
         name: 'WafSensitiveList',
-        component: () => import('@/pages/waf/sensitive/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.sensitive' },
 
       }, {
@@ -178,7 +178,7 @@ export default [
       {
         path: 'wafPathRulelist',
         name: 'WafPathRuleList',
-        component: () => import('@/pages/waf/path_rule/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.host.path_rule', hidden: true },
       }
     ],
@@ -287,19 +287,19 @@ export default [
       {
         path: 'wafaccessconfig',
         name: 'WafAccessConfig',
-        component: () => import('@/pages/waf/access_config/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.access.config' },
       },
       {
         path: 'wafaccessaccount',
         name: 'WafAccessAccount',
-        component: () => import('@/pages/waf/access_account/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.access.account' },
       },
       {
         path: 'wafaccesssession',
         name: 'WafAccessSession',
-        component: () => import('@/pages/waf/access_session/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.access.session' },
       },
     ],
@@ -410,7 +410,7 @@ export default [
       {
         path: 'PrivateInfo',
         name: 'PrivateInfo',
-        component: () => import('@/pages/waf/private_info/index.vue'),
+        component: () => import('@/pages/waf/pipeline/ServicePolicyPage.vue'),
         meta: { title: 'menu.system.private_info_title' },
       },
       {

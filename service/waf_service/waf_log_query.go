@@ -143,7 +143,7 @@ func InvalidateShardCounts() {
 // countCacheKey 非时间条件的签名 + 分区名。时间条件不进键——只有完整覆盖时才会用到本缓存。
 func countCacheKey(req request.WafAttackLogSearch, shard string) string {
 	return strings.Join([]string{
-		shard, req.ViewType, req.HostCode, req.Rule, req.ReqUuid, req.Action,
+		shard, req.ViewType, req.RequestOutcome, req.HostCode, req.Rule, req.ReqUuid, req.Action,
 		req.SrcIp, req.StatusCode, req.Method, req.LogOnlyMode, req.FilterBy, req.FilterValue, strconv.Quote(req.URLKeyword),
 	}, "")
 }
@@ -164,6 +164,9 @@ type logQuery struct {
 
 // buildLogQuery 在指定分区上组装查询条件。ignoreTime=true 时不带时间范围（识别码直查用）。
 func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime bool) (*logQuery, error) {
+	if req.RequestOutcome != "" && req.RequestOutcome != "normal" && req.RequestOutcome != "abnormal" {
+		return nil, errors.New("访问情况筛选无效")
+	}
 	splitFilterBys := strings.Split(req.FilterBy, "|")
 	splitFilterValues := strings.Split(req.FilterValue, "|")
 	// 解析当前分片的三层表：访问日志视图读 access_log，安全事件视图读 security_event；
@@ -279,6 +282,17 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 				}
 			}
 		}
+	}
+	// Observe-only security matches and failed responses both need attention.
+	if req.RequestOutcome != "" {
+		if whereField != "" {
+			whereField += " and "
+		}
+		abnormal := "(coalesce(action,'') <> '放行' or coalesce(rule,'') <> '' or coalesce(log_only_mode,0) = 1 or coalesce(status_code,0) >= 400)"
+		if req.RequestOutcome == "normal" {
+			whereField += "not "
+		}
+		whereField += abnormal
 	}
 	//强制索引
 	forceIndex := logTable

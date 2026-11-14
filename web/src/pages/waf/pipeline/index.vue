@@ -75,6 +75,7 @@
         @honeypot="editHoneypot"
         @enable="openEnable"
         @inspect="inspect"
+        @logs="openAccessLogs"
         @copy="copy"
         @template="saveAsTemplate"
         @stop="stop"
@@ -144,7 +145,8 @@
             ><template #default="{ row }"
               ><ElButton link type="primary" @click="edit(row.config)">配置</ElButton
               ><ElButton link @click="editHoneypot(row.config)">蜜罐设置</ElButton
-              ><ElButton link @click="inspect(row)">状态 / trace</ElButton
+              ><ElButton link @click="openAccessLogs(row)">访问记录</ElButton
+              ><ElButton link @click="inspect(row)">运行诊断</ElButton
               ><ElButton link @click="copy(row.config)">复制</ElButton
               ><ElButton link @click="saveAsTemplate(row.config)">存为模板</ElButton
               ><ElButton v-if="!row.config.listen_enabled" link type="success" @click="openEnable(row)">启用</ElButton
@@ -548,6 +550,9 @@ const legacyPorts = ref<LegacyPortSummary[]>([]),
 const route = useRoute(),
   router = useRouter();
 const page = ref(route.name === 'WafPipelineTemplates' ? 'templates' : 'ports');
+function openAccessLogs(row: any) {
+  router.push({ name: 'WafvisitLog', query: { host_code: row.config.host_code || 'pipeline-' + row.config.port } });
+}
 const overview = reactive<any>({ ports: [], issues: {}, punishment: {}, log_queue: {} }),
   templates = ref<PolicyTemplate[]>([]),
   selected = ref<any[]>([]),

@@ -118,18 +118,19 @@
             </hw-button>
           </div>
 
-          <hw-form ref="form" :data="attackSearchformData" :label-width="60" colon layout="inline" :style="{ marginBottom: '8px' }">
+          <hw-form ref="form" :data="attackSearchformData" :label-width="60" colon layout="inline" @submit="getList('all')" @reset="resetAttackFilters" :style="{ marginBottom: '8px' }">
             <hw-form-item :label="$t('page.attack_log.source_ip')" name="src_ip">
               <hw-input v-model="attackSearchformData.src_ip" class="form-item-content" :placeholder="$t('common.placeholder')+$t('page.visit_log.source_ip')"
                        :style="{ minWidth: '180px' }" />
             </hw-form-item>
-            <hw-form-item>
-              <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getList('all')"> {{ $t('common.search') }} </hw-button>
+            <hw-form-item class="attack-filter-actions">
+              <hw-button theme="primary" type="submit" :loading="dataLoading"> {{ $t('common.search') }} </hw-button>
               <hw-button type="reset" variant="base" theme="default"> {{ $t('common.reset') }}  </hw-button>
             </hw-form-item>
           </hw-form>
 
           <div class="table-container">
+            <hw-alert v-if="queryError" theme="error" :message="queryError" style="margin-bottom:16px" />
             <hw-table :columns="columns" :data="data"  size="small" :rowKey="rowKey" :verticalAlign="verticalAlign"
                      :pagination="pagination"
                      :selected-row-keys="selectedRowKeys" :loading="dataLoading"
@@ -265,6 +266,7 @@ export default defineComponent({
     return {
       prefix,
       dataLoading: false,
+      queryError: '', querySequence: 0,
       data: [],
       selectedRowKeys: [],
       value: 'first',
@@ -647,31 +649,28 @@ export default defineComponent({
         this.attackTags.unshift({ "label": "所有规则", "value": "" });
       })
     },
-    getList(keyword) {
-      attackIpListApi({
-        pageSize: this.pagination.pageSize,
-        pageIndex: this.pagination.current,
-        ...this.attackSearchformData
-      }).then((res) => {
-        let resdata = res
-        console.log(resdata)
-        if (resdata.code === 0) {
-          this.data = resdata.data.list??[];
-          this.pagination = {
-            ...this.pagination,
-            total: resdata.data.total,
-          };
-        }else {
-          this.$message.warning(resdata.msg);
-        }
-      })
-        .catch((e : Error) => {
-          console.log(e);
-        })
-        .finally(() => {
-          this.dataLoading = false;
-        });
+    resetAttackFilters() {
+      this.attackSearchformData = { rule: '', src_ip: '' };
+      this.getList('all');
+    },
+    async getList(keyword) {
+      if (keyword === 'all') this.pagination.current = 1;
+      const sequence = ++this.querySequence;
       this.dataLoading = true;
+      this.queryError = '';
+      try {
+        const res = await attackIpListApi({ pageSize: this.pagination.pageSize, pageIndex: this.pagination.current, ...this.attackSearchformData });
+        if (sequence !== this.querySequence) return;
+        if (res.code !== 0 || !Array.isArray(res.data?.list)) throw new Error(res.msg || '安全事件读取失败，请重试。');
+        this.data = res.data.list;
+        this.pagination.total = Number(res.data.total) || 0;
+      } catch (error) {
+        if (sequence !== this.querySequence) return;
+        this.data = []; this.pagination.total = 0;
+        this.queryError = error.message || '安全事件读取失败，请重试。';
+      } finally {
+        if (sequence === this.querySequence) this.dataLoading = false;
+      }
     },
     getContainer() {
       return document.querySelector('.tdesign-starter-layout');
@@ -1207,4 +1206,5 @@ export default defineComponent({
     flex: 1;
   }
 }
+.attack-filter-actions { flex-basis: 100%; }
 </style>

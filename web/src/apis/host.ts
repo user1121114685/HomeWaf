@@ -1,6 +1,10 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
 
 import request from '@/utils/request'
+
+export function allLogServices() {
+  return allhost({ scope: 'logs' });
+}
 //查询所有主机列表
 export function allhost(params: any = {}) {
   return request({

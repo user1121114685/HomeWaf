@@ -130,6 +130,9 @@ func IsAllowedOutboundURL(rawURL string) (bool, string) {
 	}
 	ok, reason := IsSafeOutboundHost(host)
 	if !ok {
+		if strings.Contains(reason, "解析失败") || strings.Contains(reason, "无解析结果") {
+			return false, fmt.Sprintf("DNS 无法解析主机 %s，请检查运行 HomeWaf 的机器的 DNS 或代理配置", host)
+		}
 		// 主机名解析到内网时，若所有非公网解析结果都落在清单的 IP/CIDR 条目内，同样放行。
 		// 连接期 safeOutboundDialContext 对每个真实拨号 IP 做同一判定，两层口径一致。
 		if isHostCoveredByAllowlist(host) {

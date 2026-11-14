@@ -1,7 +1,8 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
 
-import { computed, defineComponent, h, ref, watch, nextTick } from 'vue';
-import { ElTable, ElTableColumn, ElPagination } from 'element-plus';
+import { computed, defineComponent, h, ref, reactive, watch, nextTick } from 'vue';
+import { ElTable, ElTableColumn, ElPagination, ElPopover, ElInput, ElButton, ElIcon } from 'element-plus';
+import { Filter } from '@element-plus/icons-vue';
 
 // HomeWaf column schema keeps server pagination and named business-cell slots
 // stable while the rendering, accessibility and selection belong to Element Plus.
@@ -22,11 +23,46 @@ export default defineComponent({
     'height',
     'bordered',
     'stripe',
+    'displayColumns',
+    'sort',
+    'empty',
   ],
   emits: ['page-change', 'select-change', 'sort-change', 'filter-change', 'expand-change', 'row-click', 'change'],
   setup(props, { attrs, slots, emit, expose }) {
     const table = ref<any>();
     const rows = computed(() => (Array.isArray(props.data) ? props.data : []));
+    const visibleColumns = computed(() => {
+      const columns = props.columns || [];
+      if (!Array.isArray(props.displayColumns)) return columns;
+      const byKey = new Map(columns.map((column: any) => [column.colKey, column]));
+      return [...new Set(props.displayColumns)].map((key) => byKey.get(key)).filter(Boolean);
+    });
+    const filterValues = reactive<Record<string, any>>({});
+    const filterDrafts = reactive<Record<string, string>>({});
+    const openFilter = ref('');
+    const sortProp = () =>
+      (props.columns || []).find((c: any) => (c.sortKey || c.colKey) === props.sort?.sortBy)?.colKey;
+    let synchronizingSort = false;
+    watch(
+      () => props.sort,
+      async () => {
+        await nextTick();
+        if (!table.value) return;
+        synchronizingSort = true;
+        const prop = sortProp();
+        if (prop) table.value.sort(prop, props.sort.descending ? 'descending' : 'ascending');
+        else table.value.clearSort();
+        await nextTick();
+        synchronizingSort = false;
+      },
+      { deep: true },
+    );
+    function publishFilter(key: string, value: any) {
+      filterValues[key] = value;
+      emit('filter-change', { ...filterValues });
+      emit('change', { filter: { ...filterValues } }, { trigger: 'filter' });
+      openFilter.value = '';
+    }
     let synchronizing = false;
     const key = (row: any) => (typeof props.rowKey === 'function' ? props.rowKey(row) : row[props.rowKey || 'id']);
     watch(
@@ -48,6 +84,12 @@ export default defineComponent({
       clearSelection: () => table.value?.clearSelection(),
       scrollTo: (...args: any[]) => table.value?.scrollTo(...args),
       refreshTable: () => table.value?.doLayout(),
+      clearFilter: () => {
+        Object.keys(filterValues).forEach((key) => delete filterValues[key]);
+        Object.keys(filterDrafts).forEach((key) => delete filterDrafts[key]);
+        openFilter.value = '';
+        table.value?.clearFilter();
+      },
     });
     function column(col: any, index: number): any {
       const selected = col.type === 'multiple' || col.type === 'single' || col.colKey === 'row-select';
@@ -83,6 +125,69 @@ export default defineComponent({
           return value == null ? '' : String(value);
         };
       if (typeof col.title === 'function') cellSlots.header = () => col.title(h, { col, colIndex: index });
+      if (col.filter?.type === 'input') {
+        cellSlots.header = () =>
+          h('span', { class: 'hw-column-header' }, [
+            typeof col.title === 'function' ? col.title(h, { col, colIndex: index }) : col.title,
+            h(
+              ElPopover,
+              {
+                visible: openFilter.value === col.colKey,
+                trigger: 'click',
+                width: 260,
+                'onUpdate:visible': (visible: boolean) => {
+                  openFilter.value = visible ? col.colKey : '';
+                },
+              },
+              {
+                reference: () =>
+                  h(
+                    'button',
+                    {
+                      type: 'button',
+                      class: ['hw-column-filter', { 'is-active': !!filterValues[col.colKey] }],
+                      'aria-label': `筛选${col.title}`,
+                      'aria-expanded': openFilter.value === col.colKey,
+                      onClick: (event: Event) => event.stopPropagation(),
+                    },
+                    [h(ElIcon, {}, () => h(Filter))],
+                  ),
+                default: () =>
+                  h('div', { class: 'hw-column-filter-panel' }, [
+                    h(ElInput, {
+                      modelValue: filterDrafts[col.colKey] || '',
+                      'aria-label': `筛选${col.title}`,
+                      placeholder: col.filter.props?.placeholder || '输入关键字',
+                      clearable: true,
+                      'onUpdate:modelValue': (value: string) => {
+                        filterDrafts[col.colKey] = value;
+                      },
+                      onKeydown: (event: KeyboardEvent) => {
+                        if (event.key === 'Enter') publishFilter(col.colKey, filterDrafts[col.colKey] || '');
+                      },
+                    }),
+                    h('div', { class: 'hw-column-filter-actions' }, [
+                      h(
+                        ElButton,
+                        {
+                          onClick: () => {
+                            filterDrafts[col.colKey] = '';
+                            publishFilter(col.colKey, '');
+                          },
+                        },
+                        () => '清除',
+                      ),
+                      h(
+                        ElButton,
+                        { type: 'primary', onClick: () => publishFilter(col.colKey, filterDrafts[col.colKey] || '') },
+                        () => '应用',
+                      ),
+                    ]),
+                  ]),
+              },
+            ),
+          ]);
+      }
       return h(ElTableColumn, options, cellSlots);
     }
     const page = (current: number, pageSize: number) => {
@@ -104,6 +209,9 @@ export default defineComponent({
             height: props.height,
             border: props.bordered,
             stripe: props.stripe,
+            defaultSort: sortProp()
+              ? { prop: sortProp(), order: props.sort.descending ? 'descending' : 'ascending' }
+              : undefined,
             expandRowKeys: props.expandedRowKeys,
             'aria-busy': !!props.loading,
             onSelectionChange: (rows: any[]) => {
@@ -113,13 +221,16 @@ export default defineComponent({
               }
             },
             onSortChange: ({ prop, order }: any) => {
-              const sort = order ? { sortBy: prop, descending: order === 'descending' } : undefined;
+              if (synchronizingSort) return;
+              const column = (props.columns || []).find((column: any) => column.colKey === prop);
+              const sort = order ? { sortBy: column?.sortKey || prop, descending: order === 'descending' } : undefined;
               emit('sort-change', sort, { currentDataSource: props.data });
               emit('change', { sorter: sort }, { trigger: 'sorter' });
             },
             onFilterChange: (filters: any) => {
-              emit('filter-change', filters);
-              emit('change', { filter: filters }, { trigger: 'filter' });
+              Object.assign(filterValues, filters);
+              emit('filter-change', { ...filterValues });
+              emit('change', { filter: { ...filterValues } }, { trigger: 'filter' });
             },
             onExpandChange: (row: any, rows: any[]) =>
               emit('expand-change', rows.map(key), { expandedRowData: rows, currentRowData: row }),
@@ -137,14 +248,14 @@ export default defineComponent({
                     },
                   )
                 : null,
-              ...(props.columns || []).map(column),
+              ...visibleColumns.value.map(column),
             ],
             empty:
               slots.empty ||
               (() =>
                 h('div', { class: 'table-empty-state' }, [
-                  h('strong', '暂无记录'),
-                  h('p', '调整筛选条件，或在完成配置后刷新。'),
+                  h('strong', props.loading ? '正在读取记录…' : props.empty || '暂无记录'),
+                  props.loading ? null : h('p', '调整筛选条件后重试。'),
                 ])),
           },
         ),

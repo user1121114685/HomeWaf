@@ -5,16 +5,31 @@
     <hw-card class="list-card-container">
       <div class="page-header">
         <div class="page-header-main">
-          <h3>{{ $t('page.notify_subscription.page_title') }} </h3>
-          <p class="page-desc">{{ $t('page.notify_subscription.alert_message') }}</p>
+          <p class="page-desc">选择希望收到的提醒。这里只显示已添加的通知渠道。</p>
         </div>
         <hw-button variant="outline" @click="globalDialogVisible = true">
           <hw-icon name="setting" /> {{ $t('page.notify_subscription.button_global_config') }}
         </hw-button>
       </div>
 
-      <hw-loading :loading="dataLoading" size="large">
+      <hw-alert v-if="loadError" theme="error" :message="loadError"><hw-button variant="text" @click="loadData">重新读取</hw-button></hw-alert>
+      <div v-if="!dataLoading && !loadError && !channelList.length" class="subscription-empty">
+        <h3>先添加一个通知渠道</h3>
+        <p>添加 Bark、邮件或其他渠道后，再选择需要接收的消息。</p>
+        <hw-button theme="primary" @click="$router.push('/notify/channel')">添加通知渠道</hw-button>
+      </div>
+      <hw-loading v-else-if="!loadError" :loading="dataLoading" size="large">
+        <div v-if="compactView" class="subscription-compact">
+          <div class="subscription-compact-tools"><channel-header v-for="ct in configuredChannelTypes" :key="ct.type" :type="ct.type" :label="ct.name" :theme="ct.theme" @batch="handleBatchAction" /></div>
+          <article v-for="row in tableData" :key="row.messageType" class="subscription-event-card">
+            <h3>{{ row.messageTypeName }}</h3>
+            <p v-if="eventHints[row.messageType]">{{ eventHints[row.messageType] }}</p>
+            <channel-cell v-for="ct in configuredChannelTypes" :key="ct.type" :channels="row.channels[ct.type]" :message-type="row.messageType" :channel-type="ct.type"
+              @add="onCellAdd" @toggle="onCellToggle" @edit-recipients="onCellEditRecipients" @config="onCellConfig" @remove="onCellRemove" />
+          </article>
+        </div>
         <hw-table
+          v-else
           :data="tableData"
           :columns="tableColumns"
           row-key="messageType"
@@ -31,7 +46,7 @@
           </template>
 
           <!-- 渠道单元格 -->
-          <template :key="ct.type"  v-for="ct in channelTypes" v-slot:[ct.type]="{ row }">
+          <template :key="ct.type"  v-for="ct in configuredChannelTypes" v-slot:[ct.type]="{ row }">
             <channel-cell
 
               :channels="row.channels[ct.type]"
@@ -155,6 +170,8 @@ export default defineComponent({
         weekly_report: '预留类型：尚未接入周报定时任务',
       } as Record<string, string>,
       dataLoading: false,
+      loadError: '',
+      compactView: window.innerWidth <= 1023,
       channelList: [],
       subscriptionList: [],
       channelTypes: [] as { type: string; name: string; theme: string }[],
@@ -236,6 +253,9 @@ export default defineComponent({
     };
   },
   computed: {
+    configuredChannelTypes() {
+      return this.channelTypes.filter(type => this.channelList.some(channel => channel.type === type.type));
+    },
     tableColumns() {
       const columns: any[] = [
         {
@@ -247,7 +267,7 @@ export default defineComponent({
       ];
 
       // 动态添加渠道类型列
-      this.channelTypes.forEach((channelType: any) => {
+      this.configuredChannelTypes.forEach((channelType: any) => {
         columns.push({
           colKey: channelType.type,
           title: (h: any) => h(ChannelHeader, {
@@ -271,7 +291,7 @@ export default defineComponent({
         };
 
         // 为每个渠道类型收集该类型的所有渠道及其订阅状态
-        this.channelTypes.forEach((channelType: any) => {
+        this.configuredChannelTypes.forEach((channelType: any) => {
           const channelsOfType = this.channelList
             .filter((ch: any) => ch.type === channelType.type)
             .map((channel: any) => {
@@ -291,11 +311,15 @@ export default defineComponent({
     },
   },
   mounted() {
+    window.addEventListener('resize', this.onViewportChange);
     this.loadData();
   },
+  beforeUnmount() { window.removeEventListener('resize', this.onViewportChange); },
   methods: {
+    onViewportChange() { this.compactView = window.innerWidth <= 1023; },
     async loadData() {
       this.dataLoading = true;
+      this.loadError = '';
       try {
         await Promise.all([
           this.loadChannelTypes(),
@@ -303,7 +327,7 @@ export default defineComponent({
           this.loadSubscriptionList(),
         ]);
       } catch (e) {
-        console.error(e);
+        this.loadError = e.message || '通知订阅读取失败，请重试。';
       } finally {
         this.dataLoading = false;
       }
@@ -311,30 +335,28 @@ export default defineComponent({
     async loadChannelTypes() {
       const res = await getNotifyChannelTypes();
       if (res.code !== 0 || !Array.isArray(res.data)) {
-        MessagePlugin.error('通知渠道类型加载失败，请刷新重试');
-        return;
+        throw new Error('通知渠道类型加载失败，请刷新重试');
       }
       this.channelTypes = res.data.map((item: any) => ({ ...item, theme: 'primary' }));
     },
     async loadChannelList() {
-      try {
-        const res = await getNotifyChannelList({ pageIndex: 1, pageSize: 100 });
-        if (res.code === 0) {
-          this.channelList = res.data.list || [];
-        }
-      } catch (e) {
-        console.error(e);
+      const channels = [];
+      let total = 0;
+      for (let page = 1; page <= 100; page += 1) {
+        const res = await getNotifyChannelList({ pageIndex: page, pageSize: 100 });
+        if (res.code !== 0 || !Array.isArray(res.data?.list)) throw new Error(res.msg || '通知渠道读取失败');
+        channels.push(...res.data.list);
+        total = Number(res.data.total) || channels.length;
+        if (channels.length >= total) break;
+        if (!res.data.list.length) throw new Error('通知渠道列表不完整，请重新读取。');
       }
+      if (channels.length < total) throw new Error('通知渠道数量超出显示范围。');
+      this.channelList = channels;
     },
     async loadSubscriptionList() {
-      try {
-        const res = await getNotifySubscriptionList({ pageIndex: 1, pageSize: 100000 });
-        if (res.code === 0) {
-          this.subscriptionList = res.data.list || [];
-        }
-      } catch (e) {
-        console.error(e);
-      }
+      const res = await getNotifySubscriptionList({ pageIndex: 1, pageSize: 100000 });
+      if (res.code !== 0 || !Array.isArray(res.data?.list)) throw new Error(res.msg || '通知订阅读取失败');
+      this.subscriptionList = res.data.list;
     },
     getChannelsByType(type: string) {
       return this.channelList.filter((c: any) => c.type === type);
@@ -462,9 +484,8 @@ export default defineComponent({
       }
 
       // 切换启用/禁用状态
-      subscription.status = enabled ? 1 : 0;
       try {
-        const res = await editNotifySubscription(subscription);
+        const res = await editNotifySubscription({ ...subscription, status: enabled ? 1 : 0 });
         if (res.code === 0) {
           MessagePlugin.success(enabled ? '已启用订阅' : '已禁用订阅');
           await this.loadSubscriptionList();
@@ -692,8 +713,7 @@ export default defineComponent({
           if (subscription.channel_id === channel.id) {
             totalCount++;
             if (subscription.status === 0) {
-              await this.toggleSubscriptionStatus(subscription.id, 1);
-              updatedCount++;
+              if (await this.toggleSubscriptionStatus(subscription.id, 1)) updatedCount++;
             }
           }
         }
@@ -765,8 +785,15 @@ export default defineComponent({
         remarks: subscription.remarks || '',
       };
 
-      await editNotifySubscription(data);
-      await this.loadSubscriptionList();
+      try {
+        const res = await editNotifySubscription(data);
+        if (res.code !== 0) throw new Error(res.msg || '订阅更新失败');
+        await this.loadSubscriptionList();
+        return true;
+      } catch (error) {
+        MessagePlugin.error(error.message || '订阅更新失败');
+        return false;
+      }
     },
     // 批量操作确认处理
     async onBatchConfirm() {
@@ -820,8 +847,7 @@ export default defineComponent({
       for (const channel of channelsOfType) {
         for (const subscription of this.subscriptionList) {
           if (subscription.channel_id === channel.id && subscription.status === 1) {
-            await this.toggleSubscriptionStatus(subscription.id, 0);
-            updatedCount++;
+            if (await this.toggleSubscriptionStatus(subscription.id, 0)) updatedCount++;
           }
         }
       }
@@ -836,7 +862,7 @@ export default defineComponent({
 
 <style lang="less" scoped>
 .list-card-container {
-  padding: 24px;
+  padding: 0;
 }
 
 .page-header {
@@ -844,6 +870,8 @@ export default defineComponent({
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
 
   .page-header-main {
     flex: 1;
@@ -861,6 +889,13 @@ export default defineComponent({
     font-size: 14px;
   }
 }
+
+.subscription-empty { padding: 24px 0; color: var(--hw-muted); }
+.subscription-compact { display: grid; gap: 16px; }
+.subscription-compact-tools { display: flex; flex-wrap: wrap; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--hw-line); }
+.subscription-event-card { padding: 0 0 16px; border-bottom: 1px solid var(--hw-line); min-width: 0; }
+.subscription-event-card h3 { font-size: 15px; margin: 0 0 8px; }
+.subscription-event-card p { color: var(--hw-muted); font-size: 13px; line-height: 1.6; margin: 0 0 12px; }
 
 // 消息类型单元格
 .message-type-cell {

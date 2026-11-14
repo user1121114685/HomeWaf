@@ -91,7 +91,7 @@ export const fields: Record<string, Field[]> = {
     { path: 'qps.paths', label: '路径限速映射（JSON）', kind: 'json', help: '例如 {"/api":10}；路径单独设每秒上限。留空对象表示无额外限制。' },
     { path: 'cc.mode', label: 'CC 异常频率识别', kind: 'select', options: modes, help: '与 QPS 硬上限分开；初次启用建议观察。' },
     { path: 'cc.window_seconds', label: 'CC 窗口（秒）', kind: 'number', min: 1, max: 3600, help: '滑动窗口内累计请求。' },
-    { path: 'cc.threshold', label: 'CC 阈值', kind: 'number', min: 1, max: 1000000, help: '达到阈值后执行下方动作。' },
+    { path: 'cc.threshold', label: 'CC 阈值', kind: 'number', min: 1, max: 1000000, help: '窗口内请求数超过阈值后，按防护模式执行下方动作。' },
     { path: 'cc.action', label: 'CC 动作', kind: 'select', options: [['challenge', '轻量挑战'], ['deny', '拒绝 429']], help: 'Cookie 往返挑战仅减轻简单脚本，不是强人机识别。' },
     { path: 'cc.by_path', label: '按路径区分 CC', kind: 'bool', help: '同 IP 访问不同业务路径分开计数。' },
     { path: 'cc.exclude_static', label: 'CC 忽略静态资源', kind: 'bool', help: '减少页面资源突发造成的误报。' },

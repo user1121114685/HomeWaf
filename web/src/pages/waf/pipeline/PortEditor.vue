@@ -111,7 +111,7 @@ import AccessRestrictions from './AccessRestrictions.vue';
 import HoneypotSettings from './HoneypotSettings.vue';
 import Fields from './Fields.vue'; import Scope from './Scope.vue'; import Trace from './Trace.vue';
 import { newTOTPSecret } from './model';
-const props = defineProps({config:{type:Object as PropType<PortConfig & {access_changed_at?:number;access_changed_by?:string}>,required:true},templates:{type:Array as PropType<PolicyTemplate[]>,required:true},isNew:Boolean,initialTab:{type:String,default:'common'}});
+const props = defineProps({config:{type:Object as PropType<PortConfig & {access_changed_at?:number;access_changed_by?:string}>,required:true},templates:{type:Array as PropType<PolicyTemplate[]>,required:true},isNew:Boolean,initialTab:{type:String,default:'common'},initialPanels:{type:Array as PropType<string[]>,default:()=>[]}});
 const emit = defineEmits(['saved','close','busy']);
 const draft = ref<PortConfig>(clone(props.config)); const busy=ref(false), error=ref(''), activeTab=ref(props.initialTab);
 const advancedMode=ref(!['common','honeypot'].includes(props.initialTab));
@@ -125,7 +125,7 @@ const pluginProfilesJSON=ref('');
 function reloadPlugins(){const plugins=draft.value.policy.ruleset.plugins;if(plugins){plugins.generation=(plugins.generation||0)+1;ElMessage.info('已标记重新加载，请保存端口配置')}}
 async function setGateLogo(event: Event) { const input=event.target as HTMLInputElement; const file=input.files?.[0]; if(!file)return; await run(async()=>{if(file.size>65536||!['image/png','image/jpeg'].includes(file.type))throw new Error('请选择64KiB以内的PNG/JPEG');const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Logo读取失败'));reader.readAsDataURL(file)});draft.value.policy.gate.logo_data=data;input.value=''}); }
 const selectedTemplate=ref(draft.value.template?.id || ''), selectedSections=ref([...sections]), templatePreview=ref<any>(null), preview=ref<any>(null), previewKey=ref('');
-const invalid=reactive<Record<string,boolean>>({}), rulePanels=ref(props.initialTab==='ruleset'?['gate']:['controls','gate','attacks']), activeRule=ref<any>(null),ruleVisible=ref(false);
+const invalid=reactive<Record<string,boolean>>({}), rulePanels=ref(props.initialPanels.length?[...props.initialPanels]:props.initialTab==='ruleset'?['gate']:['controls','gate','attacks']), activeRule=ref<any>(null),ruleVisible=ref(false);
 const sample=reactive({client_ip:'198.51.100.25',method:'GET',path:'/',body:''}),sampleHeaders=ref('{"Accept":"text/html"}');
 const accounts=ref<any[]>([]),sessions=ref<any[]>([]),serviceToken=ref('');
 const accountVisible=ref(false),editingAccount=ref(false),account=reactive({username:'',password:'',totp_secret:'',clear_totp:false,totp_configured:false,enabled:true,expires_at:0,remark:''});

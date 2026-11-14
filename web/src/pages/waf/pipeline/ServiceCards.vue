@@ -40,12 +40,13 @@
         ><ElButton @click="$emit('honeypot', row.config)">蜜罐设置</ElButton
         ><ElButton v-if="!row.config.listen_enabled" type="primary" plain @click="$emit('enable', row)"
           >启用服务</ElButton
-        ><ElButton v-else @click="$emit('inspect', row)">查看记录</ElButton>
+        ><ElButton v-else @click="$emit('logs', row)">访问记录</ElButton>
         <ElDropdown trigger="click" @command="(command) => action(command, row)"
           ><ElButton aria-label="更多服务操作"><MoreFilled class="more-icon" aria-hidden="true" /></ElButton
           ><template #dropdown
             ><ElDropdownMenu
-              ><ElDropdownItem command="inspect">查看状态与记录</ElDropdownItem
+              ><ElDropdownItem command="logs">查看访问记录</ElDropdownItem
+              ><ElDropdownItem command="inspect">查看运行诊断</ElDropdownItem
               ><ElDropdownItem command="copy">复制服务配置</ElDropdownItem
               ><ElDropdownItem command="template">存为策略模板</ElDropdownItem
               ><ElDropdownItem v-if="row.config.listen_enabled" command="stop" divided>停止服务</ElDropdownItem
@@ -63,7 +64,7 @@ import { Connection, MoreFilled } from '@element-plus/icons-vue';
 import { serviceStatus } from './onboarding';
 import { accessSourceSummary } from './accessPolicy';
 defineProps({ rows: { type: Array, required: true } });
-const emit = defineEmits(['edit', 'honeypot', 'enable', 'inspect', 'copy', 'template', 'stop', 'remove']);
+const emit = defineEmits(['edit', 'honeypot', 'enable', 'logs', 'inspect', 'copy', 'template', 'stop', 'remove']);
 function action(command: string, row: any) {
   emit(command as any, ['copy', 'template'].includes(command) ? row.config : row);
 }

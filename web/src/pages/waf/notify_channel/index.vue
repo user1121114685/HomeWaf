@@ -697,7 +697,7 @@ export default defineComponent({
         if (res.code === 0) {
           MessagePlugin.success(this.$t('page.notify_channel.test_success'));
         } else {
-          MessagePlugin.error(this.$t('page.notify_channel.test_failed') + ': ' + res.msg);
+          MessagePlugin.error(this.$t('page.notify_channel.test_failed') + ': ' + String(res.msg || '').replace(/^(测试失败|Test failed)[:：]\s*/i, ''));
         }
       } catch (error) {
         MessagePlugin.error(this.$t('page.notify_channel.test_failed'));
