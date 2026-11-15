@@ -3,6 +3,9 @@ package wafmangeweb
 import "HomeWaf/enums"
 
 var auditedWriteRoles = []struct{ method, path, role string }{
+	{"POST", "/api/v1/pipeline/gate/sessions/revoke", enums.ROLE_SECURITY_ADMIN},
+	{"POST", "/api/v1/pipeline/cc/recommend", enums.ROLE_SECURITY_ADMIN},
+	{"GET", "/api/v1/pipeline/cc/hits", enums.ROLE_SECURITY_ADMIN},
 	{"POST", "/api/v1/wafhost/sslorder/retry", enums.ROLE_SYSTEM_ADMIN},
 	{"GET", "/api/v1/wafhost/sslorder/logs", enums.ROLE_SYSTEM_ADMIN},
 	{"GET", "/api/v1/export", enums.ROLE_SYSTEM_ADMIN},

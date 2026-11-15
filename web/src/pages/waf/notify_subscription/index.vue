@@ -12,6 +12,12 @@
         </hw-button></PageActions>
       </div>
 
+      <div v-if="$route.query.subscription_id" class="subscription-context">
+        <hw-button v-if="logReturnPath" variant="outline" @click="$router.push(logReturnPath)">返回通知日志</hw-button>
+        <hw-alert v-if="linkedError" theme="warning" :message="linkedError"><hw-button variant="text" @click="loadData">重新定位订阅</hw-button></hw-alert>
+        <p v-else>来自通知日志：{{ configChannelName }} · {{ configMessageTypeName }}</p>
+        <hw-button v-if="!linkedError && !dataLoading" variant="text" @click="openLinkedSubscription">打开对应订阅配置</hw-button>
+      </div>
       <hw-alert v-if="loadError" theme="error" :message="loadError"><hw-button variant="text" @click="loadData">重新读取</hw-button></hw-alert>
       <div v-if="!dataLoading && !loadError && !channelList.length" class="subscription-empty">
         <h3>先添加一个通知渠道</h3>
@@ -172,6 +178,8 @@ export default defineComponent({
       } as Record<string, string>,
       dataLoading: false,
       loadError: '',
+      linkedError: '',
+      linkedOpenedId: '',
       compactView: window.innerWidth <= 1023,
       channelList: [],
       subscriptionList: [],
@@ -254,6 +262,10 @@ export default defineComponent({
     };
   },
   computed: {
+    logReturnPath() {
+      const path = this.$route.query.return_to;
+      return typeof path === 'string' && /^\/notify\/log(?:\?|$)/.test(path) ? path : '';
+    },
     configuredChannelTypes() {
       return this.channelTypes.filter(type => this.channelList.some(channel => channel.type === type.type));
     },
@@ -315,8 +327,24 @@ export default defineComponent({
     window.addEventListener('resize', this.onViewportChange);
     this.loadData();
   },
+  watch: {
+    '$route.query.subscription_id'() { if (!this.dataLoading && !this.loadError) this.openLinkedSubscription(); },
+  },
   beforeUnmount() { window.removeEventListener('resize', this.onViewportChange); },
   methods: {
+    openLinkedSubscription() {
+      const id = this.$route.query.subscription_id;
+      if (typeof id !== 'string' || !id) return;
+      this.linkedError = '';
+      const subscription = this.subscriptionList.find(item => item.id === id);
+      const channel = subscription && this.channelList.find(item => item.id === subscription.channel_id);
+      if (!subscription || !channel) {
+        this.linkedError = '这条日志对应的订阅或渠道已删除，或当前账号无权查看。现有订阅未被修改。';
+        return;
+      }
+      this.onCellConfig({ messageType: subscription.message_type, channel });
+      this.linkedOpenedId = id;
+    },
     onViewportChange() { this.compactView = window.innerWidth <= 1023; },
     async loadData() {
       this.dataLoading = true;
@@ -327,6 +355,7 @@ export default defineComponent({
           this.loadChannelList(),
           this.loadSubscriptionList(),
         ]);
+        if (this.linkedOpenedId !== this.$route.query.subscription_id) this.openLinkedSubscription();
       } catch (e) {
         this.loadError = e.message || '通知订阅读取失败，请重试。';
       } finally {

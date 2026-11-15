@@ -2,6 +2,8 @@
 
 <template>
   <div>
+    <div class="baseline-entry"><hw-button variant="outline" @click="$refs.baseConfig.open()">查看高级基线</hw-button></div>
+    <BaseConfigDialog ref="baseConfig" />
     <hw-alert v-if="tuningError" theme="error" :close-btn="false">{{ tuningError }}</hw-alert>
     <p v-if="tuningLoading" role="status">正在读取当前引擎配置…</p>
     <hw-button v-if="!tuningLoaded && !tuningLoading" @click="getTuning">重试读取引擎配置</hw-button>
@@ -344,6 +346,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
+import BaseConfigDialog from './BaseConfigDialog.vue';
 
 import {
   owaspTuningGetApi,
@@ -400,6 +403,7 @@ const KNOWN_CRS_VARS = [
 
 export default defineComponent({
   name: 'OwaspTuningTab',
+  components: { BaseConfigDialog },
   data() {
     return {
       tuningLoading: false,

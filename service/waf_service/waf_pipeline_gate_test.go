@@ -89,6 +89,22 @@ func TestGateDurableRevocationAndRestart(t *testing.T) {
 	if err = restarted.Store.Add(session, 0); err != nil {
 		t.Fatal(err)
 	}
+	if revoked, err := restarted.RevokeScope(cfg.Port, "account", "owner", "test"); err != nil || revoked != 1 {
+		t.Fatalf("account revoke: %d %v", revoked, err)
+	}
+	db.Model(&model.GateSession{}).Count(&count)
+	if count != 0 {
+		t.Fatal("bulk revocation not durable")
+	}
+	if _, err := restarted.RevokeScope(0, "service", "", "test"); err == nil {
+		t.Fatal("empty port accepted")
+	}
+	if _, err := restarted.RevokeScope(cfg.Port, "account", "", "test"); err == nil {
+		t.Fatal("empty account scope accepted")
+	}
+	if err = restarted.Store.Add(session, 0); err != nil {
+		t.Fatal(err)
+	}
 	if err = restarted.Store.Flush(); err != nil {
 		t.Fatal(err)
 	}

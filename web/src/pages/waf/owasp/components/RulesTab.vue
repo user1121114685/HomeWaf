@@ -36,6 +36,7 @@
         <hw-button theme="primary" @click="getList">{{ $t('common.search') }}</hw-button>
         <hw-button variant="outline" @click="resetSearch">{{ $t('common.reset') }}</hw-button>
         <hw-button variant="outline" theme="warning" @click="onReload">{{ $t('page.owasp.rules.reload') }}</hw-button>
+        <hw-button variant="outline" @click="$refs.fileBrowser.open()">查看规则文件</hw-button>
       </hw-form-item>
     </hw-form>
 
@@ -97,6 +98,7 @@
         <hw-tag v-else-if="row.modified" theme="warning" variant="light">{{ $t('page.owasp.rules.status_modified') }}</hw-tag>
         <hw-tag v-else theme="success" variant="light">{{ $t('page.owasp.rules.status_default') }}</hw-tag>
       </template>
+      <template #file="{ row }"><button type="button" class="t-button-link" @click="$refs.fileBrowser.open(row.file)">{{ row.file }}</button></template>
       <template #severity="{ row }">
         <hw-tag :theme="severityTheme(row.severity)" variant="light">{{ row.severity || '-' }}</hw-tag>
       </template>
@@ -108,6 +110,7 @@
       </template>
     </hw-table>
 
+    <RuleFileBrowser ref="fileBrowser" />
     <!-- 查看 / 改写对话框 -->
     <hw-dialog :header="dialogTitle" v-model:visible="dialogVisible" :width="860" :footer="false">
       <template #body><div >
@@ -252,6 +255,7 @@
 
 <script lang="ts">
 import {defineComponent} from 'vue';
+import RuleFileBrowser from './RuleFileBrowser.vue';
 
 
 import {
@@ -265,6 +269,7 @@ import {
 
 export default defineComponent({
   name: 'OwaspRulesTab',
+  components: { RuleFileBrowser },
   props: {
     initKeyword: {
       type: String,

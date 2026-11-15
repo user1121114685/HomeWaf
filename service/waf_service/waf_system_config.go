@@ -87,6 +87,15 @@ func MaskSensitiveConfig(bean *model.SystemConfig) {
 }
 
 func (receiver *WafSystemConfigService) AddApi(wafSystemConfigAddReq request.WafSystemConfigAddReq) error {
+	return receiver.addConfig(wafSystemConfigAddReq, "0")
+}
+
+// Program-owned settings are never exposed as deletable extension records.
+func (receiver *WafSystemConfigService) AddManagedApi(req request.WafSystemConfigAddReq) error {
+	return receiver.addConfig(req, "1")
+}
+
+func (receiver *WafSystemConfigService) addConfig(wafSystemConfigAddReq request.WafSystemConfigAddReq, managed string) error {
 	// 幂等保护：先检查 item 是否已存在，存在则跳过，防止重复插入
 	var existing model.SystemConfig
 	result := global.GWAF_LOCAL_DB.Where("item = ?", wafSystemConfigAddReq.Item).First(&existing)
@@ -109,7 +118,9 @@ func (receiver *WafSystemConfigService) AddApi(wafSystemConfigAddReq request.Waf
 		ItemClass: wafSystemConfigAddReq.ItemClass,
 		Item:      wafSystemConfigAddReq.Item,
 		Value:     value,
-		IsSystem:  "0",
+		IsSystem:  managed,
+		ItemType:  wafSystemConfigAddReq.ItemType,
+		Options:   wafSystemConfigAddReq.Options,
 		Remarks:   wafSystemConfigAddReq.Remarks,
 		HashInfo:  "",
 	}
@@ -184,6 +195,7 @@ func (receiver *WafSystemConfigService) ModifyByItemApi(req request.WafSystemCon
 // 用户设置过的值不受影响。
 func (receiver *WafSystemConfigService) SyncMetaByItemApi(item string, itemClass string, itemType string, options string, remarks string) error {
 	editMap := map[string]interface{}{
+		"is_system":   "1",
 		"item_class":  itemClass,
 		"item_type":   itemType,
 		"options":     options,
@@ -261,8 +273,17 @@ func (receiver *WafSystemConfigService) DelApi(req request.WafSystemConfigDelReq
 	if err != nil {
 		return err
 	}
-	err = global.GWAF_LOCAL_DB.Where("id = ? and is_system='0'", req.Id).Delete(model.SystemConfig{}).Error
-	return err
+	if IsSensitiveConfigItem(bean.Item) || bean.Item == "last_run_version" || bean.Item == "max_run_version" {
+		return errors.New("内置或密钥配置项不能删除，请在对应配置页修改")
+	}
+	result := global.GWAF_LOCAL_DB.Where("id = ? and is_system='0'", req.Id).Delete(model.SystemConfig{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return errors.New("配置项已变化或受保护，请重新读取后操作")
+	}
+	return nil
 }
 
 // GetAllConfigs 批量获取所有配置项，返回以item为key的map

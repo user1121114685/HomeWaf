@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/corazawaf/coraza/v3/experimental/plugins/plugintypes"
 )
 
 func TestTuningPreservesIndependentCRSVariables(t *testing.T) {
@@ -57,5 +59,49 @@ func TestTuningPreservesIndependentCRSVariables(t *testing.T) {
 	actual, err = reopened.GetTuning()
 	if err != nil || len(actual.CustomVars) != 0 {
 		t.Fatalf("explicit empty-map replacement failed: %#v, %v", actual.CustomVars, err)
+	}
+}
+
+func TestBaseConfigReloadPreservesUserOverrideAndPersists(t *testing.T) {
+	dir := t.TempDir()
+	root := minimalOwaspRoot(t, dir)
+	if err := os.WriteFile(filepath.Join(root, "coreruleset", "rules", "old-rule.conf"), []byte("SecAction \"id:9900001,phase:1,pass,nolog\"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m := NewOwaspManager(dir)
+	if m.Current() == nil {
+		t.Fatal("fixture engine did not initialize")
+	}
+	tuning := DefaultTuning()
+	tuning.InboundThreshold = 11
+	if err := m.ApplyTuning(tuning); err != nil {
+		t.Fatal(err)
+	}
+	before := m.Current()
+	base := DefaultBaseConfig()
+	base.InboundThreshold = 8
+	if err := m.ApplyBaseConfig(base); err != nil {
+		t.Fatal(err)
+	}
+	if m.Current() == before {
+		t.Fatal("baseline did not publish a reloaded engine")
+	}
+	tx := m.Current().WAF.NewTransaction()
+	defer tx.Close()
+	tx.ProcessURI("/", "GET", "HTTP/1.1")
+	tx.AddRequestHeader("Host", "fixture.test")
+	tx.ProcessRequestHeaders()
+	values := tx.(plugintypes.TransactionState).Variables().TX().Get("inbound_anomaly_score_threshold")
+	if len(values) == 0 || values[0] != "11" {
+		t.Fatalf("user override did not win at runtime: %v", values)
+	}
+	store := NewOverrideStore(m.OverridesDir(), filepath.Join(root, "samwaf"))
+	actual, err := store.GetBaseConfig()
+	if err != nil || actual.InboundThreshold != 8 {
+		t.Fatalf("baseline not durable: %+v %v", actual, err)
+	}
+	user, err := store.GetTuning()
+	if err != nil || user.InboundThreshold != 11 {
+		t.Fatalf("baseline overwrote user settings: %+v %v", user, err)
 	}
 }

@@ -11,15 +11,32 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"regexp"
+	"strings"
+	"sync"
 )
 
 type WafSystemConfigApi struct {
 }
 
+var configCreateMu sync.Mutex
+var configKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_.-]{0,99}$`)
+
 func (w *WafSystemConfigApi) AddApi(c *gin.Context) {
+	configCreateMu.Lock()
+	defer configCreateMu.Unlock()
 	var req request.WafSystemConfigAddReq
 	err := c.ShouldBindJSON(&req)
 	if err == nil {
+		req.Item = strings.TrimSpace(req.Item)
+		if !configKeyPattern.MatchString(req.Item) || len(req.Value) > 65536 || len(req.Remarks) > 500 || len(req.ItemClass) > 100 {
+			response.FailWithMessage("配置键需为小写字母开头、100字以内，仅含字母数字及 _.-；值或说明不能超长", c)
+			return
+		}
+		if msg, ok := checkSystemConfigValue(req.Item, req.Value); !ok {
+			response.FailWithMessage(msg, c)
+			return
+		}
 		err = wafSystemConfigService.CheckIsExistApi(req)
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 			err = wafSystemConfigService.AddApi(req)
@@ -85,9 +102,9 @@ func (w *WafSystemConfigApi) DelApi(c *gin.Context) {
 	if err == nil {
 		err = wafSystemConfigService.DelApi(req)
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-			response.FailWithMessage("请检测参数", c)
+			response.FailWithMessage("配置项不存在或属于受保护的内置项，不能删除", c)
 		} else if err != nil {
-			response.FailWithMessage("发生错误", c)
+			response.FailWithMessage(err.Error(), c)
 		} else {
 			response.OkWithMessage("删除成功", c)
 		}

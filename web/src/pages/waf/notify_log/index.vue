@@ -117,6 +117,10 @@
           <hw-form-item :label="$t('page.notify_log.label_send_time')">
             <span>{{ detailData.send_time }}</span>
           </hw-form-item>
+          <hw-form-item v-if="detailData.subscription_id" label="对应订阅">
+            <hw-button variant="outline" @click="viewSubscription">查看对应订阅</hw-button>
+            <span class="form-tips">定位到发送这条通知的订阅配置。</span>
+          </hw-form-item>
           <hw-form-item style="float: right; margin-top: 16px;">
             <hw-button variant="outline" @click="detailVisible = false">{{ $t('common.close') }}</hw-button>
           </hw-form-item>
@@ -135,7 +139,7 @@ import {defineComponent} from 'vue';
 
 
 import { MessagePlugin } from '@/ui';
-import { getNotifyLogList, deleteNotifyLog } from '@/apis/notify_log';
+import { getNotifyLogList, getNotifyLogDetail, deleteNotifyLog } from '@/apis/notify_log';
 import { getNotifyChannelTypes } from '@/apis/notify_channel';
 
 export default defineComponent({
@@ -187,13 +191,31 @@ export default defineComponent({
     };
   },
   async mounted() {
+    const query = this.$route.query;
+    for (const key of ['message_type', 'start_time', 'end_time']) if (typeof query[key] === 'string') this.searchformData[key] = query[key];
+    if (['0', '1', '2'].includes(String(query.status))) this.searchformData.status = Number(query.status);
+    for (const key of ['pageIndex', 'pageSize']) if (Number(query[key]) > 0) this.searchformData[key] = Math.min(Number(query[key]), key === 'pageSize' ? 100 : 100000);
     this.getList();
+    if (typeof query.log_id === 'string') {
+      try {
+        const result = await getNotifyLogDetail({ id: query.log_id });
+        if (result.code !== 0 || !result.data?.id) throw new Error(result.msg || '原通知日志已删除或不可访问。');
+        this.detailData = result.data;
+        this.detailVisible = true;
+      } catch (cause: any) { MessagePlugin.error(cause.message || '日志详情读取失败，请重新打开。'); }
+    }
     try {
       const res = await getNotifyChannelTypes();
       if (res.code === 0 && Array.isArray(res.data)) this.channelNames = Object.fromEntries(res.data.map((item: any) => [item.type, item.name]));
     } catch { /* Keep raw type names available when the catalogue is unavailable. */ }
   },
   methods: {
+    async viewSubscription() {
+      const query: Record<string, string> = { log_id: this.detailData.id };
+      for (const [key, value] of Object.entries(this.searchformData)) if (value !== undefined && value !== '') query[key] = String(value);
+      await this.$router.replace({ name: 'NotifyLog', query });
+      await this.$router.push({ name: 'NotifySubscription', query: { subscription_id: this.detailData.subscription_id, return_to: this.$route.fullPath } });
+    },
     getContainer() {
       return document.querySelector('.tdesign-starter-main');
     },

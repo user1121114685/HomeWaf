@@ -147,6 +147,11 @@ func scopeMatches(scope Scope, r *http.Request) bool {
 	return true
 }
 func isStatic(p string) bool {
+	return IsStaticRequestPath(p)
+}
+
+// IsStaticRequestPath shares the runtime CC exclusion definition with diagnostics.
+func IsStaticRequestPath(p string) bool {
 	switch strings.ToLower(path.Ext(p)) {
 	case ".css", ".js", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".ico", ".woff", ".woff2":
 		return true

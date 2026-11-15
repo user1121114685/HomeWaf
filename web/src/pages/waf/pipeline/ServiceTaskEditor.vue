@@ -12,11 +12,7 @@
       @revision="setRevision"
     />
     <template v-else>
-      <Fields
-        v-if="task === 'WafAntiCCList'"
-        :model="draft.policy.ruleset"
-        :definitions="fields.ruleset.filter((field) => field.path.startsWith('cc.'))"
-      />
+      <CCWorkbench v-if="task === 'WafAntiCCList'" :config="draft" :disabled="busy" />
       <template v-else-if="ipTask">
         <RuleCollection
           v-model="ipEntries"
@@ -49,6 +45,8 @@
         :disabled="busy"
       />
       <template v-else-if="task === 'Wafruleedit'">
+        <div><ElButton :disabled="busy" @click="navigateRules('WafRule')">返回检测规则</ElButton></div>
+        <RuleAssistant :config="draft" :disabled="busy" @add="addPreparedRule" @editing="ruleAssistantEditing = $event" @busy="ruleAssistantBusy = $event" />
         <RuleCollection
           v-model="draft.policy.ruleset.scripts"
           title="自定义规则"
@@ -76,6 +74,7 @@
         </details>
       </template>
       <template v-else-if="task === 'WafRule'">
+        <div><ElButton :disabled="busy" @click="navigateRules('Wafruleedit')">管理自定义规则</ElButton></div>
         <div class="task-section-heading">
           <h3>攻击检测</h3>
           <p>先确认命中原因与正常业务，再将对应规则从观察改为拦截。</p>
@@ -267,6 +266,7 @@
 </template>
 <script setup lang="ts">
 import { computed, reactive, ref, watch, type PropType } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   ElAlert,
   ElButton,
@@ -286,11 +286,15 @@ import Scope from './Scope.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
 import RuleCollection, { type CollectionField } from './RuleCollection.vue';
 import ServiceIdentityPanel from './ServiceIdentityPanel.vue';
+import CCWorkbench from './CCWorkbench.vue';
+import RuleAssistant from './RuleAssistant.vue';
 const props = defineProps({
   config: { type: Object as PropType<PortConfig>, required: true },
   task: { type: String, required: true },
 });
 const emit = defineEmits(['saved', 'busy']);
+const router = useRouter();
+function navigateRules(name: string) { router.push({ name, query: { host_code: props.config.host_code || 'pipeline-' + props.config.port } }); }
 const ipTask = computed(() => ['WafIpWhiteList', 'WafIpBlockList'].includes(props.task));
 const ipType = computed(() => (props.task === 'WafIpWhiteList' ? 'allow' : 'deny'));
 const urlTask = computed(() => ['WafUrlWhiteList', 'WafUrlBlockList'].includes(props.task));
@@ -305,12 +309,14 @@ const draft = ref<any>(),
   saving = ref(false),
   identityBusy = ref(false),
   identityEditing = ref(false),
+  ruleAssistantEditing = ref(false),
+  ruleAssistantBusy = ref(false),
   privacySecret = ref(''),
   clearPrivacy = ref(false);
 const invalid = reactive<Record<string, boolean>>({});
 const scopeVisible = ref(false),
   scopeRule = ref<any>();
-const busy = computed(() => saving.value || identityBusy.value);
+const busy = computed(() => saving.value || identityBusy.value || ruleAssistantBusy.value);
 const invalidDraft = computed(() => Object.values(invalid).some(Boolean));
 function snapshot() {
   const { revision, ...value } = draft.value;
@@ -343,6 +349,7 @@ const dirty = computed(
     clearPrivacy.value ||
     invalidDraft.value ||
     identityEditing.value ||
+    ruleAssistantEditing.value ||
     scopeVisible.value,
 );
 function subset(key: string, field: string, value: () => string) {
@@ -438,6 +445,10 @@ function openScope(row: any) {
   row.params ||= {};
   scopeRule.value = row;
   scopeVisible.value = true;
+}
+function addPreparedRule(rule: any) {
+  draft.value.policy.ruleset.scripts ||= [];
+  draft.value.policy.ruleset.scripts.push(rule);
 }
 function setRevision(revision: number) {
   draft.value.revision = revision;

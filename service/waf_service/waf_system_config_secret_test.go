@@ -45,6 +45,40 @@ func TestSystemConfigRejectsMissingDuplicateAndSecretRename(t *testing.T) {
 	}
 }
 
+func TestManagedSystemConfigCannotBeDeleted(t *testing.T) {
+	db := setupSslExportTestDB(t)
+	if err := db.AutoMigrate(&model.SystemConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	svc := WafSystemConfigServiceApp
+	if err := svc.AddManagedApi(request.WafSystemConfigAddReq{Item: "managed", Value: "keep"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.AddApi(request.WafSystemConfigAddReq{Item: "extension.example", Value: "remove"}); err != nil {
+		t.Fatal(err)
+	}
+	managed, custom := svc.GetDetailByItem("managed"), svc.GetDetailByItem("extension.example")
+	if err := svc.DelApi(request.WafSystemConfigDelReq{Id: managed.Id}); err == nil {
+		t.Fatal("managed setting deleted")
+	}
+	if err := svc.DelApi(request.WafSystemConfigDelReq{Id: custom.Id}); err != nil {
+		t.Fatal(err)
+	}
+	if svc.GetDetailByItem("managed").Value != "keep" || svc.GetDetailByItem("extension.example").Id != "" {
+		t.Fatal("wrong row deleted")
+	}
+	if err := svc.AddApi(request.WafSystemConfigAddReq{Item: "previously_unmarked", Value: "preserve"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SyncMetaByItemApi("previously_unmarked", "system", "string", "", "managed metadata"); err != nil {
+		t.Fatal(err)
+	}
+	row := svc.GetDetailByItem("previously_unmarked")
+	if row.IsSystem != "1" || row.Value != "preserve" {
+		t.Fatal("protection migration changed value")
+	}
+}
+
 // newSecretTestDB 起一个只含 system_configs 表的临时 SQLite 库，并接到 global 单例。
 // 不跑全量迁移：本用例只关心配置项的读写加解密。
 func newSecretTestDB(t *testing.T) *gorm.DB {

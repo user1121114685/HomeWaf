@@ -53,6 +53,12 @@ type PipelineGateSessionRequest struct {
 	ID   string `json:"id"`
 }
 
+type PipelineGateSessionScopeRequest struct {
+	Port     uint16 `json:"port"`
+	Scope    string `json:"scope"`
+	Username string `json:"username"`
+}
+
 type PipelineGateTokenRequest struct {
 	Port     uint16 `json:"port" example:"5000"`
 	Revoke   bool   `json:"revoke"`

@@ -321,3 +321,18 @@ func (s *WafPipelineGateService) Kick(port uint16, id, operator string) error {
 	WafPipelineServiceApp.audit(operator, port, "gate_session_revoked")
 	return nil
 }
+
+func (s *WafPipelineGateService) RevokeScope(port uint16, scope, username, operator string) (int, error) {
+	if port == 0 || (scope != "service" && scope != "account") || (scope == "account" && (username == "" || len(username) > 128)) || (scope == "service" && username != "") {
+		return 0, errors.New("请明确选择当前服务或一个访问账号")
+	}
+	if _, err := WafPipelineServiceApp.Get(port); err != nil {
+		return 0, err
+	}
+	count := s.Store.RevokeScope(wafpipeline.PortID(port), username)
+	if err := s.Store.Flush(); err != nil {
+		return count, errors.New("当前进程的目标会话已撤销，但持久化失败。请重试撤销以保存状态")
+	}
+	WafPipelineServiceApp.audit(operator, port, fmt.Sprintf("gate_sessions_revoked scope=%s count=%d", scope, count))
+	return count, nil
+}

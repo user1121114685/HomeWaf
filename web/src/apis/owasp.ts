@@ -79,6 +79,13 @@ export function owaspFilesListApi() {
   })
 }
 
+export function owaspBaseConfigGetApi() {
+  return request({ url: '/owasp/base_config', method: 'get' });
+}
+export function owaspBaseConfigSetApi(data: any) {
+  return request({ url: '/owasp/base_config', method: 'post', data });
+}
+
 export function owaspFileContentApi(params: any = {}) {
   return request({
     url: '/owasp/file_content',

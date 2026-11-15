@@ -181,6 +181,24 @@ func (s *GateStore) Sessions(port string) []GateSessionRecord {
 	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt > out[j].CreatedAt })
 	return out
 }
+
+// RevokeScope is always confined to one port. An empty username deliberately
+// means every account on that port, never every port in the store.
+func (s *GateStore) RevokeScope(port, username string) int {
+	if port == "" {
+		return 0
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	count := 0
+	for key, session := range s.sessions {
+		if session.PortID == port && (username == "" || session.Username == username) {
+			s.remove(key)
+			count++
+		}
+	}
+	return count
+}
 func (s *GateStore) Restore(rows []GateSessionRecord) {
 	for _, v := range rows {
 		_ = s.Add(v, 0)

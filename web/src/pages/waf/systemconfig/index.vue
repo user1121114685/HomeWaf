@@ -4,6 +4,7 @@
   <div>
     <hw-card class="list-card-container resource-panel">
       <hw-row justify="end" align="middle" :style="{ marginBottom: '12px' }">
+        <hw-button variant="outline" :disabled="dataLoading || !!loadError" @click="$refs.advancedConfig.open()">高级配置项维护</hw-button>
         <div class="right-operation-container resource-filters">
           <label for="configuration-search" class="resource-filter-label">查找配置项</label>
           <hw-input
@@ -19,6 +20,8 @@
           </hw-input>
         </div>
       </hw-row>
+      <hw-alert v-if="loadError" theme="error" :message="loadError"><hw-button variant="text" @click="getList">重新读取</hw-button></hw-alert>
+      <AdvancedConfigDialog ref="advancedConfig" :rows="allData" :loading="dataLoading" @changed="getList" />
 
       <hw-loading :loading="dataLoading" size="small">
         <div class="config-layout">
@@ -145,6 +148,7 @@
 </template>
 <script lang="ts">
 import {defineComponent} from 'vue';
+import AdvancedConfigDialog from './AdvancedConfigDialog.vue';
 
 
 import { SearchIcon } from '@/ui/icons';
@@ -174,6 +178,7 @@ export default defineComponent({
   name: 'ListBase',
   components: {
     SearchIcon,
+    AdvancedConfigDialog,
   },
   data() {
     return {
@@ -183,6 +188,7 @@ export default defineComponent({
       rules: {},
       prefix,
       dataLoading: false,
+      loadError: '',
       allData: [], // 全量配置数据（一次拉取，前端分组+过滤）
       detail_data: [],
       keyword: '', // 实时搜索关键字
@@ -251,6 +257,7 @@ export default defineComponent({
     },
     getList() {
       this.dataLoading = true;
+      this.loadError = '';
       system_config_list_api({
         pageSize: 1000,
         pageIndex: 1,
@@ -259,10 +266,10 @@ export default defineComponent({
           const resdata = res;
           if (resdata.code === 0) {
             this.allData = resdata.data.list ?? [];
-          }
+          } else throw new Error(resdata.msg || '系统配置读取失败');
         })
         .catch((e: Error) => {
-          console.log(e);
+          this.loadError = e.message || '系统配置读取失败，请重试。';
         })
         .finally(() => {
           this.dataLoading = false;

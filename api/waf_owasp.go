@@ -11,8 +11,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -744,18 +742,7 @@ func (w *WafOwaspApi) FileContentApi(c *gin.Context) {
 		response.FailWithMessage("path 不能为空", c)
 		return
 	}
-	if strings.Contains(rel, "..") {
-		response.FailWithMessage("非法路径", c)
-		return
-	}
-	abs := filepath.Join(m.OwaspRoot(), filepath.FromSlash(rel))
-	cleanRoot, _ := filepath.Abs(m.OwaspRoot())
-	cleanAbs, _ := filepath.Abs(abs)
-	if !strings.HasPrefix(cleanAbs, cleanRoot) {
-		response.FailWithMessage("路径越界", c)
-		return
-	}
-	data, err := os.ReadFile(cleanAbs)
+	data, err := readOwaspRuleFile(m.OwaspRoot(), rel)
 	if err != nil {
 		response.FailWithMessage("读取失败: "+err.Error(), c)
 		return

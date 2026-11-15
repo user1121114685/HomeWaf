@@ -20,6 +20,8 @@ func InitPipelineRouter(group *gin.RouterGroup) {
 	r.GET("/state", a.PipelineState)
 	r.POST("/state/manage", a.ManagePipelineState)
 	r.GET("/logs", a.PipelineLogs)
+	r.GET("/cc/hits", a.PipelineCCHits)
+	r.POST("/cc/recommend", a.RecommendPipelineCC)
 	r.POST("/ports/save", a.SavePort)
 	r.POST("/ports/check", a.CheckPipelinePort)
 	r.POST("/ports/delete", a.DeletePort)
@@ -41,5 +43,6 @@ func InitPipelineRouter(group *gin.RouterGroup) {
 	r.POST("/gate/users/delete", a.DeleteGateUser)
 	r.GET("/gate/sessions", a.GateSessions)
 	r.POST("/gate/sessions/kick", a.KickGateSession)
+	r.POST("/gate/sessions/revoke", a.RevokeGateSessions)
 	r.POST("/gate/token/rotate", a.RotateGateToken)
 }

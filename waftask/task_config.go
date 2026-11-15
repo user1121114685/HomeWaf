@@ -598,7 +598,7 @@ const defaultTokenExpireMinutes int64 = 30
 // 只在确实不一致时写库，且绝不触碰 Value —— 用户设过的值不受影响。
 // 存在的意义：存量库里的说明是首次写入时的老文案，页面会一直显示过时描述。
 func syncConfigMeta(configItem model.SystemConfig, itemClass string, itemType string, options string, remarks string) {
-	if configItem.Remarks == remarks && configItem.Options == options &&
+	if configItem.IsSystem == "1" && configItem.Remarks == remarks && configItem.Options == options &&
 		configItem.ItemClass == itemClass && configItem.ItemType == itemType {
 		return
 	}
@@ -651,7 +651,7 @@ func updateConfigIntItem(cfg *global.RuntimeSettings, effects *[]func(), initLoa
 			ItemType:  itemType,
 			Options:   options,
 		}
-		wafSystemConfigService.AddApi(wafSystemConfigAddReq)
+		wafSystemConfigService.AddManagedApi(wafSystemConfigAddReq)
 	}
 }
 func updateConfigStringItem(cfg *global.RuntimeSettings, effects *[]func(), initLoad bool, itemClass string, itemName string, defaultValue string, remarks string, itemType string, options string, configMap map[string]model.SystemConfig) {
@@ -672,7 +672,7 @@ func updateConfigStringItem(cfg *global.RuntimeSettings, effects *[]func(), init
 			ItemType:  itemType,
 			Options:   options,
 		}
-		wafSystemConfigService.AddApi(wafSystemConfigAddReq)
+		wafSystemConfigService.AddManagedApi(wafSystemConfigAddReq)
 	}
 }
 
@@ -754,7 +754,7 @@ func writeVersionRecord(existing model.SystemConfig, item, value, remarks string
 		}
 		return
 	}
-	if err := wafSystemConfigService.AddApi(request.WafSystemConfigAddReq{
+	if err := wafSystemConfigService.AddManagedApi(request.WafSystemConfigAddReq{
 		ItemClass: "system",
 		Item:      item,
 		Value:     value,

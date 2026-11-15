@@ -42,8 +42,12 @@
         </div>
         <ElButton :loading="loading" :disabled="busy" @click="load">刷新会话</ElButton>
       </div>
+      <div class="identity-actions session-actions">
+        <label>账号范围<ElSelect v-model="sessionUser" clearable :disabled="busy || loading" placeholder="当前服务全部账号" aria-label="会话账号范围"><ElOption v-for="username in sessionUsers" :key="username" :value="username" :label="username" /></ElSelect></label>
+        <ElButton type="danger" plain :disabled="busy || loading || !!error || !visibleSessions.length" @click="revokeSessions">{{ sessionUser ? '撤销该账号全部会话' : '撤销此服务全部会话' }}</ElButton>
+      </div>
       <ElTable
-        :data="sessions"
+        :data="visibleSessions"
         :empty-text="loading ? '正在读取会话…' : error ? '会话读取失败，请重试' : '当前没有活动会话'"
       >
         <ElTableColumn prop="username" label="账号" min-width="160" /><ElTableColumn
@@ -51,6 +55,7 @@
           label="来源 IP"
           min-width="180"
         />
+        <ElTableColumn label="最近活动" min-width="180"><template #default="{ row }">{{ timeText(row.last_seen) }}</template></ElTableColumn>
         <ElTableColumn label="到期时间" min-width="180"
           ><template #default="{ row }">{{ timeText(row.expires_at) }}</template></ElTableColumn
         >
@@ -151,7 +156,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch, type PropType } from 'vue';
+import { computed, onMounted, reactive, ref, watch, type PropType } from 'vue';
 import {
   ElAlert,
   ElButton,
@@ -160,6 +165,8 @@ import {
   ElInput,
   ElMessage,
   ElMessageBox,
+  ElSelect,
+  ElOption,
   ElSwitch,
   ElTable,
   ElTableColumn,
@@ -182,6 +189,9 @@ const accounts = ref<any[]>([]),
   serviceToken = ref('');
 const accountVisible = ref(false),
   editingAccount = ref(false);
+const sessionUser = ref('');
+const sessionUsers = computed(() => [...new Set(sessions.value.map(row => row.username))]);
+const visibleSessions = computed(() => sessions.value.filter(row => !sessionUser.value || row.username === sessionUser.value));
 const account = reactive({
   username: '',
   password: '',
@@ -292,6 +302,18 @@ async function kick(row: any) {
     await load();
   });
 }
+async function revokeSessions() {
+  await run(async () => {
+    const username = sessionUser.value;
+    await ElMessageBox.confirm(
+      `撤销端口 ${props.port} 的${username ? '账号「' + username + '」' : '全部账号'}在线会话？当前显示 ${visibleSessions.value.length} 个，会话持有人需要重新登录；其他服务不受影响。`,
+      '确认批量撤销会话', { type: 'warning', confirmButtonText: '立即撤销', cancelButtonText: '取消' },
+    );
+    const result = await pipelinePost('gate/sessions/revoke', { port: props.port, scope: username ? 'account' : 'service', username });
+    await load();
+    ElMessage.success(`已撤销 ${result.revoked} 个会话`);
+  });
+}
 async function rotateToken(revoke: boolean) {
   await run(async () => {
     await ElMessageBox.confirm(
@@ -332,6 +354,8 @@ onMounted(() => {
 .identity-heading:first-child {
   margin-top: 0;
 }
+.session-actions { margin-bottom: 16px; align-items: end; }
+.session-actions label { display: grid; gap: 6px; width: min(100%, 260px); }
 .identity-heading > div:last-child,
 .identity-actions {
   display: flex;

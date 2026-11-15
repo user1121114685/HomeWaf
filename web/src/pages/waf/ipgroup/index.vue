@@ -133,15 +133,18 @@
         <hw-form :data="itemFormData" ref="itemForm" :rules="itemRules" @submit="onSubmitItem" :labelWidth="100">
           <hw-form-item label="IP" name="ip">
             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="itemFormData.ip"
-              :placeholder="$t('page.ipgroup.ip_placeholder')"></hw-input>
+              :placeholder="$t('page.ipgroup.ip_placeholder')" :disabled="itemSaving" @update:model-value="invalidateItemIP" @blur="checkItemIP"></hw-input>
             <div class="form-tips">{{ $t('page.ipgroup.ip_pattern_tips') }}</div>
+            <hw-button variant="text" :loading="itemChecking" :disabled="itemSaving" @click="checkItemIP">检查地址格式</hw-button>
+            <p v-if="itemValidation" role="status" class="form-tips">{{ itemValidation }}</p>
+            <p v-if="itemError" role="alert" class="ip-validation-error">{{ itemError }}</p>
           </hw-form-item>
           <hw-form-item :label="$t('common.remarks')" name="remarks">
             <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="itemFormData.remarks"></hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
-            <hw-button variant="outline" @click="itemFormVisible = false">{{ $t('common.close') }}</hw-button>
-            <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
+            <hw-button variant="outline" :disabled="itemSaving" @click="itemFormVisible = false">{{ $t('common.close') }}</hw-button>
+            <hw-button theme="primary" type="submit" :loading="itemSaving" :disabled="itemChecking">{{ $t('common.confirm') }}</hw-button>
           </hw-form-item>
         </hw-form>
       </div></template>
@@ -216,6 +219,7 @@ import {
   wafIPGroupListApi, wafIPGroupAddApi, wafIPGroupEditApi, wafIPGroupDelApi, wafIPGroupRefsApi,
   wafIPGroupItemListApi, wafIPGroupItemAddApi, wafIPGroupItemEditApi, wafIPGroupItemDelApi,
   wafIPGroupItemBatchAddApi, wafIPGroupItemBatchDelApi, wafIPGroupItemDelAllApi,
+  wafIPGroupValidateApi,
 } from '@/apis/ipgroup';
 
 // 组短码由后端自动生成，新建表单里不出现
@@ -287,6 +291,11 @@ export default defineComponent({
         { align: 'left', width: 140, colKey: 'op', title: this.$t('common.op') },
       ],
       itemFormVisible: false,
+      itemChecking: false,
+      itemSaving: false,
+      itemValidation: '',
+      itemError: '',
+      itemCheckSequence: 0,
       itemFormData: { id: '', ip: '', remarks: '' },
       itemRules: {
         ip: [{ required: true, message: this.$t('common.placeholder') + 'IP', type: 'error' }],
@@ -504,35 +513,47 @@ export default defineComponent({
       });
     },
     handleAddItem() {
+      this.itemValidation = ''; this.itemError = ''; this.itemCheckSequence++;
       this.itemFormData = { id: '', ip: '', remarks: '' };
       this.itemFormVisible = true;
     },
     handleEditItem(row) {
+      this.itemValidation = ''; this.itemError = ''; this.itemCheckSequence++;
       this.itemFormData = { id: row.id, ip: row.ip, remarks: row.remarks };
       this.itemFormVisible = true;
     },
-    onSubmitItem({ result, firstError }): void {
-      const that = this;
-      if (firstError) {
-        that.$message.warning(firstError);
-        return;
-      }
-      const isEdit = !!that.itemFormData.id;
-      const api = isEdit ? wafIPGroupItemEditApi : wafIPGroupItemAddApi;
-      const payload = isEdit
-        ? { id: that.itemFormData.id, ip: that.itemFormData.ip, remarks: that.itemFormData.remarks }
-        : { group_code: that.currentGroup.group_code, ip: that.itemFormData.ip, remarks: that.itemFormData.remarks };
-      api(payload)
-        .then((res) => {
-          if (res.code === 0) {
-            that.$message.success(res.msg);
-            that.itemFormVisible = false;
-            that.getItemList();
-          } else {
-            that.$message.warning(res.msg);
-          }
-        })
-        .catch((e: Error) => { console.log(e); });
+    async checkItemIP() {
+      const sequence = ++this.itemCheckSequence, ip = this.itemFormData.ip.trim();
+      this.itemValidation = ''; this.itemError = '';
+      if (!ip) { this.itemError = '请输入 IP、网段或地址范围。'; return false; }
+      this.itemChecking = true;
+      try {
+        const res = await wafIPGroupValidateApi({ ip });
+        if (sequence !== this.itemCheckSequence || ip !== this.itemFormData.ip.trim() || !this.itemFormVisible) return false;
+        if (res.code !== 0) throw new Error(res.msg || '格式检查失败，请重试。');
+        if (!res.data?.valid) throw new Error(res.data?.message || '地址格式不正确。');
+        this.itemValidation = '地址格式有效，保存后才会加入当前 IP 组。';
+        return true;
+      } catch (cause: any) {
+        if (sequence === this.itemCheckSequence && ip === this.itemFormData.ip.trim()) this.itemError = cause.message || '格式检查失败，请重试。';
+        return false;
+      } finally { if (sequence === this.itemCheckSequence) this.itemChecking = false; }
+    },
+    invalidateItemIP() { this.itemValidation = ''; this.itemError = ''; this.itemCheckSequence++; this.itemChecking = false; },
+    async onSubmitItem({ firstError }) {
+      if (this.itemSaving) return;
+      if (firstError) { this.itemError = firstError; return; }
+      this.itemSaving = true;
+      try {
+        if (!(await this.checkItemIP())) return;
+        const api = this.itemFormData.id ? wafIPGroupItemEditApi : wafIPGroupItemAddApi;
+        const res = await api({ ...this.itemFormData, ip: this.itemFormData.ip.trim(), group_code: this.currentGroup.group_code });
+        if (res.code !== 0) throw new Error(res.msg || '保存失败，请重试。');
+        this.$message.success(res.msg);
+        this.itemFormVisible = false;
+        this.getItemList();
+      } catch (cause: any) { this.itemError = cause.message || '保存失败，输入已保留。'; }
+      finally { this.itemSaving = false; }
     },
     handleDelItem(row) {
       this.pendingDelItemId = row.id;
@@ -634,6 +655,7 @@ export default defineComponent({
   font-size: 13px;
   color: var(--td-text-color-secondary);
 }
+.ip-validation-error { color: var(--hw-danger); font-size: 13px; width: 100%; }
 
 .ref-host-list {
   margin: 12px 0;

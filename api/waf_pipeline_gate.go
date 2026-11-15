@@ -134,6 +134,28 @@ func (w *WafPipelineApi) KickGateSession(c *gin.Context) {
 	response.OkWithMessage("会话已撤销", c)
 }
 
+// RevokeGateSessions revokes only sessions belonging to the selected service.
+// @Summary Revoke service or account sessions
+// @Tags Pipeline
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param request body PipelineGateSessionScopeRequest true "Explicit service/account scope"
+// @Success 200 {object} response.Response
+// @Router /api/v1/pipeline/gate/sessions/revoke [post]
+func (w *WafPipelineApi) RevokeGateSessions(c *gin.Context) {
+	var req PipelineGateSessionScopeRequest
+	if !pipelineBind(c, &req) {
+		return
+	}
+	count, err := waf_service.WafPipelineGateServiceApp.RevokeScope(req.Port, req.Scope, req.Username, pipelineOperator(c))
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithDetailed(gin.H{"revoked": count}, "目标会话已撤销", c)
+}
+
 // RotateGateToken replaces or revokes the port service token.
 // @Summary RotateGateToken replaces or revokes the port service token.
 // @Tags Pipeline
