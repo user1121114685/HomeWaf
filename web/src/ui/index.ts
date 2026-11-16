@@ -849,7 +849,7 @@ export const NotifyPlugin: any = Object.assign(
 NotifyPlugin.close = (instance: any) => instance?.close?.();
 NotifyPlugin.closeAll = () => E.ElNotification.closeAll();
 function openDialog(options: any) {
-  const state = reactive({ ...options, visible: true });
+  const state = reactive({ width: 'min(480px, calc(100vw - 32px))', ...options, visible: true });
   const mount = document.createElement('div');
   document.body.append(mount);
   let rootNode: any;

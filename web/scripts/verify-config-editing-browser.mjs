@@ -41,7 +41,7 @@ for (const port of [5000, 5001]) {
 const otherPort = JSON.stringify(configs.get(5001));
 let sharedHoneypot = { revision: 0, configured: false, config: clone(configs.get(5000).policy.honeypot) };
 let failNextSave = false;
-const report = { checks: [], errors: [], writes: [], origin };
+const report = { checks: [], errors: [], writes: [], confirmations: [], origin };
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, colorScheme: 'light' });
 await context.addInitScript(() => {
@@ -220,6 +220,46 @@ try {
   expect(sharedHoneypot.config.lures).toHaveLength(1);
   report.checks.push('shared honeypot reopens, edits/adds/removes prompts, validates and retains failed-save drafts');
   await honey.getByLabel('蜜罐提示1内容', { exact: true }).fill('取消的内容');
+  const writesBeforeCancel = report.writes.length;
+  for (const [width, height] of [
+    [1920, 911],
+    [820, 1180],
+    [390, 844],
+  ]) {
+    await page.setViewportSize({ width, height });
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((theme) => {
+        document.documentElement.setAttribute('theme-mode', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }, theme);
+      await page.getByRole('button', { name: '返回我的服务', exact: true }).click();
+      const box = page.locator('.el-message-box:visible');
+      await expect(box).toContainText('未保存的修改');
+      const bounds = await box.boundingBox();
+      expect(bounds.width).toBeLessThanOrEqual(480);
+      expect(bounds.x).toBeGreaterThanOrEqual(16);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(width - 16);
+      expect(await box.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      const screenshot = `unsaved-confirmation-${width}-${theme}.png`;
+      await box.screenshot({ path: path.join(output, screenshot), animations: 'disabled' });
+      report.confirmations.push({ viewport: width, theme, width: bounds.width, height: bounds.height, screenshot });
+      if (theme === 'dark') await page.keyboard.press('Escape');
+      else await box.getByRole('button', { name: '取消', exact: true }).click();
+      await expect(box).toHaveCount(0);
+      await expect(honey.getByLabel('蜜罐提示1内容', { exact: true })).toHaveValue('取消的内容');
+      expect(report.writes).toHaveLength(writesBeforeCancel);
+    }
+  }
+  report.checks.push(
+    'compact unsaved confirmation at desktop/tablet/phone in two themes; cancel and Escape preserve draft without writes',
+  );
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await page.evaluate(() => {
+    document.documentElement.setAttribute('theme-mode', 'light');
+    document.documentElement.setAttribute('data-theme', 'light');
+    document.documentElement.classList.remove('dark');
+  });
   await page.getByRole('button', { name: '返回我的服务', exact: true }).click();
   await page.locator('.el-message-box:visible .el-message-box__btns button').last().click();
   await expect(card()).toBeVisible();

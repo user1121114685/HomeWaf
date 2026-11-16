@@ -291,13 +291,89 @@ async function capture(name, scope = page) {
       await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
         .toBeLessThanOrEqual(2);
+      const dialogs = await page.locator('.el-dialog:visible').evaluateAll((elements) =>
+        elements.map((el) => {
+          const rect = el.getBoundingClientRect();
+          return {
+            title: el.querySelector('.el-dialog__title')?.textContent,
+            width: rect.width,
+            x: rect.x,
+            right: rect.right,
+            overflow: el.scrollWidth > el.clientWidth + 1,
+          };
+        }),
+      );
+      for (const box of dialogs) {
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(width + 1);
+        expect(box.overflow).toBe(false);
+        if (name.startsWith('confirmation-') && name !== 'confirmation-form')
+          expect(box.width).toBeLessThanOrEqual(480);
+      }
+      if (name.startsWith('confirmation-')) {
+        expect(
+          await dialog()
+            .locator('.el-dialog__body')
+            .evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+        ).toBe(true);
+      }
       await scope.screenshot({ path: path.join(output, `${name}-${width}-${theme}.png`), animations: 'disabled' });
-      report.states.push({ name, width, theme });
+      report.states.push({ name, width, theme, dialogs });
     }
   await page.setViewportSize({ width: 1440, height: 1050 });
 }
 try {
   await goto('/oplatform/doc', 'api-reference');
+  // Exercise the app's shared dialog adapter separately from page-specific forms.
+  for (const kind of ['confirm', 'alert', 'long-text', 'form']) {
+    await page.evaluate((kind) => {
+      const app = document.querySelector('#app').__vue_app__;
+      const plugin = app.config.globalProperties.$dialog;
+      window.dialogVerification = { confirmed: 0, cancelled: 0 };
+      const options = {
+        header: kind === 'form' ? '输入内容' : '确认操作',
+        body:
+          kind === 'long-text' ? '操作仅影响当前记录。'.repeat(20) + 'f'.repeat(180) : '此操作只影响当前选中的记录。',
+        confirmBtn: '确认操作',
+        cancelBtn: '继续编辑',
+        onConfirm: ({ dialog }) => {
+          window.dialogVerification.confirmed++;
+          dialog.hide();
+        },
+        onCancel: () => {
+          window.dialogVerification.cancelled++;
+        },
+      };
+      if (kind === 'form') {
+        options.width = '640px';
+        options.body = (h) =>
+          h('label', [
+            h('span', '操作备注'),
+            h(app.component('hw-input'), { modelValue: '可编辑的内容', 'aria-label': '操作备注' }),
+          ]);
+      }
+      plugin[kind === 'alert' ? 'alert' : 'confirm'](options);
+    }, kind);
+    await expect(dialog()).toBeVisible();
+    if (kind === 'form') {
+      await expect(dialog().getByRole('textbox', { name: '操作备注' })).toHaveValue('可编辑的内容');
+      expect((await dialog().boundingBox()).width).toBe(640);
+    }
+    await capture('confirmation-' + kind, dialog());
+    if (kind === 'alert') {
+      await expect(dialog().getByRole('button', { name: '继续编辑' })).toHaveCount(0);
+      await dialog().getByRole('button', { name: '确认操作', exact: true }).click();
+      expect(await page.evaluate(() => window.dialogVerification.confirmed)).toBe(1);
+    } else {
+      await dialog().getByRole('button', { name: '继续编辑', exact: true }).click();
+      expect(await page.evaluate(() => window.dialogVerification.confirmed)).toBe(0);
+      expect(await page.evaluate(() => window.dialogVerification.cancelled)).toBe(1);
+    }
+    await expect(dialog()).toHaveCount(0);
+  }
+  report.checks.push(
+    'Shared confirmation/alert/long-text dialogs stay compact; explicit form width, input and cancel/confirm semantics remain intact across widths/themes',
+  );
   await expect(page.getByText('45 个接口', { exact: true })).toBeVisible();
   await page.locator('.api-index button').filter({ hasText: '/api/v1/sample/01' }).click();
   await expect(page.getByTestId('api-detail')).toContainText('/api/v1/sample/01');

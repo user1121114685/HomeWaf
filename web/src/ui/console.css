@@ -762,7 +762,7 @@ button.ipl-link {
 .el-message-box {
   padding: 24px;
   border-radius: var(--hw-r-lg);
-  max-width: calc(100vw - 32px);
+  max-width: min(var(--el-messagebox-width), calc(100vw - 32px));
 }
 .el-message-box__btns {
   gap: 8px;
