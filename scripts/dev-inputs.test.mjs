@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { BuildInputs } from "./dev-inputs.mjs";
 
 function fixture(t) {
@@ -54,4 +55,30 @@ test("module and embedded assets trigger only on content changes", (t) => {
   assert.deepEqual(inputs.scan(), []);
   put("public/dist/assets/app.js", "v2");
   assert.deepEqual(inputs.scan(), ["public/dist/assets/app.js"]);
+});
+
+test("same-size writes within a filesystem timestamp tick are detected", (t) => {
+  let now = 0;
+  t.mock.method(performance, "now", () => now);
+  const { root, put, inputs } = fixture(t);
+  const name = "public/dist/assets/app.js";
+  const asset = path.join(root, name);
+  put(name, "v1");
+  assert.deepEqual(inputs.scan(), [name]);
+  const statSync = fs.statSync;
+  const initial = statSync(asset, { bigint: true });
+  t.mock.method(fs, "statSync", (file, options) => {
+    const stat = statSync(file, options);
+    return file === asset ? { ...stat, mtimeNs: initial.mtimeNs, ctimeNs: initial.ctimeNs } : stat;
+  });
+  put(name, "v2");
+  now = 1;
+  assert.deepEqual(inputs.scan(), [name]);
+  now = 2;
+  assert.deepEqual(inputs.scan(), []);
+  // Once metadata has settled, access notifications must not cause more reads.
+  now = 2000;
+  const readFileSync = t.mock.method(fs, "readFileSync");
+  assert.deepEqual(inputs.scan(), []);
+  assert.equal(readFileSync.mock.callCount(), 0);
 });

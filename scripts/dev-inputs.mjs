@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
+
+const metadataSettleMs = 1000;
 
 export const excludedRoots = new Set([".git", ".idea", ".cache", ".homewaf-keys", "artifacts", "web", "vendor", "node_modules", "conf", "data", "logs", "ssl", "download", "release", "docs"]);
 
@@ -37,16 +40,20 @@ export class BuildInputs {
         if (ignoredInput(name) || entry.isSymbolicLink()) continue;
         if (entry.isDirectory()) { visit(name); continue; }
         if (!entry.isFile() || !isBuildInput(name)) continue;
-        let stat, hash;
+        let stat, hash, stableSince;
         const old = this.snapshot.get(name);
         try {
+          const now = performance.now();
           stat = fs.statSync(path.join(this.root, name), { bigint: true });
-          // Reading files can itself produce Windows access notifications.
-          // Skip unchanged metadata; for touched files compare their bytes.
-          hash = old && old.size === stat.size && old.mtime === stat.mtimeNs && old.ctime === stat.ctimeNs
+          const sameMetadata = old && old.size === stat.size && old.mtime === stat.mtimeNs && old.ctime === stat.ctimeNs;
+          stableSince = sameMetadata ? old.stableSince : now;
+          // Rapid equal-size writes can share filesystem timestamps. Recheck
+          // bytes until metadata settles, then avoid read/access-notification loops.
+          hash = sameMetadata && now - stableSince >= metadataSettleMs
             ? old.hash : createHash("sha256").update(fs.readFileSync(path.join(this.root, name))).digest("hex");
+          if (!sameMetadata || old.hash !== hash) stableSince = performance.now();
         } catch (error) { if (error.code === "ENOENT") continue; throw error; }
-        next.set(name, { size: stat.size, mtime: stat.mtimeNs, ctime: stat.ctimeNs, hash });
+        next.set(name, { size: stat.size, mtime: stat.mtimeNs, ctime: stat.ctimeNs, hash, stableSince });
         if (old?.hash !== hash) changed.push(name);
       }
     };
