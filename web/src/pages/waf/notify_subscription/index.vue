@@ -3,6 +3,7 @@
 <template>
   <div>
     <hw-card class="list-card-container resource-panel">
+      <RouterLink v-if="typeof $route.query.returnTo === 'string' && $route.query.returnTo.startsWith('/waf-host/wafsslconfiglist/')" :to="$route.query.returnTo">返回证书详情</RouterLink>
       <div class="page-header">
         <div class="page-header-main">
           <p class="page-desc">选择希望收到的提醒。这里只显示已添加的通知渠道。</p>

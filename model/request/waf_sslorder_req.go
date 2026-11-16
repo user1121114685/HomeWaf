@@ -41,8 +41,10 @@ type WafSslorderretryReq struct {
 	RequestID string `json:"request_id" binding:"required,max=128"`
 }
 type WafSslordersearchReq struct {
-	ApplyStatus string `json:"apply_status" binding:"omitempty,oneof=submitted applying success fail renewed expired"`
-	ApplyDomain string `json:"apply_domain" binding:"omitempty,max=8192"` //可选：按申请域名筛选
-	HostCode    string `json:"host_code" binding:"omitempty,max=64"`      //可选：按关联服务筛选
+	CertificateID string `json:"certificate_id" binding:"omitempty,max=64"`
+	Trigger       string `json:"trigger" binding:"omitempty,oneof=initial automatic manual"`
+	ApplyStatus   string `json:"apply_status" binding:"omitempty,oneof=submitted applying success fail renewed expired"`
+	ApplyDomain   string `json:"apply_domain" binding:"omitempty,max=8192"` //可选：按申请域名筛选
+	HostCode      string `json:"host_code" binding:"omitempty,max=64"`      //可选：按关联服务筛选
 	request.PageInfo
 }

@@ -39,6 +39,9 @@ var coreSchemaModels = []any{
 	&model.BatchTask{},
 	&model.SslOrder{},
 	&model.SslOrderLog{},
+	&model.SslRenewalPolicy{},
+	&model.CertificateEvent{},
+	&model.CertificateDelivery{},
 	&model.SslExpire{},
 	&model.HttpAuthBase{},
 	&model.Task{},
@@ -145,7 +148,7 @@ func InitializeCoreSchema(db *gorm.DB) error {
 			}
 		}
 	}
-	for _, field := range []string{"RequestID", "SubmissionHash", "ActiveKey", "RenewFrom", "Progress", "AutoRenew"} {
+	for _, field := range []string{"RequestID", "SubmissionHash", "ActiveKey", "RenewFrom", "Progress", "AutoRenew", "CertificateID", "PolicyVersion", "Trigger", "Operation", "RetryOf", "Stage", "FailureKind", "RetryNotBefore", "BindingSnapshot", "OriginalFingerprint", "DeploymentResult"} {
 		if !db.Migrator().HasColumn(&model.SslOrder{}, field) {
 			if err := db.Migrator().AddColumn(&model.SslOrder{}, field); err != nil {
 				return err
@@ -158,6 +161,16 @@ func InitializeCoreSchema(db *gorm.DB) error {
 			if err := db.Migrator().CreateIndex(&model.SslOrder{}, index); err != nil {
 				return err
 			}
+		}
+	}
+	if !db.Migrator().HasColumn(&model.SslExpire{}, "LastSuccess") {
+		if err := db.Migrator().AddColumn(&model.SslExpire{}, "LastSuccess"); err != nil {
+			return err
+		}
+	}
+	if !db.Migrator().HasColumn(&model.CertificateDelivery{}, "RetryNotBefore") {
+		if err := db.Migrator().AddColumn(&model.CertificateDelivery{}, "RetryNotBefore"); err != nil {
+			return err
 		}
 	}
 	if err := initializeSSLOrderLogScope(db); err != nil {

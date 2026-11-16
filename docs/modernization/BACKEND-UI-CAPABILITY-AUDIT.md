@@ -42,3 +42,24 @@ API 接入时的基线：599 条注册路由，456 条静态可达引用，74 �
 新增错误字段 `field_errors` 连接到证书/私钥字段提示和可聚焦错误摘要，原请求客户端对这两个写接口解密失败详情。保存结果中的 `export_failed` 连接到列表持续提示，防止将导出拒绝混为全部成功或保存失败。系统管理员写权限、服务端 PEM/配对校验、允许目录约束与原运行消费者保留。
 
 审计计数仍为 605/462/6/137（注册/可达/客户端待复核/无静态引用）。隔离浏览器和真实临时数据库的证据范围见 [证书编辑检查](CERTIFICATE-EDITOR-REVIEW.md)。
+
+## 2026-11-17：证书生命周期反查与实施
+
+实现依据 [证书管理重规划](SSL-MANAGEMENT-REPLAN.md)，证据见 [实施记录](SSL-MANAGEMENT-IMPLEMENTATION.md)。两项审计最终结果：614 条注册路由、432 条带角色限制；468 条静态可达引用、9 条客户端待复核、137 条无静态引用，323 个可达文件。
+
+| 能力/字段 | API → 可达界面 | 持久化/运行消费者与处理结论 |
+| --- | --- | --- |
+| 证书元数据 | `certificates/list/detail` → 证书列表/详情 | `SslConfig`、策略、结构化原生/旧站点/控制台绑定；不返回私钥；查询失败向上传递 |
+| PEM/文件设置 | `sslconfig/detail/add/edit/del` → 按需打开原 CertificateEditor | 原材料验证/加密/导出/更新消费者；人工替换或文件接管禁用旧策略；兼容旧列表/详情仍保留原调用语义 |
+| 当前续期策略 | `certificates/policy` → 详情独立编辑 | 版本化 `SslRenewalPolicy`，加密 ACME 上下文；保存不签发，停用取消排队自动任务 |
+| 直接续期/恢复 | `certificates/renew`、既有 `sslorder/retry` → 详情/历史/日志 | 同一持久任务路径、幂等/预算/限流、阶段恢复；旧 `sslorder/edit` 为兼容适配，无需恢复重复表单 |
+| 服务绑定 | `certificates/bind-targets/bind` → 详情使用范围 | 显式目标 ID、预期指纹及 SAN 校验；原生版本化 Save/TLSBind/TLSRefresh，旧绑定适配；不将原生 ID 交旧写 API |
+| 执行记录字段 | `sslorder/list/logs` → 记录与任务详情 | `certificate_id`、触发/操作类型、阶段、失败分类、恢复时间、绑定结果与通知；`sslorder/detail` 无静态引用仍是已有替代展示 |
+| 设置和引用范围 | `certificates/settings` → 独立设置 | 实际计划/阈值/文件总开关与凭据使用关系；原系统配置/任务拥有写路径 |
+| DNS/CA/ZeroSSL | 既有 provider/credentials、privategroup/privateinfo、caserverinfo、zerossl/account → 设置与申请中的共享编辑器 | 原加密凭据和 CA 资源；埋藏 UI 已迁出，无引用旧通用 CRUD 不复活 |
+| 外部监测 | 既有 `sslexpire/*` → 独立目标表/编辑/检查 | LastDetect/LastSuccess 持久化、签名天数和失败/陈旧态；nowcheck 支持 ID；sync_host 后台支持原生服务，UI 用所选目标 add，不为消除引用计数增加重复动作 |
+| 通知覆盖/恢复 | `certificates/notifications`、`notifications/retry` → 证书详情，任务 logs 同时返回投递摘要 | `CertificateEvent`/`CertificateDelivery` 持久事件与租约、退避/限流；沿用 operation_notice/ssl_expire 订阅、过滤/聚合/免打扰 |
+
+新增 9 条 API，其中 policy、renew、notifications/retry、bind 四条写接口受系统管理员角色限制，沿用管理 API 认证与加密传输。旧无引用端点按兼容/替代路径保留；审计计数不是功能完成率。当前 normal 元数据不带私钥，不意味着兼容旧私钥读取接口已退役。
+
+生命周期 5 项隔离 Go 测试及项目回归通过；前端使用加密 API 夹具，真实 CA/DNS、外部通知和用户监听端未联调。完整回归命令和视觉证据以实施记录为准。

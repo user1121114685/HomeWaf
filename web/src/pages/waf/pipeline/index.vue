@@ -1,5 +1,10 @@
 <template>
   <div class="pipeline-page" data-testid="pipeline-page">
+    <RouterLink
+      v-if="typeof route.query.returnTo === 'string' && route.query.returnTo.startsWith('/waf-host/wafsslconfiglist/')"
+      :to="route.query.returnTo"
+      >返回证书详情</RouterLink
+    >
     <PageActions>
       <ElButton :loading="busy" @click="refresh">刷新状态</ElButton
       ><ElButton v-if="page === 'ports'" type="primary" :disabled="!templates.length || busy" @click="create"

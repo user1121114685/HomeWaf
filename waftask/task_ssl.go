@@ -12,6 +12,9 @@ import (
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
 	"fmt"
+	"net"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -139,6 +142,13 @@ func nonEmpty(s string) string {
 
 // SSLOrderReload SSL证书自动续期 远程申请
 func SSLOrderReload() {
+	if waf_service.CertificateLifecycleAvailable() {
+		if err := waf_service.RunCertificateRenewals(time.Now(), false); err != nil {
+			zlog.Error("证书生命周期检查失败", err.Error())
+		}
+		return
+	}
+
 	innerLogName := "TaskSSLOrder"
 	zlog.Info(innerLogName, "准备进行ssl证书自动续期检测")
 	//1.找出来所有得SSL得主机 2.查询是否存在自动SSL订单得最新得数据 3.查询没有到期得最后一条信息来申请延期
@@ -229,14 +239,17 @@ func SSLExpireCheck() {
 	for _, expireBean := range sslExpires {
 
 		zlog.Info(innerLogName, fmt.Sprintf("正在检测域名: %s:%d", expireBean.Domain, expireBean.Port))
-		host := fmt.Sprintf("%s:%d", expireBean.Domain, expireBean.Port)
+		host := net.JoinHostPort(expireBean.Domain, strconv.Itoa(expireBean.Port))
 		expiryTime, err := utils.CheckSSLCertificateExpiry(host)
 		expireBean.LastDetect = customtype.JsonTime(time.Now())
 		if err != nil {
 			expireBean.VisitLog = err.Error()
+			expireBean.Status = "failed"
 		} else {
 			expireBean.ValidTo = customtype.JsonTime(expiryTime)
 			expireBean.VisitLog = ""
+			expireBean.Status = "success"
+			expireBean.LastSuccess = expireBean.LastDetect
 
 			// 检查证书是否即将过期，并发送通知
 			checkAndNotifySSLExpire(expireBean.Domain, expiryTime)
@@ -249,6 +262,25 @@ func SSLExpireCheck() {
 
 // SyncHostToSslCheck 同步已存在主机到SSL证书检测任务里
 func SyncHostToSslCheck() {
+	targets, targetErr := waf_service.GetSSLCertificateTargets()
+	if targetErr == nil {
+		for _, target := range targets {
+			if target.Protocol != "https" {
+				continue
+			}
+			for _, domain := range target.Domains {
+				if strings.Contains(domain, "*") {
+					continue
+				}
+				if wafSslExpireService.CheckIsExist(domain, target.Port) == 0 {
+					if err := wafSslExpireService.Add(domain, target.Port); err != nil {
+						zlog.Warn("同步监测目标失败", err.Error())
+					}
+				}
+			}
+		}
+	}
+
 	// 无论正常结束还是中途 return/出错，都释放运行标志位，避免前端一直卡在“正在进行中”
 	defer func() {
 		global.GWAF_RUNTIME_SSL_SYNC_HOST = false

@@ -431,6 +431,9 @@ func (w *WebhookNotifier) Send(msg Message) error {
 
 	// 响应体只读一小段用于报错，避免对端返回巨量内容把内存吃满
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxRespSnippet))
+	if resp.StatusCode == http.StatusTooManyRequests || (resp.StatusCode == http.StatusServiceUnavailable && resp.Header.Get("Retry-After") != "") {
+		return utils.NewHTTPRetryError(resp.StatusCode, resp.Header.Get("Retry-After"), "Webhook", time.Now())
+	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		snippet := strings.TrimSpace(string(respBody))
 		if snippet == "" {

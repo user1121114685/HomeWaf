@@ -17,7 +17,7 @@ export const workspaceGroups = [
   {
     id: 'certificates',
     label: ['证书与 HTTPS', 'Certificates'],
-    names: ['WafSSLOrderList', 'WafSSLConfigList', 'WafsslExpireList'],
+    names: ['WafSSLConfigList', 'WafSSLOrderList', 'WafsslExpireList'],
   },
   {
     id: 'access',
@@ -116,12 +116,13 @@ export const workspaceGroups = [
 ] as const;
 
 export function workspaceFor(name: string) {
+  if (['CertificateRequest', 'CertificateSettings', 'CertificateDetail'].includes(name)) name = 'WafSSLConfigList';
   return workspaceGroups.find((group) => (group.names as readonly string[]).includes(name));
 }
 
 export const taskFamilies = [
   ['WafPipeline', 'WafPipelineTemplates'],
-  ['WafSSLOrderList', 'WafSSLConfigList', 'WafsslExpireList'],
+  ['WafSSLConfigList', 'WafSSLOrderList', 'WafsslExpireList'],
   ['NotifyChannel', 'NotifySubscription', 'NotifyLog'],
   ['WafAccessConfig', 'WafAccessAccount', 'WafAccessSession'],
   ['OPlatformKey', 'OPlatformLog', 'OPlatformDoc'],
@@ -136,9 +137,9 @@ export const taskTitles: Record<string, [string, string]> = {
   WafPipeline: ['我的服务', 'My services'],
   WafPipelineTemplates: ['策略模板', 'Policy templates'],
   WafPipelineHoneypot: ['统一蜜罐', 'Shared honeypot'],
-  WafSSLOrderList: ['申请与续期', 'Issuance & renewal'],
-  WafSSLConfigList: ['证书库', 'Certificate library'],
-  WafsslExpireList: ['到期检测', 'Expiry checks'],
+  WafSSLOrderList: ['申请与续期记录', 'Certificate jobs'],
+  WafSSLConfigList: ['证书管理', 'Certificates'],
+  WafsslExpireList: ['外部证书监测', 'Certificate monitoring'],
   WafAccessConfig: ['认证设置', 'Authentication'],
   WafAccessAccount: ['访问账号', 'Visitor accounts'],
   WafAccessSession: ['在线会话', 'Sessions'],

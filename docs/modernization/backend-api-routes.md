@@ -2,7 +2,7 @@
 
 由 `node scripts/audit-backend-apis.mjs` 从生产 `RegisterRoutes` 生成，包含开启调试时的路由及测试应急入口。没有启动监听端口或调用业务写操作。
 
-总计 605 条；登录令牌/API Key 526 条，仅登录令牌 73 条，公开 5 条，下载票据 1 条。
+总计 614 条；登录令牌/API Key 535 条，仅登录令牌 73 条，公开 5 条，下载票据 1 条。
 
 “鉴权拒绝”表示已实际请求验证缺失令牌、过期令牌、非法角色均被拦截，不表示该接口全部业务分支均已测试。“角色限制”来自真实中间件链；细分角色和 API Key 的权限语义见审计报告。参数绑定列仅为源码索引，不等同完整输入校验。
 
@@ -68,6 +68,15 @@
 | GET | `/api/v1/cdnip/provider/list` | 登录令牌/API Key | 无 | 通过 × 3 | 自定义/无请求体 | [WafCDNIPApi.GetListApi](../../api/waf_cdn_ip_api.go#L18) |
 | POST | `/api/v1/cdnip/provider/ranges` | 登录令牌/API Key | 无 | 通过 × 3 | JSON | [WafCDNIPApi.RangesApi](../../api/waf_cdn_ip_api.go#L39) |
 | POST | `/api/v1/cdnip/provider/refresh` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafCDNIPApi.RefreshApi](../../api/waf_cdn_ip_api.go#L97) |
+| GET | `/api/v1/certificates/bind-targets` | 登录令牌/API Key | 无 | 通过 × 3 | 自定义/无请求体 | [WafSslConfigApi.LifecycleBindingTargets](../../api/waf_certificate_lifecycle.go#L120) |
+| POST | `/api/v1/certificates/bind` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.LifecycleBind](../../api/waf_certificate_lifecycle.go#L128) |
+| GET | `/api/v1/certificates/detail` | 登录令牌/API Key | 无 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.LifecycleDetail](../../api/waf_certificate_lifecycle.go#L28) |
+| POST | `/api/v1/certificates/list` | 登录令牌/API Key | 无 | 通过 × 3 | JSON | [WafSslConfigApi.LifecycleList](../../api/waf_certificate_lifecycle.go#L15) |
+| POST | `/api/v1/certificates/notifications/retry` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.LifecycleNotificationRetry](../../api/waf_certificate_lifecycle.go#L87) |
+| GET | `/api/v1/certificates/notifications` | 登录令牌/API Key | 无 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.LifecycleNotifications](../../api/waf_certificate_lifecycle.go#L70) |
+| POST | `/api/v1/certificates/policy` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.LifecyclePolicy](../../api/waf_certificate_lifecycle.go#L41) |
+| POST | `/api/v1/certificates/renew` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.LifecycleRenew](../../api/waf_certificate_lifecycle.go#L54) |
+| GET | `/api/v1/certificates/settings` | 登录令牌/API Key | 无 | 通过 × 3 | 自定义/无请求体 | [WafSslConfigApi.LifecycleSettings](../../api/waf_certificate_lifecycle.go#L101) |
 | POST | `/api/v1/dashboard/shares/revoke` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafDashboardScreenApi.RevokeShare](../../api/waf_dashboard_screen.go#L99) |
 | GET | `/api/v1/dashboard/shares` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafDashboardScreenApi.Shares](../../api/waf_dashboard_screen.go#L74) |
 | POST | `/api/v1/dashboard/shares` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafDashboardScreenApi.CreateShare](../../api/waf_dashboard_screen.go#L82) |
@@ -244,9 +253,9 @@
 | GET | `/api/v1/sql_query/queryable` | 仅登录令牌 | 有 | 通过 × 3 | 参数绑定 | [WafSqlQueryApi.GetQueryableSchemaApi](../../api/waf_sql_query.go#L60) |
 | GET | `/api/v1/sql_query/table_info` | 仅登录令牌 | 有 | 通过 × 3 | 参数绑定 | [WafSqlQueryApi.GetTableInfoApi](../../api/waf_sql_query.go#L45) |
 | POST | `/api/v1/sslconfig/add` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.AddSslConfigApi](../../api/waf_ssl.go#L32) |
-| GET | `/api/v1/sslconfig/del` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.DelSslConfigApi](../../api/waf_ssl.go#L107) |
+| GET | `/api/v1/sslconfig/del` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.DelSslConfigApi](../../api/waf_ssl.go#L111) |
 | GET | `/api/v1/sslconfig/detail` | 登录令牌/API Key | 无 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.GetSslConfigDetailApi](../../api/waf_ssl.go#L60) |
-| POST | `/api/v1/sslconfig/edit` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.ModifySslConfigApi](../../api/waf_ssl.go#L134) |
+| POST | `/api/v1/sslconfig/edit` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.ModifySslConfigApi](../../api/waf_ssl.go#L138) |
 | POST | `/api/v1/sslconfig/list` | 登录令牌/API Key | 无 | 通过 × 3 | JSON | [WafSslConfigApi.GetSslConfigListApi](../../api/waf_ssl.go#L81) |
 | GET | `/api/v1/statrumtimesysinfo` | 登录令牌/API Key | 无 | 通过 × 3 | 自定义/无请求体 | [WafStatApi.StatRumtimeSysinfoApi](../../api/waf_stat.go#L42) |
 | GET | `/api/v1/statsysinfo` | 登录令牌/API Key | 无 | 通过 × 3 | 自定义/无请求体 | [WafStatApi.StatSysinfoApi](../../api/waf_stat.go#L25) |
@@ -517,13 +526,13 @@
 | GET | `/api/v1/wafhost/sensitive/detail` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSensitiveApi.GetDetailApi](../../api/waf_sensitive.go#L75) |
 | POST | `/api/v1/wafhost/sensitive/edit` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSensitiveApi.ModifySensitiveApi](../../api/waf_sensitive.go#L192) |
 | POST | `/api/v1/wafhost/sensitive/list` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSensitiveApi.GetListApi](../../api/waf_sensitive.go#L96) |
-| POST | `/api/v1/wafhost/sslexpire/add` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslExpireApi.AddApi](../../api/waf_sslexpire_api.go#L27) |
-| GET | `/api/v1/wafhost/sslexpire/del` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSslExpireApi.DelApi](../../api/waf_sslexpire_api.go#L108) |
-| GET | `/api/v1/wafhost/sslexpire/detail` | 登录令牌/API Key | 无 | 通过 × 3 | 参数绑定 | [WafSslExpireApi.GetDetailApi](../../api/waf_sslexpire_api.go#L61) |
-| POST | `/api/v1/wafhost/sslexpire/edit` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslExpireApi.ModifyApi](../../api/waf_sslexpire_api.go#L135) |
-| POST | `/api/v1/wafhost/sslexpire/list` | 登录令牌/API Key | 无 | 通过 × 3 | JSON | [WafSslExpireApi.GetListApi](../../api/waf_sslexpire_api.go#L82) |
-| GET | `/api/v1/wafhost/sslexpire/nowcheck` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafSslExpireApi.NowCheckExpireApi](../../api/waf_sslexpire_api.go#L159) |
-| GET | `/api/v1/wafhost/sslexpire/sync_host` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafSslExpireApi.SyncHostApi](../../api/waf_sslexpire_api.go#L179) |
+| POST | `/api/v1/wafhost/sslexpire/add` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslExpireApi.AddApi](../../api/waf_sslexpire_api.go#L28) |
+| GET | `/api/v1/wafhost/sslexpire/del` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSslExpireApi.DelApi](../../api/waf_sslexpire_api.go#L113) |
+| GET | `/api/v1/wafhost/sslexpire/detail` | 登录令牌/API Key | 无 | 通过 × 3 | 参数绑定 | [WafSslExpireApi.GetDetailApi](../../api/waf_sslexpire_api.go#L62) |
+| POST | `/api/v1/wafhost/sslexpire/edit` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslExpireApi.ModifyApi](../../api/waf_sslexpire_api.go#L140) |
+| POST | `/api/v1/wafhost/sslexpire/list` | 登录令牌/API Key | 无 | 通过 × 3 | JSON | [WafSslExpireApi.GetListApi](../../api/waf_sslexpire_api.go#L83) |
+| GET | `/api/v1/wafhost/sslexpire/nowcheck` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafSslExpireApi.NowCheckExpireApi](../../api/waf_sslexpire_api.go#L164) |
+| GET | `/api/v1/wafhost/sslexpire/sync_host` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafSslExpireApi.SyncHostApi](../../api/waf_sslexpire_api.go#L197) |
 | POST | `/api/v1/wafhost/sslorder/add` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslOrderApi.AddApi](../../api/waf_sslorder.go#L66) |
 | GET | `/api/v1/wafhost/sslorder/del` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSslOrderApi.DelApi](../../api/waf_sslorder.go#L173) |
 | GET | `/api/v1/wafhost/sslorder/detail` | 登录令牌/API Key | 无 | 通过 × 3 | 参数绑定 | [WafSslOrderApi.GetDetailApi](../../api/waf_sslorder.go#L118) |

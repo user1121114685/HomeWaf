@@ -5,6 +5,7 @@ import (
 	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/model"
+	"HomeWaf/service/waf_service"
 	"context"
 	"time"
 )
@@ -12,6 +13,13 @@ import (
 // RunSSLOrderQueue keeps slow DNS/CA requests off the service configuration
 // event loop. Database scans recover submitted work after missed notifications.
 func (waf *WafEngine) RunSSLOrderQueue(ctx context.Context) {
+	if waf_service.CertificateLifecycleAvailable() {
+		if err := waf_service.MigrateCertificatePolicies(); err != nil {
+			zlog.Error("证书策略迁移失败", err.Error())
+		}
+		go runCertificateMaintenance(ctx)
+	}
+
 	runSSLOrderQueue(ctx, func(kind int, order model.SslOrder) { waf.applySSLOrder(ctx, kind, order) })
 }
 
@@ -44,6 +52,33 @@ func runSSLOrderQueue(ctx context.Context, apply func(int, model.SslOrder)) {
 			return
 		case <-ticker.C:
 		case <-global.GWAF_CHAN_SSLOrder:
+		}
+	}
+}
+
+func runCertificateMaintenance(ctx context.Context) {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	lastRiskCheck := time.Time{}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		now := time.Now()
+		if err := waf_service.RunCertificateRenewals(now, true); err != nil {
+			zlog.Error("证书恢复检查失败", err.Error())
+		}
+		if now.Sub(lastRiskCheck) >= time.Hour {
+			if err := waf_service.CheckCertificateExpiryRisks(now); err != nil {
+				zlog.Error("证书风险检查失败", err.Error())
+			} else {
+				lastRiskCheck = now
+			}
+		}
+		if err := waf_service.DispatchCertificateNotifications(now); err != nil {
+			zlog.Error("证书通知投递失败", err.Error())
 		}
 	}
 }

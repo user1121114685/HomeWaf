@@ -12,7 +12,6 @@ import (
 	"HomeWaf/model/request"
 	"HomeWaf/model/response"
 	"HomeWaf/utils"
-	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafpipeline"
 	"crypto/tls"
 	"crypto/x509"
@@ -139,7 +138,9 @@ func (receiver *WafSslConfigService) AddApi(req request.SslConfigAddReq) (string
 	if bean.KeyPath == "" {
 		bean.KeyPath = filepath.Join(utils.GetCurrentDir(), "ssl", bean.Id, "domain.key")
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
+	if err := global.GWAF_LOCAL_DB.Create(bean).Error; err != nil {
+		return "", err
+	}
 	return bean.Id, nil
 }
 
@@ -199,6 +200,11 @@ func (receiver *WafSslConfigService) CheckIsExistApi(serialNo string) error {
 }
 
 func (receiver *WafSslConfigService) ModifyApi(req request.SslConfigEditReq) error {
+	var previous model.SslConfig
+	if err := global.GWAF_LOCAL_DB.First(&previous, "id = ?", req.Id).Error; err != nil {
+		return err
+	}
+
 	block, _ := pem.Decode([]byte(req.CertContent))
 	if block == nil {
 		return &SslConfigValidationError{Field: "cert_content", Message: "无法解码 PEM 数据，请提供包含完整 BEGIN/END CERTIFICATE 标记的证书"}
@@ -279,9 +285,19 @@ func (receiver *WafSslConfigService) ModifyApi(req request.SslConfigEditReq) err
 	if req.ExportKeyPath != nil {
 		beanMap["ExportKeyPath"] = strings.TrimSpace(*req.ExportKeyPath)
 	}
-	err = global.GWAF_LOCAL_DB.Model(model.SslConfig{}).Where("id = ?", req.Id).Updates(beanMap).Error
-
-	return err
+	return global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(model.SslConfig{}).Where("id = ? AND cert_content = ?", req.Id, previous.CertContent).Updates(beanMap)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return errors.New("证书已被其他操作修改，请重新读取")
+		}
+		if CertificateLifecycleAvailable() && (CertificateFingerprint(req.CertContent) != CertificateFingerprint(previous.CertContent) || (req.AutoLoadPath != nil && *req.AutoLoadPath == 1)) {
+			return tx.Model(&model.SslRenewalPolicy{}).Where("id = ?", req.Id).Updates(map[string]any{"enabled": false, "status": "manual", "version": gorm.Expr("version + 1"), "next_attempt_at": nil, "last_error": "手动维护或文件同步已接管更新，原自动续期已停止"}).Error
+		}
+		return nil
+	})
 }
 
 func (receiver *WafSslConfigService) ModifyInner(config model.SslConfig) error {
@@ -348,8 +364,12 @@ func (receiver *WafSslConfigService) GetListApi(req request.SslConfigSearchReq) 
 		whereValues = append(whereValues, "%"+req.Domains+"%")
 	}
 
-	global.GWAF_LOCAL_DB.Model(&model.SslConfig{}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Order("valid_to desc").Find(&list)
-	global.GWAF_LOCAL_DB.Model(&model.SslConfig{}).Where(whereField, whereValues...).Count(&total)
+	if err := global.GWAF_LOCAL_DB.Model(&model.SslConfig{}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Order("valid_to desc").Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := global.GWAF_LOCAL_DB.Model(&model.SslConfig{}).Where(whereField, whereValues...).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 
 	// 初始化返回结果列表（空列表也要序列化成 [] 而不是 null，前端直接当数组用）
 	repList := make([]response.WafSslConfigRep, 0)
@@ -379,31 +399,21 @@ func (receiver *WafSslConfigService) GetListApi(req request.SslConfigSearchReq) 
 
 func (receiver *WafSslConfigService) GetAllListInner() ([]response.WafSslConfigRep, error) {
 	var list []model.SslConfig
-
-	var bindSslIDs []string
-	global.GWAF_LOCAL_DB.Model(&model.Hosts{}).Select("bind_ssl_id").Where(dialect.Q("ssl")+" = ? and bind_ssl_id <> ?", 1, "").Find(&bindSslIDs)
-
-	global.GWAF_LOCAL_DB.Model(&model.SslConfig{}).Where("id IN ?", bindSslIDs).Order("valid_to desc").Find(&list)
-
-	// 初始化返回结果列表
-	var repList []response.WafSslConfigRep
-
-	// 遍历查询结果，构建返回数据
-	for _, sslConfig := range list {
-		if sslConfig.CertPath == "" {
-			sslConfig.CertPath = filepath.Join(utils.GetCurrentDir(), "ssl", sslConfig.Id, "domain.crt")
-		}
-		if sslConfig.KeyPath == "" {
-			sslConfig.KeyPath = filepath.Join(utils.GetCurrentDir(), "ssl", sslConfig.Id, "domain.key")
-		}
-		rep := response.WafSslConfigRep{
-			SslConfig:      sslConfig,
-			ExpirationInfo: sslConfig.ExpirationMessage(),
-		}
-		repList = append(repList, rep)
+	if err := global.GWAF_LOCAL_DB.Where("auto_load_path = ?", 1).Find(&list).Error; err != nil {
+		return nil, err
 	}
-
-	return repList, nil
+	result := []response.WafSslConfigRep{}
+	for _, c := range list {
+		bindings, err := CertificateBindings(global.GWAF_LOCAL_DB, c.Id)
+		if err != nil {
+			return nil, err
+		}
+		if len(bindings) == 0 {
+			continue
+		}
+		result = append(result, response.WafSslConfigRep{SslConfig: c, ExpirationInfo: c.ExpirationMessage()})
+	}
+	return result, nil
 }
 
 func (receiver *WafSslConfigService) DelApi(req request.SslConfigDeleteReq) error {
@@ -411,6 +421,28 @@ func (receiver *WafSslConfigService) DelApi(req request.SslConfigDeleteReq) erro
 	err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&bean).Error
 	if err != nil {
 		return err
+	}
+	bindings, bindErr := CertificateBindings(global.GWAF_LOCAL_DB, req.Id)
+	if bindErr != nil {
+		return bindErr
+	}
+	if len(bindings) > 0 {
+		return errors.New("证书仍被服务或管理控制台使用，请先解除绑定")
+	}
+	if CertificateLifecycleAvailable() {
+		var count int64
+		if err := global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where("certificate_id = ? AND apply_status IN ?", req.Id, []string{"submitted", "applying"}).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return errors.New("证书仍有进行中的任务")
+		}
+		return global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Where("id = ?", req.Id).Delete(&model.SslRenewalPolicy{}).Error; err != nil {
+				return err
+			}
+			return tx.Where("id = ?", req.Id).Delete(&model.SslConfig{}).Error
+		})
 	}
 	err = global.GWAF_LOCAL_DB.Where("id = ?", req.Id).Delete(model.SslConfig{}).Error
 	return err

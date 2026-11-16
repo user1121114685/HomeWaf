@@ -6,7 +6,10 @@
     </header>
     <main class="help-layout">
       <aside class="help-navigation">
-        <span>使用指南</span><a href="#connect" @click.prevent="jump('connect')">接入与验证</a><a href="#certificates" @click.prevent="jump('certificates')">证书与 HTTPS</a><a href="#troubleshoot" @click.prevent="jump('troubleshoot')">访问排错</a><a href="#installation" @click.prevent="jump('installation')">安装与升级</a
+        <span>使用指南</span><a href="#connect" @click.prevent="jump('connect')">接入与验证</a
+        ><a href="#certificates" @click.prevent="jump('certificates')">证书与 HTTPS</a
+        ><a href="#troubleshoot" @click.prevent="jump('troubleshoot')">访问排错</a
+        ><a href="#installation" @click.prevent="jump('installation')">安装与升级</a
         ><a href="#license" @click.prevent="jump('license')">许可边界</a
         ><a href="#commercial" @click.prevent="jump('commercial')">商业授权</a
         ><a href="#privacy" @click.prevent="jump('privacy')">隐私与更新</a>
@@ -16,12 +19,34 @@
         <h1>使用指南</h1>
         <p>从接入一个服务开始，再确认实际访问与防护结果。</p>
         <h2 id="connect">接入与验证</h2>
-        <ol class="help-steps"><li><RouterLink to="/waf-pipeline/ports">打开我的服务</RouterLink>，选择场景并填写现有服务地址。</li><li>检查配置后保存。按需配置访问账号或服务令牌，再启用监听。</li><li>通过 HomeWaf 新入口访问一次，在该服务的访问记录中确认请求。监听启动不代表 DNS 或路由器映射已完成。</li></ol>
+        <ol class="help-steps">
+          <li><RouterLink to="/waf-pipeline/ports">打开我的服务</RouterLink>，选择场景并填写现有服务地址。</li>
+          <li>检查配置后保存。按需配置访问账号或服务令牌，再启用监听。</li>
+          <li>通过 HomeWaf 新入口访问一次，在该服务的访问记录中确认请求。监听启动不代表 DNS 或路由器映射已完成。</li>
+        </ol>
         <h2 id="certificates">证书与 HTTPS</h2>
-        <p><RouterLink to="/waf-host/wafsslOrderlist">申请与续期</RouterLink>中选择服务、域名和验证方式。家庭网络可使用 DNS 验证，按提供商要求填写凭据。签发后检查证书关联与服务 HTTPS 配置。</p>
-        <p><RouterLink to="/waf-host/wafsslconfiglist">证书库</RouterLink>用于导入和维护证书；<RouterLink to="/waf-host/wafsslExpirelist">到期检测</RouterLink>用于检查外部域名和端口，不是自动续期的开关。</p>
+        <p>
+          <RouterLink to="/waf-host/wafsslconfiglist">证书管理</RouterLink
+          >中申请证书，并在单张证书中设置自动续期。<RouterLink to="/waf-host/wafsslOrderlist">申请与续期记录</RouterLink
+          >用于查看任务进度、错误和恢复结果。家庭网络可使用 DNS 验证，按提供商要求填写凭据。签发后检查证书关联与服务
+          HTTPS 配置。
+        </p>
+        <p>
+          <RouterLink to="/waf-host/wafsslconfiglist">证书管理</RouterLink
+          >用于导入、关联服务、维护更新策略和处理失败；<RouterLink to="/waf-host/wafsslExpirelist"
+            >外部证书监测</RouterLink
+          >用于检查域名和端口实际提供的证书，不是自动续期的开关。
+        </p>
         <h2 id="troubleshoot">访问排错</h2>
-        <ol class="help-steps"><li>在<RouterLink to="/waf/wafvisitlog">访问日志</RouterLink>选择服务和时间，先确认是否收到请求。</li><li>打开请求详情，区分已拦截、观察命中与 HTTP 响应错误，再调整对应服务策略。</li><li>没有请求或访问仍失败时，检查入口、监听、证书与上游；使用<RouterLink to="/sys/RunDiagnostic">运行诊断</RouterLink>查看实例状态。</li></ol>
+        <ol class="help-steps">
+          <li>在<RouterLink to="/waf/wafvisitlog">访问日志</RouterLink>选择服务和时间，先确认是否收到请求。</li>
+          <li>打开请求详情，区分已拦截、观察命中与 HTTP 响应错误，再调整对应服务策略。</li>
+          <li>
+            没有请求或访问仍失败时，检查入口、监听、证书与上游；使用<RouterLink to="/sys/RunDiagnostic"
+              >运行诊断</RouterLink
+            >查看实例状态。
+          </li>
+        </ol>
         <h2>发行与许可</h2>
         <p>HomeWaf 是基于 SamWaf 的独立修改发行版，与原项目不存在官方支持或授权背书关系。</p>
         <h2 id="license">许可边界</h2>
@@ -73,8 +98,14 @@ function jump(id: string) {
   min-height: 100vh;
   background: var(--hw-panel);
 }
-.help-steps { padding-left: 22px; color: var(--hw-muted); line-height: 1.9; }
-.help-steps li { padding: 4px 0 8px 4px; }
+.help-steps {
+  padding-left: 22px;
+  color: var(--hw-muted);
+  line-height: 1.9;
+}
+.help-steps li {
+  padding: 4px 0 8px 4px;
+}
 .help-header {
   display: flex;
   align-items: center;

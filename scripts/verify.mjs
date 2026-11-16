@@ -78,7 +78,7 @@ run(["test", "./wafenginecore", "-run", "^TestNativeACME", "-count=1"]);
 run(["test", "./utils", "-run", "^TestOutboundRequestError", "-count=1"]);
 // Full handler/router boundary regressions use isolated fixtures only.
 run(["test", "./api", "./router", "./middleware", "./wafmangeweb", "./enums", "-count=1"]);
-run(["test", "./service/waf_service", "./wafenginecore", "-run", "^Test(SSLOrder|SensitiveConfig|SystemConfigRejects)", "-count=1"]);
+run(["test", "./service/waf_service", "./wafenginecore", "-run", "^Test(CertificateLifecycle|SSLOrder|SensitiveConfig|SystemConfigRejects)", "-count=1"]);
 run(["test", "./wafpipeline", "-short", "-count=1"]);
 run(["test", "./service/waf_service", "./firewall", "-run", "^Test(NewServiceRequiresEnabledDefense|Defense|FlowDrop)", "-count=1"]);
 run(["test", "./internal/acmelog", "./internal/acmelease", "-count=1"]);

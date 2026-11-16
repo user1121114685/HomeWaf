@@ -74,6 +74,9 @@ func (n *Notifier) request(method, endpoint string, payload interface{}, headers
 		return nil, utils.OutboundRequestError("通知请求", endpoint, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests || (resp.StatusCode == http.StatusServiceUnavailable && resp.Header.Get("Retry-After") != "") {
+		return nil, utils.NewHTTPRetryError(resp.StatusCode, resp.Header.Get("Retry-After"), "通知接口", time.Now())
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("通知接口返回 HTTP %d", resp.StatusCode)
 	}

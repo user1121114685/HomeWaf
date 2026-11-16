@@ -3,11 +3,9 @@
 package waf_service
 
 import (
-	"HomeWaf/common/uuid"
 	"HomeWaf/customtype"
 	"HomeWaf/global"
 	"HomeWaf/model"
-	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
 	"HomeWaf/model/response"
 	"errors"
@@ -19,39 +17,10 @@ type WafSslExpireService struct{}
 var WafSslExpireServiceApp = new(WafSslExpireService)
 
 func (receiver *WafSslExpireService) AddApi(req request.WafSslExpireAddReq) error {
-	var bean = &model.SslExpire{
-		BaseOrm: baseorm.BaseOrm{
-			Id:          uuid.GenUUID(),
-			USER_CODE:   global.GWAF_USER_CODE,
-			Tenant_ID:   global.GWAF_TENANT_ID,
-			CREATE_TIME: customtype.JsonTime(time.Now()),
-			UPDATE_TIME: customtype.JsonTime(time.Now()),
-		},
-
-		Domain:   req.Domain,
-		Port:     req.Port,
-		VisitLog: req.VisitLog,
-		Status:   req.Status,
-	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return nil
+	return addCertificateMonitor(req.Domain, req.Port)
 }
-
 func (receiver *WafSslExpireService) Add(domain string, port int) error {
-	var bean = &model.SslExpire{
-		BaseOrm: baseorm.BaseOrm{
-			Id:          uuid.GenUUID(),
-			USER_CODE:   global.GWAF_USER_CODE,
-			Tenant_ID:   global.GWAF_TENANT_ID,
-			CREATE_TIME: customtype.JsonTime(time.Now()),
-			UPDATE_TIME: customtype.JsonTime(time.Now()),
-		},
-
-		Domain: domain,
-		Port:   port,
-	}
-	global.GWAF_LOCAL_DB.Create(bean)
-	return nil
+	return addCertificateMonitor(domain, port)
 }
 
 func (receiver *WafSslExpireService) CheckIsExistApi(req request.WafSslExpireAddReq) int {
@@ -121,57 +90,25 @@ func (receiver *WafSslExpireService) CheckIsExist(domain string, port int) int {
 }
 
 func (receiver *WafSslExpireService) ModifyApi(req request.WafSslExpireEditReq) error {
-	// 根据唯一字段生成查询条件（只有在UniFields不为空时才进行存在性检查）
-
-	var total int64 = 0
-	/*where条件*/
-	var whereField = ""
-	var whereValues []interface{}
-	//where字段
-	whereField = ""
-
-	if len(req.Domain) > 0 {
-		if len(whereField) > 0 {
-			whereField = whereField + " and "
-		}
-		whereField = whereField + " domain=? "
+	domain, err := validateCertificateMonitor(req.Domain, req.Port)
+	if err != nil {
+		return err
 	}
-
-	if req.Port > 0 {
-		if len(whereField) > 0 {
-			whereField = whereField + " and "
-		}
-		whereField = whereField + " port=? "
+	var current model.SslExpire
+	if err := global.GWAF_LOCAL_DB.First(&current, "id = ?", req.Id).Error; err != nil {
+		return err
 	}
-
-	//where字段赋值
-	if len(req.Domain) > 0 {
-		whereValues = append(whereValues, req.Domain)
+	if current.Status == "checking" && time.Since(time.Time(current.UPDATE_TIME)) < 2*time.Minute {
+		return errors.New("目标正在检测，请稍后修改")
 	}
-	if req.Port > 0 {
-		whereValues = append(whereValues, req.Port)
+	var duplicate int64
+	if err := global.GWAF_LOCAL_DB.Model(&model.SslExpire{}).Where("id <> ? AND domain = ? AND port = ?", req.Id, domain, req.Port).Count(&duplicate).Error; err != nil {
+		return err
 	}
-	global.GWAF_LOCAL_DB.Model(&model.SslExpire{}).Where(whereField, whereValues...).Count(&total)
-	// 查询是否已存在记录
-	var bean model.SslExpire
-	global.GWAF_LOCAL_DB.Model(&model.SslExpire{}).Where(whereField, whereValues...).Limit(1).Find(&bean)
-
-	if int(total) > 0 && bean.Id != "" && bean.Id != req.Id {
-		return errors.New("当前记录已经存在")
+	if duplicate > 0 {
+		return errors.New("此域名与端口已在监测列表")
 	}
-
-	beanMap := map[string]interface{}{
-
-		"Domain":   req.Domain,
-		"Port":     req.Port,
-		"VisitLog": req.VisitLog,
-		"Status":   req.Status,
-
-		"UPDATE_TIME": customtype.JsonTime(time.Now()),
-	}
-	err := global.GWAF_LOCAL_DB.Model(model.SslExpire{}).Where("id = ?", req.Id).Updates(beanMap).Error
-
-	return err
+	return global.GWAF_LOCAL_DB.Model(&current).Updates(map[string]any{"domain": domain, "port": req.Port, "valid_to": nil, "last_detect": nil, "last_success": nil, "visit_log": "", "status": "unverified", "update_time": customtype.JsonTime(time.Now())}).Error
 }
 
 func (receiver *WafSslExpireService) Modify(req model.SslExpire) error {
@@ -181,6 +118,8 @@ func (receiver *WafSslExpireService) Modify(req model.SslExpire) error {
 		"Port":        req.Port,
 		"VisitLog":    req.VisitLog,
 		"Status":      req.Status,
+		"LastDetect":  req.LastDetect,
+		"LastSuccess": req.LastSuccess,
 		"ValidTo":     req.ValidTo,
 		"UPDATE_TIME": customtype.JsonTime(time.Now()),
 	}
@@ -199,23 +138,33 @@ func (receiver *WafSslExpireService) GetDetailByIdApi(id string) model.SslExpire
 	return bean
 }
 func (receiver *WafSslExpireService) GetListApi(req request.WafSslExpireSearchReq) ([]response.WafSslCheckRep, int64, error) {
-	var list []model.SslExpire
-	var total int64 = 0
-	global.GWAF_LOCAL_DB.Model(&model.SslExpire{}).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Order("valid_to asc").Find(&list)
-	global.GWAF_LOCAL_DB.Model(&model.SslExpire{}).Count(&total)
-
-	var repList []response.WafSslCheckRep
-
-	for _, sslCheckBean := range list {
-
-		rep := response.WafSslCheckRep{
-			SslExpire:      sslCheckBean,
-			ExpirationInfo: sslCheckBean.ExpirationMessage(),
-			ExpirationDay:  sslCheckBean.ExpirationDay(),
-		}
-		repList = append(repList, rep)
+	if req.PageIndex <= 0 {
+		req.PageIndex = 1
 	}
-	return repList, total, nil
+	if req.PageSize <= 0 {
+		req.PageSize = 20
+	}
+	if req.PageSize > 1000 {
+		return nil, 0, errors.New("每页最多1000条")
+	}
+	var list []model.SslExpire
+	var total int64
+	query := global.GWAF_LOCAL_DB.Model(&model.SslExpire{})
+	if req.Domain != "" {
+		query = query.Where("domain LIKE ?", "%"+req.Domain+"%")
+	}
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := query.Order("valid_to asc").Limit(req.PageSize).Offset((req.PageIndex - 1) * req.PageSize).Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+	result := []response.WafSslCheckRep{}
+	for _, row := range list {
+		row.Status = certificateMonitorState(row, time.Now())
+		result = append(result, response.WafSslCheckRep{SslExpire: row, ExpirationInfo: row.ExpirationMessage(), ExpirationDay: row.ExpirationDay()})
+	}
+	return result, total, nil
 }
 
 func (receiver *WafSslExpireService) GetAllList() ([]model.SslExpire, int64, error) {

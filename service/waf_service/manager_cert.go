@@ -7,6 +7,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/utils"
 	"crypto/tls"
+	"errors"
 	"os"
 	"path/filepath"
 )
@@ -29,20 +30,26 @@ func ManagerCertDir() string {
 // 则把新证书内容写入 data/ssl/manager/ 并触发管理端重启使其生效。
 // 内容无变化时不做任何操作（避免无谓重启）。
 func RefreshManagerCertBySslConfig(sslConfigId, certContent, keyContent string) {
+	if err := RefreshManagerCertificateResult(sslConfigId, certContent, keyContent); err != nil {
+		zlog.Error(managerCertLogName, err.Error())
+	}
+}
+
+func RefreshManagerCertificateResult(sslConfigId, certContent, keyContent string) error {
 	// 未绑定 或 绑定的不是当前更新的这张证书 → 与管理端无关
 	if global.GWAF_SSL_BIND_CERT_ID == "" || global.GWAF_SSL_BIND_CERT_ID != sslConfigId {
-		return
+		return nil
 	}
 
 	if certContent == "" || keyContent == "" {
 		zlog.Warn(managerCertLogName, "绑定的证书内容为空，跳过管理端证书刷新")
-		return
+		return errors.New("管理端证书内容为空")
 	}
 
 	// 校验证书与私钥可配对，避免把坏证书写进管理端导致降级
 	if _, err := tls.X509KeyPair([]byte(certContent), []byte(keyContent)); err != nil {
 		zlog.Error(managerCertLogName, "绑定证书校验失败，跳过管理端证书刷新: "+err.Error())
-		return
+		return err
 	}
 
 	dir := ManagerCertDir()
@@ -52,20 +59,20 @@ func RefreshManagerCertBySslConfig(sslConfigId, certContent, keyContent string) 
 	// 内容相同则不动
 	if sameFileContent(certPath, certContent) && sameFileContent(keyPath, keyContent) {
 		zlog.Debug(managerCertLogName, "管理端证书内容未变化，无需刷新")
-		return
+		return nil
 	}
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		zlog.Error(managerCertLogName, "创建管理端证书目录失败: "+err.Error())
-		return
+		return err
 	}
 	if err := os.WriteFile(certPath, []byte(certContent), 0644); err != nil {
 		zlog.Error(managerCertLogName, "写入管理端证书文件失败: "+err.Error())
-		return
+		return err
 	}
 	if err := os.WriteFile(keyPath, []byte(keyContent), 0600); err != nil {
 		zlog.Error(managerCertLogName, "写入管理端私钥文件失败: "+err.Error())
-		return
+		return err
 	}
 
 	zlog.Info(managerCertLogName, "管理端已绑定的证书发生更新，已刷新管理端证书并触发重启")
@@ -78,6 +85,7 @@ func RefreshManagerCertBySslConfig(sslConfigId, certContent, keyContent string) 
 			// 已有重启请求在处理中
 		}
 	}
+	return nil
 }
 
 // sameFileContent 判断指定文件内容是否与给定内容一致（文件不存在视为不一致）

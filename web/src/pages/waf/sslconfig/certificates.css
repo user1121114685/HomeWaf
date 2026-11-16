@@ -1,0 +1,205 @@
+.certificate-page {
+  padding: 0;
+  min-width: 0;
+}
+.certificate-toolbar,
+.certificate-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.certificate-toolbar {
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.certificate-page .el-button + .el-button {
+  margin-left: 0;
+}
+.certificate-filters {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-block: 20px;
+}
+.certificate-filters > label:not(.el-checkbox) {
+  display: grid;
+  gap: 8px;
+  min-width: 150px;
+  flex: 1 1 150px;
+  font-size: 13px;
+}
+.certificate-filters .certificate-search {
+  flex: 2 1 240px;
+}
+.certificate-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
+}
+.certificate-table th,
+.certificate-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.certificate-table th {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
+  font-weight: 500;
+}
+.certificate-table th:first-child {
+  width: 24%;
+}
+.certificate-table a,
+.certificate-link {
+  color: var(--el-color-primary);
+}
+.certificate-page small,
+.certificate-muted {
+  color: var(--el-text-color-secondary);
+  line-height: 1.65;
+}
+.certificate-page small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.certificate-error {
+  color: var(--el-color-danger);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.certificate-empty {
+  padding: 48px 16px;
+  text-align: center;
+}
+.certificate-section {
+  padding-block: 24px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.certificate-section h2,
+.certificate-section h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.certificate-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+  margin: 16px 0;
+}
+.certificate-facts dt {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+.certificate-facts dd {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+.certificate-policy-form {
+  max-width: 760px;
+}
+.certificate-form-actions {
+  position: static;
+  background: var(--el-bg-color);
+  padding: 16px 0;
+  display: flex;
+  gap: 12px;
+  z-index: 1;
+}
+.certificate-pagination {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+.certificate-page button:focus-visible,
+.certificate-page a:focus-visible,
+.certificate-page summary:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 3px;
+}
+.certificate-task-result {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1050px) {
+  .certificate-table,
+  .certificate-table tbody {
+    display: block;
+  }
+  .certificate-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .certificate-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding-block: 20px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+  .certificate-table td {
+    display: block;
+    border: 0;
+    padding: 0;
+  }
+  .certificate-table td:first-child,
+  .certificate-table td:last-child {
+    grid-column: 1/-1;
+  }
+  .certificate-table td:before {
+    content: attr(data-label);
+    display: block;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+}
+@media (max-width: 600px) {
+  .certificate-page {
+    padding: 0;
+  }
+  .certificate-facts {
+    grid-template-columns: 1fr;
+  }
+  .certificate-page .el-button {
+    min-height: 44px;
+  }
+  .certificate-filters > label:not(.el-checkbox) {
+    flex-basis: 100%;
+  }
+  .certificate-pagination .el-pagination {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+.certificate-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border: 0;
+}
+.certificate-filters > .el-checkbox {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: 0;
+}
+.certificate-toolbar h2 {
+  overflow-wrap: anywhere;
+}
+
+.certificate-page small.certificate-error { color:var(--el-color-danger); }

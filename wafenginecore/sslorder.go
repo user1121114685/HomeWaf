@@ -70,6 +70,14 @@ func (waf *WafEngine) applySSLOrder(ctx context.Context, chanType int, bean mode
 	}()
 	defer func() {
 		if recover() != nil {
+			if waf_service.CertificateLifecycleAvailable() {
+				var current model.SslOrder
+				if global.GWAF_LOCAL_DB.First(&current, "id = ?", bean.Id).Error == nil {
+					current.FailureKind = "interrupted"
+					_ = waf_service.RecordCertificateFailure(current, errors.New("证书任务异常中断，请核对结果后重试"), time.Now())
+				}
+				return
+			}
 			bean.ApplyStatus, bean.ResultError = "fail", "证书任务执行异常，请检查服务日志后重试"
 			if err := wafSslOrderService.ModifyById(bean); err != nil {
 				zlog.Error("保存证书失败状态失败", err.Error())
@@ -85,6 +93,11 @@ func (waf *WafEngine) applySSLOrder(ctx context.Context, chanType int, bean mode
 }
 
 func (waf *WafEngine) applyClaimedSSLOrder(chanType int, bean model.SslOrder) {
+	if waf_service.CertificateLifecycleAvailable() {
+		waf.applyLifecycleCertificate(bean)
+		return
+	}
+
 	eab_kid := ""
 	eab_hmac_key := ""
 	if chanType == enums.ChanSslOrderSubmitted {

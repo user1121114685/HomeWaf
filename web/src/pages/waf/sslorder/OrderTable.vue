@@ -4,7 +4,7 @@
     <div v-else-if="!rows.length" class="order-empty">
       <p>{{ filtered ? '没有符合条件的申请' : '还没有证书申请' }}</p>
       <p class="order-muted">
-        {{ filtered ? '调整域名或状态筛选后再查询。' : '点击“申请证书”开始，家庭网络推荐 DNS 验证。' }}
+        {{ filtered ? '调整域名或状态筛选后再查询。' : '从证书管理页发起申请，家庭网络推荐 DNS 验证。' }}
       </p>
     </div>
     <table v-else>
@@ -15,8 +15,8 @@
         <tr>
           <th scope="col">证书域名 / 关联服务</th>
           <th scope="col">申请状态</th>
-          <th scope="col">有效期至</th>
-          <th scope="col">自动续期</th>
+          <th scope="col">提交时间</th>
+          <th scope="col">触发方式</th>
           <th scope="col">操作</th>
         </tr>
       </thead>
@@ -50,19 +50,25 @@
               }}
             </p>
           </td>
-          <td data-label="有效期至">
-            <span>{{ expiryDate(row) }}</span>
-            <p v-if="expiryNote(row)" class="order-muted">{{ expiryNote(row) }}</p>
-          </td>
-          <td data-label="自动续期">
-            <span :class="row.auto_renew === false ? 'order-muted' : 'renew-enabled'">{{
-              row.auto_renew === false ? '已关闭' : '已开启'
-            }}</span>
-            <p
-              v-if="['submitted', 'applying', 'fail'].includes(row.apply_status) && row.auto_renew !== false"
-              class="order-muted"
-            >
-              签发成功后生效
+          <td data-label="提交时间">{{ row.create_time || '—' }}</td>
+          <td data-label="触发方式">
+            {{
+              row.trigger === 'automatic'
+                ? '自动续期'
+                : row.trigger === 'manual'
+                  ? '手动续期 / 恢复'
+                  : '首次申请 / 历史任务'
+            }}
+            <p v-if="row.stage" class="order-muted">
+              {{
+                row.stage === 'issue'
+                  ? '签发阶段'
+                  : row.stage === 'deploy'
+                    ? '更新服务阶段'
+                    : row.stage === 'export'
+                      ? '导出阶段'
+                      : '处理完成'
+              }}
             </p>
           </td>
           <td data-label="操作" class="order-actions-cell">
@@ -81,9 +87,9 @@
                 v-if="row.apply_status === 'success'"
                 type="button"
                 class="t-button-link"
-                @click="emit('renew', row)"
+                @click="emit('certificate', row)"
               >
-                手动续期
+                查看证书
               </button>
               <hw-dropdown
                 v-if="!['submitted', 'applying'].includes(row.apply_status)"
@@ -123,7 +129,7 @@ defineProps({
   retryingOrderId: { type: String, default: '' },
   pagination: { type: Object as PropType<{ current: number; pageSize: number; total: number }>, required: true },
 });
-const emit = defineEmits(['logs', 'retry', 'renew', 'delete', 'page']);
+const emit = defineEmits(['logs', 'retry', 'certificate', 'delete', 'page']);
 const statusNames: Record<string, string> = {
   submitted: '等待处理',
   applying: '申请中',

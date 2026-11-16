@@ -82,7 +82,11 @@ func (s *WafSslConfigApi) GetSslConfigListApi(c *gin.Context) {
 	var req request.SslConfigSearchReq
 	err := c.ShouldBindJSON(&req)
 	if err == nil {
-		sslList, total, _ := wafSslConfigService.GetListApi(req)
+		sslList, total, readErr := wafSslConfigService.GetListApi(req)
+		if readErr != nil {
+			response.FailWithMessage("读取证书失败，请重试", c)
+			return
+		}
 		response.OkWithDetailed(response.PageResult{
 			List:      sslList,
 			Total:     total,

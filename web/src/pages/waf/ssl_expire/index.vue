@@ -1,526 +1,347 @@
-<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
-
+<!-- HomeWaf modification (2026-11-17): observed certificates, separate from renewal. -->
 <template>
-  <div>
-    <hw-card class="list-card-container resource-panel">
-      <hw-row justify="space-between">
-        <div class="left-operation-container">
-          <PageActions><hw-button theme="primary" @click="handleAdd"> {{ $t('page.ssl_expire.button_add_ssl_expire') }} </hw-button></PageActions>
-
-          <hw-button @click="handleCheck"> {{ $t('page.ssl_expire.button_check') }} </hw-button>
-
-          <hw-button @click="handleSyncHost"> {{ $t('page.ssl_expire.button_sync_host') }} </hw-button>
-
-          <hw-button @click="getList('all')"> {{ $t('common.refresh') }} </hw-button>
-        </div>
-        <div class="right-operation-container resource-filters">
-          <hw-form ref="form" :data="searchformData" :label-width="300" layout="inline" colon :style="{ marginBottom: '8px' }">
-            <hw-button theme="primary" :style="{ marginLeft: '8px' }" @click="getList('all')">
-              {{ $t('common.search') }}
-            </hw-button>
-          </hw-form>
-        </div>
-      </hw-row>
-      <help-block :summary="$t('page.ssl_expire.alert_message')" doc="guide/SSL" />
-      <div class="table-container">
-        <hw-table :columns="columns" :data="data" :rowKey="rowKey" :verticalAlign="verticalAlign" :hover="hover"
-                 :pagination="pagination" :selected-row-keys="selectedRowKeys" :loading="dataLoading"
-                 @page-change="rehandlePageChange" @change="rehandleChange" @select-change="rehandleSelectChange"
-                 :headerAffixedTop="true" :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
-          <template #valid_to="{ row }">
-             <span v-if="row.expiration_info!=''"> {{ row.valid_to}} </span>
-             <span v-if="isIpAddress(row.domain)">
-               <!-- IP证书：小于3天显示红色警告，大于3天显示绿色 -->
-               <span v-if="row.expiration_day>0 && row.expiration_day<3" style="color: red"> {{ row.expiration_info}} </span>
-               <span v-if="row.expiration_day>=3" style="color: green"> {{ row.expiration_info}} </span>
-             </span>
-             <span v-else>
-               <!-- 域名证书：小于30天显示红色警告，大于30天显示绿色 -->
-               <span v-if="row.expiration_day>0 && row.expiration_day<30" style="color: red"> {{ row.expiration_info}} </span>
-               <span v-if="row.expiration_day>=30" style="color: green"> {{ row.expiration_info}} </span>
-             </span>
-          </template>
-          <template #op="slotProps">
-            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
-            <button type="button" class="t-button-link" @click="handleClickDelete(slotProps)">{{ $t('common.delete') }}</button>
-          </template>
-        </hw-table>
-      </div>
+  <div class="certificate-page resource-panel">
+    <div class="certificate-toolbar">
       <div>
-        <router-view></router-view>
+        <p class="certificate-muted">
+          从 HomeWaf 所在机器检查域名与端口实际提供的证书。监测不会开启自动续期或修改服务。
+        </p>
       </div>
-    </hw-card>
-
-    <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="680" :footer="false">
-      <template #body><div >
-        <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
-
-          <hw-form-item :label="$t('page.ssl_expire.domain')" name="domain">
-            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.domain" ></hw-input>
-          </hw-form-item>
-
-          <hw-form-item :label="$t('page.ssl_expire.port')" name="port">
-            <hw-input-number :style="{ width: '150px' }" v-model="formData.port" :placeholder="$t('common.placeholder')">
-            </hw-input-number>
-          </hw-form-item>
-          <hw-form-item style="float: right">
-            <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
-            <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
-          </hw-form-item>
-        </hw-form>
-      </div></template>
-    </hw-dialog>
-
-    <hw-dialog :header="$t('common.edit')" v-model:visible="editFormVisible" :width="680" :footer="false">
-      <template #body><div >
-        <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100">
-
-          <hw-form-item :label="$t('page.ssl_expire.domain')" name="domain">
-            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.domain" ></hw-input>
-          </hw-form-item>
-
-          <hw-form-item :label="$t('page.ssl_expire.port')" name="port">
-            <hw-input-number :style="{ width: '150px' }" v-model="formEditData.port" :placeholder="$t('common.placeholder')">
-            </hw-input-number>
-          </hw-form-item>
-
-          <hw-form-item style="float: right">
-            <hw-button variant="outline" @click="onClickCloseEditBtn">{{ $t('common.close') }}</hw-button>
-            <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
-          </hw-form-item>
-        </hw-form>
-      </div></template>
-    </hw-dialog>
-
-    <hw-dialog :header="$t('common.confirm_delete')" :body="confirmBody" v-model:visible="confirmVisible" @confirm="onConfirmDelete"
-              :onCancel="onCancel">
-    </hw-dialog>
+      <div class="certificate-actions">
+        <ElButton type="primary" @click="open()">添加监测</ElButton><ElButton @click="openServices">从服务添加</ElButton
+        ><ElButton :loading="checking === 'all'" @click="check()">检查全部</ElButton>
+      </div>
+    </div>
+    <form
+      class="certificate-filters"
+      @submit.prevent="
+        page = 1;
+        load();
+      "
+    >
+      <label>域名 / IP<ElInput v-model="search" clearable placeholder="筛选监测目标" /></label
+      ><ElButton native-type="submit">查询</ElButton><ElButton @click="load">刷新结果</ElButton>
+    </form>
+    <p v-if="notice" role="status">{{ notice }}</p>
+    <p v-if="error" role="alert" class="certificate-error">{{ error }} <ElButton text @click="load">重试</ElButton></p>
+    <p v-if="loading && !rows.length" role="status">正在读取监测目标…</p>
+    <div v-else-if="!error && !rows.length" class="certificate-empty">
+      <h3>{{ search ? '没有符合条件的目标' : '还没有监测目标' }}</h3>
+      <p>添加域名和实际 HTTPS 端口，或从服务选择。</p>
+    </div>
+    <table v-if="rows.length" class="certificate-table" :aria-busy="loading">
+      <thead>
+        <tr>
+          <th>监测目标</th>
+          <th>本次状态</th>
+          <th>远端证书有效期</th>
+          <th>最近检测</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="row in rows" :key="row.id">
+          <td data-label="监测目标">
+            <strong>{{ row.domain }}:{{ row.port }}</strong
+            ><small
+              ><RouterLink :to="{ path: certificateRoot, query: { domains: row.domain } }">查找相关证书</RouterLink
+              >（域名相同不代表证书版本相同）</small
+            >
+          </td>
+          <td data-label="本次状态">
+            <span :class="['failed', 'expired'].includes(row.status) ? 'certificate-error' : ''">{{
+              states[row.status] || '状态未知'
+            }}</span
+            ><small v-if="row.visit_log" class="certificate-error">{{ row.visit_log }}</small>
+          </td>
+          <td data-label="远端证书有效期">
+            {{ showTime(row.valid_to)
+            }}<small v-if="['failed', 'stale'].includes(row.status)">上次成功结果；请检查本次状态与检测时间</small
+            ><small v-else>{{ row.expiration_info }}</small>
+          </td>
+          <td data-label="最近检测">
+            {{ showTime(row.last_detect) }}<small>最近成功：{{ showTime(row.last_success) }}</small>
+          </td>
+          <td data-label="操作">
+            <div class="certificate-actions">
+              <ElButton
+                text
+                type="primary"
+                :loading="checking === row.id || row.status === 'checking'"
+                @click="check(row.id)"
+                >重新检查</ElButton
+              ><ElButton text @click="open(row)">编辑目标</ElButton
+              ><ElButton text @click="remove(row)">移除监测</ElButton>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="certificate-pagination">
+      <ElPagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        @current-change="load"
+      />
+    </div>
+    <p class="certificate-muted">
+      到期提醒由
+      <RouterLink to="/notify/subscription">消息通知中的证书到期订阅</RouterLink>管理；续期失败使用操作通知，两者独立。
+    </p>
+    <ElDialog
+      v-model="visible"
+      :title="draft.id ? '编辑监测目标' : '添加监测目标'"
+      width="540px"
+      :close-on-click-modal="false"
+      :before-close="close"
+    >
+      <ElForm label-position="top" :disabled="saving" @submit.prevent="save"
+        ><ElFormItem label="域名或 IP"
+          ><ElInput v-model="draft.domain" placeholder="nas.example.com（不含协议或路径）" /></ElFormItem
+        ><ElFormItem label="HTTPS 端口"><ElInputNumber v-model="draft.port" :min="1" :max="65535" /></ElFormItem>
+        <p class="certificate-muted">目标变更后会清除旧目标的检测结果，等待重新检查。</p>
+        <p v-if="saveError" role="alert" class="certificate-error">{{ saveError }}</p></ElForm
+      >
+      <template #footer
+        ><ElButton :disabled="saving" @click="close(() => (visible = false))">取消</ElButton
+        ><ElButton type="primary" :loading="saving" @click="save">保存目标</ElButton></template
+      >
+    </ElDialog>
+    <ElDialog v-model="servicesVisible" title="从服务添加监测" width="680px" :close-on-click-modal="false">
+      <p>选择已有 HTTPS 服务的域名与端口。只增加缺失目标，不修改服务。</p>
+      <p v-if="servicesError" role="alert" class="certificate-error">
+        {{ servicesError }} <ElButton @click="loadServices">重新读取服务</ElButton>
+      </p>
+      <ElCheckboxGroup v-model="selected"
+        ><div v-for="target in targets" :key="target.key">
+          <ElCheckbox :value="target.key">{{ target.label }} · {{ target.domain }}:{{ target.port }}</ElCheckbox>
+        </div></ElCheckboxGroup
+      >
+      <p v-if="!servicesLoading && !servicesError && !targets.length">
+        没有可添加的 HTTPS 域名服务，请手动添加监测目标。
+      </p>
+      <template #footer
+        ><ElButton :disabled="adding" @click="servicesVisible = false">返回</ElButton
+        ><ElButton type="primary" :disabled="!selected.length || !!servicesError" :loading="adding" @click="addSelected"
+          >添加选中目标</ElButton
+        ></template
+      >
+    </ElDialog>
   </div>
 </template>
-<script lang="ts">
-import {defineComponent} from 'vue';
-
+<script setup lang="ts">
+import { onMounted, onBeforeUnmount, ref } from 'vue';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import {
-  SearchIcon
-} from '@/ui/icons';
-import Trend from '@/components/trend/index.vue';
+  ElButton,
+  ElInput,
+  ElInputNumber,
+  ElForm,
+  ElFormItem,
+  ElDialog,
+  ElCheckboxGroup,
+  ElCheckbox,
+  ElPagination,
+  ElMessage,
+  ElMessageBox,
+} from 'element-plus';
 import {
-  prefix
-} from '@/config/global';
-import {
-  allhost
-} from '@/apis/host';
-
-import {
-  wafSslExpireListApi,wafSslExpireDelApi,wafSslExpireEditApi,wafSslExpireAddApi,wafSslExpireDetailApi,wafSslExpireNowCheckApi,wafSslExpireSyncHostApi
-} from '@/apis/ssl_expire.ts';
-
-const INITIAL_DATA = {
-
-  domain:'',
-  port:'443',
-  visit_log:'',
-  status:'',
-
+  wafSslExpireListApi,
+  wafSslExpireAddApi,
+  wafSslExpireEditApi,
+  wafSslExpireDelApi,
+  wafSslExpireNowCheckApi,
+} from '@/apis/ssl_expire';
+import { sslCertificateTargetsApi } from '@/apis/sslorder';
+import { certificateRoot, showTime } from '@/apis/certificates';
+import '../sslconfig/certificates.css';
+const route = useRoute(),
+  router = useRouter();
+const rows = ref<any[]>([]),
+  search = ref(String(route.query.domain || '')),
+  page = ref(Number(route.query.page) || 1),
+  total = ref(0),
+  loading = ref(false),
+  error = ref(''),
+  notice = ref(''),
+  checking = ref('');
+const visible = ref(false),
+  saving = ref(false),
+  saveError = ref(''),
+  draft = ref({ id: '', domain: '', port: 443 }),
+  original = ref('');
+const servicesVisible = ref(false),
+  servicesLoading = ref(false),
+  servicesError = ref(''),
+  targets = ref<any[]>([]),
+  selected = ref<string[]>([]),
+  adding = ref(false);
+const states: Record<string, string> = {
+  unverified: '未检测',
+  checking: '正在检测',
+  valid: '正常',
+  expiring: '临近到期',
+  expired: '已过期',
+  failed: '检测失败',
+  stale: '上次结果，待重新检测',
 };
-export default defineComponent({
-  name: 'SslExpireBase',
-  components: {
-    SearchIcon,
-    Trend,
-  },
-  data() {
-    return {
-      addFormVisible: false,
-      editFormVisible: false,
-      guardVisible: false,
-      confirmVisible: false,
-      formData: {
-        ...INITIAL_DATA
-      },
-      formEditData: {
-        ...INITIAL_DATA
-      },
-      rules: {
-
-        domain: [{
-          required: true,
-          message: this.$t('common.placeholder')+this.$t('page.ssl_expire.domain'),
-          type: 'error'
-        }],
-
-        port: [{
-          required: true,
-          message: this.$t('common.placeholder')+this.$t('page.ssl_expire.port'),
-          type: 'error'
-        }],
-
-      },
-      textareaValue: '',
-      prefix,
-      dataLoading: false,
-      data: [], //列表数据信息
-      detail_data: [], //加载详情信息用于编辑
-      selectedRowKeys: [],
-      value: 'first',
-      columns: [
-        { title: this.$t('page.ssl_expire.domain'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'domain',
-        },
-        { title: this.$t('page.ssl_expire.port'),
-          width: 100,
-          ellipsis: true,
-          colKey: 'port',
-        },
-        {
-          title: this.$t('page.ssl_expire.valid_to'),
-          width: 300,
-          ellipsis: true,
-          colKey: 'valid_to',
-        },
-        { title: this.$t('page.ssl_expire.visit_log'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'visit_log',
-        },
-        {
-          title: this.$t('common.update_time'),
-          width: 200,
-          ellipsis: true,
-          colKey: 'update_time',
-          sorter: true
-        },
-        {
-          align: 'left',
-          fixed: 'right',
-          width: 200,
-          colKey: 'op',
-          title: this.$t('common.op'),
-        },
-      ],
-      rowKey: 'code',
-      tableLayout: 'auto',
-      verticalAlign: 'top',
-      hover: true,
-      rowClassName: (rowKey: string) => `${rowKey}-class`,
-      // 与pagination对齐
-      pagination: {
-        total: 0,
-        current: 1,
-        pageSize: 100
-      },
-      //顶部搜索
-      searchformData: {
-
-      },
-      //索引区域
-      deleteIdx: -1,
-      guardStatusIdx :-1,
-      //主机字典
-      host_dic:{}
-    };
-  },
-  computed: {
-    confirmBody() {
-      if (this.deleteIdx > -1) {
-
-        return this.$t('common.data_delete_warning');
-      }
-      return '';
-    },
-    offsetTop() {
-      return this.$store.state.setting.isUseTabsRouter ? 48 : 0;
-    },
-  },
-  mounted() {
-    this.loadHostList().then(() => {
-      this.getList("");
-    });
-  },
-
-  methods: {
-    // 判断是否是IP地址
-    isIpAddress(domain) {
-      if (!domain) return false;
-      // IPv4 正则表达式
-      const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-      // IPv6 正则表达式（简化版）
-      const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-      return ipv4Regex.test(domain) || ipv6Regex.test(domain);
-    },
-    handleSyncHost(){
-      let that = this
-      wafSslExpireSyncHostApi().then( (res)=>{
-        let resdata = res
-        console.log(resdata)
-        if (resdata.code === 0) {
-          that.$message.success(resdata.msg);
-        } else {
-          that.$message.warning(resdata.msg);
-        }
-
-      }).catch((e: Error) => {
-        console.log(e);
-      })
-    },
-    handleCheck(){
-      let that = this
-      wafSslExpireNowCheckApi().then( (res)=>{
-        let resdata = res
-        console.log(resdata)
-        if (resdata.code === 0) {
-          that.$message.success(resdata.msg);
-        } else {
-          that.$message.warning(resdata.msg);
-        }
-
-      }).catch((e: Error) => {
-        console.log(e);
-      })
-    },
-    loadHostList() {
-      return new Promise((resolve, reject) => {
-        allhost()
-          .then((res) => {
-            let resdata = res;
-            console.log(resdata);
-            if (resdata.code === 0) {
-              let host_options = resdata.data;
-              for (let i = 0; i < host_options.length; i++) {
-                this.host_dic[host_options[i].value] = host_options[i].label;
-              }
-            }
-            resolve(undefined); // 调用 resolve 表示加载完成
-          })
-          .catch((e: Error) => {
-            console.log(e);
-            reject(e); // 调用 reject 表示加载失败
-          });
-      });
-    },
-    getList(keyword) {
-      let that = this
-      wafSslExpireListApi( {
-        pageSize: that.pagination.pageSize,
-        pageIndex: that.pagination.current,
-        ...that.searchformData
-      })
-        .then((res) => {
-          let resdata = res
-          console.log(resdata)
-          if (resdata.code === 0) {
-
-            this.data = resdata.data.list??[];
-            this.data_attach = []
-            console.log('getList',this.data)
-            this.pagination = {
-              ...this.pagination,
-              total: resdata.data.total,
-            };
-          }
-        })
-        .catch((e: Error) => {
-          console.log(e);
-        })
-        .finally(() => {
-          this.dataLoading = false;
-        });
-      this.dataLoading = true;
-    },
-    getContainer() {
-      return document.querySelector('.tdesign-starter-layout');
-    },
-    rehandlePageChange(curr, pageInfo) {
-      this.pagination.current = curr.current
-      if (this.pagination.pageSize != curr.pageSize) {
-        this.pagination.current = 1
-        this.pagination.pageSize = curr.pageSize
-      }
-      this.getList("")
-    },
-    rehandleSelectChange(selectedRowKeys: number[]) {
-      this.selectedRowKeys = selectedRowKeys;
-    },
-    rehandleChange(changeParams, triggerAndData) {
-    },
-    handleClickEdit(e) {
-      console.log(e)
-      const {
-        id
-      } = e.row
-      console.log(id)
-      this.editFormVisible = true
-      this.getDetail(id)
-    },
-    handleAdd() {
-      this.addFormVisible = true
-      this.formData = { ...INITIAL_DATA };
-    },
-    onSubmit({
-               result,
-               firstError
-             }): void {
-      let that = this
-      if (!firstError) {
-
-        let postdata = {
-          ...that.formData
-        }
-
-        postdata['port'] = Number(postdata['port'])
-
-        wafSslExpireAddApi({...postdata})
-          .then((res) => {
-            let resdata = res
-            console.log(resdata)
-            if (resdata.code === 0) {
-              that.$message.success(resdata.msg);
-              that.addFormVisible = false;
-              that.pagination.current = 1
-              that.getList("")
-            } else {
-              that.$message.warning(resdata.msg);
-            }
-          })
-          .catch((e: Error) => {
-            console.log(e);
-          })
-          .finally(() => {});
-      } else {
-        console.log('Errors: ', result);
-        that.$message.warning(firstError);
-      }
-    },
-    onSubmitEdit({
-                   result,
-                   firstError
-                 }): void {
-      let that = this
-      if (!firstError) {
-
-        let postdata = {
-          ...that.formEditData
-        }
-
-        postdata['port'] = Number(postdata['port'])
-
-        wafSslExpireEditApi({...postdata})
-          .then((res) => {
-            let resdata = res
-            console.log(resdata)
-            if (resdata.code === 0) {
-              that.$message.success(resdata.msg);
-              that.editFormVisible = false;
-              that.getList("")
-            } else {
-              that.$message.warning(resdata.msg);
-            }
-          })
-          .catch((e: Error) => {
-            console.log(e);
-          })
-          .finally(() => {});
-      } else {
-        console.log('Errors: ', result);
-        that.$message.warning(firstError);
-      }
-    },
-    onClickCloseBtn(): void {
-      this.addFormVisible = false;
-      this.formData = {...INITIAL_DATA};
-    },
-    onClickCloseEditBtn(): void {
-      this.editFormVisible = false;
-      this.formEditData = {...INITIAL_DATA};
-    },
-    handleClickDelete(row) {
-      console.log(row)
-      this.deleteIdx = row.rowIndex;
-      this.confirmVisible = true;
-    },
-    onConfirmDelete() {
-      this.confirmVisible = false;
-      console.log('delete', this.data)
-      console.log('delete', this.data[this.deleteIdx])
-      let {
-        id
-      } = this.data[this.deleteIdx]
-      let that = this
-      wafSslExpireDelApi({
-        id: id
-      })
-        .then((res) => {
-          let resdata = res
-          console.log(resdata)
-          if (resdata.code === 0) {
-
-            that.getList("")
-            that.$message.success(resdata.msg);
-          } else {
-            that.$message.warning(resdata.msg);
-          }
-        })
-        .catch((e: Error) => {
-          console.log(e);
-        })
-        .finally(() => {});
-
-      this.resetIdx();
-    },
-    onCancel() {
-      this.resetIdx();
-    },
-    resetIdx() {
-      this.deleteIdx = -1;
-    },
-    getDetail(id) {
-      let that = this
-      wafSslExpireDetailApi({
-        id: id
-      })
-        .then((res) => {
-          let resdata = res
-          console.log(resdata)
-          if (resdata.code === 0) {
-            that.detail_data = resdata.data;
-
-            that.detail_data.port = that.detail_data.port.toString()
-
-            that.formEditData = {
-              ...that.detail_data
-            }
-          }
-        })
-        .catch((e: Error) => {
-          console.log(e);
-        })
-        .finally(() => {});
-    },
-  },
-});
-</script>
-
-<style lang="less" scoped>
-@import '@/style/variables';
-
-.left-operation-container {
-  padding: 0 0 6px 0;
-  margin-bottom: 16px;
-
-  .selected-count {
-    display: inline-block;
-    margin-left: 8px;
-    color: var(--td-text-color-secondary);
+let sequence = 0,
+  until = 0,
+  timer: ReturnType<typeof setInterval> | undefined;
+async function load() {
+  await router.replace({ query: { ...route.query, domain: search.value || undefined, page: String(page.value) } });
+  const current = ++sequence;
+  loading.value = true;
+  try {
+    const res = await wafSslExpireListApi({ domain: search.value, pageIndex: page.value, pageSize: 20 });
+    if (current !== sequence) return;
+    if (res.code !== 0) throw new Error(res.msg);
+    rows.value = res.data.list || [];
+    total.value = res.data.total;
+    error.value = '';
+  } catch {
+    if (current === sequence) error.value = '读取监测目标失败，当前保留上次结果。';
+  } finally {
+    if (current === sequence) loading.value = false;
   }
 }
-
-.search-input {
-  width: 360px;
+function open(row?: any) {
+  draft.value = row ? { id: row.id, domain: row.domain, port: row.port } : { id: '', domain: '', port: 443 };
+  original.value = JSON.stringify(draft.value);
+  saveError.value = '';
+  visible.value = true;
 }
-
-.t-button+.t-button {
-  margin-left: @spacer;
+async function canLeave() {
+  if (saving.value || adding.value) return false;
+  if (!visible.value || JSON.stringify(draft.value) === original.value) return true;
+  try {
+    await ElMessageBox.confirm('放弃尚未保存的监测目标修改？', '未保存的修改', {
+      confirmButtonText: '放弃修改',
+      cancelButtonText: '继续编辑',
+      closeOnHashChange: false,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
-</style>
+async function close(done: () => void) {
+  if (await canLeave()) done();
+}
+async function save() {
+  if (saving.value) return;
+  saving.value = true;
+  try {
+    if (!draft.value.domain.trim()) throw new Error('请填写域名或 IP');
+    const res = await (draft.value.id ? wafSslExpireEditApi(draft.value) : wafSslExpireAddApi(draft.value));
+    if (res.code !== 0) throw new Error(res.msg);
+    visible.value = false;
+    await load();
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : '保存失败，输入已保留';
+  } finally {
+    saving.value = false;
+  }
+}
+async function check(id = '') {
+  if (checking.value) return;
+  checking.value = id || 'all';
+  try {
+    const res = await wafSslExpireNowCheckApi(id ? { id } : {});
+    if (res.code !== 0) throw new Error(res.msg);
+    notice.value = res.msg + '。页面将刷新检测结果。';
+    until = Date.now() + 120000;
+    await load();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '检测提交失败');
+  } finally {
+    checking.value = '';
+  }
+}
+async function remove(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      '移除 ' + row.domain + ':' + row.port + ' 的监测？这不会删除证书或停用服务。',
+      '移除监测',
+      { confirmButtonText: '移除监测', cancelButtonText: '取消' },
+    );
+    const res = await wafSslExpireDelApi({ id: row.id });
+    if (res.code !== 0) throw new Error(res.msg);
+    await load();
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e instanceof Error ? e.message : '移除失败');
+  }
+}
+async function loadServices() {
+  servicesLoading.value = true;
+  servicesError.value = '';
+  try {
+    const res = await sslCertificateTargetsApi();
+    if (res.code !== 0) throw new Error(res.msg);
+    const found = new Map();
+    for (const service of res.data || []) {
+      if (service.protocol !== 'https') continue;
+      for (const domain of service.domains) {
+        if (domain.includes('*')) continue;
+        const key = domain + ':' + service.port;
+        found.set(key, { key, domain, port: service.port, label: service.label });
+      }
+    }
+    targets.value = [...found.values()];
+  } catch {
+    servicesError.value = '服务目标读取失败，不能当作没有服务。';
+  } finally {
+    servicesLoading.value = false;
+  }
+}
+function openServices() {
+  servicesVisible.value = true;
+  selected.value = [];
+  void loadServices();
+}
+async function addSelected() {
+  if (adding.value) return;
+  adding.value = true;
+  const failures: string[] = [];
+  for (const key of selected.value) {
+    const target = targets.value.find((item) => item.key === key);
+    try {
+      const res = await wafSslExpireAddApi({ domain: target.domain, port: target.port });
+      if (res.code !== 0 && !res.msg?.includes('存在') && !res.msg?.includes('已在')) throw new Error(res.msg);
+    } catch {
+      failures.push(key);
+    }
+  }
+  selected.value = failures;
+  adding.value = false;
+  if (failures.length) servicesError.value = '部分目标添加失败，已保留待处理项，可再次提交。';
+  else servicesVisible.value = false;
+  await load();
+}
+function unload(e: BeforeUnloadEvent) {
+  if (visible.value && JSON.stringify(draft.value) !== original.value) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+}
+onBeforeRouteLeave(canLeave);
+onMounted(() => {
+  void load();
+  window.addEventListener('beforeunload', unload);
+  timer = setInterval(() => {
+    if (
+      !loading.value &&
+      !document.hidden &&
+      (Date.now() < until || rows.value.some((row) => row.status === 'checking'))
+    )
+      void load();
+  }, 3000);
+});
+onBeforeUnmount(() => {
+  sequence++;
+  clearInterval(timer);
+  window.removeEventListener('beforeunload', unload);
+});
+</script>

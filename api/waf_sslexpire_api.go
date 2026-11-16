@@ -6,6 +6,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
+	"HomeWaf/service/waf_service"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -35,7 +36,7 @@ func (w *WafSslExpireApi) AddApi(c *gin.Context) {
 			if err == nil {
 				response.OkWithMessage("添加成功", c)
 			} else {
-				response.FailWithMessage("添加失败", c)
+				response.FailWithMessage(err.Error(), c)
 			}
 			return
 		} else {
@@ -83,7 +84,11 @@ func (w *WafSslExpireApi) GetListApi(c *gin.Context) {
 	var req request.WafSslExpireSearchReq
 	err := c.ShouldBindJSON(&req)
 	if err == nil {
-		SslExpire, total, _ := wafSslExpireService.GetListApi(req)
+		SslExpire, total, readErr := wafSslExpireService.GetListApi(req)
+		if readErr != nil {
+			response.FailWithMessage("检测列表读取失败，请重试", c)
+			return
+		}
 		response.OkWithDetailed(response.PageResult{
 			List:      SslExpire,
 			Total:     total,
@@ -157,6 +162,19 @@ func (w *WafSslExpireApi) ModifyApi(c *gin.Context) {
 // @Security     ApiKeyAuth
 // @Router       /wafhost/sslexpire/nowcheck [get]
 func (w *WafSslExpireApi) NowCheckExpireApi(c *gin.Context) {
+	if id := c.Query("id"); id != "" {
+		if len(id) > 64 {
+			response.FailWithMessage("目标 ID 无效", c)
+			return
+		}
+		if err := waf_service.StartCertificateMonitor(id); err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
+		}
+		response.OkWithMessage("此目标正在检测，请查看更新结果", c)
+		return
+	}
+
 	if global.GWAF_RUNTIME_SSL_EXPIRE_CHECK {
 		response.FailWithMessage("当前检测程序正在进行中", c)
 		return

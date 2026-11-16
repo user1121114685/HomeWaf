@@ -6,10 +6,12 @@ import (
 	"HomeWaf/customtype"
 	"HomeWaf/model/baseorm"
 	"fmt"
+	"math"
 	"time"
 )
 
 type SslExpire struct {
+	LastSuccess customtype.JsonTime `json:"last_success"`
 	baseorm.BaseOrm
 	Domain     string              `gorm:"size:255" json:"domain"`    // 证书适用的域名
 	Port       int                 `json:"port"`                      // 端口
@@ -37,14 +39,8 @@ func (s *SslExpire) ExpirationMessage() string {
 
 // ExpirationDay 剩余到期天数
 func (s *SslExpire) ExpirationDay() int {
-	now := time.Now()
-	daysLeft := time.Time(s.ValidTo).Sub(now).Hours() / 24
-
-	if daysLeft > 0 {
-		//还有多少天过期
-		return int(daysLeft)
-	} else {
-		//已过期
-		return int(-daysLeft)
+	if time.Time(s.ValidTo).IsZero() {
+		return 0
 	}
+	return int(math.Ceil(time.Until(time.Time(s.ValidTo)).Hours() / 24))
 }

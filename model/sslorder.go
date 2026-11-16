@@ -13,6 +13,17 @@ import (
 // SslOrder 证书申请
 type SslOrder struct {
 	baseorm.BaseOrm
+	CertificateID           string              `gorm:"size:64;index" json:"certificate_id"`
+	PolicyVersion           uint64              `json:"policy_version"`
+	Trigger                 string              `gorm:"size:30" json:"trigger"`
+	Operation               string              `gorm:"size:30" json:"operation"`
+	RetryOf                 string              `gorm:"size:64" json:"retry_of"`
+	Stage                   string              `gorm:"size:40" json:"stage"`
+	FailureKind             string              `gorm:"size:40" json:"failure_kind"`
+	RetryNotBefore          customtype.JsonTime `json:"retry_not_before"`
+	BindingSnapshot         string              `gorm:"type:text" json:"-"`
+	OriginalFingerprint     string              `gorm:"size:64" json:"-"`
+	DeploymentResult        string              `gorm:"type:text" json:"deployment_result"`
 	HeartbeatStale          bool                `gorm:"-" json:"heartbeat_stale"`
 	RequestID               *string             `gorm:"size:128;uniqueIndex:uni_ssl_order_request" json:"-"`
 	SubmissionHash          string              `gorm:"size:64" json:"-"`

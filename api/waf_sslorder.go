@@ -178,7 +178,7 @@ func (w *WafSslOrderApi) DelApi(c *gin.Context) {
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 			response.FailWithMessage("请检测参数", c)
 		} else if err != nil {
-			response.FailWithMessage("订单正在处理中或删除失败，请刷新后重试", c)
+			response.FailWithMessage(err.Error(), c)
 		} else {
 			response.OkWithMessage("删除成功", c)
 		}

@@ -99,6 +99,13 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 		key := sslSubmissionHash([]string{global.GWAF_USER_CODE, global.GWAF_TENANT_ID, req.RequestID})
 		requestKey = &key
 	}
+	var prepared model.SslOrder
+	if renewFrom == "" {
+		prepared.HostCode = req.HostCode
+		if err := PrepareInitialCertificateOrder(&prepared); err != nil {
+			return order, false, err
+		}
+	}
 	created := false
 	err = global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
 		// The first statement takes the write lock on SQLite. It also frees keys
@@ -157,6 +164,9 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 			candidate.ResultPrivateKey, candidate.ResultCertificate = source.ResultPrivateKey, source.ResultCertificate
 			candidate.ResultIssuerCertificate, candidate.ResultCSR, candidate.ResultValidTo = source.ResultIssuerCertificate, source.ResultCSR, source.ResultValidTo
 		}
+		if renewFrom == "" {
+			candidate.Stage, candidate.Trigger, candidate.Operation, candidate.BindingSnapshot, candidate.OriginalFingerprint = prepared.Stage, prepared.Trigger, prepared.Operation, prepared.BindingSnapshot, prepared.OriginalFingerprint
+		}
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&candidate).Error; err != nil {
 			return err
 		}
@@ -192,6 +202,15 @@ func (s *WafSSLOrderService) Retry(req request.WafSslorderretryReq) (model.SslOr
 	if err := global.GWAF_LOCAL_DB.First(&source, "id = ?", req.Id).Error; err != nil {
 		return source, false, errors.New("原订单不存在或读取失败")
 	}
+	if CertificateLifecycleAvailable() && source.CertificateID == "" && source.ApplyStatus == "fail" && (source.Stage == "deploy" || source.Stage == "export") && len(source.ResultCertificate) > 0 {
+		return RetryIssuedCertificate(source, req.RequestID)
+	}
+	if CertificateLifecycleAvailable() && source.CertificateID != "" {
+		if source.ApplyStatus != "fail" {
+			return model.SslOrder{}, false, errors.New("只能重试失败任务")
+		}
+		return RequestCertificateRenewal(source.CertificateID, "retry:"+sslSubmissionHash([]string{source.Id, req.RequestID}), false, time.Now())
+	}
 	if source.ApplyStatus != "fail" {
 		return model.SslOrder{}, false, errors.New("只能重试已失败或已中断的订单；进行中的申请请先查看日志")
 	}
@@ -215,6 +234,39 @@ func (s *WafSSLOrderService) Retry(req request.WafSslorderretryReq) (model.SslOr
 }
 
 func (s *WafSSLOrderService) SubmitRenew(req request.WafSslordereditReq) (model.SslOrder, bool, error) {
+	if CertificateLifecycleAvailable() {
+		if err := MigrateCertificatePolicies(); err != nil {
+			return model.SslOrder{}, false, err
+		}
+		var source model.SslOrder
+		if err := global.GWAF_LOCAL_DB.First(&source, "id = ?", req.Id).Error; err != nil {
+			return model.SslOrder{}, false, err
+		}
+		if source.CertificateID == "" {
+			return model.SslOrder{}, false, errors.New("历史记录尚未关联当前证书，请从证书管理重新配置")
+		}
+		if source.HostCode != req.HostCode || canonicalSSLDomainSet(source.ApplyDomain) != canonicalSSLDomainSet(req.ApplyDomain) || source.ApplyPlatform != req.ApplyPlatform {
+			return model.SslOrder{}, false, errors.New("续期不能更改服务、域名或 CA")
+		}
+		var p model.SslRenewalPolicy
+		if err := global.GWAF_LOCAL_DB.First(&p, "id = ?", source.CertificateID).Error; err != nil {
+			return model.SslOrder{}, false, err
+		}
+		enabled := p.Enabled
+		if req.AutoRenew != nil {
+			enabled = *req.AutoRenew
+		}
+		if enabled != p.Enabled || req.ApplyMethod != p.ApplyMethod || req.ApplyDns != p.ApplyDNS || req.ApplyEmail != p.ApplyEmail || req.PrivateGroupName != p.CredentialGroup || req.SkipDNSVerify != p.SkipDNSVerify {
+			if _, err := SaveCertificatePolicy(CertificatePolicyEdit{ID: p.Id, Version: p.Version, Enabled: enabled, Method: req.ApplyMethod, DNS: req.ApplyDns, Email: req.ApplyEmail, Group: req.PrivateGroupName, SkipDNSVerify: req.SkipDNSVerify}); err != nil {
+				return model.SslOrder{}, false, err
+			}
+		}
+		if req.RequestID == "" {
+			req.RequestID = uuid.GenUUID()
+		}
+		return RequestCertificateRenewal(source.CertificateID, req.RequestID, false, time.Now())
+	}
+
 	return s.Submit(request.WafSslorderaddReq{AutoRenew: req.AutoRenew, RequestID: req.RequestID, HostCode: req.HostCode, ApplyPlatform: req.ApplyPlatform, ApplyMethod: req.ApplyMethod, SkipDNSVerify: req.SkipDNSVerify, ApplyDns: req.ApplyDns, ApplyEmail: req.ApplyEmail, ApplyDomain: req.ApplyDomain, PrivateGroupName: req.PrivateGroupName}, req.Id)
 }
 
@@ -295,11 +347,28 @@ func (s *WafSSLOrderService) FailInterrupted(now time.Time) error {
 	}
 	const message = "证书任务超过 10 分钟未更新运行状态，可能因进程重启而中断。请查看申请日志，确认服务稳定运行后点击“重试”。"
 	for _, id := range ids {
-		result := global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where("id = ? AND apply_status = ? AND update_time < ?", id, "applying", cutoff).Updates(map[string]any{"apply_status": "fail", "active_key": nil, "progress": "申请任务已中断", "result_error": message, "update_time": customtype.JsonTime(now)})
+		result := global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where("id = ? AND apply_status = ? AND update_time < ?", id, "applying", cutoff).Updates(map[string]any{"apply_status": "fail", "active_key": nil, "progress": "申请任务已中断", "failure_kind": "interrupted", "result_error": message, "update_time": customtype.JsonTime(now)})
 		if result.Error != nil {
 			return result.Error
 		}
 		if result.RowsAffected == 1 {
+			if CertificateLifecycleAvailable() {
+				var o model.SslOrder
+				if err := global.GWAF_LOCAL_DB.First(&o, "id = ?", id).Error; err != nil {
+					return err
+				}
+				// This is a failure event, never an automatic replay of an uncertain CA call.
+				if err := global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
+					if o.CertificateID != "" {
+						if err := tx.Model(&model.SslRenewalPolicy{}).Where("id = ?", o.CertificateID).Updates(map[string]any{"status": "blocked", "failure_kind": "interrupted", "last_error": message, "next_attempt_at": nil}).Error; err != nil {
+							return err
+						}
+					}
+					return enqueueCertificateEvent(tx, o, "interrupted", message, now)
+				}); err != nil {
+					return err
+				}
+			}
 			_ = s.AppendLog(id, "error", message)
 		}
 	}

@@ -84,7 +84,12 @@ await context.route('**/api/**', async (route) => {
     route.fulfill({ json: { code, data: AesEncrypt(JSON.stringify(data)), msg } });
   if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
     return respond(-1, {}, 'Isolated fixture');
-  if (endpoint === 'sslconfig/list')
+  if (endpoint === 'sslconfig/detail')
+    return respond(
+      0,
+      structuredClone(records.find((item) => item.id === new URL(request.url()).searchParams.get('id'))),
+    );
+  if (endpoint === 'sslconfig/list' || endpoint === 'certificates/list')
     return listFailure
       ? respond(-1, {}, '读取失败')
       : respond(0, { list: structuredClone(records), total: records.length });
@@ -132,9 +137,9 @@ const keyField = editor.getByRole('textbox', { name: /私钥内容（PEM）/ });
 const save = editor.getByRole('button', { name: '保存证书', exact: true });
 async function open() {
   await page
-    .locator('.el-table__row')
+    .locator('[data-certificate-id]')
     .filter({ hasText: 'nas.example.test' })
-    .getByRole('button', { name: '编辑', exact: true })
+    .getByRole('button', { name: '编辑证书', exact: true })
     .click();
   await expect(editor).toBeVisible();
 }
@@ -300,7 +305,7 @@ try {
   check('desktop, tablet and phone in light/dark themes: full-width fields, readable text and visible footer');
   await cancel();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByRole('button', { name: '新建', exact: true }).click();
+  await page.getByRole('button', { name: '导入证书', exact: true }).click();
   await expect(certField).toHaveValue('');
   await certField.fill(cert);
   await keyField.fill(key);
@@ -339,9 +344,9 @@ try {
   check('navigation guards protect the draft without persisting certificate material');
   listFailure = true;
   await page.goto(origin + '/#/waf-host/wafsslconfiglist');
-  await expect(page.locator('.certificate-list-error')).toBeVisible();
+  await expect(page.locator('.certificate-error[role=alert]')).toBeVisible();
   listFailure = false;
-  await page.locator('.certificate-list-error').getByRole('button', { name: '重试' }).click();
+  await page.locator('.certificate-error[role=alert]').getByRole('button', { name: '重试' }).click();
   await open();
   await cancel();
   check('failed list reads have an explicit recovery action');

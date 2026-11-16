@@ -21,24 +21,32 @@ import (
 const sslOrderLogLimit = 500
 
 type SSLOrderLogs struct {
-	AutoRenew       bool                `json:"auto_renew"`
-	Platform        string              `json:"apply_platform"`
-	Method          string              `json:"apply_method"`
-	DNS             string              `json:"apply_dns"`
-	Email           string              `json:"apply_email"`
-	CredentialGroup string              `json:"private_group_name"`
-	CreatedAt       customtype.JsonTime `json:"create_time"`
-	ValidTo         customtype.JsonTime `json:"result_valid_to"`
-	ID              string              `json:"id"`
-	Status          string              `json:"apply_status"`
-	Progress        string              `json:"progress"`
-	Domain          string              `json:"apply_domain"`
-	UpdatedAt       customtype.JsonTime `json:"update_time"`
-	ResultError     string              `json:"result_error"`
-	HeartbeatStale  bool                `json:"heartbeat_stale"`
-	Legacy          bool                `json:"legacy"`
-	Limit           int                 `json:"limit"`
-	Entries         []model.SslOrderLog `json:"entries"`
+	Notifications    *CertificateNotificationView `json:"notifications,omitempty"`
+	CertificateID    string                       `json:"certificate_id"`
+	Stage            string                       `json:"stage"`
+	Trigger          string                       `json:"trigger"`
+	Operation        string                       `json:"operation"`
+	RetryOf          string                       `json:"retry_of"`
+	DeploymentResult string                       `json:"deployment_result"`
+	Renewal          *model.SslRenewalPolicy      `json:"renewal,omitempty"`
+	AutoRenew        bool                         `json:"auto_renew"`
+	Platform         string                       `json:"apply_platform"`
+	Method           string                       `json:"apply_method"`
+	DNS              string                       `json:"apply_dns"`
+	Email            string                       `json:"apply_email"`
+	CredentialGroup  string                       `json:"private_group_name"`
+	CreatedAt        customtype.JsonTime          `json:"create_time"`
+	ValidTo          customtype.JsonTime          `json:"result_valid_to"`
+	ID               string                       `json:"id"`
+	Status           string                       `json:"apply_status"`
+	Progress         string                       `json:"progress"`
+	Domain           string                       `json:"apply_domain"`
+	UpdatedAt        customtype.JsonTime          `json:"update_time"`
+	ResultError      string                       `json:"result_error"`
+	HeartbeatStale   bool                         `json:"heartbeat_stale"`
+	Legacy           bool                         `json:"legacy"`
+	Limit            int                          `json:"limit"`
+	Entries          []model.SslOrderLog          `json:"entries"`
 }
 
 func (s *WafSSLOrderService) AppendLog(id, level, message string) error {
@@ -68,6 +76,20 @@ func (s *WafSSLOrderService) Logs(id string) (SSLOrderLogs, error) {
 	}
 	order.RefreshHeartbeatState(time.Now())
 	view := SSLOrderLogs{ID: order.Id, Status: order.ApplyStatus, Domain: order.ApplyDomain, Progress: order.Progress, UpdatedAt: order.UPDATE_TIME, ResultError: acmelog.Sanitize(order.ResultError), HeartbeatStale: order.HeartbeatStale, Limit: sslOrderLogLimit, Entries: []model.SslOrderLog{}}
+	view.CertificateID, view.Stage, view.Trigger, view.Operation, view.RetryOf, view.DeploymentResult = order.CertificateID, order.Stage, order.Trigger, order.Operation, order.RetryOf, order.DeploymentResult
+	if CertificateLifecycleAvailable() && order.CertificateID != "" {
+		var p model.SslRenewalPolicy
+		if global.GWAF_LOCAL_DB.First(&p, "id = ?", order.CertificateID).Error == nil {
+			view.Renewal = &p
+		}
+	}
+	if CertificateLifecycleAvailable() {
+		notification, err := CertificateOrderNotifications(order.Id)
+		if err != nil {
+			return view, err
+		}
+		view.Notifications = &notification
+	}
 	view.AutoRenew, view.Platform, view.Method, view.DNS = order.AutoRenewEnabled(), order.ApplyPlatform, order.ApplyMethod, order.ApplyDns
 	view.Email, view.CredentialGroup, view.CreatedAt, view.ValidTo = order.ApplyEmail, order.PrivateGroupName, order.CREATE_TIME, order.ResultValidTo
 	if err := global.GWAF_LOCAL_DB.Where("order_id = ?", id).Order("id desc").Limit(sslOrderLogLimit).Find(&view.Entries).Error; err != nil {

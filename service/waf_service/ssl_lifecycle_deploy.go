@@ -1,0 +1,238 @@
+// HomeWaf modification (2026-11-17): resume deployment without reissuing.
+package waf_service
+
+import (
+	"HomeWaf/common/uuid"
+	"HomeWaf/customtype"
+	"HomeWaf/enums"
+	"HomeWaf/global"
+	"HomeWaf/model"
+	"HomeWaf/model/baseorm"
+	"HomeWaf/model/spec"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"gorm.io/gorm"
+	"time"
+)
+
+type CertificateDeployment struct {
+	Name   string `json:"name"`
+	Kind   string `json:"kind"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
+func DeployCertificateOrder(o *model.SslOrder) error {
+	snapshot, err := parseCertificateSnapshot(o.BindingSnapshot)
+	if err != nil {
+		return err
+	}
+	if err := ValidateClaimedCertificateOrder(*o); err != nil {
+		return err
+	}
+	db := global.GWAF_LOCAL_DB
+	first := o.Operation == "issuance"
+	newFingerprint := CertificateFingerprint(string(o.ResultCertificate))
+	if newFingerprint == "" {
+		return errors.New("签发结果不是有效 PEM 证书")
+	}
+	// Validate the original target before persisting the issued resource.
+	if first {
+		current, err := certificateTargetBinding(o.HostCode)
+		if err != nil {
+			return err
+		}
+		if current.ID != snapshot[0].ID || (current.Fingerprint != snapshot[0].Fingerprint && current.Fingerprint != newFingerprint) {
+			return errors.New("服务证书已由其他操作替换，请重新确认使用范围")
+		}
+	}
+	var c model.SslConfig
+	if o.CertificateID != "" {
+		if err := db.First(&c, "id = ?", o.CertificateID).Error; err != nil {
+			return err
+		}
+	}
+	if c.Id == "" {
+		c.BaseOrm = baseorm.BaseOrm{Id: uuid.GenUUID(), USER_CODE: o.USER_CODE, Tenant_ID: o.Tenant_ID, CREATE_TIME: customtype.JsonTime(time.Now()), UPDATE_TIME: customtype.JsonTime(time.Now())}
+	}
+	old := c
+	if err := validateCertKeyPair(string(o.ResultCertificate), string(o.ResultPrivateKey)); err != nil {
+		return err
+	}
+	if err := c.FillByCertAndKey(string(o.ResultCertificate), string(o.ResultPrivateKey)); err != nil {
+		return err
+	}
+	c.AutoLoadPath = 0
+	oldID, oldVersion := o.CertificateID, o.PolicyVersion
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if o.CertificateID == "" {
+			if err := tx.Create(&c).Error; err != nil {
+				return err
+			}
+			p := newCertificatePolicy(c, *o, snapshot[0].ID)
+			p.Status, p.LastSuccessID, p.LastSuccessAt = "deploying", "", customtype.JsonTime{}
+			if err := tx.Create(&p).Error; err != nil {
+				return err
+			}
+			o.CertificateID, o.PolicyVersion = c.Id, p.Version
+		} else {
+			if CertificateFingerprint(old.CertContent) != o.OriginalFingerprint && CertificateFingerprint(old.CertContent) != newFingerprint {
+				return errors.New("证书内容已变更，取消更新")
+			}
+			result := tx.Model(&model.SslConfig{}).Where("id = ? AND cert_content = ? AND auto_load_path = ?", c.Id, old.CertContent, old.AutoLoadPath).
+				Select("CertContent", "KeyContent", "SerialNo", "Subject", "Issuer", "Domains", "ValidFrom", "ValidTo", "AutoLoadPath").Updates(&c)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected != 1 {
+				var current model.SslConfig
+				if err := tx.First(&current, "id = ?", c.Id).Error; err != nil {
+					return err
+				}
+				if current.CertContent != c.CertContent || current.KeyContent != c.KeyContent || current.AutoLoadPath != c.AutoLoadPath {
+					return errors.New("证书已被其他操作修改")
+				}
+			}
+		}
+		if err := tx.Model(&model.SslOrder{}).Where("id = ?", o.Id).Updates(map[string]any{"certificate_id": o.CertificateID, "policy_version": o.PolicyVersion, "stage": "deploy"}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&model.SslRenewalPolicy{}).Where("id = ?", o.CertificateID).Update("fingerprint", newFingerprint).Error
+	})
+	if err != nil {
+		o.CertificateID, o.PolicyVersion = oldID, oldVersion
+		return err
+	}
+	results := []CertificateDeployment{}
+	var failures []error
+	currentBindings, err := CertificateBindings(db, c.Id)
+	if err != nil {
+		return err
+	}
+	for _, b := range snapshot {
+		item := CertificateDeployment{Name: b.Name, Kind: b.Kind, Status: "updated"}
+		if !first && !certificateHasBinding(currentBindings, b) {
+			item.Status, item.Error = "detached", "此使用关系已解除，未覆盖新配置"
+			results = append(results, item)
+			continue
+		}
+		var currentCert model.SslConfig
+		if err := db.Omit("KeyContent").First(&currentCert, "id = ?", c.Id).Error; err != nil {
+			return err
+		}
+		if CertificateFingerprint(currentCert.CertContent) != newFingerprint {
+			return errors.New("证书在更新服务前被手动替换，已停止")
+		}
+		err = deployCertificateBinding(b, c, first)
+		if err != nil {
+			item.Status, item.Error = "failed", err.Error()
+			failures = append(failures, fmt.Errorf("%s: %w", b.Name, err))
+		}
+		results = append(results, item)
+	}
+	raw, _ := json.Marshal(results)
+	o.DeploymentResult = string(raw)
+	if err := db.Model(&model.SslOrder{}).Where("id = ?", o.Id).Update("deployment_result", o.DeploymentResult).Error; err != nil {
+		return err
+	}
+	if len(failures) > 0 {
+		return errors.Join(failures...)
+	}
+	// Export is a separate resumable stage. A failed export must not reissue.
+	o.Stage = "export"
+	if err := db.Model(&model.SslOrder{}).Where("id = ?", o.Id).Update("stage", "export").Error; err != nil {
+		return err
+	}
+	return ExportCertificateOrder(o)
+}
+func ExportCertificateOrder(o *model.SslOrder) error {
+	if err := ValidateClaimedCertificateOrder(*o); err != nil {
+		return err
+	}
+	_, err := WafSslConfigServiceApp.ExportById(o.CertificateID)
+	return err
+}
+func deployCertificateBinding(b CertificateBinding, c model.SslConfig, initial bool) error {
+	db := global.GWAF_LOCAL_DB
+	switch b.Kind {
+	case "pipeline":
+		var row model.PortConfig
+		if err := db.First(&row, "id = ? AND port = ?", b.ID, b.Port).Error; err != nil {
+			return errors.New("服务已删除或重建")
+		}
+		snap, err := decodePort(row)
+		if err != nil {
+			return err
+		}
+		update := pipelineTLSRefresh{HostCode: b.Source, Certificate: c.CertContent, PrivateKey: c.KeyContent}
+		req := PortSaveRequest{Config: snap.Config, Operator: "certificate_lifecycle"}
+		if initial {
+			fp := CertificateFingerprint(snap.Secrets.TLSCert)
+			if fp != b.Fingerprint && fp != CertificateFingerprint(c.CertContent) {
+				return errors.New("服务默认 TLS 已由其他操作修改")
+			}
+			update.HostCode = certificateSourcePrefix + c.Id
+			req.TLSBind = &update
+		} else {
+			index, ok := snap.Secrets.TLSBindings[b.Source]
+			if !ok {
+				return errors.New("证书绑定已解除")
+			}
+			pem := snap.Secrets.TLSCert
+			if index > 0 {
+				if index > len(snap.Secrets.AdditionalTLS) {
+					return errors.New("证书索引无效")
+				}
+				pem = snap.Secrets.AdditionalTLS[index-1].Certificate
+			}
+			fp := CertificateFingerprint(pem)
+			if fp != b.Fingerprint && fp != CertificateFingerprint(c.CertContent) {
+				return errors.New("服务证书内容已经变更")
+			}
+			req.TLSRefresh = &update
+		}
+		_, err = WafPipelineServiceApp.Save(req)
+		return err
+	case "host":
+		var h model.Hosts
+		if err := db.First(&h, "id = ? AND code = ?", b.ID, b.Code).Error; err != nil {
+			return err
+		}
+		fp := CertificateFingerprint(h.Certfile)
+		if fp != b.Fingerprint && fp != CertificateFingerprint(c.CertContent) {
+			return errors.New("站点证书已经手动替换")
+		}
+		if !initial && h.BindSslId != c.Id {
+			return errors.New("证书绑定已解除")
+		}
+		old := h
+		h.Certfile, h.Keyfile, h.BindSslId = c.CertContent, c.KeyContent, c.Id
+		result := db.Model(&model.Hosts{}).Where("id = ? AND (certfile = ? OR (certfile IS NULL AND ? = ?)) AND (bind_ssl_id = ? OR (bind_ssl_id IS NULL AND ? = ?))", h.Id, old.Certfile, old.Certfile, "", old.BindSslId, old.BindSslId, "").
+			Select("Certfile", "Keyfile", "BindSslId").Updates(&h)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			var current model.Hosts
+			if err := db.First(&current, "id = ?", h.Id).Error; err != nil {
+				return err
+			}
+			if current.Certfile != c.CertContent || current.Keyfile != c.KeyContent || current.BindSslId != c.Id {
+				return errors.New("站点证书被并发修改")
+			}
+		}
+		if global.GWAF_CHAN_MSG != nil {
+			select {
+			case global.GWAF_CHAN_MSG <- spec.ChanCommonHost{HostCode: h.Code, Type: enums.ChanTypeSSL, Content: h, OldContent: old}:
+			case <-time.After(3 * time.Second):
+				return errors.New("站点配置已保存，运行时更新通知尚未送达，请重试")
+			}
+		}
+		return nil
+	case "manager":
+		return RefreshManagerCertificateResult(c.Id, c.CertContent, c.KeyContent)
+	default:
+		return errors.New("未知的证书绑定类型")
+	}
+}

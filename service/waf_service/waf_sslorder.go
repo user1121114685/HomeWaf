@@ -67,6 +67,20 @@ func (receiver *WafSSLOrderService) GetListApi(req request.WafSslordersearchReq)
 		whereValues = append(whereValues, req.ApplyStatus)
 	}
 
+	if req.CertificateID != "" {
+		if whereField != "" {
+			whereField += " and "
+		}
+		whereField += "certificate_id = ?"
+		whereValues = append(whereValues, req.CertificateID)
+	}
+	if req.Trigger != "" {
+		if whereField != "" {
+			whereField += " and "
+		}
+		whereField += "trigger = ?"
+		whereValues = append(whereValues, req.Trigger)
+	}
 	/**排序*/
 	orderInfo := "create_time desc"
 
@@ -87,6 +101,16 @@ func (receiver *WafSSLOrderService) DelApi(req request.WafSslorderdeleteReq) err
 	err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&bean).Error
 	if err != nil {
 		return err
+	}
+	if CertificateLifecycleAvailable() {
+		var p model.SslRenewalPolicy
+		if bean.CertificateID != "" && global.GWAF_LOCAL_DB.First(&p, "id = ?", bean.CertificateID).Error == nil {
+			if p.Status == "unresolved" || (p.LastOrderID == bean.Id && bean.ApplyStatus == "fail") {
+				return errors.New("此记录仍用于来源核对或故障恢复，请完成处理后再删除")
+			}
+		} else if bean.ApplyStatus == "success" {
+			return errors.New("此成功记录尚未迁移签发上下文，暂不能删除")
+		}
 	}
 	return global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
 		result := tx.Where("id = ? AND apply_status NOT IN ?", req.Id, []string{"submitted", "applying"}).Delete(&model.SslOrder{})
