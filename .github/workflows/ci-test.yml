@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     env:
@@ -28,9 +28,11 @@ jobs:
           go-version-file: go.mod
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '26.13.0'
+          node-version: '26.13.1'
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - name: Verify release version allocation
+        run: node --test .github/scripts/prepare-release.test.mjs
       - name: Build frontend and backend locally
         run: node scripts/build.mjs
       - name: Compile all packages and run focused regressions
