@@ -7,7 +7,7 @@ export default [
   {
     path: '/dashboard',
     component: Layout,
-    redirect: '/dashboard/start',
+    redirect: '/dashboard/base',
     name: 'dashboard',
     meta: {
       title: 'menu.dashboard.parent_title',
@@ -17,14 +17,14 @@ export default [
       {
         path: 'start',
         name: 'DashboardStart',
-        component: () => import('@/pages/dashboard/start/index.vue'),
-        meta: { title: '工作台', roleCode: 'WafHost', keepAlive: false },
+        redirect: '/dashboard/base',
+        meta: { hidden: true },
       },
       {
         path: 'base',
         name: 'DashboardBase',
         component: () => import('@/pages/dashboard/base/index.vue'),
-        meta: { title: 'menu.dashboard.dashboard_title'},
+        meta: { title: 'menu.dashboard.dashboard_title' },
       },
       {
         path: 'screen',
@@ -36,13 +36,13 @@ export default [
         path: 'stats',
         name: 'DashboardStats',
         component: () => import('@/pages/dashboard/stats/index.vue'),
-        meta: { title: 'menu.dashboard.stats_title'},
+        meta: { title: 'menu.dashboard.stats_title' },
       },
       {
         path: 'overview',
         name: 'DashboardOverview',
         component: () => import('@/pages/dashboard/overview/index.vue'),
-        meta: { title: 'menu.dashboard.overview_title'},
+        meta: { title: 'menu.dashboard.overview_title' },
       },
     ],
   },

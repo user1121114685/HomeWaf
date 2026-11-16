@@ -1,5 +1,5 @@
 // Isolated visual-review fixture. Never proxies requests or touches the running WAF.
-// Run after npm run build; open http://127.0.0.1:3118/#/dashboard/start.
+// Run after npm run build; open http://127.0.0.1:3118/#/dashboard/base.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -110,7 +110,7 @@ const server = http.createServer((request, response) => {
   }
   response.setHeader('Content-Type', mime[path.extname(file)] || 'application/octet-stream');
   if (file.endsWith('index.html')) {
-    const bootstrap = `<script>localStorage.setItem('access_token','isolated-visual-fixture');localStorage.setItem('lang','zh_CN');const appearance=new URLSearchParams(location.search).get('appearance');if(['light','dark','auto'].includes(appearance))localStorage.setItem('homewaf.console.preferences',JSON.stringify({mode:appearance}));if(!location.hash)location.hash='/dashboard/start';</script>`;
+    const bootstrap = `<script>localStorage.setItem('access_token','isolated-visual-fixture');localStorage.setItem('lang','zh_CN');const appearance=new URLSearchParams(location.search).get('appearance');if(['light','dark','auto'].includes(appearance))localStorage.setItem('homewaf.console.preferences',JSON.stringify({mode:appearance}));if(!location.hash)location.hash='/dashboard/base';</script>`;
     response.end(fs.readFileSync(file, 'utf8').replace('<head>', '<head>' + bootstrap));
   } else fs.createReadStream(file).pipe(response);
 });

@@ -57,7 +57,6 @@ export const workspaceGroups = [
     id: 'traffic',
     label: ['流量与记录', 'Traffic & records'],
     names: [
-      'DashboardStart',
       'WafvisitLog',
       'WafAttackLog',
       'WafAttackLogDetail',
@@ -116,6 +115,7 @@ export const workspaceGroups = [
 ] as const;
 
 export function workspaceFor(name: string) {
+  if (name === 'WafPipelineDiagnostics') name = 'WafPipeline';
   if (['CertificateRequest', 'CertificateSettings', 'CertificateDetail'].includes(name)) name = 'WafSSLConfigList';
   return workspaceGroups.find((group) => (group.names as readonly string[]).includes(name));
 }

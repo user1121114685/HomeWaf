@@ -1,10 +1,10 @@
 /** Task descriptions belong to routes; page components own their data and actions. */
 export const pageDescriptions: Record<string, string> = {
-  DashboardStart: '查看服务运行状态，继续处理待启用的服务。',
   DashboardBase: '查看请求趋势、拦截原因与访问来源。',
   DashboardOverview: '按日期比较站点的访问量、流量与拦截情况。',
   DashboardStats: '查看请求速率、队列积压、响应延迟与资源变化。',
   WafPipeline: '连接现有服务，配置访问策略并启用监听。',
+  WafPipelineDiagnostics: '核对服务状态，追踪请求的处理原因，管理当前处罚。',
   WafPipelineTemplates: '复用防护设置；应用模板后，每个服务独立管理。',
   WafPipelineHoneypot: '集中管理蜜罐内容、运行限制与访问记录；服务选择蜜罐模式后共用设置。',
   LegacyWafHosts: '查看已有站点，并迁入按端口管理的服务配置。',

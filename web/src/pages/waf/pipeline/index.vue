@@ -5,6 +5,14 @@
       :to="route.query.returnTo"
       >返回证书详情</RouterLink
     >
+    <RouterLink
+      v-if="
+        typeof route.query.returnTo === 'string' &&
+        serviceReturnPath(route.query.returnTo, true).includes('/diagnostics')
+      "
+      :to="serviceReturnPath(route.query.returnTo, true)"
+      >返回运行诊断</RouterLink
+    >
     <PageActions>
       <ElButton :loading="busy" @click="refresh">刷新状态</ElButton
       ><ElButton v-if="page === 'ports'" type="primary" :disabled="!templates.length || busy" @click="create"
@@ -286,51 +294,6 @@
         ></template
       >
     </ElDialog>
-    <ElDialog
-      v-model="inspectVisible"
-      :title="`端口 ${inspectRow?.config.port || ''} · 状态与解释`"
-      width="min(1250px,97vw)"
-    >
-      <ElAlert v-if="inspectError" :title="inspectError" type="warning" :closable="false" class="space" />
-      <ElTabs v-model="inspectTab"
-        ><ElTabPane label="当前处罚" name="state"
-          ><ServicePunishments
-            v-if="inspectVisible && inspectRow"
-            :key="inspectRow.config.port"
-            :port="inspectRow.config.port"
-            @changed="loadData"
-        /></ElTabPane>
-        <ElTabPane label="最近请求 / 状态变化" name="logs"
-          ><ElButton @click="reloadInspection">刷新日志</ElButton
-          ><ElTable :data="logs" stripe class="space"
-            ><ElTableColumn label="时间" min-width="160"
-              ><template #default="{ row }">{{
-                new Date(row.time_ms).toLocaleString('zh-CN')
-              }}</template></ElTableColumn
-            ><ElTableColumn prop="client_ip" label="来源" min-width="130" /><ElTableColumn
-              prop="kind"
-              label="类型"
-              width="95"
-            /><ElTableColumn prop="stage" label="步骤" width="65" /><ElTableColumn
-              prop="verdict"
-              label="动作"
-              width="90"
-            /><ElTableColumn label="原因" min-width="240"
-              ><template #default="{ row }">{{ accessReason(row.reason) }}</template></ElTableColumn
-            ><ElTableColumn label="解释" width="95"
-              ><template #default="{ row }"
-                ><ElButton link type="primary" @click="showTrace(row)">展开trace</ElButton></template
-              ></ElTableColumn
-            ></ElTable
-          ><Trace v-if="trace?.trace" :result="trace" />
-          <pre v-else-if="trace">{{ JSON.stringify(trace, null, 2) }}</pre>
-        </ElTabPane>
-        <ElTabPane label="运行指标" name="metrics"
-          ><p class="muted">队列丢弃、持久化错误和配额拒绝都应结合当前流量查看；不能把这些资源保护事件当成攻击归因。</p>
-          <pre>{{ JSON.stringify(inspectStats, null, 2) }}</pre>
-        </ElTabPane></ElTabs
-      >
-    </ElDialog>
     <ElDialog v-model="copyVisible" title="复制端口配置" width="min(600px,94vw)"
       ><p>来源端口 {{ copySource?.port }}。凭据、会话与TLS私钥不复制，目标监听保持关闭，登录门须重新设置。</p>
       <label>新端口<ElInputNumber v-model="copyTarget" :min="1" :max="65535" aria-label="复制目标端口" /></label
@@ -476,7 +439,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import {
   ElAlert,
   ElButton,
@@ -495,8 +458,6 @@ import {
   ElSwitch,
   ElTable,
   ElTableColumn,
-  ElTabPane,
-  ElTabs,
   ElTag,
 } from 'element-plus';
 import { pipelineGet, pipelinePost } from '@/apis/pipeline';
@@ -512,8 +473,7 @@ import {
 } from './model';
 import PortEditor from './PortEditor.vue';
 import Trace from './Trace.vue';
-import ServicePunishments from './ServicePunishments.vue';
-import { accessReason } from './accessPolicy';
+import { serviceReturnPath } from './diagnostics';
 import LegacyMigration from './LegacyMigration.vue';
 import ServiceCards from './ServiceCards.vue';
 import { suggestPort } from './onboarding';
@@ -534,8 +494,8 @@ const overview = reactive<any>({ ports: [], issues: {}, punishment: {}, log_queu
   error = ref('');
 const portsTable = ref<any>();
 const loaded = ref(false),
-  tableView = ref(false),
-  search = ref(''),
+  tableView = ref(route.query.view === 'table'),
+  search = ref(typeof route.query.search === 'string' ? route.query.search : ''),
   savedService = ref<PortConfig | null>(null),
   editorBusy = ref(false),
   editorTab = ref('common');
@@ -553,13 +513,6 @@ const enableVisible = ref(false),
   enableMode = ref('normal'),
   enablePreview = ref<any>(null),
   enableCandidate = ref<PortConfig | null>(null);
-const inspectVisible = ref(false),
-  inspectRow = ref<any>(null),
-  inspectTab = ref('state'),
-  logs = ref<any[]>([]),
-  trace = ref<any>(null),
-  inspectStats = ref<any>({}),
-  inspectError = ref('');
 const copyVisible = ref(false),
   copySource = ref<PortConfig | null>(null),
   copyTarget = ref(5001),
@@ -672,15 +625,19 @@ function editHoneypot(config: PortConfig) {
   editorTab.value = 'defense';
 }
 async function closeEditor(done?: () => void) {
-  if (editorBusy.value) return;
+  if (editorBusy.value) return false;
   try {
     await ElMessageBox.confirm('关闭并丢弃尚未保存的端口草稿？已单独保存的账号和 IP 组操作不会撤销。', '关闭配置', {
       type: 'warning',
     });
     editorVisible.value = false;
     if (typeof done === 'function') done();
-  } catch {}
+    return true;
+  } catch {
+    return false;
+  }
 }
+onBeforeRouteLeave(() => (editorVisible.value ? closeEditor() : true));
 async function editorSaved(result: PortConfig) {
   const isNew = !editor.value?.revision;
   editorVisible.value = false;
@@ -759,31 +716,20 @@ async function confirmCopy() {
     edit(candidate);
   });
 }
-async function inspect(row: any) {
-  inspectRow.value = row;
-  inspectVisible.value = true;
-  inspectTab.value = 'state';
-  trace.value = null;
-  await reloadInspection();
-}
-async function reloadInspection() {
-  await run(async () => {
-    const port = inspectRow.value.config.port;
-    const result = await Promise.allSettled([pipelineGet('logs', { port }), pipelineGet('stats', { port })]);
-    inspectError.value = result
-      .filter((r) => r.status === 'rejected')
-      .map((r: any) => r.reason?.message || '读取失败')
-      .join('；');
-    if (result[0].status === 'fulfilled') logs.value = result[0].value;
-    if (result[1].status === 'fulfilled') inspectStats.value = result[1].value;
+async function inspect(row: any, replace = false) {
+  const returnTo = router.resolve({
+    name: 'WafPipeline',
+    query: {
+      ...(search.value ? { search: search.value } : {}),
+      ...(tableView.value ? { view: 'table' } : {}),
+    },
+  }).fullPath;
+  if (!replace && route.fullPath !== returnTo) await router.replace(returnTo);
+  return router[replace ? 'replace' : 'push']({
+    name: 'WafPipelineDiagnostics',
+    params: { port: row.config.port },
+    query: { returnTo },
   });
-}
-function showTrace(row: any) {
-  try {
-    trace.value = JSON.parse(row.detail_json);
-  } catch {
-    trace.value = { error: '日志结构不可解析', req_id: row.req_id };
-  }
 }
 function download(value: unknown, name: string) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
@@ -1025,7 +971,14 @@ async function followEntry() {
     editPort = route.query.edit,
     editTab = route.query.tab;
   if (!action && !enable && !inspectPort && !editPort) return;
-  await router.replace({ name: route.name, query: {} });
+  await router.replace({
+    name: route.name,
+    query: {
+      ...(route.query.returnTo ? { returnTo: route.query.returnTo } : {}),
+      ...(search.value ? { search: search.value } : {}),
+      ...(tableView.value ? { view: 'table' } : {}),
+    },
+  });
   if (action === 'create') {
     create();
     return;
@@ -1043,7 +996,7 @@ async function followEntry() {
   if (enable) {
     if (row.config.policy.gate.require_token) editToken(row.config);
     else openEnable(row);
-  } else await inspect(row);
+  } else await inspect(row, true);
 }
 watch(
   () => route.fullPath,

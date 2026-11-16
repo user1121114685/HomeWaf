@@ -22,7 +22,7 @@ try {
     }
   });
   await page.goto(origin + '/?appearance=light#/dashboard/start');
-  await expect(page.getByTestId('workbench')).toBeVisible();
+  await expect(page.locator('.dashboard-page')).toBeVisible();
   const routes = await page.evaluate(() =>
     window.vm.$router
       .getRoutes()
@@ -46,7 +46,7 @@ try {
         rendered: !!document.querySelector('.console-page > *, .security-screen, .help-document'),
       }));
       report.routes.push({ ...route, width, appearance, ...result });
-      if (['DashboardStart','WafPipeline','WafSSLOrderList','WafSSLConfigList','WafvisitLog','WafAccessAccount','Account','SystemConfig','VpConfig','NotifySubscription','DashboardOverview','OPlatformDoc','UserIndex','RumtimeSysteminfo','help'].includes(route.name)) {
+      if (['DashboardBase','WafPipeline','WafSSLOrderList','WafSSLConfigList','WafvisitLog','WafAccessAccount','Account','SystemConfig','VpConfig','NotifySubscription','DashboardOverview','OPlatformDoc','UserIndex','RumtimeSysteminfo','help'].includes(route.name)) {
         await page.screenshot({path:new URL(`${route.name}-${width}-${appearance}.png`,output).pathname.replace(/^\/(\w:)/,'$1')});
       }
     }
@@ -56,9 +56,9 @@ try {
   await page.goto(origin + '/?appearance=light#/dashboard/start');
   for (const width of [1024, 820, 768, 390, 320]) {
     await page.setViewportSize({ width, height: width < 600 ? 844 : 1024 });
-    await expect(page.getByTestId('workbench')).toBeVisible();
+    await expect(page.locator('.dashboard-page')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBeTruthy();
-    report.checks.push(`workbench fits ${width}px`);
+    report.checks.push(`traffic home fits ${width}px`);
   }
   await page.getByRole('button', { name: '展开或收起导航' }).click();
   await expect(page.locator('.console-sidebar')).toBeVisible();

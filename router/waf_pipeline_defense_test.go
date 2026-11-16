@@ -13,6 +13,11 @@ import (
 func TestPipelineDefenseRouteAuthenticationAndRoles(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	endpoints := []struct{ method, path string }{
+		{"GET", "/overview"},
+		{"GET", "/stats?port=5000"},
+		{"GET", "/logs?port=5000"},
+		{"GET", "/state?port=5000"},
+		{"POST", "/state/manage"},
 		{"GET", "/defense"},
 		{"GET", "/defense/capabilities"},
 		{"POST", "/ports/access"},

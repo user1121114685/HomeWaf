@@ -81,7 +81,7 @@ const props = defineProps({ menu: { type: Array, default: () => [] }, collapsed:
 const route = useRoute(),
   { t, locale } = useI18n(),
   query = ref('');
-const icons = { DashboardStart: House, WafPipeline: Connection, WafvisitLog: Document, WafAttackLog: Warning };
+const icons = { DashboardBase: House, WafPipeline: Connection, WafvisitLog: Document, WafAttackLog: Warning };
 const pinnedNames = Object.keys(icons);
 const items = computed(() => filterNavigation(navigationItems(props.menu, t, locale.value), query.value));
 const groupIcons = { services: Connection, certificates: Key, access: Lock, protection: Warning,

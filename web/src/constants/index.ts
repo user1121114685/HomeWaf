@@ -69,7 +69,7 @@ export const getSafeRedirectUrl = (): string => {
   }
 
   // 默认跳转到dashboard首页，而不是根路径
-  return '/dashboard/start';
+  return '/dashboard/base';
 };
 
 // 防护状态枚举

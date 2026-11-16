@@ -20,7 +20,7 @@
       <ElButton :loading="loading || loadingServices" :disabled="busy" @click="refresh">刷新处罚记录</ElButton>
     </div>
     <p class="editor-context">
-      这里显示原生服务的自动封禁、蜜罐与端口锁定。共享封禁会影响多个服务；配置名单与当前处罚是不同对象。
+      这里显示服务的封禁、蜜罐、连接丢弃与端口锁定。共享封禁会影响多个服务；配置名单与当前处罚是不同对象。
     </p>
     <ElAlert v-if="error" :title="error" type="error" :closable="false" class="space" />
     <p v-if="loadingServices" role="status">正在读取服务范围…</p>
@@ -33,7 +33,7 @@
       :data="rows"
       row-key="id"
       :empty-text="loading ? '正在读取处罚记录…' : error && !loaded ? '读取失败，请重试' : '当前服务没有处罚记录'"
-      class="space"
+      class="space punishment-table"
     >
       <ElTableColumn label="状态" min-width="110"
         ><template #default="{ row }"
@@ -54,22 +54,68 @@
       >
       <ElTableColumn label="操作" min-width="235"
         ><template #default="{ row }"
-          ><ElButton link type="primary" :disabled="busy || loading || !!error" @click="manage(row, 'release')">{{
-            row.kind === 'lockdown' ? '解除锁定' : '释放'
-          }}</ElButton
+          ><ElButton
+            link
+            type="primary"
+            :disabled="disabled || busy || loading || !!error"
+            @click="manage(row, 'release')"
+            >{{ row.kind.endsWith('lockdown') ? '解除锁定' : '释放' }}</ElButton
           ><ElButton
             v-if="row.kind === 'ban' && row.expires_at"
             link
             type="warning"
-            :disabled="busy || loading || !!error"
+            :disabled="disabled || busy || loading || !!error"
             @click="manage(row, 'permanent')"
             >转为永久</ElButton
-          ><ElButton v-if="row.prefix" link :disabled="busy || loading || !!error" @click="manage(row, 'whitelist')"
+          ><ElButton
+            v-if="row.prefix"
+            link
+            :disabled="disabled || busy || loading || !!error"
+            @click="manage(row, 'whitelist')"
             >设为可信并释放</ElButton
           ></template
         ></ElTableColumn
       >
     </ElTable>
+    <div v-if="effectivePort" class="punishment-cards">
+      <p v-if="!rows.length" role="status">
+        {{ loading ? '正在读取处罚记录…' : error && !loaded ? '读取失败，请重试' : '当前服务没有处罚记录' }}
+      </p>
+      <article v-for="row in rows" :key="row.id">
+        <header>
+          <ElTag :type="row.kind === 'ban' ? 'danger' : 'warning'">{{ kinds[row.kind] || row.kind }}</ElTag
+          ><span>{{ row.scope === 'global' ? '多个服务共享' : '当前服务' }}</span>
+        </header>
+        <strong>{{ row.prefix || `端口 ${effectivePort}` }}</strong>
+        <dl>
+          <div>
+            <dt>触发原因</dt>
+            <dd>{{ row.reason || '未记录' }}</dd>
+          </div>
+          <div>
+            <dt>到期时间</dt>
+            <dd>{{ row.expires_at ? new Date(row.expires_at * 1000).toLocaleString('zh-CN') : '永久' }}</dd>
+          </div>
+        </dl>
+        <div class="punishment-actions">
+          <ElButton :disabled="disabled || busy || loading || !!error" @click="manage(row, 'release')">{{
+            row.kind.endsWith('lockdown') ? '解除锁定' : '释放'
+          }}</ElButton>
+          <ElButton
+            v-if="row.kind === 'ban' && row.expires_at"
+            :disabled="disabled || busy || loading || !!error"
+            @click="manage(row, 'permanent')"
+            >转为永久</ElButton
+          >
+          <ElButton
+            v-if="row.prefix"
+            :disabled="disabled || busy || loading || !!error"
+            @click="manage(row, 'whitelist')"
+            >设为可信并释放</ElButton
+          >
+        </div>
+      </article>
+    </div>
     <p class="editor-context">
       “设为可信”只修改当前服务的 trusted 名单，仍受本服务的 IP/地域黑名单、手动 deny 和访问总开关约束。
     </p>
@@ -90,8 +136,8 @@ import {
   ElTag,
 } from 'element-plus';
 import { pipelineGet, pipelinePost } from '@/apis/pipeline';
-const props = defineProps({ port: Number });
-const emit = defineEmits(['changed']);
+const props = defineProps({ port: Number, disabled: Boolean });
+const emit = defineEmits(['changed', 'busy-change', 'loaded']);
 const route = useRoute(),
   router = useRouter();
 const services = ref<{ port: number; name: string }[]>([]),
@@ -104,7 +150,13 @@ const error = ref(''),
   servicesLoaded = ref(false),
   busy = ref(false);
 const effectivePort = computed(() => props.port || selectedPort.value),
-  kinds: Record<string, string> = { ban: '封禁', honeypot: '蜜罐', lockdown: '端口锁定' };
+  kinds: Record<string, string> = {
+    ban: '封禁',
+    honeypot: '蜜罐',
+    lockdown: '端口锁定',
+    drop: '连接丢弃',
+    honeypot_lockdown: '蜜罐锁定',
+  };
 let sequence = 0;
 async function readServices() {
   loadingServices.value = true;
@@ -135,12 +187,16 @@ async function read() {
   try {
     const result = await pipelineGet<any[]>('state', { port });
     if (token !== sequence) return;
-    rows.value = result || [];
+    if (!Array.isArray(result)) throw new Error('处罚响应不完整，请重试。');
+    rows.value = result;
     loaded.value = true;
+    emit('loaded', rows.value.length);
   } catch (cause: any) {
-    if (token === sequence)
+    if (token === sequence) {
+      emit('loaded', null);
       error.value =
         (cause.message || '处罚记录读取失败') + (loaded.value ? '。当前保留上次结果，请刷新后再操作。' : '。请重试。');
+    }
   } finally {
     if (token === sequence) loading.value = false;
   }
@@ -155,17 +211,18 @@ function updateLocation() {
   router.replace({ query: { ...route.query, port: selectedPort.value } });
 }
 async function manage(row: any, action: string) {
-  if (busy.value || loading.value || error.value) return;
+  if (props.disabled || busy.value || loading.value || error.value) return;
   const port = effectivePort.value;
   busy.value = true;
+  emit('busy-change', true);
   try {
     const label = {
-      release: row.kind === 'lockdown' ? '解除端口锁定' : '释放处罚',
+      release: row.kind.endsWith('lockdown') ? '解除端口锁定' : '释放处罚',
       permanent: '改为永久封禁',
       whitelist: '加入当前服务 trusted 名单并释放',
     }[action];
     await ElMessageBox.confirm(
-      `${label}：${row.prefix || '端口 ' + port}。${row.scope === 'global' ? '这是共享记录，释放会同时影响其他服务。' : ''}`,
+      `${label}：${row.prefix || '端口 ' + port}（当前服务 :${port}）。${row.scope === 'global' ? '这是共享记录，修改或释放会同时影响其他服务。' : ''}${action === 'whitelist' ? '可信名单仅写入当前服务；IP/地域黑名单与访问总开关仍然有效。' : ''}`,
       '确认处罚操作',
       { type: 'warning', confirmButtonText: '确认操作', cancelButtonText: '取消' },
     );
@@ -177,6 +234,7 @@ async function manage(row: any, action: string) {
     if (cause !== 'cancel' && cause !== 'close') error.value = cause.message || '操作失败，请刷新后重试。';
   } finally {
     busy.value = false;
+    emit('busy-change', false);
   }
 }
 watch(effectivePort, () => {
@@ -200,8 +258,74 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   sequence++;
 });
+defineExpose({ refresh });
 </script>
 <style scoped>
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.editor-context {
+  color: var(--hw-muted);
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 16px 0;
+}
+.punishment-cards {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .punishment-table {
+    display: none;
+  }
+  .punishment-cards {
+    display: grid;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .punishment-cards article {
+    padding: 20px 0;
+    border-top: 1px solid var(--hw-line);
+  }
+  .punishment-cards header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--hw-muted);
+  }
+  .punishment-cards strong {
+    display: block;
+    margin: 16px 0;
+    overflow-wrap: anywhere;
+  }
+  .punishment-cards dl {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    font-size: 13px;
+  }
+  .punishment-cards dt {
+    color: var(--hw-muted);
+  }
+  .punishment-cards dd {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+  }
+  .punishment-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .punishment-actions .el-button {
+    min-height: 44px;
+    margin: 0;
+  }
+}
 .punishment-service {
   display: grid;
   gap: 8px;

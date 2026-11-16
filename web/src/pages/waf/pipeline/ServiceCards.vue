@@ -50,6 +50,7 @@
         }}</span>
         <div class="service-card-actions">
           <ElButton @click="emit('edit', row.config)">配置服务</ElButton>
+          <ElButton @click="emit('inspect', row)">运行诊断</ElButton>
           <ElButton @click="emit('honeypot', row.config)">异常访问处置</ElButton>
           <ElButton v-if="!row.config.listen_enabled" type="primary" @click="emit('enable', row)">启用服务</ElButton>
           <ElButton v-else type="primary" plain @click="emit('logs', row)">访问记录</ElButton>
@@ -58,7 +59,6 @@
             <template #dropdown
               ><ElDropdownMenu>
                 <ElDropdownItem command="logs">查看访问记录</ElDropdownItem>
-                <ElDropdownItem command="inspect">查看运行诊断</ElDropdownItem>
                 <ElDropdownItem command="copy">复制服务配置</ElDropdownItem>
                 <ElDropdownItem command="template">存为策略模板</ElDropdownItem>
                 <ElDropdownItem v-if="row.config.listen_enabled" command="stop" divided>停止服务</ElDropdownItem>

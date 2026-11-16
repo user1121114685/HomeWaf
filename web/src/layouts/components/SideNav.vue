@@ -1,6 +1,6 @@
 <template>
   <div class="console-side-inner">
-    <RouterLink to="/dashboard/start" class="console-brand" aria-label="HomeWaf 工作台">
+    <RouterLink to="/dashboard/base" class="console-brand" aria-label="HomeWaf 流量概览">
       <Logo class="console-brand-mark" aria-hidden="true" />
       <span v-if="!collapsed" class="console-brand-name"><strong>HomeWaf</strong><small>服务防护控制台</small></span>
     </RouterLink>

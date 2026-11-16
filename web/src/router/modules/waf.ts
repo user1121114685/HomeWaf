@@ -42,6 +42,12 @@ export default [
         meta: { title: 'menu.pipeline.templates', keepAlive: false, roleCode: 'WafHost' },
       },
       {
+        path: 'ports/:port(\\d+)/diagnostics',
+        name: 'WafPipelineDiagnostics',
+        component: () => import('@/pages/waf/pipeline/ServiceDiagnostics.vue'),
+        meta: { title: '运行诊断', hidden: true, keepAlive: false, roleCode: 'WafHost' },
+      },
+      {
         path: 'legacy-sources',
         name: 'LegacyWafHosts',
         component: () => import('@/pages/waf/host/index.vue'),

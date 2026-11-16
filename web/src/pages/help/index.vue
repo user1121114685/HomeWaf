@@ -1,8 +1,8 @@
 <template>
   <div class="help-page">
     <header class="help-header">
-      <RouterLink to="/dashboard/start" class="help-brand">HomeWaf</RouterLink
-      ><RouterLink to="/dashboard/start">返回控制台 ↗</RouterLink>
+      <RouterLink to="/dashboard/base" class="help-brand">HomeWaf</RouterLink
+      ><RouterLink to="/dashboard/base">返回控制台 ↗</RouterLink>
     </header>
     <main class="help-layout">
       <aside class="help-navigation">

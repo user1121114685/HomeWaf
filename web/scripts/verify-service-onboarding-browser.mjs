@@ -197,8 +197,8 @@ async function acceptConfirm() {
   await box.locator('.el-message-box__btns button').last().click();
 }
 try {
-  await page.goto(origin + '/#/dashboard/start');
-  await expect(page.getByRole('heading', { name: '接入第一个服务' })).toBeVisible();
+  await page.goto(origin + '/#/waf-pipeline/ports');
+  await expect(page.getByRole('heading', { name: '接入你的第一个服务' })).toBeVisible();
   await page.getByRole('button', { name: '接入服务', exact: true }).click();
   const guide = page.getByTestId('guided-setup');
   await expect(guide).toBeVisible();
@@ -324,7 +324,7 @@ try {
   expect(savePayloads.at(-1).initial_password).toBe('');
   await expect(page.getByRole('button', { name: '继续启用服务' })).toBeVisible();
   report.checks.push(
-    'first-use workbench, explicit mandatory defense, readable rule, mode dependencies and back navigation, inline errors, retained input and exactly-once save retry',
+    'first-use service list, explicit mandatory defense, readable rule, mode dependencies and back navigation, inline errors, retained input and exactly-once save retry',
   );
 
   await page.setViewportSize({ width: 1440, height: 1000 });
