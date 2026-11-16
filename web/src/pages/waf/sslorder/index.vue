@@ -157,7 +157,6 @@
       </div></template>
     </hw-dialog>
 
-
     <hw-dialog :header="$t('common.confirm_delete')" :body="confirmBody" v-model:visible="confirmVisible"
       @confirm="onConfirmDelete" :onCancel="onCancel">
     </hw-dialog>
@@ -234,7 +233,6 @@
       </div></template>
     </hw-dialog>
 
-
     <!-- 添加密钥分组对话框 -->
     <hw-dialog :header="$t('page.private_group.button_add_private_group')" v-model:visible="privateGroupFormVisible"
       :width="680" :footer="false">
@@ -309,22 +307,17 @@
 import { v4 as uuidv4 } from 'uuid';
 import {defineComponent} from 'vue';
 
-
 import {
   SearchIcon
 } from '@/ui/icons';
 import Trend from '@/components/trend/index.vue';
-import {
-  prefix
-} from '@/config/global';
+
 import DnsProviderConfig from './DnsProviderConfig.vue';
 import ZeroSSLAccount from './ZeroSSLAccount.vue';
 import OrderLogs from './OrderLogs.vue';
 import OrderTable from './OrderTable.vue';
 import { serializeHurricaneCredentials } from './hurricane';
-import {
-  sslOrderDetailApi, sslOrderAddApi, sslOrderDelApi, sslOrderEditApi, sslOrderListApi, sslOrderRetryApi, sslCertificateTargetsApi, type SSLCertificateTarget
-} from '@/apis/sslorder';
+import { sslOrderAddApi, sslOrderDelApi, sslOrderEditApi, sslOrderListApi, sslOrderRetryApi, sslCertificateTargetsApi, type SSLCertificateTarget } from '@/apis/sslorder';
 
 import {
   wafPrivateInfoEditApi, wafPrivateInfoAddApi
@@ -333,9 +326,7 @@ import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemcon
 import {
   wafPrivateGroupAddApi
 } from '@/apis/private_group.ts';
-import {
-   wafCaServerInfoListApi, wafCaServerInfoDelApi, wafCaServerInfoEditApi, wafCaServerInfoAddApi, wafCaServerInfoDetailApi
-} from '@/apis/ca_server_info.ts';
+import { wafCaServerInfoListApi, wafCaServerInfoDelApi, wafCaServerInfoEditApi, wafCaServerInfoAddApi } from '@/apis/ca_server_info.ts';
 
 const INITIAL_DATA = {
   host_code: "",

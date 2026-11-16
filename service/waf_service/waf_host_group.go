@@ -145,12 +145,6 @@ func (receiver *WafHostGroupService) GetDetailApi(req request.WafHostGroupDetail
 	return bean
 }
 
-func (receiver *WafHostGroupService) GetDetailByCodeApi(groupCode string) model.HostGroup {
-	var bean model.HostGroup
-	global.GWAF_LOCAL_DB.Where("group_code = ?", groupCode).Find(&bean)
-	return bean
-}
-
 func (receiver *WafHostGroupService) GetListApi(req request.WafHostGroupSearchReq) ([]model.HostGroup, int64, error) {
 	var list []model.HostGroup
 	var total int64 = 0

@@ -12,10 +12,6 @@ type WafAttackLogDetailReq struct {
 	OutputFormat   string `json:"output_format" form:"output_format"` //输出格式 raw,curl
 }
 
-type WafAttackLogDoExport struct {
-	CurrrentDbName string `json:"current_db_name"`
-	HostCode       string `json:"host_code" form:"host_code"` //主机码
-}
 type WafAttackLogSearch struct {
 	CurrrentDbName   string `json:"current_db_name"`
 	ViewType         string `json:"view_type" form:"view_type"` //视图：access=访问日志(默认) event=安全事件

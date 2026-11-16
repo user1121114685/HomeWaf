@@ -1,7 +1,6 @@
 package wafdiagnose
 
 import (
-	"context"
 	"net/http"
 )
 
@@ -80,6 +79,3 @@ type Result struct {
 	StatusCode      int         `json:"status_code,omitempty"`
 	HTTPWritten     bool        `json:"http_written"`
 }
-
-// Runner is useful for adapters that inject a diagnostic implementation.
-type Runner func(context.Context, Target) Result

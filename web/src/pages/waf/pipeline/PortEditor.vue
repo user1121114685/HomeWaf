@@ -602,41 +602,9 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import type { PropType } from 'vue';
-import {
-  ElAlert,
-  ElButton,
-  ElCheckbox,
-  ElCheckboxGroup,
-  ElCollapse,
-  ElCollapseItem,
-  ElDialog,
-  ElInput,
-  ElInputNumber,
-  ElMessage,
-  ElMessageBox,
-  ElOption,
-  ElSelect,
-  ElSwitch,
-  ElTable,
-  ElTableColumn,
-  ElTabPane,
-  ElTabs,
-  ElTag,
-} from 'element-plus';
-import { pipelineGet, pipelinePost } from '@/apis/pipeline';
-import {
-  clone,
-  fields,
-  modes,
-  parseLines,
-  ruleHelp,
-  ruleNames,
-  sectionNames,
-  sections,
-  type Field,
-  type PolicyTemplate,
-  type PortConfig,
-} from './model';
+import { ElAlert, ElButton, ElCheckbox, ElCheckboxGroup, ElCollapse, ElCollapseItem, ElDialog, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElOption, ElSelect, ElSwitch, ElTable, ElTableColumn, ElTabPane, ElTag } from 'element-plus';
+import { pipelinePost } from '@/apis/pipeline';
+import { clone, fields, modes, ruleHelp, ruleNames, sectionNames, sections, type Field, type PolicyTemplate, type PortConfig } from './model';
 import GuidedSetup from './GuidedSetup.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
 import HoneypotSettings from './HoneypotSettings.vue';

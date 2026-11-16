@@ -249,27 +249,11 @@ func (d *MeanStdDetector) GetWindowStats() map[string]interface{} {
 	}
 }
 
-// Reset 重置检测器
-func (d *MeanStdDetector) Reset() {
-	d.window = nil
-	d.sum = 0
-	d.sumSq = 0
-}
-
 // 保持向后兼容的方法
 
 // Add 添加数据点(向后兼容)
 func (d *MeanStdDetector) Add(value float64) {
 	d.AddValue(value)
-}
-
-// IsAnomalyPrintValue 返回异常状态和阈值(向后兼容)
-func (d *MeanStdDetector) IsAnomalyPrintValue(value float64) (bool, float64) {
-	result := d.DetectAnomaly(value)
-	if result.Threshold == InvalidThreshold {
-		return false, InvalidThreshold
-	}
-	return result.IsAnomaly, result.Threshold
 }
 
 // IsAnomalyPrintFull 返回异常状态和窗口数据(向后兼容)
@@ -281,16 +265,6 @@ func (d *MeanStdDetector) IsAnomalyPrintFull(value float64) (bool, []float64) {
 // AddAnomalyProcessor 添加异常处理器
 func (d *MeanStdDetector) AddAnomalyProcessor(processor AnomalyProcessor) {
 	d.processors = append(d.processors, processor)
-}
-
-// RemoveAnomalyProcessor 移除异常处理器
-func (d *MeanStdDetector) RemoveAnomalyProcessor(name string) {
-	for i, processor := range d.processors {
-		if processor.Name == name {
-			d.processors = append(d.processors[:i], d.processors[i+1:]...)
-			break
-		}
-	}
 }
 
 // processAnomaly 处理异常情况
@@ -436,11 +410,4 @@ func (d *DualWindowDetector) GetDualWindowStats() map[string]interface{} {
 		"short_mean":           shortStats["mean"],
 		"long_mean":            longStats["mean"],
 	}
-}
-
-// Reset 重置双窗口检测器
-func (d *DualWindowDetector) Reset() {
-	d.shortWindow.Reset()
-	d.longWindow.Reset()
-	d.sustainedHighCount = 0
 }

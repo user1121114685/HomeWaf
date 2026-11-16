@@ -6,8 +6,9 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/wafsec"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Response struct {
@@ -121,10 +122,6 @@ func OkWithData(data interface{}, c *gin.Context) {
 
 func OkWithDetailed(data interface{}, message string, c *gin.Context) {
 	Result(SUCCESS, data, message, c)
-}
-
-func Fail(c *gin.Context) {
-	Result(ERROR, map[string]interface{}{}, "操作失败", c)
 }
 
 func FailWithMessage(message string, c *gin.Context) {

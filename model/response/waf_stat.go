@@ -57,10 +57,7 @@ type WafStatRange struct {
 	AttackCountOfRange map[int]int64 //区间攻击数量
 	NormalCountOfRange map[int]int64 //区间正常数量
 }
-type WafCityStats struct {
-	AttackCityOfRange map[string]int64 //区间攻击城市数量
-	NormalCityOfRange map[string]int64 //区间正常城市数量
-}
+
 type WafIPStats struct {
 	AttackIPOfRange []model.StatsIPCountMore //区间攻击IP数量
 	NormalIPOfRange []model.StatsIPCountMore //区间正常IP数量

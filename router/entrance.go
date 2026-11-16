@@ -66,7 +66,6 @@ type ApiGroup struct {
 	ThreatIPRouter
 	CDNIPRouter
 	IPLookupRouter
-	PluginRouter
 	LogFileWriteRouter
 	IPLocationRouter
 	WafOPlatformKeyRouter

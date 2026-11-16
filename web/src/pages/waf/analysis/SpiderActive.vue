@@ -38,7 +38,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import { use } from "@/ui/charts";
 import { TooltipComponent, LegendComponent, GridComponent, TitleComponent } from "echarts/components";
 import {
@@ -50,9 +49,7 @@ use([PieChart, LineChart, TooltipComponent, LegendComponent, GridComponent, Titl
 import {
   wafAnalysisSpider
 } from '@/apis/analysis';
-import {
-  LAST_7_DAYS, NowDate
-} from '@/utils/date';
+import { NowDate } from '@/utils/date';
 import {
   allLogServices
 } from '@/apis/host';
@@ -110,7 +107,6 @@ export default defineComponent({
     this.loadHostList().then(() => {
       this.fetchData();
     });
-
 
   },
   mounted() {

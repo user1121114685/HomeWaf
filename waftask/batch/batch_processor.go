@@ -15,7 +15,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -373,25 +372,4 @@ func openSource(task model.BatchTask) (io.ReadCloser, int64, error) {
 		return nil, -1, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 	return resp.Body, resp.ContentLength, nil
-}
-
-// extractIPFromLine 使用正则表达式从行中提取IP地址或网段
-func extractIPFromLine(line string) string {
-	// 匹配IPv4地址或IPv4网段
-	ipv4Regex := regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b`)
-
-	// 匹配IPv6地址或IPv6网段 (简化版本)
-	ipv6Regex := regexp.MustCompile(`\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}(?:/\d{1,3})?\b`)
-
-	// 先尝试匹配IPv4
-	if match := ipv4Regex.FindString(line); match != "" {
-		return match
-	}
-
-	// 再尝试匹配IPv6
-	if match := ipv6Regex.FindString(line); match != "" {
-		return match
-	}
-
-	return line // 如果没有匹配到，返回原始行
 }

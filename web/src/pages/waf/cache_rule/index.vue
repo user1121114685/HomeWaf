@@ -37,7 +37,6 @@
       </div>
     </hw-card>
 
-
     <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="680" :footer="false">
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
@@ -48,7 +47,6 @@
                            {{ item }}
                          </hw-option>
                        </hw-select>
-
 
                     </hw-form-item>
 
@@ -185,7 +183,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
   import {
     SearchIcon
   } from '@/ui/icons';
@@ -202,8 +199,6 @@ import {defineComponent} from 'vue';
   } from '@/apis/cache_rule.ts';
 
   const INITIAL_DATA = {
-
-
 
     host_code:'',
     rule_name:'',
@@ -269,7 +264,6 @@ import {defineComponent} from 'vue';
         selectedRowKeys: [],
         value: 'first',
         columns: [
-
 
             { title: this.$t('page.cache_rule.rule_name'),
                     width: 200,
@@ -355,9 +349,7 @@ import {defineComponent} from 'vue';
     computed: {
       confirmBody() {
         if (this.deleteIdx > -1) {
-          const {
-            host
-          } = this.data?. [this.deleteIdx];
+
           return this.$t('common.data_delete_warning');
         }
         return '';
@@ -566,7 +558,6 @@ import {defineComponent} from 'vue';
             console.log(e);
           })
           .finally(() => {});
-
 
         this.resetIdx();
       },

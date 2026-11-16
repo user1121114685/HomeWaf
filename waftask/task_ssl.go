@@ -8,7 +8,6 @@ import (
 	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
-	"HomeWaf/model"
 	"HomeWaf/model/spec"
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
@@ -377,15 +376,4 @@ func checkAndNotifySSLExpire(domain string, expiryTime time.Time) {
 			DaysLeft:   daysLeft,
 		})
 	}
-}
-
-// hostHTTP01Ready 站点是否具备 ACME http01 文件验证条件：存在协议为 HTTP 的 80 端口。
-// 与 api/waf_sslorder.go 的 check80Port 同一判据（那里还要区分"没有80"与"80是HTTPS"以给不同文案）。
-func hostHTTP01Ready(host model.Hosts) bool {
-	for _, listen := range utils.ResolveHostListens(host) {
-		if listen.Port == 80 {
-			return listen.Protocol == utils.ListenProtoHTTP
-		}
-	}
-	return false
 }

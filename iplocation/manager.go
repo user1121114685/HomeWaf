@@ -320,13 +320,6 @@ func (m *Manager) LoadIpdb(filePath string) error {
 	return nil
 }
 
-// IsIpdbLoaded 返回 ipdb reader 是否已加载
-func (m *Manager) IsIpdbLoaded() bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.ipdbReader != nil
-}
-
 // SetV4Builtin 标记当前 IPv4 后端是否由内置数据加载。
 // Load* 系列会先把标记重置为 false，内置加载后需显式调用本方法置 true。
 func (m *Manager) SetV4Builtin(builtin bool) {
@@ -340,26 +333,6 @@ func (m *Manager) SetV6Builtin(builtin bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.v6Builtin = builtin
-}
-
-// ReloadV4 热加载 IPv4 数据库
-func (m *Manager) ReloadV4(data []byte, source DBSource, format DBFormat) error {
-	if source == SourceIp2Region {
-		return m.LoadV4Ip2Region(data, format)
-	} else if source == SourceGeoLite2 {
-		return m.LoadV4GeoLite2(data)
-	}
-	return fmt.Errorf("未知的数据源: %s", source)
-}
-
-// ReloadV6 热加载 IPv6 数据库
-func (m *Manager) ReloadV6(data []byte, source DBSource, format DBFormat) error {
-	if source == SourceIp2Region {
-		return m.LoadV6Ip2Region(data, format)
-	} else if source == SourceGeoLite2 {
-		return m.LoadV6GeoLite2(data)
-	}
-	return fmt.Errorf("未知的数据源: %s", source)
 }
 
 // GetStatus 获取当前数据库状态
@@ -451,22 +424,6 @@ func parseIpdbMap(info map[string]string) *IPLocationResult {
 		ISP:      get("isp_domain"),
 		Region:   get("continent_code"),
 	}
-}
-
-// SetV4Source 设置 IPv4 数据源
-func (m *Manager) SetV4Source(source DBSource) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.generation.Add(1)
-	m.v4Source = source
-}
-
-// SetV6Source 设置 IPv6 数据源
-func (m *Manager) SetV6Source(source DBSource) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.generation.Add(1)
-	m.v6Source = source
 }
 
 // SetBothSourceIpdb 将 IPv4 和 IPv6 数据源同时设置为 ipdb

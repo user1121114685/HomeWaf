@@ -137,19 +137,9 @@ func (m *OwaspManager) SetActive(active bool) {
 	}
 }
 
-// IsActive 返回当前激活状态。
-func (m *OwaspManager) IsActive() bool {
-	return m.active.Load()
-}
-
 // Current 获取当前活跃实例（热路径，无锁）。可能为 nil（首次初始化失败时）。
 func (m *OwaspManager) Current() *WafOWASP {
 	return m.current.Load()
-}
-
-// Dir 返回 SamWaf 当前工作目录。
-func (m *OwaspManager) Dir() string {
-	return m.dir
 }
 
 // OwaspRoot 返回 data/owasp 根目录。

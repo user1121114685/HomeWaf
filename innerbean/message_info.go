@@ -6,10 +6,6 @@ import (
 	"HomeWaf/utils/wechat"
 )
 
-type BaseInfo interface {
-	ToFormat() string
-}
-
 /***
 
 信息类型:

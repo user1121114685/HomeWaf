@@ -9,59 +9,12 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
-	"errors"
 	"time"
 )
 
 type WafTokenInfoService struct{}
 
 var WafTokenInfoServiceApp = new(WafTokenInfoService)
-
-func (receiver *WafTokenInfoService) AddApi(loginAccount string, AccessToken string, LoginIp string) *model.TokenInfo {
-
-	var bean = &model.TokenInfo{
-		BaseOrm: baseorm.BaseOrm{
-			Id:          uuid.GenUUID(),
-			USER_CODE:   global.GWAF_USER_CODE,
-			Tenant_ID:   global.GWAF_TENANT_ID,
-			CREATE_TIME: customtype.JsonTime(time.Now()),
-			UPDATE_TIME: customtype.JsonTime(time.Now()),
-		},
-		LoginAccount: loginAccount,
-		AccessToken:  AccessToken,
-		LoginIp:      LoginIp,
-		LoginType:    "web", // 默认为web类型
-	}
-	if err := global.GWAF_LOCAL_DB.Create(bean).Error; err != nil {
-		return nil
-	}
-	// 直接返回刚插入的记录，不再重查（重查可能命中同账号的其它旧行，见 AddApiWithFingerprintAndType 注释）
-	return bean
-}
-
-// AddApiWithFingerprint 添加带指纹的token信息
-func (receiver *WafTokenInfoService) AddApiWithFingerprint(loginAccount string, AccessToken string, LoginIp string, deviceFingerprint string) *model.TokenInfo {
-
-	var bean = &model.TokenInfo{
-		BaseOrm: baseorm.BaseOrm{
-			Id:          uuid.GenUUID(),
-			USER_CODE:   global.GWAF_USER_CODE,
-			Tenant_ID:   global.GWAF_TENANT_ID,
-			CREATE_TIME: customtype.JsonTime(time.Now()),
-			UPDATE_TIME: customtype.JsonTime(time.Now()),
-		},
-		LoginAccount:      loginAccount,
-		AccessToken:       AccessToken,
-		LoginIp:           LoginIp,
-		DeviceFingerprint: deviceFingerprint,
-		LoginType:         "web", // 默认为web类型
-	}
-	if err := global.GWAF_LOCAL_DB.Create(bean).Error; err != nil {
-		return nil
-	}
-	// 直接返回刚插入的记录，不再重查（重查可能命中同账号的其它旧行，见 AddApiWithFingerprintAndType 注释）
-	return bean
-}
 
 // AddApiWithFingerprintAndType 添加带指纹和登录类型的token信息。
 //
@@ -96,62 +49,10 @@ func (receiver *WafTokenInfoService) AddApiWithFingerprintAndType(loginAccount s
 	return bean, nil
 }
 
-func (receiver *WafTokenInfoService) CheckIsExistByLoginAccountApi(loginAccount string) error {
-	return global.GWAF_LOCAL_DB.First(&model.TokenInfo{}, "login_account = ? ", loginAccount).Error
-}
-func (receiver *WafTokenInfoService) ModifyApi(loginAccount string, AccessToken string, LoginIp string) error {
-	var bean model.Account
-	global.GWAF_LOCAL_DB.Where("login_account = ? ,access_token = ? ", loginAccount, AccessToken).Find(&bean)
-	if bean.Id == "" {
-		return errors.New("当前数据不存在")
-	}
-	beanMap := map[string]interface{}{
-		"login_ip":    LoginIp,
-		"UPDATE_TIME": customtype.JsonTime(time.Now()),
-	}
-	err := global.GWAF_LOCAL_DB.Model(model.Account{}).Where("login_account = ? ,access_token = ? ", loginAccount, AccessToken).Updates(beanMap).Error
-
-	return err
-}
-
-/*
-*
-通过登录account获取账号信息
-*/
-func (receiver *WafTokenInfoService) GetInfoByLoginAccount(loginAccount string) model.TokenInfo {
-	var bean model.TokenInfo
-	global.GWAF_LOCAL_DB.Where("login_account=? ", loginAccount).Limit(1).Find(&bean)
-	return bean
-}
-
-// GetAllTokenInfoByLoginAccount 通过登录account获取账号信息
-func (receiver *WafTokenInfoService) GetAllTokenInfoByLoginAccount(loginAccount string) []model.TokenInfo {
-	var bean []model.TokenInfo
-	global.GWAF_LOCAL_DB.Where("login_account=? ", loginAccount).Find(&bean)
-	return bean
-}
-
-// GetInfoByLoginAccountAndType 通过登录account和类型获取账号信息
-func (receiver *WafTokenInfoService) GetInfoByLoginAccountAndType(loginAccount string, loginType string) model.TokenInfo {
-	var bean model.TokenInfo
-	global.GWAF_LOCAL_DB.Where("login_account=? AND login_type=? ", loginAccount, loginType).Limit(1).Find(&bean)
-	return bean
-}
-
 // GetAllTokenInfoByLoginAccountAndType 通过登录account和类型获取所有账号信息
 func (receiver *WafTokenInfoService) GetAllTokenInfoByLoginAccountAndType(loginAccount string, loginType string) []model.TokenInfo {
 	var bean []model.TokenInfo
 	global.GWAF_LOCAL_DB.Where("login_account=? AND login_type=? ", loginAccount, loginType).Find(&bean)
-	return bean
-}
-
-/*
-*
-获取一个可用的token TODO 将来应该是一个
-*/
-func (receiver *WafTokenInfoService) GetOneAvailableInfo() model.TokenInfo {
-	var bean model.TokenInfo
-	global.GWAF_LOCAL_DB.Limit(1).Find(&bean)
 	return bean
 }
 
@@ -176,20 +77,6 @@ func (receiver *WafTokenInfoService) DelApi(loginAccount string, AccessToken str
 		return err
 	}
 	err = global.GWAF_LOCAL_DB.Where("login_account = ? and access_token = ? ", loginAccount, AccessToken).Delete(model.TokenInfo{}).Error
-	return err
-}
-
-/*
-*
-通过账号删除所有关联状态
-*/
-func (receiver *WafTokenInfoService) DelApiByAccount(loginAccount string) error {
-	var bean model.TokenInfo
-	err := global.GWAF_LOCAL_DB.Where("login_account = ?", loginAccount).First(&bean).Error
-	if err != nil {
-		return err
-	}
-	err = global.GWAF_LOCAL_DB.Where("login_account = ?", loginAccount).Delete(model.TokenInfo{}).Error
 	return err
 }
 
@@ -242,33 +129,4 @@ func (receiver *WafTokenInfoService) ReloadAllValidTokensToCache() error {
 	}
 
 	return nil
-}
-
-// 根据数据库中的特定token信息重新加载到缓存
-func (receiver *WafTokenInfoService) ReloadSpecificTokenToCache(tokenId string) error {
-	var token model.TokenInfo
-	// 根据ID获取token信息
-	err := global.GWAF_LOCAL_DB.Where("id = ?", tokenId).First(&token).Error
-	if err != nil {
-		return err
-	}
-
-	// 当前时间
-	now := time.Now()
-
-	// 检查token是否过期
-	expireTime := time.Time(token.UPDATE_TIME).Add(time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES) * time.Minute)
-
-	// 如果token没有过期，则重新加载到缓存中
-	if expireTime.After(now) {
-		// 将token信息存入缓存（同上，必须 RenewTime，避免沿用原 createTime 把会话缩短）
-		global.GCACHE_WAFCACHE.SetWithTTlRenewTime(
-			enums.CACHE_TOKEN+token.AccessToken,
-			token,
-			time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute,
-		)
-		return nil
-	}
-
-	return errors.New("token已过期")
 }

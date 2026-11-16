@@ -121,10 +121,6 @@ type recorderKey struct{}
 func WithRecorder(ctx context.Context, r *Recorder) context.Context {
 	return context.WithValue(ctx, recorderKey{}, r)
 }
-func RequestRecorder(r *http.Request) *Recorder {
-	v, _ := r.Context().Value(recorderKey{}).(*Recorder)
-	return v
-}
 
 type RequestContext struct {
 	Started  time.Time

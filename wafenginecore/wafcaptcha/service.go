@@ -27,10 +27,12 @@ import (
 	"time"
 
 	capserver "HomeWaf/internal/thirdparty/capserver"
+
 	"golang.org/x/image/font/sfnt"
 
 	"HomeWaf/internal/thirdparty/gocaptcha/base/option"
 	"HomeWaf/internal/thirdparty/gocaptcha/click"
+
 	"go.uber.org/zap"
 )
 
@@ -868,27 +870,3 @@ func (s *CaptchaService) ValidateCapJsCaptcha(w http.ResponseWriter, r *http.Req
 }
 
 // 辅助函数
-
-// writeJSONResponse 写入JSON响应
-func writeJSONResponse(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
-}
-
-// generateRandomKey 生成随机密钥
-func generateRandomKey() string {
-	// 实际实现中应该使用更安全的随机数生成方法
-	return "random_key_123456"
-}
-
-// generateImageBase64 生成图片的Base64编码
-func generateImageBase64() string {
-	// 实际实现中应该生成真实的验证码图片
-	return "base64_encoded_image_data"
-}
-
-// generateThumbBase64 生成缩略图的Base64编码
-func generateThumbBase64() string {
-	// 实际实现中应该生成真实的缩略图
-	return "base64_encoded_thumb_data"
-}

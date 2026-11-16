@@ -57,9 +57,6 @@ func setShardRuleName(setName string, seq int) string {
 	return fmt.Sprintf("%s%s_%d", setRulePrefix, setName, seq)
 }
 
-// EnsureIPSet Windows 无需预建集合，空实现(规则在 RestoreIPSet 时创建)
-func (fw *FireWallEngine) EnsureIPSet(setName string) error { return nil }
-
 // SupportsIncrementalIPSet Windows 不支持增量。
 //
 // 分片规则模型里，一个逻辑集合被拆成若干条 netsh 规则，每条的 remoteip= 是一长串逗号
@@ -156,11 +153,6 @@ func (fw *FireWallEngine) RestoreIPSet(setName string, ips []string) error {
 		}
 	}
 	return nil
-}
-
-// FlushIPSet Windows 下等同销毁全部分片规则
-func (fw *FireWallEngine) FlushIPSet(setName string) error {
-	return fw.DestroyIPSet(setName)
 }
 
 // DestroyIPSet 删除该集合的全部分片规则。

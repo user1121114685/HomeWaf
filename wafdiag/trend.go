@@ -33,19 +33,17 @@ type TrendPoint struct {
 }
 
 var (
-	trendMu      sync.RWMutex
-	trendRing    [ringSize]TrendPoint
-	trendIdx     int
-	trendCount   int
-	latestCPU    float64
-	samplerOnce  sync.Once
-	samplerStart time.Time
+	trendMu     sync.RWMutex
+	trendRing   [ringSize]TrendPoint
+	trendIdx    int
+	trendCount  int
+	latestCPU   float64
+	samplerOnce sync.Once
 )
 
 // StartSampler 启动趋势采样 goroutine，进程生命周期内常驻，重复调用只生效一次。
 func StartSampler() {
 	samplerOnce.Do(func() {
-		samplerStart = time.Now()
 		if selfProc != nil {
 			// 首次 Percent 建立基线，返回值无意义
 			_, _ = selfProc.Percent(0)

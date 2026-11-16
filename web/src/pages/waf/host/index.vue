@@ -382,8 +382,6 @@
       <div>{{$t('page.host.start_status_confirm_content')}}</div>
     </hw-dialog>
 
-
-
     <hw-dialog :header="$t('page.host.ssl_auto_apply')" v-model:visible="sslAutoApplyVisible" :width="900" :footer="false">
       <template #body><div >
         <ssl-order-list :src-host-code="currentHostCode"></ssl-order-list>
@@ -942,9 +940,7 @@ export default defineComponent({
     },
     confirmBody() {
       if (this.deleteIdx > -1) {
-        const {
-          host
-        } = this.data?.[this.deleteIdx];
+
         return this.$t('page.host.delete_confirm_clear_relation');
       }
       return '';
@@ -1818,7 +1814,6 @@ export default defineComponent({
         if (resdata.code === 0) {
           that.$message.success(resdata.msg);
 
-
           console.log("submit host data",data)
           if(data.result.ssl_config_mode === "auto_apply"){
             that.loadHostList().then(() => {
@@ -1913,9 +1908,7 @@ export default defineComponent({
       }
     },
     handleClickDelete(row) {
-      const {
-        code, global_host
-      } = row.row
+      const { global_host } = row.row;
       if (global_host === 1) {
         this.$message.warning("全局网站只能配置保护状态");
         // return
@@ -1969,7 +1962,6 @@ export default defineComponent({
         .finally(() => {
         });
 
-
       this.resetIdx();
     },
     onCancel() {
@@ -2003,7 +1995,7 @@ export default defineComponent({
      * 导出Excel数据
      */
     HandleExportExcel() {
-      const that = this
+
       // window.open('https:\\www.baidu.com','_blank')
       //
       export_api({table_name: "hosts"}).then((res) => {
@@ -2202,7 +2194,6 @@ export default defineComponent({
      */
     onFilterChange(e){
       const filters = [];
-
 
       if (e.host) {
         // 站点列现在同时展示域名和监听端口：纯数字按端口查，其余按域名/昵称查

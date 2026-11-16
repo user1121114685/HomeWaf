@@ -3,7 +3,6 @@ package wafpipeline
 import (
 	"container/list"
 	"net/netip"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -115,35 +114,6 @@ func (g *GeoCache) Lookup(ip netip.Addr) GeoResult {
 		g.regions[Region{v.Country, v.Province}] = true
 	}
 	return v
-}
-func (g *GeoCache) Clear() {
-	g.mu.Lock()
-	g.items = make(map[netip.Addr]*list.Element)
-	g.lru.Init()
-	g.regions = make(map[Region]bool)
-	g.mu.Unlock()
-}
-
-// Regions reports actual values observed from the active database, never a hardcoded country list.
-func (g *GeoCache) Regions() []Region {
-	generation := uint64(0)
-	if g.generation != nil {
-		generation = g.generation()
-	}
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.resetGeneration(generation)
-	out := make([]Region, 0, len(g.regions))
-	for k := range g.regions {
-		out = append(out, k)
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Country == out[j].Country {
-			return out[i].Province < out[j].Province
-		}
-		return out[i].Country < out[j].Country
-	})
-	return out
 }
 
 func (g *GeoCache) resetGeneration(generation uint64) {

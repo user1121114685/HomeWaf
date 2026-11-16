@@ -97,10 +97,6 @@ export function currentKeyId(): string {
   return keyId;
 }
 
-export function secReady(): boolean {
-  return !!(keyId && sharedKey);
-}
-
 // 握手不走 axios，防重放头得自己带，否则被 ReplayProtect 直接拦掉
 function handshakeHeaders(extra?: Record<string, string>): Record<string, string> {
   return {

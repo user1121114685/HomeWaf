@@ -196,22 +196,6 @@ func (w *WafRuleAPi) GetListApi(c *gin.Context) {
 	}
 }
 
-func (w *WafRuleAPi) GetListByHostCodeApi(c *gin.Context) {
-	var req request.WafRuleSearchReq
-	err := c.ShouldBind(&req)
-	if err == nil {
-		wafRules, total, _ := wafRuleService.GetListByHostCodeApi(req)
-		response.OkWithDetailed(response.PageResult{
-			List:      wafRules,
-			Total:     total,
-			PageIndex: req.PageIndex,
-			PageSize:  req.PageSize,
-		}, "获取成功", c)
-	} else {
-		response.FailWithMessage("解析失败", c)
-	}
-}
-
 // DelRuleApi 删除WAF规则
 // @Summary      删除WAF规则
 // @Description  根据 code 删除WAF防护规则

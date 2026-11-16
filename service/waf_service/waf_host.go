@@ -143,9 +143,6 @@ func (receiver *WafHostService) AddApi(wafHostAddReq request.WafHostAddReq) (str
 func (receiver *WafHostService) CheckIsExistApi(wafHostAddReq request.WafHostAddReq) error {
 	return global.GWAF_LOCAL_DB.First(&model.Hosts{}, "host = ? and port= ?", wafHostAddReq.Host, wafHostAddReq.Port).Error
 }
-func (receiver *WafHostService) CheckIsExist(host string, port string) error {
-	return global.GWAF_LOCAL_DB.First(&model.Hosts{}, "host = ? and port= ?", host, port).Error
-}
 
 func (receiver *WafHostService) ModifyApi(wafHostEditReq request.WafHostEditReq) error {
 	var webHost model.Hosts
@@ -447,12 +444,6 @@ func (receiver *WafHostService) GetAllRunningHostApi() []model.Hosts {
 	var webHosts []model.Hosts
 	global.GWAF_LOCAL_DB.Where("global_host <>?", 1).Where("start_status = ?", 0).Find(&webHosts)
 	return webHosts
-}
-
-func (receiver *WafHostService) CheckPortExistApi(port int) int64 {
-	var total int64 = 0
-	global.GWAF_LOCAL_DB.Model(&model.Hosts{}).Where("port=?", port).Count(&total)
-	return total
 }
 
 func (receiver *WafHostService) CheckAvailablePortExistApi(port int) int64 {

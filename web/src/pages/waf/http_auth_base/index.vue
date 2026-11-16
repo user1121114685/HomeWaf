@@ -40,7 +40,6 @@
       </div>
     </hw-card>
 
-
     <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="680" :footer="false">
       <template #body><div >
         <!-- autocomplete 必须显式关掉：浏览器看到「文本框 + 紧跟着的密码框」就当成登录表单，
@@ -87,7 +86,6 @@
 </template>
 <script lang="ts">
 import {defineComponent} from 'vue';
-
 
   import {
     SearchIcon,AddIcon
@@ -223,9 +221,7 @@ import {defineComponent} from 'vue';
     computed: {
       confirmBody() {
         if (this.deleteIdx > -1) {
-          const {
-            host
-          } = this.data?. [this.deleteIdx];
+
           return this.$t('common.data_delete_warning');
         }
         return '';
@@ -425,7 +421,6 @@ import {defineComponent} from 'vue';
             console.log(e);
           })
           .finally(() => {});
-
 
         this.resetIdx();
       },

@@ -44,12 +44,3 @@ var sensitiveConfigItems = map[string]bool{
 func IsSensitiveConfigItem(item string) bool {
 	return sensitiveConfigItems[item]
 }
-
-// SensitiveConfigItemList 返回密钥类配置项清单（供存量迁移按 item 过滤行）。
-func SensitiveConfigItemList() []string {
-	items := make([]string, 0, len(sensitiveConfigItems))
-	for k := range sensitiveConfigItems {
-		items = append(items, k)
-	}
-	return items
-}

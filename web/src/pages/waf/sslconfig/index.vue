@@ -156,17 +156,12 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import {
   SearchIcon
 } from '@/ui/icons';
 import Trend from '@/components/trend/index.vue';
-import {
-  prefix
-} from '@/config/global';
-import {
-  sslConfigListApi, sslConfigDelApi, sslConfigEditApi, sslConfigAddApi, sslConfigDetailApi
-} from '@/apis/sslconfig';
+
+import { sslConfigListApi, sslConfigDelApi, sslConfigEditApi, sslConfigAddApi } from '@/apis/sslconfig';
 
 const INITIAL_DATA = {
   cert_content: '',

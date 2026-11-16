@@ -50,7 +50,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
   import {
     SearchIcon
   } from '@/ui/icons';
@@ -58,19 +57,6 @@ import {defineComponent} from 'vue';
   import {
     prefix
   } from '@/config/global';
-  import {
-    sys_log_list_api
-  } from '@/apis/syslog';
-
-
-  import {
-    SSL_STATUS,
-    GUARD_STATUS,
-    CONTRACT_STATUS,
-    CONTRACT_STATUS_OPTIONS,
-    CONTRACT_TYPES,
-    CONTRACT_PAYMENT_TYPES
-  } from '@/constants';
 
   const INITIAL_DATA = {
     login_account: '',

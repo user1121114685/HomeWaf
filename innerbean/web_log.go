@@ -213,11 +213,3 @@ var recordIPFailureThreshold func(string, int64, int64)
 func SetIPFailureThresholdRecorder(fn func(string, int64, int64)) {
 	recordIPFailureThreshold = fn
 }
-
-type WAFLog struct {
-	REQ_UUID    string `json:"req_uuid"`
-	ACTION      string `json:"action"`
-	RULE        string `json:"rule"`
-	CREATE_TIME string `json:"create_time"`
-	USER_CODE   string `json:"user_code"`
-}

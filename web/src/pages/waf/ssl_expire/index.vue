@@ -9,7 +9,6 @@
 
           <hw-button @click="handleCheck"> {{ $t('page.ssl_expire.button_check') }} </hw-button>
 
-
           <hw-button @click="handleSyncHost"> {{ $t('page.ssl_expire.button_sync_host') }} </hw-button>
 
           <hw-button @click="getList('all')"> {{ $t('common.refresh') }} </hw-button>
@@ -52,13 +51,9 @@
       </div>
     </hw-card>
 
-
     <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="680" :footer="false">
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
-
-
-
 
           <hw-form-item :label="$t('page.ssl_expire.domain')" name="domain">
             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.domain" ></hw-input>
@@ -79,9 +74,6 @@
     <hw-dialog :header="$t('common.edit')" v-model:visible="editFormVisible" :width="680" :footer="false">
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100">
-
-
-
 
           <hw-form-item :label="$t('page.ssl_expire.domain')" name="domain">
             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.domain" ></hw-input>
@@ -108,7 +100,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import {
   SearchIcon
 } from '@/ui/icons';
@@ -125,8 +116,6 @@ import {
 } from '@/apis/ssl_expire.ts';
 
 const INITIAL_DATA = {
-
-
 
   domain:'',
   port:'443',
@@ -236,9 +225,7 @@ export default defineComponent({
   computed: {
     confirmBody() {
       if (this.deleteIdx > -1) {
-        const {
-          host
-        } = this.data?. [this.deleteIdx];
+
         return this.$t('common.data_delete_warning');
       }
       return '';
@@ -382,18 +369,7 @@ export default defineComponent({
           ...that.formData
         }
 
-
-
-
-
-
         postdata['port'] = Number(postdata['port'])
-
-
-
-
-
-
 
         wafSslExpireAddApi({...postdata})
           .then((res) => {
@@ -428,18 +404,7 @@ export default defineComponent({
           ...that.formEditData
         }
 
-
-
-
-
-
         postdata['port'] = Number(postdata['port'])
-
-
-
-
-
-
 
         wafSslExpireEditApi({...postdata})
           .then((res) => {
@@ -502,7 +467,6 @@ export default defineComponent({
         })
         .finally(() => {});
 
-
       this.resetIdx();
     },
     onCancel() {
@@ -522,19 +486,7 @@ export default defineComponent({
           if (resdata.code === 0) {
             that.detail_data = resdata.data;
 
-
-
-
-
-
-
             that.detail_data.port = that.detail_data.port.toString()
-
-
-
-
-
-
 
             that.formEditData = {
               ...that.detail_data

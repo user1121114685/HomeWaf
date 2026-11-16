@@ -27,15 +27,6 @@ export function saveIPDBConfigApi(data: any = {}) {
   })
 }
 
-// IP数据库管理 - 上传文件
-export function uploadIPDBFileApi(data: any = {}) {
-  return request({
-    url: '/iplocation/upload',
-    method: 'post',
-    data: data
-  })
-}
-
 // IP数据库管理 - 重新加载
 export function reloadIPDBApi() {
   return request({

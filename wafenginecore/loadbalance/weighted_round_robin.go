@@ -7,7 +7,6 @@ import (
 
 type WeightRoundRobinBalance struct {
 	hostCode string
-	curIndex int
 	rss      []*WeightNode
 }
 

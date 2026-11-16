@@ -52,13 +52,6 @@ var ruleSkipModuleSet = func() map[string]bool {
 	return m
 }()
 
-// RuleSkipModules 返回允许跳过的模块名列表（供接口/前端提示使用）
-func RuleSkipModules() []string {
-	out := make([]string, len(ruleSkipModules))
-	copy(out, ruleSkipModules)
-	return out
-}
-
 // RuleActionInfo 一条规则的动作信息
 type RuleActionInfo struct {
 	Action      string   // deny / allow / log / ban

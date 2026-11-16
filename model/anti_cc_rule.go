@@ -154,18 +154,6 @@ func CCStatDimNeedsField(dim string) bool {
 	return false
 }
 
-// CCStatDimForgeable 判断该统计维度是否可被客户端伪造。
-//
-// 这类维度只要攻击者每个请求换一个值就能绕开限频，界面必须给出提示；
-// 它同时也是计数器 key 膨胀的来源，落地时要配合截断、哈希与配额。
-func CCStatDimForgeable(dim string) bool {
-	switch dim {
-	case CCStatDimHeader, CCStatDimCookie, CCStatDimQuery, CCStatDimBody, CCStatDimSession:
-		return true
-	}
-	return false
-}
-
 var (
 	ccValidMatchModes  = map[string]bool{CCMatchModeAll: true, CCMatchModeSimple: true, CCMatchModeExpr: true}
 	ccValidCountPhases = map[string]bool{CCCountPhaseRequest: true, CCCountPhaseResponse: true}

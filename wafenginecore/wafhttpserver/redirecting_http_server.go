@@ -5,29 +5,16 @@ package wafhttpserver
 import (
 	"HomeWaf/global"
 	"fmt"
-	"github.com/pires/go-proxyproto"
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/pires/go-proxyproto"
 )
 
 type RedirectingHTTPSServer struct {
 	*http.Server
 	ExtConfig string
-}
-
-func (s *RedirectingHTTPSServer) ListenAndServeTLS(certFile, keyFile string) error {
-	addr := s.Addr
-	if addr == "" {
-		addr = ":https"
-	}
-
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-
-	return s.ServeTLSWithListener(listener, certFile, keyFile)
 }
 
 // ServeTLSWithListener 在外部提供的 listener 上启动 TLS 服务（用于端口复用监听等场景）。

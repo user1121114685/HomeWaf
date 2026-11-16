@@ -43,15 +43,6 @@ export function deleteNotifyChannel(params: any = {}) {
   })
 }
 
-//详情
-export function getNotifyChannelDetail(params: any = {}) {
-  return request({
-    url: '/notify/channel/detail',
-    method: 'get',
-    params: params
-  })
-}
-
 //测试连接
 export function testNotifyChannel(params: any = {}) {
   return request({

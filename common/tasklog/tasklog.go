@@ -440,38 +440,6 @@ func (m *TaskLogManager) ClearLog(taskMethod string) error {
 	return f.Close()
 }
 
-// CleanExpiredLogs 扫描日志目录，删除超过各任务保留策略的过期备份文件
-func (m *TaskLogManager) CleanExpiredLogs() {
-	if m == nil {
-		return
-	}
-	// 使用全局 retainDays 作为兜底清理基准（单个任务的短保留由 lumberjack MaxAge 自行处理）
-	cutoff := time.Now().AddDate(0, 0, -m.retainDays)
-
-	entries, err := os.ReadDir(m.logDir)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if !strings.HasSuffix(name, ".log") &&
-			!strings.HasSuffix(name, ".gz") &&
-			!strings.Contains(name, ".log-") {
-			continue
-		}
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		if info.ModTime().Before(cutoff) {
-			_ = os.Remove(filepath.Join(m.logDir, name))
-		}
-	}
-}
-
 // UpdateRetainDays 动态更新全局默认保留天数，并刷新未被任务级别覆盖的 writer
 func (m *TaskLogManager) UpdateRetainDays(days int) {
 	if m == nil || days <= 0 {

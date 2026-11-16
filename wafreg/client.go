@@ -33,10 +33,6 @@ func GenClientMachineInfo() model.MachineInfo {
 	return info
 }
 
-// Legacy RSA requests are deliberately unsupported: HomeWaf uses signed v2 licenses.
-func GenClientMachineInfoWithEncrypt() (string, error) {
-	return "", errors.New("legacy registration requests are unsupported; use the v2 instance ID")
-}
 func verify(document []byte) (licensing.Claims, error) {
 	keys, err := licensing.ParseKeyring(licensing.TrustedKeysJSON)
 	if err != nil {

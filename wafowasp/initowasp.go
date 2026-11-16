@@ -477,34 +477,3 @@ func (w *WafOWASP) collectTransactionDetails(tx types.Transaction, matched []typ
 
 	return details
 }
-
-// 处理响应
-func (w *WafOWASP) ProcessResponse(tx types.Transaction, statusCode int, headers http.Header, body []byte) (*types.Interruption, error) {
-	if !w.IsActive {
-		return nil, nil
-	}
-
-	for name, values := range headers {
-		for _, value := range values {
-			tx.AddResponseHeader(name, value)
-		}
-	}
-
-	if it := tx.ProcessResponseHeaders(statusCode, "HTTP/1.1"); it != nil {
-		return it, nil
-	}
-
-	if len(body) > 0 {
-		if _, _, err := tx.WriteResponseBody(body); err != nil {
-			return nil, fmt.Errorf("failed to write response body: %v", err)
-		}
-	}
-
-	if it, err := tx.ProcessResponseBody(); err != nil {
-		return nil, fmt.Errorf("response body processing error: %v", err)
-	} else if it != nil {
-		return it, nil
-	}
-
-	return nil, nil
-}

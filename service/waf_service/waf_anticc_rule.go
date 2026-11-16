@@ -346,13 +346,6 @@ func (receiver *WafAntiCCRuleService) GetListApi(req request.WafAntiCCRuleSearch
 	return list, total, err
 }
 
-// GetAllByHost 取某网站的全部规则（不分页），供引擎加载与默认模板判断使用。
-func (receiver *WafAntiCCRuleService) GetAllByHost(hostCode string) []model.AntiCCRule {
-	var list []model.AntiCCRule
-	global.GWAF_LOCAL_DB.Where("host_code = ?", hostCode).Order("priority asc").Find(&list)
-	return list
-}
-
 // CreateDefaultRules 为新建的网站生成一套开箱可用的 CC 规则。
 //
 // 阈值取自公开可查的行业参考值并按「排除静态资源后」折算：静态资源不计数之后，

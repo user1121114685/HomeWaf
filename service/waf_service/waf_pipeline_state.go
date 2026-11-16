@@ -10,12 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type WafPipelineStateService struct {
@@ -261,14 +261,6 @@ func (s *WafPipelineStateService) PruneLogs(ctx context.Context) {
 			}
 		}
 	}
-}
-
-func pipelineStateSummary(rows []wafpipeline.PunishmentRecord) map[string]int {
-	out := map[string]int{}
-	for _, r := range rows {
-		out[strings.ToLower(r.Kind)]++
-	}
-	return out
 }
 
 func (s *WafPipelineStateService) LoadMetrics() error {

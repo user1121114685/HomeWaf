@@ -308,16 +308,6 @@ func (fw *FireWallEngine) incrementalIPSet(setName string, ips []string, op stri
 	return fw.ipsetRestore(b.String())
 }
 
-// FlushIPSet 清空集合内容(保留集合与引用规则)
-func (fw *FireWallEngine) FlushIPSet(setName string) error {
-	if err := validateSetName(setName); err != nil {
-		return err
-	}
-	fw.runFirewallCmd("ipset", "flush", setName)
-	fw.runFirewallCmd("ipset", "flush", v6SetName(setName))
-	return nil
-}
-
 // DestroyIPSet 先摘除 INPUT 引用规则，再销毁 v4/v6 集合(set 被引用时无法 destroy)
 func (fw *FireWallEngine) DestroyIPSet(setName string) error {
 	if err := validateSetName(setName); err != nil {

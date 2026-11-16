@@ -129,12 +129,6 @@ func (receiver *WafNotifySenderService) DispatchEvents(sub model.NotifySubscript
 	}
 }
 
-// SendNotification 发送通知（兼容入口：只有标题正文、没有结构化变量的调用方仍可使用）
-func (receiver *WafNotifySenderService) SendNotification(messageType, title, content string) {
-	ev := newNotifyEvent(messageType, title, content)
-	receiver.SendEvent(ev)
-}
-
 // logSuppressed 记录一条被抑制的通知
 //
 // 关键约束：抑制日志本身不能刷库。写不写由频控引擎决定（一个抑制窗口只写一条），
@@ -362,32 +356,6 @@ func (receiver *WafNotifySenderService) FormatIPBanMessage(ip, reason, time stri
 }
 
 // ========== 消息映射方法：将旧消息结构转换为新格式 ==========
-
-// FormatMessageByType 根据消息类型格式化消息（统一入口）
-func (receiver *WafNotifySenderService) FormatMessageByType(messageInfo interface{}) (messageType, title, content string) {
-	switch msg := messageInfo.(type) {
-	case innerbean.RuleMessageInfo:
-		return receiver.FormatRuleMessage(msg)
-	case innerbean.OperatorMessageInfo:
-		return receiver.FormatOperatorMessage(msg)
-	case innerbean.UserLoginMessageInfo:
-		return receiver.FormatUserLoginMessageFromBean(msg)
-	case innerbean.AttackInfoMessageInfo:
-		return receiver.FormatAttackInfoMessageFromBean(msg)
-	case innerbean.WeeklyReportMessageInfo:
-		return receiver.FormatWeeklyReportMessageFromBean(msg)
-	case innerbean.SSLExpireMessageInfo:
-		return receiver.FormatSSLExpireMessageFromBean(msg)
-	case innerbean.SystemErrorMessageInfo:
-		return receiver.FormatSystemErrorMessageFromBean(msg)
-	case innerbean.IPBanMessageInfo:
-		return receiver.FormatIPBanMessageFromBean(msg)
-	case innerbean.AccessMessageInfo:
-		return receiver.FormatAccessMessageFromBean(msg)
-	default:
-		return "", "", ""
-	}
-}
 
 // FormatRuleMessage 格式化规则触发消息（映射旧的 RuleMessageInfo）
 func (receiver *WafNotifySenderService) FormatRuleMessage(msg innerbean.RuleMessageInfo) (string, string, string) {

@@ -12,7 +12,6 @@ import (
 type WafNotifyService struct {
 	notifier wafinterface.WafNotify
 	enable   int64
-	isStart  int64
 }
 
 // 初始化 NotifyService
@@ -34,26 +33,6 @@ func (ls *WafNotifyService) GetNotifier() wafinterface.WafNotify {
 		return nil
 	}
 	return ls.notifier
-}
-
-// 处理并发送单条日志
-func (ls *WafNotifyService) ProcessSingleLog(log *innerbean.WebLog) error {
-	if ls == nil || ls.enable == 0 {
-		return nil
-	}
-	if ls.notifier == nil {
-		zlog.Debug("not init kafka")
-		return nil
-	}
-
-	// 日志处理逻辑
-	zlog.Debug("Processing single log...")
-
-	// 通知处理
-	if err := ls.notifier.NotifySingle(log.RedactedCopy()); err != nil {
-		return fmt.Errorf("failed to notify single log: %v", err)
-	}
-	return nil
 }
 
 // 处理并发送多条日志

@@ -163,19 +163,6 @@ func fillRuleSalience(rules []model.Rules) {
 	}
 }
 
-func (receiver *WafRuleService) GetListByHostCodeApi(wafRuleSearchReq request.WafRuleSearchReq) ([]model.Rules, int64, error) {
-	var total int64 = 0
-	var rules []model.Rules
-	// tenant/user 由 before_query 自动追加，这里只传 host_code（占位符与参数数须一致，避免参数顺移）
-	global.GWAF_LOCAL_DB.Where("host_code = ? and rule_status <> 999 ",
-		wafRuleSearchReq.HostCode).Limit(wafRuleSearchReq.PageSize).Offset(wafRuleSearchReq.PageSize * (wafRuleSearchReq.PageIndex - 1)).Find(&rules)
-	global.GWAF_LOCAL_DB.Where("host_code = ? and rule_status <> 999",
-		wafRuleSearchReq.HostCode).Model(&model.Rules{}).Count(&total)
-
-	fillRuleSalience(rules)
-	return rules, total, nil
-}
-
 func (receiver *WafRuleService) DelRuleApi(req request.WafRuleDelReq) error {
 	var rule model.Rules
 	err := global.GWAF_LOCAL_DB.Where("rule_code = ?", req.CODE).First(&rule).Error

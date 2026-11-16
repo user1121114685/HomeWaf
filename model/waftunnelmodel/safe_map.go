@@ -39,34 +39,6 @@ func (m *SafeTunnelMap) Delete(key string) {
 	delete(m.items, key)
 }
 
-// Range 遍历Map
-func (m *SafeTunnelMap) Range(f func(key string, value *TunnelSafe) bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for k, v := range m.items {
-		if !f(k, v) {
-			break
-		}
-	}
-}
-
-// Len 获取Map长度
-func (m *SafeTunnelMap) Len() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return len(m.items)
-}
-
-// GetAll 获取所有值
-func (m *SafeTunnelMap) GetAll() map[string]*TunnelSafe {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	result := make(map[string]*TunnelSafe, len(m.items))
-	for k, v := range m.items {
-		result[k] = v
-	}
-	return result
-}
 func (m *SafeTunnelMap) Clear() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -106,24 +78,6 @@ func (m *SafeNetMap) Delete(key string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.items, key)
-}
-
-// Range 遍历Map
-func (m *SafeNetMap) Range(f func(key string, value NetRunTime) bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for k, v := range m.items {
-		if !f(k, v) {
-			break
-		}
-	}
-}
-
-// Len 获取Map长度
-func (m *SafeNetMap) Len() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return len(m.items)
 }
 
 // GetAll 获取所有值

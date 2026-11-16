@@ -48,16 +48,8 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import { MessagePlugin } from '@/ui';
-import {
-  ServiceIcon,
-  BookOpenIcon,
-  LogoGithubIcon,
-  GitRepositoryIcon,
-  MailIcon,
-  LogoWechatStrokeIcon,
-} from '@/ui/icons';
+import { ServiceIcon, BookOpenIcon, LogoWechatStrokeIcon } from '@/ui/icons';
 import { SysRuntimeInfoApi } from '@/apis/sysinfo';
 
 // 版本号里带 beta / test / alpha / rc 的是预发布版本，必须明确标成"测试版"，

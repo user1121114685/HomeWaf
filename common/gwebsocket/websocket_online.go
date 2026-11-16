@@ -198,18 +198,6 @@ func (wafWebsocket *WebSocketOnline) BroadcastBuild(messageType Wssocket.Message
 	return successCount
 }
 
-// PingAll 给所有在线连接发心跳，失败的连接摘除
-func (wafWebsocket *WebSocketOnline) PingAll() {
-	for _, wsConn := range wafWebsocket.snapshot() {
-		if wsConn == nil {
-			continue
-		}
-		if err := wsConn.SafePing(); err != nil {
-			wafWebsocket.CloseSession(wsConn.SessionID)
-		}
-	}
-}
-
 // PingSession 给指定会话发心跳
 func (wafWebsocket *WebSocketOnline) PingSession(sessionID string) error {
 	wsConn := wafWebsocket.getSession(sessionID)
@@ -232,20 +220,6 @@ func (wafWebsocket *WebSocketOnline) CloseSession(sessionID string) {
 		// Close 与其他方法并发调用是安全的，放在锁外做，避免阻塞其他会话
 		wsConn.Conn.CloseNow()
 	}
-}
-
-// 根据会话ID删除WebSocket连接
-func (wafWebsocket *WebSocketOnline) DelWebSocketBySession(sessionID string) error {
-	wafWebsocket.Mux.Lock()
-	defer wafWebsocket.Mux.Unlock()
-
-	wsConn, found := wafWebsocket.SocketMap[sessionID]
-	if !found {
-		return errors.New("未找到会话")
-	}
-
-	wafWebsocket.removeSessionLocked(sessionID, wsConn.UserKey)
-	return nil
 }
 
 // removeSessionLocked 从两张表里摘除会话，调用方需持有 Mux

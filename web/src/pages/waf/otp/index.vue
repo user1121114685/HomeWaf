@@ -46,7 +46,6 @@
           </hw-form>
         </hw-alert>
 
-
       </div>
       <div>
       <router-view></router-view>
@@ -56,7 +55,6 @@
 </template>
 <script lang="ts">
 import {defineComponent} from 'vue';
-
 
   import QrcodeVue from 'qrcode.vue'
 
@@ -75,14 +73,6 @@ import {defineComponent} from 'vue';
     wafOtpInitApi,wafOtpBindApi,wafOtpUnBindApi
   } from '@/apis/otp.ts';
 
-  const INITIAL_DATA = {
-    user_name:'',
-    is_enable_otp:'',
-    url:'',
-    secret:'',
-    remarks:'',
-
-  };
   export default defineComponent({
     name: 'OtpBase',
     components: {
@@ -152,9 +142,7 @@ import {defineComponent} from 'vue';
     computed: {
       confirmBody() {
         if (this.deleteIdx > -1) {
-          const {
-            host
-          } = this.data?. [this.deleteIdx];
+
           return this.$t('common.data_delete_warning');
         }
         return '';

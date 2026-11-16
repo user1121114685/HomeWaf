@@ -14,7 +14,6 @@ import (
 	"net/netip"
 	"net/url"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -377,4 +376,3 @@ func (f *SignedFeed) Reset() {
 	f.status.NextAttempt = 0
 	f.failures = 0
 }
-func FeedVersion(sequence uint64) string { return strconv.FormatUint(sequence, 10) }

@@ -29,8 +29,6 @@ type StreamProcessor struct {
 	readBuf        []byte // 复用的上游读缓冲，避免每次 Read 都分配
 	eofSeen        bool   // 上游是否已结束
 	eofErr         error  // 上游结束时带回来的错误(通常是 io.EOF)
-	lineBuffer     strings.Builder
-	isInEvent      bool
 }
 
 // 创建流式处理器

@@ -97,15 +97,6 @@ export function sslOrderAddApi(params: any = {}) {
   });
 }
 
-// SSL 订单 - 获取详情
-export function sslOrderDetailApi(params: any = {}) {
-  return request({
-    url: '/wafhost/sslorder/detail',
-    method: 'get',
-    params: params,
-  });
-}
-
 export function sslOrderRetryApi(data: { id: string; request_id: string }) {
   return request({ url: '/wafhost/sslorder/retry', method: 'post', data });
 }

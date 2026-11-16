@@ -140,7 +140,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
   import {
     SearchIcon
   } from '@/ui/icons';
@@ -302,9 +301,7 @@ import {defineComponent} from 'vue';
     computed: {
       confirmBody() {
         if (this.deleteIdx > -1) {
-          const {
-            url
-          } = this.data?. [this.deleteIdx];
+
           return this.$t('common.data_delete_warning');
         }
         return '';
@@ -632,7 +629,6 @@ import {defineComponent} from 'vue';
             console.log(e);
           })
           .finally(() => {});
-
 
         this.resetIdx();
       },

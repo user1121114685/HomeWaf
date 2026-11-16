@@ -3,17 +3,7 @@
 import proxy from '../config/host';
 const env = import.meta.env.MODE || 'development';
 export {AesEncrypt,AesDecrypt} from './legacyCipher';
-export function copyObj(obj: any): any {
-     const newObj: any =Array.isArray(obj) ? [] : {}
-      for (let key in obj) {
-          if (typeof obj[key] !== 'object') {
-              newObj[key] = obj[key];
-          } else {
-              newObj[key] = copyObj(obj[key]);
-          }
-      }
-      return newObj;
-}
+
 export function getBaseUrl(){
   const API_HOST = env === 'mock' ? '/' : proxy[env].API; // 如果是mock模式 就不配置host 会走本地Mock拦截
   return API_HOST
@@ -40,15 +30,6 @@ export const isObject = (obj, isEffective = false) => {
     return false;
   }
 };
-
-/**
- * value 是否在list中
- * @param value
- * @param list
- */
-export const isInList=(value: any, list: any[] = [])=> {
-  return list.includes(value);
-}
 
 /**
  * Get default value

@@ -10,15 +10,6 @@ export function account_list_api(data: any = {}) {
   })
 }
 
-
-//查询所有账号操作日志列表
-export function account_log_list_api(params: any = {}) {
-  return request({
-    url: 'account_log/list',
-    method: 'get',
-    params: params
-  })
-}
 // 重置2Fa
 export function account_reset_2fa_api(data: any = {}) {
   return request({

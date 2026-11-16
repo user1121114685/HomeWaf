@@ -40,7 +40,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import {
   SearchIcon
 } from '@/ui/icons';
@@ -49,11 +48,7 @@ import {
   prefix
 } from '@/config/global';
 
-
-import {
-  wafAntiCCAddApi,
-  wafAntiCCBanIPListApi, wafAntiCCRemoveBanIpApi
-} from '@/apis/anticc';
+import { wafAntiCCBanIPListApi, wafAntiCCRemoveBanIpApi } from '@/apis/anticc';
 import { allhost } from '@/apis/host';
 
 const INITIAL_DATA = {
@@ -194,9 +189,7 @@ export default defineComponent({
     },
     confirmBody() {
       if (this.deleteIdx > -1) {
-        const {
-          url
-        } = this.data?. [this.deleteIdx];
+
         return this.$t('common.data_delete_warning');
       }
       return '';

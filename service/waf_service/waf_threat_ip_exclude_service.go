@@ -447,21 +447,6 @@ func (r *WafThreatIPExcludeService) promoteVolatile(hits []excludeEntry) {
 	}
 }
 
-// ApplyHitCounts 回写各排除条目"本轮实际剔除了多少条"。
-//
-// 这个数字是给用户看的：最典型的误用是排除了 1.2.3.4，而快照里其实是 1.2.3.0/24，
-// 此时 hit_count 恒为 0，用户一眼就能看出"写了但没生效"。
-func (r *WafThreatIPExcludeService) ApplyHitCounts(hits map[string]int) {
-	if len(hits) == 0 {
-		return
-	}
-	now := time.Now().Unix()
-	for id, n := range hits {
-		global.GWAF_LOCAL_DB.Model(&model.ThreatIPExclude{}).Where("id = ?", id).
-			Updates(map[string]interface{}{"hit_count": n, "last_hit_at": now, "update_time": customtype.JsonTime(time.Now())})
-	}
-}
-
 // ---------- 增删改查 ----------
 
 // PreviewResult 试算结果：这条排除会影响哪些渠道、剔掉多少条

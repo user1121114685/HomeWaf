@@ -854,10 +854,7 @@ import { allLogServices } from '@/apis/host';
 import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemconfig';
 import { get_ui_preference_api, save_ui_preference_api } from '@/apis/uipreference';
 
-const staticColumn = ['op'];
-
 // 默认不显示的可选列：新增后不会被"新列自动加入"逻辑塞进已有用户的可见列，需用户主动勾选
-const OPT_OUT_NEW_COLUMNS = ['host_nickname', 'ai_score', 'user_agent', 'referer'];
 
 // 列配置持久化：服务端（按登录账号）为准，localStorage 只作首屏秒开缓存 + 接口不可用兜底。
 // v2 起把"可见列"与"用户已见过的列基线"合并到同一个 key，
@@ -884,24 +881,6 @@ const ROUTE_FILTER_QUERY_KEYS = [
 ];
 // 外部页面可用这两个 query 指定日期区间（形如 2026-07-01 00:00:00），不传则用"今天"
 const ROUTE_DATE_QUERY_KEYS = ['date_begin', 'date_end'];
-
-const GROUP_COLUMNS = [
-  {
-    label: '正常维度',
-    value: 'index',
-    columns: ['action', 'rule', 'create_time'],
-  },
-  {
-    label: '次要维度',
-    value: 'secondary',
-    columns: ['action', 'rule', 'create_time'],
-  },
-  {
-    label: '数据维度',
-    value: 'data',
-    columns: ['action', 'rule', 'create_time'],
-  },
-];
 
 export default defineComponent({
   name: 'WebLogList',
@@ -1647,7 +1626,7 @@ export default defineComponent({
     // 保存列配置（本地缓存 + 服务端）
     saveColumnConfig(successMsgKey) {
       // known 更新为全量：用户此刻正看着列配置弹窗里的全部字段，等价于"全部已见过"，
-      // 这保证他主动取消的列（含 OPT_OUT_NEW_COLUMNS 里的列）之后不会被"新列自动加入"逻辑加回
+      // 这保证主动取消的列之后不会被"新列自动加入"逻辑加回
       this.persistColumnConfigLocalSafe(this.displayColumns, this.allColumnFieldKeys());
       // 成功提示等服务端返回后再弹，避免与调用方的提示重复/乱序
       const successKey = successMsgKey || 'common.column_config_saved';
@@ -1821,7 +1800,7 @@ export default defineComponent({
           console.log('loadShareDbList', resdata);
           if (resdata.code === 0) {
             let share_options = resdata.data;
-            let currentName = '';
+
             that.shardRows = share_options;
             const gLive = { label: that.$t('page.visit_log.shard_group_live'), options: [] };
             const gPeriod = { label: that.$t('page.visit_log.shard_group_period'), options: [] };
@@ -1834,7 +1813,6 @@ export default defineComponent({
               const opt = { value: it.file_name, label: label, disabled: !!it.missing };
               // 后端按驱动标记当前(实时)分片：SQLite=local_log.db，MySQL=web_logs
               if (it.is_current) {
-                currentName = it.file_name;
                 gLive.options.push(opt);
               } else if (it.period_key) {
                 gPeriod.options.push(opt);

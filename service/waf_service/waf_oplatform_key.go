@@ -29,13 +29,6 @@ type WafOPlatformKeyService struct{}
 
 var WafOPlatformKeyServiceApp = new(WafOPlatformKeyService)
 
-// genRandomHex 生成随机十六进制字符串
-func genRandomHex(n int) string {
-	b := make([]byte, n)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}
-
 // maskApiKey 对 API Key 做脱敏，保留前6位和后4位，中间替换为 ****
 func maskApiKey(key string) string {
 	if len(key) <= 10 {

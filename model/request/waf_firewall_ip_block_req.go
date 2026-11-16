@@ -74,7 +74,3 @@ type WafFirewallIPBlockDisableReq struct {
 type WafFirewallIPBlockSyncReq struct {
 	HostCode string `json:"host_code"` // 网站唯一码（可选，为空则同步所有）
 }
-
-// WafFirewallIPBlockClearExpiredReq 清理过期规则请求
-type WafFirewallIPBlockClearExpiredReq struct {
-}

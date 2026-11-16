@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -781,9 +780,7 @@ func (s *WafPipelineService) Copy(source, target uint16, includeIPs bool) (wafpi
 	}
 	return c, nil
 }
-func (s *WafPipelineService) CheckUpstream(raw string) (string, error) {
-	return s.CheckUpstreamDial(raw, "")
-}
+
 func (s *WafPipelineService) CheckUpstreamDial(raw, dialIP string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil {
@@ -844,9 +841,4 @@ func (s *WafPipelineService) CheckNewPort(c wafpipeline.PortConfig) error {
 		return errors.New("端口已被进程占用或不可监听")
 	}
 	return listener.Close()
-}
-func (s *WafPipelineService) SortedPorts() []uint16 {
-	ports := wafpipeline.Ports.Ports()
-	sort.Slice(ports, func(i, j int) bool { return ports[i] < ports[j] })
-	return ports
 }

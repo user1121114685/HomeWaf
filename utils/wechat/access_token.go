@@ -62,27 +62,3 @@ func GetAppAccessToken(appId, appSecret string) (r TokenResponse, err error) {
 
 	return
 }
-
-func GetCropAccessToken(corpId, agentSecret string) (r TokenResponse, err error) {
-	params := url.Values{}
-	u, _ := url.Parse("https://qyapi.weixin.qq.com/cgi-bin/gettoken")
-	params.Set("corpid", corpId)
-	params.Set("corpsecret", agentSecret)
-	u.RawQuery = params.Encode()
-	path := u.String()
-
-	resp, err := http.Get(path)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	err = json.Unmarshal(body, &r)
-	if err != nil {
-		return
-	}
-
-	return
-}

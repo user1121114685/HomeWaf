@@ -132,9 +132,3 @@ func (s *WafHostPathRuleService) DelApi(req request.WafHostPathRuleDelReq) error
 	}
 	return global.GWAF_LOCAL_DB.Where("id = ?", req.Id).Delete(model.HostPathRule{}).Error
 }
-
-func (s *WafHostPathRuleService) GetListByHostCode(hostCode string) []model.HostPathRule {
-	var list []model.HostPathRule
-	global.GWAF_LOCAL_DB.Where("host_code=?", hostCode).Order("priority asc, create_time asc").Find(&list)
-	return list
-}

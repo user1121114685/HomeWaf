@@ -19,14 +19,7 @@ export function wafIPGroupOptionsApi() {
     method: 'get'
   })
 }
-//详细IP组
-export function wafIPGroupDetailApi(params: any = {}) {
-  return request({
-    url: '/wafhost/ipgroup/detail',
-    method: 'get',
-    params: params
-  })
-}
+
 //添加IP组
 export function wafIPGroupAddApi(params: any = {}) {
   return request({
@@ -78,14 +71,7 @@ export function wafIPGroupItemListApi(params: any = {}) {
     data: params
   })
 }
-//详细组内IP
-export function wafIPGroupItemDetailApi(params: any = {}) {
-  return request({
-    url: '/wafhost/ipgroupitem/detail',
-    method: 'get',
-    params: params
-  })
-}
+
 //添加组内IP
 export function wafIPGroupItemAddApi(params: any = {}) {
   return request({

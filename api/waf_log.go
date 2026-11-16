@@ -135,26 +135,6 @@ func logExportAPIChanged(c *gin.Context) {
 	response.FailWithDetailed(gin.H{"error_code": "EXPORT_API_CHANGED"},
 		"日志导出接口已更新，请升级管理端后通过导出任务创建和下载日志包", c)
 }
-func (w *WafLogAPi) GetListByHostCodeApi(c *gin.Context) {
-	var req request.WafAttackLogSearch
-	err := c.ShouldBind(&req)
-	if err == nil {
-		if global.GDATA_CURRENT_CHANGE {
-			//如果正在切换库 跳过
-			response.FailWithMessage("正在切换数据库请等待", c)
-			return
-		}
-		wafLogs, total, _ := wafLogService.GetListByHostCodeApi(req)
-		response.OkWithDetailed(response.PageResult{
-			List:      wafLogs,
-			Total:     total,
-			PageIndex: req.PageIndex,
-			PageSize:  req.PageSize,
-		}, "获取成功", c)
-	} else {
-		response.FailWithMessage("解析失败", c)
-	}
-}
 
 func (w *WafLogAPi) GetAllShareDbApi(c *gin.Context) {
 	wafShareList, _ := wafShareDbService.GetAllShareDbWithTiers()

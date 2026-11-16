@@ -56,7 +56,6 @@
       </div>
     </hw-card>
 
-
     <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="720" :footer="false">
       <template #body><div >
         <tunnel-form :value="formData" @close="onClickCloseBtn" @submit="onSubmit"></tunnel-form>
@@ -83,7 +82,6 @@
 </template>
 <script lang="ts">
 import {defineComponent} from 'vue';
-
 
 import {
   SearchIcon
@@ -172,14 +170,12 @@ export default defineComponent({
           colKey: 'remote_port',
         },
 
-
         {
           title: this.$t('page.tunnel.remote_ip'),
           width: 100,
           ellipsis: true,
           colKey: 'remote_ip',
         },
-
 
         {
           title: this.$t('page.tunnel.allow_ip'),
@@ -188,14 +184,12 @@ export default defineComponent({
           colKey: 'allow_ip',
         },
 
-
         {
           title: this.$t('page.tunnel.deny_ip'),
           width: 200,
           ellipsis: true,
           colKey: 'deny_ip',
         },
-
 
         {
           title: this.$t('page.tunnel.allowed_time_ranges'),
@@ -216,7 +210,6 @@ export default defineComponent({
           ellipsis: true,
           colKey: 'conn_timeout',
         },
-
 
         {
           title: this.$t('page.tunnel.remark'),
@@ -261,9 +254,7 @@ export default defineComponent({
   computed: {
     confirmBody() {
       if (this.deleteIdx > -1) {
-        const {
-          host
-        } = this.data?.[this.deleteIdx];
+
         return this.$t('common.data_delete_warning');
       }
       return '';
@@ -462,7 +453,6 @@ export default defineComponent({
         })
         .finally(() => { });
 
-
       this.resetIdx();
     },
     onCancel() {
@@ -497,10 +487,6 @@ export default defineComponent({
             that.detail_data.ssl_certificate = that.detail_data.ssl_certificate || ''
             that.detail_data.ssl_certificate_key = that.detail_data.ssl_certificate_key || ''
             that.detail_data.ssl_protocols = that.detail_data.ssl_protocols || 'TLSv1.2 TLSv1.3'
-
-
-
-
 
             that.formEditData = {
               ...that.detail_data

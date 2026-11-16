@@ -194,10 +194,6 @@ func (s *WafAppService) ModifyApi(req request.WafAppEditReq) error {
 	return global.GWAF_LOCAL_DB.Model(&model.WafApp{}).Where("id = ?", req.Id).Updates(updates).Error
 }
 
-func (s *WafAppService) DelApi(req request.WafAppDelReq) error {
-	return global.GWAF_LOCAL_DB.Where("id = ?", req.Id).Delete(&model.WafApp{}).Error
-}
-
 func (s *WafAppService) GetDetailApi(req request.WafAppDetailReq) *model.WafApp {
 	var bean model.WafApp
 	global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&bean)

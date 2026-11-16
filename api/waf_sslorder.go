@@ -4,13 +4,10 @@ package api
 
 import (
 	"HomeWaf/common/zlog"
-	"HomeWaf/global"
 	"HomeWaf/internal/acmelog"
-	"HomeWaf/model"
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
 	"HomeWaf/service/waf_service"
-	"HomeWaf/utils"
 	"errors"
 
 	"github.com/gin-gonic/gin"
@@ -255,27 +252,4 @@ func checkApplyMethod(method string) string {
 		return ""
 	}
 	return "申请方式(apply_method)取值无效，只支持 http01（HTTP 文件验证）或 dns01（DNS 验证），请填写取值而不是界面显示的标签文本"
-}
-
-// http01PortHint 按 80 端口的实际状态给出可操作的提示文案。
-func http01PortHint(proto string) string {
-	if proto == utils.ListenProtoHTTPS {
-		return "80端口当前被设置为 HTTPS 协议，而文件验证(http01)需要以明文 HTTP 访问 " +
-			global.GSSL_HTTP_CHANGLE_PATH + " ，验证会失败。请在网站编辑的「监听端口」里把 80 改为 HTTP，或改用 DNS 验证方式"
-	}
-	return "未在主机上找到80端口配置，请在网站编辑的「监听端口」里增加一个协议为 HTTP 的 80 端口，再进行发起"
-}
-
-// check80Port 检测 80 端口能否承载 ACME http01 文件验证。
-// 端口来源统一走监听表（含显式 port_listens_json 与隐式 80）；协议必须是 http：
-// Let's Encrypt/ZeroSSL 是以明文 HTTP 访问 http://域名/.well-known/acme-challenge/ 的，
-// 80 若被声明为 HTTPS，TLS 握手就失败，挑战永远拿不到。
-// 返回 (是否可用于 http01, 该端口当前协议;不存在时为空)
-func (w *WafSslOrderApi) check80Port(hosts model.Hosts) (bool, string) {
-	for _, listen := range utils.ResolveHostListens(hosts) {
-		if listen.Port == 80 {
-			return listen.Protocol == utils.ListenProtoHTTP, listen.Protocol
-		}
-	}
-	return false, ""
 }

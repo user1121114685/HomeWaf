@@ -13,29 +13,11 @@ export function wafHostConnListApi(params: any = {}) {
   })
 }
 
-// 只取汇总卡片
-export function wafHostConnSummaryApi(params: any = {}) {
-  return request({
-    url: '/hostconn/summary',
-    method: 'get',
-    params: params,
-  })
-}
-
 // 强制刷新快照（丢弃缓存立即重新采集）
 export function wafHostConnRefreshApi(params: any = {}) {
   return request({
     url: '/hostconn/refresh',
     method: 'get',
     params: params,
-  })
-}
-
-// 一键封禁某个连接来源IP
-export function wafHostConnBlockApi(params: any = {}) {
-  return request({
-    url: '/hostconn/block',
-    method: 'post',
-    data: params,
   })
 }

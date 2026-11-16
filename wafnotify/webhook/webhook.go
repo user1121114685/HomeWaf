@@ -394,11 +394,6 @@ func truncateForErr(s string) string {
 	return s
 }
 
-// SendMarkdown 与其他渠道保持一致的调用形态（只有标题正文时使用）
-func (w *WebhookNotifier) SendMarkdown(title, content string) error {
-	return w.Send(Message{Title: title, Content: content})
-}
-
 // Send 渲染报文并投递
 func (w *WebhookNotifier) Send(msg Message) error {
 	// 配置可能是很久以前存下的（甚至被直接改过库），发送前重新校验一次目标地址

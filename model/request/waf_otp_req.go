@@ -2,8 +2,6 @@
 
 package request
 
-import "HomeWaf/model/common/request"
-
 type WafOtpAddReq struct {
 	UserName string `json:"user_name" form:"user_name"`
 	Url      string `json:"url" form:"url"`
@@ -32,9 +30,6 @@ type WafOtpDetailReq struct {
 }
 type WafOtpDelReq struct {
 	Id string `json:"id"   form:"id" binding:"required,max=64"`
-}
-type WafOtpSearchReq struct {
-	request.PageInfo
 }
 type WafOtpUnBindReq struct {
 	SecretCode string `json:"secret_code" form:"secret_code"`

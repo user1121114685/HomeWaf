@@ -322,9 +322,3 @@ func portHostAllowed(names []string, host string) bool {
 func (r *Runtime) Stats() map[string]uint64 {
 	return map[string]uint64{"requests": r.Requests.Load(), "denied": r.Denied.Load()}
 }
-func (r *Runtime) CheckPrepared(s *Snapshot) error {
-	if s.Compiled == nil {
-		return fmt.Errorf("port policy has not been prepared")
-	}
-	return nil
-}

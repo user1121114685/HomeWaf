@@ -3,7 +3,6 @@
 package wafupdate
 
 import (
-	"HomeWaf/binarydist"
 	"HomeWaf/global"
 	"HomeWaf/utils"
 	"bytes"
@@ -13,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/mod/semver"
 	"io"
 	"io/ioutil"
 	"log"
@@ -25,6 +23,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/semver"
 )
 
 const (
@@ -434,13 +434,6 @@ func (u *Updater) updateRelease(beta bool) error {
 	return nil
 }
 
-// fromStream 把新二进制落盘为 .new，再委托 replaceExecutable 完成原地替换。
-// 替换本身(唯一 .old 命名、属性清理、重试、旧二进制处置)统一在 binreplace.go，
-// 与 RollbackExecutable 共用，不要在这里再写一套 rename 技巧。
-func fromStream(updateWith io.Reader) (err error, errRecover error) {
-	return fromStreamWithTracker(updateWith, nil)
-}
-
 // fromStreamWithTracker 与 fromStream 相同，额外在"写完临时文件"与"开始替换"之间打点。
 func fromStreamWithTracker(updateWith io.Reader, tracker *ProgressTracker) (err error, errRecover error) {
 	updatePath, err := os.Executable()
@@ -516,28 +509,6 @@ func (u *Updater) fetchInfo() error {
 	return nil
 }
 
-func (u *Updater) fetchAndVerifyPatch(old io.Reader) ([]byte, error) {
-	bin, err := u.fetchAndApplyPatch(old)
-	if err != nil {
-		return nil, err
-	}
-	if !verifySha(bin, u.Info.Sha256) {
-		return nil, ErrHashMismatch
-	}
-	return bin, nil
-}
-
-func (u *Updater) fetchAndApplyPatch(old io.Reader) ([]byte, error) {
-	r, err := u.fetch(u.DiffURL + url.QueryEscape(u.CmdName) + "/" + url.QueryEscape(u.CurrentVersion) + "/" + url.QueryEscape(u.Info.Version) + "/" + url.QueryEscape(plat))
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-	var buf bytes.Buffer
-	err = binarydist.Patch(old, &buf, r)
-	return buf.Bytes(), err
-}
-
 func (u *Updater) fetchAndVerifyFullBin() ([]byte, error) {
 	u.Tracker.StageStart(StageDownload)
 	bin, err := u.fetchBin()
@@ -602,10 +573,6 @@ func (u *Updater) fetch(url string) (io.ReadCloser, error) {
 	}
 
 	return readCloser, nil
-}
-
-func (u *Updater) GetHttps(url string) {
-
 }
 
 func readTime(path string) time.Time {

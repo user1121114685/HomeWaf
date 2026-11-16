@@ -21,8 +21,7 @@ import (
 )
 
 var (
-	wafTokenInfoService = waf_service.WafTokenInfoServiceApp
-	wafOtpService       = waf_service.WafOtpServiceApp
+	wafOtpService = waf_service.WafOtpServiceApp
 )
 
 // TokenOnlyAuth 仅允许后台 Token 登录访问，拒绝 OpenAPI Key 方式

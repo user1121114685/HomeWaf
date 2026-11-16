@@ -906,7 +906,6 @@
 import { requestAllPages } from '@/utils/allPages';
 import {defineComponent} from 'vue';
 
-
   import { FileSafetyIcon } from '@/ui/icons';
   import { checkHostPorts, testHostHealth } from '@/apis/host';
   import LoadBalance from "../../loadbalance/index.vue";
@@ -930,7 +929,7 @@ import {defineComponent} from 'vue';
   import PathRuleConfig from '../components/PathRuleConfig.vue';
   import SslForm from '../components/SslForm.vue';
   import { INITIAL_HEALTHY, INITIAL_CAPTCHA, INITIAL_ANTILEECH,INITIAL_SSL_DATA,INITIAL_CACHE,INITIAL_STATIC_SITE,INITIAL_TRANSPORT,INITIAL_CUSTOM_HEADERS,INITIAL_CUSTOM_RESPONSE_HEADERS,INITIAL_RESPONSE_COMPRESS,INITIAL_COOKIE_SECURITY,INITIAL_CSRF,INITIAL_ACCESS,INITIAL_HTTP_AUTH,INITIAL_TAMPER,INITIAL_UPLOAD_SECURITY,DEFAULT_STATIC_SECURITY_HEADERS } from '../constants';
-  import {sslConfigListApi,sslConfigAddApi,sslConfigEditApi,sslConfigDetailApi} from '@/apis/sslconfig';
+  import { sslConfigListApi, sslConfigAddApi, sslConfigEditApi } from '@/apis/sslconfig';
   import {getOrDefault} from '@/utils/usuallytool';
   import {get_detail_by_item_api, edit_system_config_by_item_api} from '@/apis/systemconfig';
   import {wafCDNProviderInfoApi} from '@/apis/cdnip';
@@ -1799,8 +1798,6 @@ import {defineComponent} from 'vue';
             this.staticSiteConfigData = { ...INITIAL_STATIC_SITE };
           }
 
-
-
         },
         immediate: true,
         deep: true
@@ -2143,7 +2140,7 @@ import {defineComponent} from 'vue';
         }
       },
       getSslFolderList() {
-        let that = this;
+
         requestAllPages(sslConfigListApi, {
           remarks: "",
           code: ""

@@ -10,7 +10,6 @@ import (
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
 	"HomeWaf/utils"
-	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafnotify/channels"
 	"HomeWaf/wafnotify/webhook"
 	"errors"
@@ -171,13 +170,6 @@ func ValidateChannelConfig(channelType, configJSON string) error {
 	}
 	_, err := channels.Parse(channelType, configJSON)
 	return err
-}
-
-// GetAllChannels 获取所有启用的通知渠道
-func (receiver *WafNotifyChannelService) GetAllChannels() []model.NotifyChannel {
-	var channels []model.NotifyChannel
-	global.GWAF_LOCAL_DB.Where(dialect.Q("status")+" = ?", 1).Find(&channels)
-	return channels
 }
 
 // ValidateNotifyChannel validates the complete configuration after masked secrets

@@ -67,13 +67,6 @@ func GetCapability() Capability {
 	return c
 }
 
-// InvalidateCapability 丢弃缓存，强制下次重新探测
-func InvalidateCapability() {
-	capMu.Lock()
-	capCache = nil
-	capMu.Unlock()
-}
-
 // globalLogPaths 读用户自定义的日志路径配置(逗号分隔)。
 // 单独包一层是为了让平台文件不用直接引 global 包，测试时也好替换。
 func globalLogPaths() string {

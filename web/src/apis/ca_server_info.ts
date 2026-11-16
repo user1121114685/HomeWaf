@@ -33,11 +33,3 @@ export function wafCaServerInfoAddApi(params: any = {}) {
     data: params
   })
 }
-//详细
-export function wafCaServerInfoDetailApi(params: any = {}) {
-  return request({
-    url: '/wafhost/caserverinfo/detail',
-    method: 'get',
-    params: params
-  })
-}

@@ -12,20 +12,14 @@ import (
 	"HomeWaf/wafai"
 	"HomeWaf/wafnotify"
 	"HomeWaf/wafowasp"
-	"HomeWaf/wafsnowflake"
-	"strconv"
 	"sync/atomic"
 	"time"
 
 	"HomeWaf/internal/thirdparty/godlp/dlpheader"
+
 	"github.com/lionsoul2014/ip2region/binding/golang/xdb"
 	"github.com/oschwald/geoip2-golang/v2"
 	"gorm.io/gorm"
-)
-
-const (
-	GWAF_NAME   = "HomeWaf"
-	Version_num = 1
 )
 
 var (
@@ -219,7 +213,6 @@ var (
 	//GUPDATE_GITHUB_VERSION_URL string = ""
 	// http://127.0.0.1:8111/beta_update/latest_release.json
 	// http://10.0.2.2:8111/beta_update_linux/latest_release.json
-	GWAF_SNOWFLAKE_GEN *wafsnowflake.Snowflake //雪花算法
 
 	//任务开关信息
 	GWAF_SWITCH_TASK_COUNTER bool
@@ -279,11 +272,6 @@ var (
 	GWAF_REG_VERSION = "v2"                 //注册信息版本
 )
 
-func GetCurrentVersionInt() int {
-	version, _ := strconv.Atoi(GWAF_RELEASE_VERSION)
-	return version
-}
-
 // GetRealtimeQPS 获取实时QPS (基于差分计算)
 func GetRealtimeQPS() uint64 {
 	return atomic.LoadUint64(&GWAF_CURRENT_REALTIME_QPS)
@@ -292,16 +280,6 @@ func GetRealtimeQPS() uint64 {
 // GetRealtimeLogQPS 获取实时日志处理QPS (基于差分计算)
 func GetRealtimeLogQPS() uint64 {
 	return atomic.LoadUint64(&GWAF_CURRENT_REALTIME_LOG_QPS)
-}
-
-// GetCumulativeQPS 获取累积QPS (用于统计计算)
-func GetCumulativeQPS() uint64 {
-	return atomic.LoadUint64(&GWAF_RUNTIME_QPS)
-}
-
-// GetCumulativeLogQPS 获取累积日志处理QPS (用于统计计算)
-func GetCumulativeLogQPS() uint64 {
-	return atomic.LoadUint64(&GWAF_RUNTIME_LOG_PROCESS)
 }
 
 // IncrementQPS 增加QPS计数 (只增加累积计数)

@@ -13,8 +13,5 @@ const routes = [
   { path: '/:pathMatch(.*)*', redirect: '/dashboard/start' },
 ];
 const router = createRouter({ history: createWebHashHistory(), routes, scrollBehavior: () => ({ left: 0, top: 0 }) });
-export function resetRouter() {
-  for (const r of router.getRoutes()) if (r.name) router.removeRoute(r.name);
-  for (const r of routes) router.addRoute(r);
-}
+
 export default router;

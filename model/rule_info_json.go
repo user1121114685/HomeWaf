@@ -11,13 +11,6 @@ import (
 type RuleTool struct {
 }
 
-func IfCompare(condition bool, trueVal, falseVal interface{}) interface{} {
-	if condition {
-		return trueVal
-	}
-	return falseVal
-}
-
 type RuleInfo struct {
 	IsManualRule     string             `json:"is_manual_rule"`
 	RuleContent      string             `json:"rule_content"`      //规则内容
@@ -111,7 +104,7 @@ func genRuleActionStmt(rule RuleInfo) string {
 	}
 }
 
-// ruleSkipModuleWhiteList 与 utils.RuleSkipModules 保持一致
+// ruleSkipModuleWhiteList 与 utils.ruleSkipModuleWhiteList 保持一致
 // （model 包不能引 utils，会形成循环依赖，所以这里单独列一份，加规则模块时两边都要改）
 var ruleSkipModuleWhiteList = map[string]bool{
 	"BOT": true, "SQLI": true, "XSS": true, "SCAN": true, "RCE": true,

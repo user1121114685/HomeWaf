@@ -2,15 +2,6 @@
 
 import request from '@/utils/request'
 
-// 分页查询网站分组
-export function hostGroupList(data: any = {}) {
-  return request({
-    url: 'wafhost/hostgroup/list',
-    method: 'post',
-    data: data
-  })
-}
-
 // 全部网站分组（不分页），带各组网站数与「未分组」「全部」计数
 export function allHostGroup(params: any = {}) {
   return request({

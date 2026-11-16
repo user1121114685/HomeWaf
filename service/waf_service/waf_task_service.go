@@ -85,32 +85,6 @@ func (receiver *WafTaskService) CheckIsExistApi(req request.WafTaskAddReq) int {
 	return int(total)
 }
 
-func (receiver *WafTaskService) CheckIsExist(taskMethod string) int {
-	var total int64 = 0
-	/*where条件*/
-	var whereField = ""
-	var whereValues []interface{}
-	//where字段
-	whereField = ""
-
-	if len(taskMethod) > 0 {
-		if len(whereField) > 0 {
-			whereField = whereField + " and "
-		}
-		whereField = whereField + " task_method=? "
-	}
-
-	//where字段赋值
-	if len(taskMethod) > 0 {
-		if len(whereField) > 0 {
-			whereValues = append(whereValues, taskMethod)
-		}
-	}
-
-	global.GWAF_LOCAL_DB.Model(&model.Task{}).Where(whereField, whereValues...).Count(&total)
-	return int(total)
-}
-
 func (receiver *WafTaskService) ModifyApi(req request.WafTaskEditReq) error {
 	// 根据唯一字段生成查询条件（只有在UniFields不为空时才进行存在性检查）
 
@@ -190,14 +164,5 @@ func (receiver *WafTaskService) DelApi(req request.WafTaskDelReq) error {
 		return err
 	}
 	err = global.GWAF_LOCAL_DB.Where("id = ?", req.Id).Delete(model.Task{}).Error
-	return err
-}
-func (receiver *WafTaskService) DelByMethod(taskMethod string) error {
-	var bean model.Task
-	err := global.GWAF_LOCAL_DB.Where("task_method = ?", taskMethod).First(&bean).Error
-	if err != nil {
-		return err
-	}
-	err = global.GWAF_LOCAL_DB.Where("task_method = ?", taskMethod).Delete(model.Task{}).Error
 	return err
 }

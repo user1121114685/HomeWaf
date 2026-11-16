@@ -69,32 +69,6 @@ func (m *SafeTCPConnMap) ClosePortConns(port int) {
 	}
 }
 
-// CloseAllConns 关闭所有连接
-func (m *SafeTCPConnMap) CloseAllConns() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for _, conns := range m.items {
-		for conn := range conns {
-			conn.Close()
-		}
-	}
-
-	// 清空map
-	m.items = make(map[int]map[net.Conn]ConnInfo)
-}
-
-// GetPortConnsCount 获取指定端口的连接数
-func (m *SafeTCPConnMap) GetPortConnsCount(port int) int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if conns, exists := m.items[port]; exists {
-		return len(conns)
-	}
-	return 0
-}
-
 // GetPortConnsCountByType 获取指定端口指定类型的连接数
 func (m *SafeTCPConnMap) GetPortConnsCountByType(port int, connType int) int {
 	m.mu.RLock()
@@ -109,34 +83,6 @@ func (m *SafeTCPConnMap) GetPortConnsCountByType(port int, connType int) int {
 		}
 	}
 	return count
-}
-
-// GetAllConnsCount 获取所有连接数
-func (m *SafeTCPConnMap) GetAllConnsCount() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	total := 0
-	for _, conns := range m.items {
-		total += len(conns)
-	}
-	return total
-}
-
-// GetAllConnsCountByType 获取所有指定类型的连接数
-func (m *SafeTCPConnMap) GetAllConnsCountByType(connType int) int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	total := 0
-	for _, conns := range m.items {
-		for _, info := range conns {
-			if info.ConnType == connType {
-				total++
-			}
-		}
-	}
-	return total
 }
 
 // SafeUDPConnMap 线程安全的UDP连接管理Map
@@ -190,32 +136,6 @@ func (m *SafeUDPConnMap) ClosePortConns(port int) {
 	}
 }
 
-// CloseAllConns 关闭所有连接
-func (m *SafeUDPConnMap) CloseAllConns() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for _, conns := range m.items {
-		for conn := range conns {
-			conn.Close()
-		}
-	}
-
-	// 清空map
-	m.items = make(map[int]map[*net.UDPConn]ConnInfo)
-}
-
-// GetPortConnsCount 获取指定端口的连接数
-func (m *SafeUDPConnMap) GetPortConnsCount(port int) int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if conns, exists := m.items[port]; exists {
-		return len(conns)
-	}
-	return 0
-}
-
 // GetPortConnsCountByType 获取指定端口指定类型的连接数
 func (m *SafeUDPConnMap) GetPortConnsCountByType(port int, connType int) int {
 	m.mu.RLock()
@@ -230,34 +150,6 @@ func (m *SafeUDPConnMap) GetPortConnsCountByType(port int, connType int) int {
 		}
 	}
 	return count
-}
-
-// GetAllConnsCount 获取所有连接数
-func (m *SafeUDPConnMap) GetAllConnsCount() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	total := 0
-	for _, conns := range m.items {
-		total += len(conns)
-	}
-	return total
-}
-
-// GetAllConnsCountByType 获取所有指定类型的连接数
-func (m *SafeUDPConnMap) GetAllConnsCountByType(connType int) int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	total := 0
-	for _, conns := range m.items {
-		for _, info := range conns {
-			if info.ConnType == connType {
-				total++
-			}
-		}
-	}
-	return total
 }
 
 // GetPortConnsInfo 获取指定端口的连接信息

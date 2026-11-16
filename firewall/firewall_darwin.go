@@ -431,24 +431,3 @@ func (fw *FireWallEngine) ensureTableExists() error {
 
 	return nil
 }
-
-// SetupPFRule 设置 pf 规则（需要手动调用一次来配置基础规则）
-// 这个方法需要在系统启动时或首次使用时调用
-func (fw *FireWallEngine) SetupPFRule() error {
-	fmt.Printf("[INFO] 设置pf基础规则 (Mac)\n")
-
-	// 创建一个临时的 pf 规则文件
-	ruleContent := fmt.Sprintf(`
-# SamWAF IP Block Table
-table <%s> persist
-
-# Block incoming traffic from blocked IPs
-block in quick from <%s> to any
-`, PF_TABLE_NAME, PF_TABLE_NAME)
-
-	fmt.Printf("[INFO] pf规则内容:\n%s\n", ruleContent)
-	fmt.Printf("[INFO] 请手动将以上规则添加到 /etc/pf.conf 并执行 'sudo pfctl -f /etc/pf.conf'\n")
-	fmt.Printf("[INFO] 或者使用 anchor 功能动态加载规则\n")
-
-	return nil
-}

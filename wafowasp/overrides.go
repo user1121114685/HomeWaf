@@ -415,13 +415,6 @@ func loadRegistryLocked(path string) (*OverrideRegistry, error) {
 	return reg, nil
 }
 
-// SaveRegistry 原子写入 registry.json。
-func (s *OverrideStore) SaveRegistry(reg *OverrideRegistry) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return writeRegistryLocked(filepath.Join(s.dir, OverrideRegistryFile), reg)
-}
-
 func writeRegistryLocked(path string, reg *OverrideRegistry) error {
 	if reg.Version == 0 {
 		reg.Version = OverrideRegistryShema
@@ -681,24 +674,6 @@ func (s *OverrideStore) ResetRule(id int) error {
 		Note:       "还原为上游版本，移除所有 override 记录",
 	})
 	return nil
-}
-
-// ApplyRegistryToFiles 基于当前 registry 重新生成所有 overrides 的 .conf 文件（用于手工修复 / 升级后同步）。
-func (s *OverrideStore) ApplyRegistryToFiles() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	reg, err := loadRegistryLocked(filepath.Join(s.dir, OverrideRegistryFile))
-	if err != nil {
-		return err
-	}
-	if err := writeTuningConfFile(filepath.Join(s.dir, OverrideTuningFile), reg.Global); err != nil {
-		return err
-	}
-	if err := rewriteDisabledConfLocked(s.dir, reg); err != nil {
-		return err
-	}
-	return rewriteCustomConfLocked(s.dir, reg)
 }
 
 // rewriteDisabledConfLocked 从 registry 派生 10-disabled-rules.conf。

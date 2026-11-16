@@ -123,9 +123,7 @@ func (receiver *WafLogService) AddApi(log innerbean.WebLog) error {
 	global.GWAF_LOCAL_LOG_DB.Create(&log)
 	return nil
 }
-func (receiver *WafLogService) ModifyApi(log innerbean.WebLog) error {
-	return nil
-}
+
 func (receiver *WafLogService) GetDetailApi(req request.WafAttackLogDetailReq) (innerbean.WebLog, error) {
 	var weblog innerbean.WebLog
 	req.REQ_UUID = strings.TrimSpace(req.REQ_UUID)
@@ -179,15 +177,6 @@ func (receiver *WafLogService) GetListApi(req request.WafAttackLogSearch) ([]inn
 	return rows, total, err
 }
 
-func (receiver *WafLogService) GetListByHostCodeApi(log request.WafAttackLogSearch) ([]innerbean.WebLog, int64, error) {
-	var total int64 = 0
-	var weblogs []innerbean.WebLog
-	// tenant/user 由 before_query 自动追加，这里只传 host_code（占位符与参数数须一致，避免参数顺移）
-	global.GWAF_LOCAL_LOG_DB.Where("host_code = ?", log.HostCode).Limit(log.PageSize).Offset(log.PageSize * (log.PageIndex - 1)).Order("create_time desc").Find(&weblogs)
-	global.GWAF_LOCAL_LOG_DB.Where("host_code = ?", log.HostCode).Model(&innerbean.WebLog{}).Count(&total)
-	return weblogs, total, nil
-}
-
 // DeleteHistory 分层保留期清理：
 //   - security_event 与 web_logs（存量，不再写入）按「日志保留天数」删
 //   - access_log 按 access_log_retention_days 删（更短）
@@ -225,15 +214,6 @@ const sampleRetentionDays = 30
 
 // watchPayloadRetentionDays 观察名单全量留痕报文的保留天数（D9）。窄行仍随 access_log 保留期。
 const watchPayloadRetentionDays = 7
-
-// GetUnixTimeByCounter 依据开始时间和到期时间获取一个最新的时间戳
-func (receiver *WafLogService) GetUnixTimeByCounter(lastStartCreateUnix int64, lastEndCreateUnix int64) innerbean.WebLog {
-	var weblog innerbean.WebLog
-	forceIndex := dialect.Get().ForceIndexClause("web_logs", "idx_web_time_desc_tenant_user_code")
-	global.GWAF_LOCAL_LOG_DB.Table(forceIndex).Where("unix_add_time>=? and unix_add_time<?", lastStartCreateUnix, lastEndCreateUnix).Order("unix_add_time desc").Limit(1).Find(&weblog)
-
-	return weblog
-}
 
 /*
 *

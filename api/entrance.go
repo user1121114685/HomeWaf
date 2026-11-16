@@ -72,7 +72,6 @@ type APIGroup struct {
 	WafThreatIPExcludeApi
 	WafCDNIPApi
 	WafIPLookupApi
-	WafPluginApi
 	WafLogFileWriteApi
 	WafIPLocationApi
 	WafOPlatformKeyApi
@@ -159,8 +158,6 @@ var (
 	wafCacheRuleService    = waf_service.WafCacheRuleServiceApp
 	wafTamperRuleService   = waf_service.WafTamperRuleServiceApp
 	wafTunnelService       = waf_service.WafTunnelServiceApp
-
-	wafMonitorService = waf_service.WafSystemMonitorServiceApp
 
 	wafCaServerInfoService = waf_service.WafCaServerInfoServiceApp
 

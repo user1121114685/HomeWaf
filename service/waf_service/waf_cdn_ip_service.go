@@ -175,21 +175,6 @@ func (r *WafCDNIPService) SyncAllDue() {
 	}
 }
 
-// RefreshProvidersInUse 兼容旧入口：刷新"被引用且已开启自动拉取"的厂商(启动流程调用)。
-// 现在仅刷新 AutoFetch=1 的厂商，避免默认对外拉取。
-func (r *WafCDNIPService) RefreshProvidersInUse() {
-	var rows []model.CDNProvider
-	global.GWAF_LOCAL_DB.Where("auto_fetch = 1").Find(&rows)
-	for _, row := range rows {
-		if !r.providerInUse(row.Provider) {
-			continue
-		}
-		if err := r.RefreshProvider(row.Provider); err != nil {
-			zlog.Warn("刷新 CDN 回源段失败", "provider", row.Provider, "error", err.Error())
-		}
-	}
-}
-
 // ---------------- 配置(开关/周期/凭证) ----------------
 
 // SetAutoFetch 开/关某厂商自动拉取并可设周期。enable=1 且首次开启时立即拉取一次。

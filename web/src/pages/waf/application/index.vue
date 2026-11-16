@@ -183,14 +183,9 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import { v4 as uuidv4 } from 'uuid';
 import { prefix } from '@/config/global';
-import {
-  wafAppFeatureStatusApi, wafAppListApi, wafAppAddApi, wafAppEditApi, wafAppDetailApi, wafAppDelApi,
-  wafAppStartApi, wafAppStopApi, wafAppRestartApi, wafAppStatusApi,
-  getAppOpPassword, saveAppOpPassword, wafAppVerifyPwdApi,
-} from '@/apis/application';
+import { wafAppFeatureStatusApi, wafAppListApi, wafAppDetailApi, wafAppDelApi, wafAppStartApi, wafAppStopApi, wafAppRestartApi, wafAppStatusApi, getAppOpPassword, saveAppOpPassword, wafAppVerifyPwdApi } from '@/apis/application';
 import AppForm from './components/AppForm.vue';
 import AppLogs from './components/AppLogs.vue';
 import AppUpgrade from './components/AppUpgrade.vue';

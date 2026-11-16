@@ -316,16 +316,6 @@ func (receiver *WafAccountService) UpdateLastLoginInfo(loginAccount, ip, area, l
 
 /*
 *
-通过登录account获取账号信息
-*/
-func (receiver *WafAccountService) GetInfoByLoginAccount(loginAccount string) model.Account {
-	var bean model.Account
-	global.GWAF_LOCAL_DB.Where("login_account=? ", loginAccount).Find(&bean)
-	return bean
-}
-
-/*
-*
  */
 func (receiver *WafAccountService) IsExistDefaultAccount() bool {
 	var total int64 = 0

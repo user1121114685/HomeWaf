@@ -47,7 +47,6 @@
 
     </hw-card>
 
-
     <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="680" :footer="false">
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
@@ -104,7 +103,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
   import {
     SearchIcon,AddIcon
   } from '@/ui/icons';
@@ -119,7 +117,6 @@ import {defineComponent} from 'vue';
   import {
     wafLoadBalanceDetailApi,wafLoadBalanceListApi,wafLoadBalanceEditApi,wafLoadBalanceDelApi,wafLoadBalanceAddApi
   } from '@/apis/loadbalance';
-
 
   const INITIAL_DATA = {
     remote_ip: '',
@@ -242,9 +239,7 @@ import {defineComponent} from 'vue';
     computed: {
       confirmBody() {
         if (this.deleteIdx > -1) {
-          const {
-            host
-          } = this.data?. [this.deleteIdx];
+
           return this.$t('common.data_delete_warning');
         }
         return '';
@@ -455,7 +450,6 @@ import {defineComponent} from 'vue';
             console.log(e);
           })
           .finally(() => {});
-
 
         this.resetIdx();
       },

@@ -51,7 +51,6 @@
       </hw-tabs>
     </hw-card>
 
-
     <hw-dialog :header="$t('common.details')" v-model:visible="editFormVisible" :width="680" :footer="false">
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :labelWidth="100">
@@ -90,7 +89,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
   import {
     SearchIcon
   } from '@/ui/icons';
@@ -98,22 +96,11 @@ import {defineComponent} from 'vue';
   import {
     prefix
   } from '@/config/global';
-  import {
-    allhost
-  } from '@/apis/host';
 
 import {
     wafOneKeyModDelApi,wafOneKeyModDetailApi,wafOneKeyModListApi,wafDoOneKeyModApi,wafRestoreOneKeyModApi
   } from '@/apis/onekeymod';
   import ImportNginx from './components/ImportNginx.vue';
-  import {
-    SSL_STATUS,
-    GUARD_STATUS,
-    CONTRACT_STATUS,
-    CONTRACT_STATUS_OPTIONS,
-    CONTRACT_TYPES,
-    CONTRACT_PAYMENT_TYPES
-  } from '@/constants';
 
   const INITIAL_DATA = {
 
@@ -208,9 +195,7 @@ import {
     computed: {
       confirmBody() {
         if (this.deleteIdx > -1) {
-          const {
-            url
-          } = this.data?. [this.deleteIdx];
+
           return this.$t('common.confirm_delete');
         }
         return '';
@@ -321,7 +306,6 @@ import {
             console.log(e);
           })
           .finally(() => {});
-
 
         this.resetIdx();
       },

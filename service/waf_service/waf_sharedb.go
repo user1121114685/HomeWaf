@@ -5,7 +5,6 @@ package waf_service
 import (
 	"HomeWaf/global"
 	"HomeWaf/model"
-	"HomeWaf/model/request"
 	"HomeWaf/wafdb/dialect"
 )
 
@@ -21,24 +20,6 @@ func (receiver *WafShareDbService) AddApi(shareDb model.ShareDb) error {
 // DeleteById 删除一条分库归档记录（按主键 Id）。归档物理文件由调用方负责删除。
 func (receiver *WafShareDbService) DeleteById(id string) error {
 	return global.GWAF_LOCAL_DB.Where("id = ?", id).Delete(&model.ShareDb{}).Error
-}
-
-func (receiver *WafShareDbService) GetListApi(req request.WafShareDbReq) ([]model.ShareDb, int64, error) {
-	var list []model.ShareDb
-	var total int64 = 0
-
-	/*where条件*/
-	var whereField = ""
-	var whereValues []interface{}
-	//where字段
-	whereField = ""
-
-	//where字段赋值
-
-	global.GWAF_LOCAL_DB.Model(&model.ShareDb{}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
-	global.GWAF_LOCAL_DB.Model(&model.ShareDb{}).Where(whereField, whereValues...).Count(&total)
-
-	return list, total, nil
 }
 
 // 获取所有db（按当前驱动过滤分片类型）

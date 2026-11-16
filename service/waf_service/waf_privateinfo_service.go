@@ -262,25 +262,6 @@ func (receiver *WafPrivateInfoService) DelApi(req request.WafPrivateInfoDelReq) 
 	return err
 }
 
-func (receiver *WafPrivateInfoService) GetListPureApi() ([]model.PrivateInfo, int64, error) {
-	var list []model.PrivateInfo
-	var total int64 = 0
-	global.GWAF_LOCAL_DB.Model(&model.PrivateInfo{}).Find(&list)
-	global.GWAF_LOCAL_DB.Model(&model.PrivateInfo{}).Count(&total)
-
-	return list, total, nil
-}
-
-// GetListByGroupAndBelongCloudPureApi 依据分组名称和所属云查询
-func (receiver *WafPrivateInfoService) GetListByGroupAndBelongCloudPureApi(groupName string, belongCloud string) ([]model.PrivateInfo, int64, error) {
-	var list []model.PrivateInfo
-	var total int64 = 0
-	global.GWAF_LOCAL_DB.Model(&model.PrivateInfo{}).Where("private_group_name = ? and private_group_belong_cloud=?", groupName, belongCloud).Find(&list)
-	global.GWAF_LOCAL_DB.Model(&model.PrivateInfo{}).Where("private_group_name = ? and private_group_belong_cloud=?", groupName, belongCloud).Count(&total)
-
-	return list, total, nil
-}
-
 func validatePrivateDNSField(provider, group, key, value string) error {
 	if _, known := dnsproviders.Lookup(provider); !known {
 		return nil

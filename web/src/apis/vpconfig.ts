@@ -41,14 +41,7 @@ export function manageClientIpProbeApi(params: any = {}) {
     params: params
   })
 }
-//CDN厂商快捷填充：获取某厂商官方回源段CIDR
-export function getCdnProviderRangesApi(params: any = {}) {
-  return request({
-    url: 'vipconfig/cdnProviderRanges',
-    method: 'get',
-    params: params
-  })
-}
+
 //获取管理端引用的CDN厂商
 export function getManageCDNProviderApi(params: any = {}) {
   return request({

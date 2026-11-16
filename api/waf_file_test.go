@@ -10,7 +10,6 @@ import (
 	"HomeWaf/model/common/response"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +17,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // 响应结构体定义
@@ -116,47 +117,6 @@ func TestFormatFileSize(t *testing.T) {
 			}
 		})
 	}
-}
-
-// setupTestDataDir 创建测试用的data目录结构
-func setupTestDataDir(t *testing.T) string {
-	// 创建临时目录
-	tempDir, err := ioutil.TempDir("", "samwaf_test_data")
-	if err != nil {
-		t.Fatalf("创建临时目录失败：%v", err)
-	}
-
-	// 创建测试文件
-	testFiles := []struct {
-		path    string
-		content string
-	}{
-		{"local.db", "test database content"},
-		{"local_log.db", "test log database content"},
-		{"local_stats.db", "test stats database content"},
-		{"backup/backup_20240101.db", "backup content"},
-		{"owasp/rules.conf", "owasp rules"},
-		{"captcha/image.png", "captcha image data"},
-		{"ssl/cert.crt", "certificate content"},
-		{"logs/app.log", "application logs"},
-	}
-
-	for _, file := range testFiles {
-		filePath := filepath.Join(tempDir, file.path)
-		dir := filepath.Dir(filePath)
-
-		// 创建目录
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatalf("创建目录失败 %s: %v", dir, err)
-		}
-
-		// 创建文件
-		if err := ioutil.WriteFile(filePath, []byte(file.content), 0644); err != nil {
-			t.Fatalf("创建文件失败 %s: %v", filePath, err)
-		}
-	}
-
-	return tempDir
 }
 
 // cleanupTestDataDir 清理测试目录

@@ -148,24 +148,13 @@ var ccOpArity = map[string]int{
 // ccNumericOps 只能用于数值型目标的操作符。
 var ccNumericOps = map[string]bool{CCOpGt: true, CCOpLt: true, CCOpBetween: true}
 
-func IsValidCCField(field string) bool {
-	_, ok := ccFieldSpecs[field]
-	return ok
-}
-
 func IsValidCCOp(op string) bool {
 	_, ok := ccOpArity[op]
 	return ok
 }
 
-// CCFieldNeedsKey 该匹配目标是否必须指定字段名。
-func CCFieldNeedsKey(field string) bool { return ccFieldSpecs[field].NeedKey }
-
 // CCFieldIsResponsePhase 该匹配目标是否只有响应期才能取到。
 func CCFieldIsResponsePhase(field string) bool { return ccFieldSpecs[field].RespPhase }
-
-// CCOpValueArity 该操作符需要的值个数（-1 表示任意多个）。
-func CCOpValueArity(op string) int { return ccOpArity[op] }
 
 // ccFieldKeyMaxLen 与「真实IP来源」的头名限制保持一致。
 const ccFieldKeyMaxLen = 64

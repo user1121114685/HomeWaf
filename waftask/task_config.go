@@ -79,16 +79,6 @@ func setConfigIntValue(name string, value int64, change int) {
 		effect()
 	}
 }
-func setConfigStringValue(name string, value string, change int) {
-	before := global.CurrentSettings()
-	next := before
-	var effects []func()
-	applyConfigStringValue(&next, &effects, name, value, change)
-	global.CommitSettings(before, next)
-	for _, effect := range effects {
-		effect()
-	}
-}
 
 func applyConfigIntValue(cfg *global.RuntimeSettings, effects *[]func(), name string, value int64, change int) {
 	// 更新全局配置值

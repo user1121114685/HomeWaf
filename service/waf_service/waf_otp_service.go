@@ -67,33 +67,6 @@ func (receiver *WafOtpService) AddApi(req request.WafOtpAddReq) error {
 	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
-func (receiver *WafOtpService) CheckIsExistApi(req request.WafOtpAddReq) int {
-	var total int64 = 0
-	/*where条件*/
-	var whereField = ""
-	var whereValues []interface{}
-	//where字段
-	whereField = ""
-
-	if len(req.UserName) > 0 {
-		if len(whereField) > 0 {
-			whereField = whereField + " and "
-		}
-		whereField = whereField + " user_name=? "
-	}
-
-	//where字段赋值
-
-	if len(req.UserName) > 0 {
-		if len(whereField) > 0 {
-			whereValues = append(whereValues, req.UserName)
-		}
-	}
-
-	global.GWAF_LOCAL_DB.Model(&model.Otp{}).Where(whereField, whereValues...).Count(&total)
-	return int(total)
-}
-
 func (receiver *WafOtpService) ModifyApi(req request.WafOtpEditReq) error {
 	// 根据唯一字段生成查询条件（只有在UniFields不为空时才进行存在性检查）
 
@@ -189,17 +162,6 @@ func (receiver *WafOtpService) GetDetailByUserNameApi(userName string) model.Otp
 	return bean
 }
 
-func (receiver *WafOtpService) GetListApi(req request.WafOtpSearchReq) ([]model.Otp, int64, error) {
-	var list []model.Otp
-	var total int64 = 0
-	global.GWAF_LOCAL_DB.Model(&model.Otp{}).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
-	global.GWAF_LOCAL_DB.Model(&model.Otp{}).Count(&total)
-	for i := range list {
-		decryptOtpBean(&list[i])
-	}
-
-	return list, total, nil
-}
 func (receiver *WafOtpService) DelApi(req request.WafOtpDelReq) error {
 	var bean model.Otp
 	err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&bean).Error

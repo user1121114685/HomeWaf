@@ -1,7 +1,7 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
 
 import { useRouter } from 'vue-router';
-import { defineComponent, h, ref, createVNode, render, reactive, Fragment, computed } from 'vue';
+import { defineComponent, h, ref, createVNode, render, reactive, computed } from 'vue';
 import * as E from 'element-plus';
 import HwTable from './table';
 import HwUpload from './upload';
@@ -9,10 +9,6 @@ import HwIcon, { icons } from './icons';
 import zhCN from 'element-plus/es/locale/lang/zh-cn';
 import enUS from 'element-plus/es/locale/lang/en';
 
-export type TableSort = { sortBy: string; descending: boolean } | undefined;
-export type TableChangeContext = any;
-export type TableChangeData = any;
-export type PopupVisibleChangeContext = any;
 const renderNative = (component: any, props: any, slots?: any) => h(component, props, slots);
 const size = (value: any) => (value === 'medium' ? 'default' : value);
 const theme = (value: any) => (value === 'default' ? 'info' : value === 'error' ? 'danger' : value);

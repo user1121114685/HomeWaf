@@ -24,10 +24,3 @@ export function isLoopbackHost(hostname: string): boolean {
   // 127.0.0.0/8 整段
   return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
 }
-
-/** 当前是否处于"管理端以明文 HTTP 访问"的状态（回环不算） */
-export function isInsecureAccess(): boolean {
-  if (typeof window === 'undefined') return false;
-  if (window.location.protocol === 'https:') return false;
-  return !isLoopbackHost(window.location.hostname);
-}

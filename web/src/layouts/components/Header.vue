@@ -497,7 +497,6 @@ export default defineComponent({
         .finally(() => {});
     },
     sendMail() {
-      const email = '系统管理员 / system administrator'; // 设置收件人地址
       window.location.href = `/#/help`;
     },
     openWechat() {

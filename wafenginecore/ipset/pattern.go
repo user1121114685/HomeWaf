@@ -403,12 +403,7 @@ func lookupPattern(raw string) Pattern {
 	return p
 }
 
-// MatchPatternCached 带解析缓存的单次匹配，供规则引擎（每请求求值）使用。
-func MatchPatternCached(ip net.IP, raw string) bool {
-	return lookupPattern(strings.TrimSpace(raw)).Match(ip)
-}
-
-// MatchPatternStrCached 是 MatchPatternCached 的字符串便捷版。
+// MatchPatternStrCached 复用解析缓存并匹配字符串形式的 IP。
 func MatchPatternStrCached(ipStr, raw string) bool {
 	ip := net.ParseIP(strings.TrimSpace(ipStr))
 	if ip == nil {

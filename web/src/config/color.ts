@@ -33,6 +33,3 @@ export const DARK_CHART_COLORS: ColorToken = {
   borderColor: '#303947',
   containerColor: '#191f29',
 };
-export function getBrandColor(_type: string, _colors: ColorSeries): ColorToken {
-  return COLOR_TOKEN.DEFAULT;
-}

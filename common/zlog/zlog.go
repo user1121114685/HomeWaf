@@ -2,16 +2,15 @@ package zlog
 
 import (
 	"fmt"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 	"os"
-	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // 简单封装一下对 zap 日志库的使用
@@ -144,57 +143,23 @@ func getFileLogWriter() (writeSyncer zapcore.WriteSyncer) {
 	return fileWriter
 }
 
-func InfoCall(message string, fields ...zap.Field) {
-	callerFields := getCallerInfoForLog()
-	fields = append(fields, callerFields...)
-	logger.Load().Info(message, fields...)
-}
-
 func Info(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("info", inter))
 	logger.Load().Info(message, fields...)
 }
 
-func DebugCall(message string, fields ...zap.Field) {
-	callerFields := getCallerInfoForLog()
-	fields = append(fields, callerFields...)
-	logger.Load().Debug(message, fields...)
-}
 func Debug(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("debug", inter))
 	logger.Load().Debug(message, fields...)
 }
 
-func ErrorCall(message string, fields ...zap.Field) {
-	callerFields := getCallerInfoForLog()
-	fields = append(fields, callerFields...)
-	logger.Load().Error(message, fields...)
-}
 func Error(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("err", inter))
 
 	logger.Load().Error(message, fields...)
 }
 
-func WarnCall(message string, fields ...zap.Field) {
-	callerFields := getCallerInfoForLog()
-	fields = append(fields, callerFields...)
-	logger.Load().Warn(message, fields...)
-}
 func Warn(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("warn", inter))
 	logger.Load().Warn(message, fields...)
-}
-
-func getCallerInfoForLog() (callerFields []zap.Field) {
-
-	pc, file, line, ok := runtime.Caller(2) // 回溯两层，拿到写日志的业务函数的信息
-	if !ok {
-		return
-	}
-	funcName := runtime.FuncForPC(pc).Name()
-	funcName = path.Base(funcName) //Base函数返回路径的最后一个元素，只保留函数名
-
-	callerFields = append(callerFields, zap.String("func", funcName), zap.String("file", file), zap.Int("line", line))
-	return
 }

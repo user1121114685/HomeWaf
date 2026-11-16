@@ -47,4 +47,3 @@ function commands(method: string, ns: any, values?: any) {
   );
 }
 export const mapMutations = (ns: any, v?: any) => commands('commit', ns, v);
-export const mapActions = (ns: any, v?: any) => commands('dispatch', ns, v);

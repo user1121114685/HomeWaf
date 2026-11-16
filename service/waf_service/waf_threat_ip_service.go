@@ -20,13 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // WafThreatIPService 威胁情报 IP 订阅服务：渠道 CRUD + 拉取同步 + 落地(WAF 应用层 / 系统防火墙)。
@@ -543,12 +544,6 @@ func (r *WafThreatIPService) GetLandedIPs(code, keyword string, onlyExcluded boo
 		end = len(ips)
 	}
 	return ips[start:end], total
-}
-
-// snapshotCount 取某渠道快照的收录条数(不解压 payload)。无快照返回 -1。
-func (r *WafThreatIPService) snapshotCount(code string) int {
-	c, _ := r.snapshotMeta(code)
-	return c
 }
 
 // snapshotMeta 取某渠道快照的条数与 sha(都在表头，不解压 payload)。无快照返回 (-1, "")。

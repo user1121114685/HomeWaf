@@ -70,13 +70,10 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import {
   SearchIcon
 } from '@/ui/icons';
-import {
-  prefix
-} from '@/config/global';
+
 import {
   fileManageListApi, fileManageDelApi
 } from '@/apis/filemanage';
@@ -222,7 +219,6 @@ export default defineComponent({
     // 计算过滤和排序后的数据
     filteredAndSortedData() {
       let result = [...this.originalData];
-
 
       // 应用表头过滤
       Object.keys(this.filterValue).forEach(key => {

@@ -24,14 +24,13 @@ const (
 	uploadBufferSlack   = 64 * 1024 // 读 body 时相对单文件上限的余量(表单字段+boundary)
 )
 
-func extractUploadExts(name string) []string { return uploadscan.ExtractExts(name) }
 func matchDangerousExt(name, blacklist string) (bool, string) {
 	return uploadscan.DangerousExt(name, blacklist)
 }
 func uploadPartFileNames(part *multipart.Part) []string { return uploadscan.PartFileNames(part) }
 func overUploadSize(size, maxKB int) bool               { return uploadscan.OverSize(size, maxKB) }
 func matchUploadPathPrefix(p, lines string) bool        { return uploadscan.MatchPathPrefix(p, lines) }
-func hasUploadImageExt(name string) bool                { return uploadscan.HasImageExt(name) }
+
 func isUploadTypeMismatch(name, ct string, head []byte) bool {
 	return uploadscan.TypeMismatch(name, ct, head)
 }

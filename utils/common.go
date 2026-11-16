@@ -5,13 +5,11 @@ package utils
 import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/global"
-	"HomeWaf/model"
 	"HomeWaf/wafenginecore/ipset"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -234,16 +232,6 @@ func CheckDebugEnvInfo() bool {
 	return false
 }
 
-// Deprecated: 监听协议判定统一走 ResolveHostListens / HostMainProtocol（utils/hostport.go），
-// 本函数仅保留给 legacy 派生内部复用，新代码不得调用。
-func GetServerByHosts(hosts model.Hosts) string {
-	if hosts.Ssl == 1 {
-		return "https"
-	} else {
-		return "http"
-	}
-}
-
 /*
 *
 
@@ -292,27 +280,6 @@ func Str2Time(formatTimeStr string) time.Time {
 func TimeToDayInt(t time.Time) int {
 	day, _ := strconv.Atoi(t.Format("20060102"))
 	return day
-}
-
-// GetPublicIP retains the legacy API name but discovers local addresses without network traffic.
-func GetPublicIP() string {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return "localhost"
-	}
-	for _, iface := range interfaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addresses, _ := iface.Addrs()
-		for _, address := range addresses {
-			ip, _, err := net.ParseCIDR(address.String())
-			if err == nil && ip.To4() != nil && ip.IsGlobalUnicast() {
-				return ip.String()
-			}
-		}
-	}
-	return "localhost"
 }
 
 func GetCountry(ip string) []string {
@@ -410,37 +377,6 @@ func CheckIPInRanges(ip string, ipRanges []string) bool {
 	return false // 如果IP地址不在任何一个CIDR范围内，则返回false
 }
 
-/*
-*
-通过ip段（CIDR）来查询是否在这个段内
-*/
-func CheckIPInCIDR(ip string, ipRange string) bool {
-
-	parts := strings.Split(ipRange, "/")
-	if len(parts) != 2 {
-		// 如果是普通ip
-		if ip == ipRange {
-			return true
-		} else {
-			return false
-		}
-	} else {
-		//如果是网段IP
-		parsedIP := net.ParseIP(ip)
-		if parsedIP == nil {
-			return false // 如果IP地址解析失败，则返回false
-		}
-		_, ipNet, err := net.ParseCIDR(ipRange)
-		if err != nil {
-			return false // 如果CIDR格式解析失败，则返回false
-		}
-		if ipNet.Contains(parsedIP) {
-			return true // 如果IP地址在指定的CIDR范围内，则返回true
-		}
-		return false // 如果IP地址不在任何一个CIDR范围内，则返回false
-	}
-}
-
 // MatchIPPattern 判断 ip 是否命中一个「IP 模式」，统一支持
 // 单 IP / CIDR 网段 / 通配符(10.10.*.*、2001:db8:*:*:*:*:*:*) / 闭区间(1.2.3.4-1.2.3.99)。
 //
@@ -500,27 +436,6 @@ func IsValidIPOrNetwork(input string) (bool, string) {
 	return false, "not a valid IP or IP network (CIDR)"
 }
 
-// 检查 JSON 字符串是否为有效的 UTF-8 编码
-func CheckJSONValidity(jsonStr []byte) bool {
-	for i := 0; i < len(jsonStr); {
-		r, size := rune(jsonStr[i]), 1
-		switch {
-		case r >= 0xF0:
-			r, size = rune(jsonStr[i+3]), 4
-		case r >= 0xE0:
-			r, size = rune(jsonStr[i+2]), 3
-		case r >= 0xC0:
-			r, size = rune(jsonStr[i+1]), 2
-		default:
-		}
-		if r > 0xFFFF {
-			return false
-		}
-		i += size
-	}
-	return true
-}
-
 /*
 *
 删除老旧数据
@@ -572,32 +487,6 @@ func GetPureDomain(host string) string {
 		host, _, _ = net.SplitHostPort(host)
 	}
 	return host
-}
-
-// UpdateFileIsHasNewInfo 检查文件内容并更新
-func UpdateFileIsHasNewInfo(filePath, newContent string) error {
-	// 检查文件是否存在
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// 文件不存在，写入新内容
-		if err := ioutil.WriteFile(filePath, []byte(newContent), 0644); err != nil {
-			return fmt.Errorf("failed to write file %s: %v", filePath, err)
-		}
-	} else {
-		// 文件存在，读取当前内容
-		currentContent, err := ioutil.ReadFile(filePath)
-		if err != nil {
-			return fmt.Errorf("failed to read file %s: %v", filePath, err)
-		}
-
-		// 比较内容是否一致
-		if string(currentContent) != newContent {
-			// 内容不一致，更新文件
-			if err := ioutil.WriteFile(filePath, []byte(newContent), 0644); err != nil {
-				return fmt.Errorf("failed to update file %s: %v", filePath, err)
-			}
-		}
-	}
-	return nil
 }
 
 // IsValidChallengeFile 检查challenge文件是否合法

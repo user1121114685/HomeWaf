@@ -9,18 +9,14 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/model/request"
 	"errors"
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type WafSSLOrderService struct{}
 
 var WafSSLOrderServiceApp = new(WafSSLOrderService)
-
-func (receiver *WafSSLOrderService) AddApi(req request.WafSslorderaddReq) (model.SslOrder, error) {
-	order, _, err := receiver.Submit(req, "")
-	return order, err
-}
 
 func (receiver *WafSSLOrderService) GetDetailApi(req request.WafSslorderdetailReq) model.SslOrder {
 	return receiver.GetDetailById(req.Id)

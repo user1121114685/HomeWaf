@@ -46,9 +46,6 @@ type Engine struct {
 
 var engine = &Engine{}
 
-// GetEngine 取引擎单例
-func GetEngine() *Engine { return engine }
-
 // dropEvent 记一次因通道满而丢弃的事件。
 // 采集端宁可丢事件也不能阻塞——阻塞会让 fd 里的数据越积越多，
 // 最后连"现在正在发生什么"都读不到了。

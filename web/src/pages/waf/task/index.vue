@@ -45,13 +45,9 @@
       </div>
     </hw-card>
 
-
     <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="680" :footer="false">
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="100">
-
-
-
 
           <hw-form-item :label="$t('page.task.task_name')" name="task_name">
             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formData.task_name" :placeholder="$t('common.placeholder')+$t('page.task.task_name')"></hw-input>
@@ -101,9 +97,6 @@
     <hw-dialog :header="$t('common.edit')" v-model:visible="editFormVisible" :width="680" :footer="false">
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" @submit="onSubmitEdit" :labelWidth="100">
-
-
-
 
           <hw-form-item :label="$t('page.task.task_name')" name="task_name">
             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.task_name" :placeholder="$t('common.placeholder')+$t('page.task.task_name')"></hw-input>
@@ -184,7 +177,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import {
   SearchIcon
 } from '@/ui/icons';
@@ -263,13 +255,11 @@ export default defineComponent({
           colKey: 'task_name',
         },
 
-
         { title: this.$t('page.task.task_unit'),
           width: 150,
           ellipsis: true,
           colKey: 'task_unit',
         },
-
 
         { title: this.$t('page.task.task_value'),
           width: 150,
@@ -474,9 +464,7 @@ export default defineComponent({
   computed: {
     confirmBody() {
       if (this.deleteIdx > -1) {
-        const {
-          host
-        } = this.data?. [this.deleteIdx];
+
         return this.$t('common.data_delete_warning');
       }
       return '';
@@ -706,7 +694,6 @@ export default defineComponent({
           console.log(e);
         })
         .finally(() => {});
-
 
       this.resetIdx();
     },

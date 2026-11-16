@@ -21,10 +21,9 @@ import (
 const ladderCacheTTL = time.Minute
 
 var (
-	ladderMu      sync.RWMutex
-	ladderCache   []model.HostGuardBanLadder
-	ladderLoadAt  time.Time
-	ladderLoadErr error
+	ladderMu     sync.RWMutex
+	ladderCache  []model.HostGuardBanLadder
+	ladderLoadAt time.Time
 )
 
 // InvalidateLadder 丢弃阶梯缓存(页面上改完阶梯后调用)

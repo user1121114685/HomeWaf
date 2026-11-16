@@ -98,11 +98,6 @@ func (e *EmailNotifier) SendMarkdown(title, content string) error {
 	return e.SendHTML(title, htmlContent)
 }
 
-// SendText 发送纯文本消息
-func (e *EmailNotifier) SendText(title, content string) error {
-	return e.send(title, content, "text/plain")
-}
-
 // SendHTML 发送HTML格式消息
 func (e *EmailNotifier) SendHTML(title, content string) error {
 	return e.send(title, content, "text/html")

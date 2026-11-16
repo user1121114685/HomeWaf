@@ -271,17 +271,12 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
 import {
   SearchIcon
 } from '@/ui/icons';
 import Trend from '@/components/trend/index.vue';
-import {
-  prefix
-} from '@/config/global';
-import {
-  batchTaskAddApi,batchTaskDelApi,batchTaskDetailApi,batchTaskEditApi,batchTaskListApi ,batchTaskManualApi
-} from '@/apis/batchtask';
+
+import { batchTaskAddApi, batchTaskDelApi, batchTaskEditApi, batchTaskListApi, batchTaskManualApi } from '@/apis/batchtask';
   import {
     allhost
   } from '@/apis/host';
@@ -872,8 +867,6 @@ export default defineComponent({
         console.log('操作取消');
       }
     });
-
-
 
     },
     onCancel() {

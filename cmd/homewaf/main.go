@@ -42,7 +42,6 @@ import (
 	"HomeWaf/wafreg"
 	"HomeWaf/wafsafeclear"
 	"HomeWaf/wafsec"
-	"HomeWaf/wafsnowflake"
 	"HomeWaf/waftask"
 	"HomeWaf/waftunnelengine"
 	"HomeWaf/wafupdate"
@@ -69,6 +68,7 @@ import (
 	_ "time/tzdata"
 
 	dlp "HomeWaf/internal/thirdparty/godlp"
+
 	"github.com/kardianos/service"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -270,8 +270,6 @@ func (m *wafSystenService) run() {
 	wafcaptcha.InitCaptchaService(global.GCACHE_WAFCACHE)
 	//初始化锁写不锁度
 	global.GWAF_MEASURE_PROCESS_DEQUEENGINE = cache.InitWafOnlyLockWrite()
-	// 创建 Snowflake 实例
-	global.GWAF_SNOWFLAKE_GEN = wafsnowflake.NewSnowflake(1609459200000, 1, 1) // 设置epoch时间、机器ID和数据中心ID
 
 	// 注入 IP 库在线下载上下文：iplocation 不能反向依赖 global/utils（会成环），
 	// 所以升级源、SSRF 安全客户端、通知回调都从这里传进去。

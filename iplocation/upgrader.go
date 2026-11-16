@@ -405,15 +405,6 @@ func CheckUpgrade(dataDir string) (*UpgradeInfo, error) {
 	return info, nil
 }
 
-// StartUpgrade 异步启动一次下载，立刻返回，进度由 GetProgress 查询。
-//
-// 之所以不让接口同步等：35MB 在慢网上要几分钟，HTTP 请求挂那么久既容易被网关掐断，
-// 用户也只能看到一个转圈，不知道下到哪、还剩多少。
-// 参数校验（key 是否支持、是否已有任务在跑）在返回前同步做完，这样前端能立刻收到错误。
-func StartUpgrade(dataDir, key string, reload func() error) error {
-	return StartUpgradeWithRollback(dataDir, key, reload, reload)
-}
-
 // StartUpgradeWithRollback restores configuration as well as the old file on activation failure.
 func StartUpgradeWithRollback(dataDir, key string, reload, rollback func() error) error {
 	fileName := fileNameByKey(key)

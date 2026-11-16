@@ -51,7 +51,6 @@
       </div>
     </hw-card>
 
-
     <hw-dialog :header="$t('common.new')" v-model:visible="addFormVisible" :width="780" :footer="false">
       <template #body><div >
         <hw-form :data="formData" ref="form" :rules="rules" @submit="onSubmit" :labelWidth="180">
@@ -136,7 +135,6 @@
                       </div>
                     </div>
                   </hw-form-item>
-
 
                   <hw-form-item style="float: right">
                     <hw-button variant="outline" @click="onClickCloseBtn">{{ $t('common.close') }}</hw-button>
@@ -276,7 +274,6 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 
-
   import { purifyHtml } from '@/utils/purify';
   import {
     SearchIcon
@@ -379,7 +376,6 @@ import {defineComponent} from 'vue';
                     ellipsis: true,
                     colKey: 'blocking_page_name',
              },
-
 
             { title: this.$t('page.blocking_page.blocking_type'),
                     width: 200,
@@ -496,9 +492,7 @@ import {defineComponent} from 'vue';
     computed: {
       confirmBody() {
         if (this.deleteIdx > -1) {
-          const {
-            host
-          } = this.data?. [this.deleteIdx];
+
           return this.$t('common.data_delete_warning');
         }
         return '';
@@ -881,7 +875,6 @@ import {defineComponent} from 'vue';
             console.log(e);
           })
           .finally(() => {});
-
 
         this.resetIdx();
       },

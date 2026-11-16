@@ -91,13 +91,3 @@ func (tr *TaskRegistry) ExecuteTask(taskName string) {
 		zlog.Error(fmt.Sprintf("%s 任务方法 '%s'  未找到", innerName, taskName))
 	}
 }
-
-// GetTask 根据任务名称获取任务方法
-// 如果任务存在，返回任务函数；如果任务不存在，返回nil和错误信息
-func (tr *TaskRegistry) GetTask(taskName string) (TaskFunc, error) {
-	if taskFunc, exists := tr.Tasks[taskName]; exists {
-		return taskFunc, nil
-	} else {
-		return nil, fmt.Errorf("任务方法 '%s' 未找到", taskName)
-	}
-}

@@ -38,15 +38,6 @@ export function deleteNotifySubscription(params: any = {}) {
   })
 }
 
-//详情
-export function getNotifySubscriptionDetail(params: any = {}) {
-  return request({
-    url: '/notify/subscription/detail',
-    method: 'get',
-    params: params
-  })
-}
-
 // ===== 精细化配置与调试（issue #822）=====
 // 频控/模板/过滤走独立接口，不混进 edit：
 // 开关切换和收件人编辑都会整包提交 edit，混在一起漏传字段就会把配好的模板清空。

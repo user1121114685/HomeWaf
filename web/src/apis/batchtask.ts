@@ -38,15 +38,6 @@ export function batchTaskAddApi(params: any = {}) {
   })
 }
 
-// 批量任务配置 - 详情
-export function batchTaskDetailApi(params: any = {}) {
-  return request({
-    url: '/batch_task/detail',
-    method: 'get',
-    params: params
-  })
-}
-
 // 批量任务配置 - 手工触发
 export function batchTaskManualApi(params: any = {}) {
   return request({

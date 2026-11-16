@@ -45,12 +45,6 @@ func (receiver *WafFirewallIPBlockService) CheckFirewallAvailable() error {
 	return receiver.fw.CheckAvailable()
 }
 
-// SupportsIPSet 报告当前环境是否可用"大列表批量封禁"(Linux ipset / Windows 分片规则 / macOS pf table)。
-// 供威胁情报订阅"系统层落地"判定是否可下发大列表。
-func (receiver *WafFirewallIPBlockService) SupportsIPSet() bool {
-	return receiver.fw.SupportsIPSet()
-}
-
 // RecommendBlockLayer 根据站点 IP 模式与系统防火墙可用性，推荐"加黑名单"的封禁层级(供前端下拉预选)。
 //   - 代理模式站点：系统防火墙只能看到上游代理IP，封真实客户端无效 → 推荐 WAF 应用层
 //   - 直连站点且防火墙可用：内核层 DROP 更省资源 → 推荐系统层
@@ -125,11 +119,6 @@ func (receiver *WafFirewallIPBlockService) AddApi(req request.WafFirewallIPBlock
 	}
 
 	return nil
-}
-
-// CheckIsExistApi 检查IP是否已存在
-func (receiver *WafFirewallIPBlockService) CheckIsExistApi(req request.WafFirewallIPBlockAddReq) error {
-	return global.GWAF_LOCAL_DB.First(&model.FirewallIPBlock{}, "ip = ? AND "+dialect.Q("status")+" = ?", req.IP, "active").Error
 }
 
 // ModifyApi 修改防火墙IP封禁
@@ -213,13 +202,6 @@ func (receiver *WafFirewallIPBlockService) ModifyApi(req request.WafFirewallIPBl
 func (receiver *WafFirewallIPBlockService) GetDetailApi(req request.WafFirewallIPBlockDetailReq) model.FirewallIPBlock {
 	var bean model.FirewallIPBlock
 	global.GWAF_LOCAL_DB.Where("id=?", req.Id).Find(&bean)
-	return bean
-}
-
-// GetDetailByIdApi 根据ID获取详情
-func (receiver *WafFirewallIPBlockService) GetDetailByIdApi(id string) model.FirewallIPBlock {
-	var bean model.FirewallIPBlock
-	global.GWAF_LOCAL_DB.Where("id=?", id).Find(&bean)
 	return bean
 }
 
@@ -502,25 +484,6 @@ func (receiver *WafFirewallIPBlockService) ClearExpiredRules() (int, error) {
 	}
 
 	return count, nil
-}
-
-// GetHostCodesByIds 根据ID列表获取对应的HostCode列表
-func (receiver *WafFirewallIPBlockService) GetHostCodesByIds(ids []string) ([]string, error) {
-	var hostCodes []string
-	err := global.GWAF_LOCAL_DB.Model(&model.FirewallIPBlock{}).
-		Where("id IN ?", ids).
-		Distinct("host_code").
-		Pluck("host_code", &hostCodes).Error
-	return hostCodes, err
-}
-
-// GetAllActiveIPs 获取所有active状态的IP列表
-func (receiver *WafFirewallIPBlockService) GetAllActiveIPs() ([]string, error) {
-	var ips []string
-	err := global.GWAF_LOCAL_DB.Model(&model.FirewallIPBlock{}).
-		Where(dialect.Q("status")+" = ?", "active").
-		Pluck("ip", &ips).Error
-	return ips, err
 }
 
 // GetStatistics 获取统计信息
