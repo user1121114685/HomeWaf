@@ -3,12 +3,17 @@ package acmelease
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 )
 
 func TestCanceledJobNeverEntersAndTimedOutRestartReopensAdmission(t *testing.T) {
-	dir := t.TempDir()
+	// File leases require a real path, including on macOS where /var is a symlink.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if guard, err := AcquireJob(ctx, dir); !errors.Is(err, context.Canceled) {
@@ -40,7 +45,10 @@ func TestCanceledJobNeverEntersAndTimedOutRestartReopensAdmission(t *testing.T) 
 }
 
 func TestRestartWaitsForCertificateAndBlocksNewWork(t *testing.T) {
-	dir := t.TempDir()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	job, err := AcquireJob(ctx, dir)

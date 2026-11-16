@@ -121,7 +121,12 @@ func testSupervisor(t *testing.T) (*Supervisor, string) {
 	t.Setenv("HOMEWAF_SUPERVISOR_TEST_WORKER", "1")
 	t.Setenv("HOMEWAF_TEST_HTTP_ADDR", addr)
 	exe, _ := os.Executable()
-	s := New(Options{ExePath: exe, DataDir: t.TempDir(), DrainTimeout: 3, ReadyTimeout: 3})
+	// macOS temporary paths may traverse /var, which file leases reject as a symlink.
+	dataDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New(Options{ExePath: exe, DataDir: dataDir, DrainTimeout: 3, ReadyTimeout: 3})
 	done := make(chan error, 1)
 	go func() { done <- s.Run() }()
 	t.Cleanup(func() {
