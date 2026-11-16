@@ -45,6 +45,7 @@ const report = { checks: [], errors: [], writes: [], confirmations: [], origin }
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, colorScheme: 'light' });
 await context.addInitScript(() => {
+  if (window !== window.top) return; // Keep the authentication fixture out of sandboxed previews.
   localStorage.setItem('access_token', 'isolated-config-edit-test');
   localStorage.setItem('lang', 'zh_CN');
 });
@@ -187,13 +188,14 @@ try {
     const control = honey.getByRole('switch', { name, exact: true });
     if ((await control.getAttribute('aria-checked')) !== 'true') await control.locator('xpath=..').click();
   };
-  await honey.getByRole('button', { name: '添加蜜罐提示', exact: true }).click();
+  await honey.getByRole('button', { name: '添加蜜罐页面', exact: true }).click();
   await honey.getByLabel('蜜罐提示1标题', { exact: true }).fill('持续可修改的提示');
   await honey.getByLabel('蜜罐提示1内容', { exact: true }).fill('第一版内容');
+  await honey.locator('.weight-details summary').click();
   await honey.getByRole('spinbutton', { name: '蜜罐提示1权重', exact: true }).fill('70');
-  await setSwitch('归档脱敏后的提交内容');
+  await setSwitch('保存脱敏后的提交内容');
   await saveHoney();
-  await expect(sharedPage.getByText('配置已读取', { exact: true })).toBeVisible();
+  await expect(sharedPage.getByText('配置已保存', { exact: true })).toBeVisible();
   const lureID = sharedHoneypot.config.lures[0].id;
   expect(configs.get(5000).listen_enabled).toBe(true);
   expect(sharedHoneypot.config.lures[0].weight).toBe(70);
@@ -201,7 +203,7 @@ try {
   await page.reload();
   await expect(honey.getByLabel('蜜罐提示1标题', { exact: true })).toHaveValue('持续可修改的提示');
   await honey.getByLabel('蜜罐提示1内容', { exact: true }).fill('第二版内容');
-  await honey.getByRole('button', { name: '添加蜜罐提示', exact: true }).click();
+  await honey.getByRole('button', { name: '添加蜜罐页面', exact: true }).click();
   await honey.getByLabel('蜜罐提示2标题', { exact: true }).fill('可删除的提示');
   await honey.getByLabel('蜜罐提示1标题', { exact: true }).fill('');
   await expect(sharedPage.getByRole('button', { name: '保存统一蜜罐设置' })).toBeDisabled();
@@ -212,11 +214,11 @@ try {
   await expect(honey.getByLabel('蜜罐提示1内容', { exact: true })).toHaveValue('第二版内容');
   expect(sharedHoneypot.config.lures[0].message).toBe('第一版内容');
   await saveHoney();
-  await expect(sharedPage.getByText('配置已读取', { exact: true })).toBeVisible();
+  await expect(sharedPage.getByText('配置已保存', { exact: true })).toBeVisible();
   expect(sharedHoneypot.config.lures[0].id).toBe(lureID);
   await honey.getByRole('button', { name: '移除蜜罐提示2', exact: true }).click();
   await saveHoney();
-  await expect(sharedPage.getByText('配置已读取', { exact: true })).toBeVisible();
+  await expect(sharedPage.getByText('配置已保存', { exact: true })).toBeVisible();
   expect(sharedHoneypot.config.lures).toHaveLength(1);
   report.checks.push('shared honeypot reopens, edits/adds/removes prompts, validates and retains failed-save drafts');
   await honey.getByLabel('蜜罐提示1内容', { exact: true }).fill('取消的内容');

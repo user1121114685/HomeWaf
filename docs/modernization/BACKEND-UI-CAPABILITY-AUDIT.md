@@ -1,5 +1,7 @@
 # 后端能力与前端接入增量审计
 
+2026-11-17 蜜罐易用性改进：四种模板只填写现有 `lures.title/message`，保留 `id/weight`；无新后端字段或写入路径。预览本地生成隔离的只读页面，基于当前 Go handler 的 GET/POST/503 文案和布局；预览不是网络探测或运行状态。`shared.configured` 用于内容就绪，`services` 只代表模式绑定，`sources` 用于选择服务，`legacy` 继续供导入，`logs` 仍按端口筛选且保留原始详情。当前 API 不返回监听状态，因此页面不宣称服务正在运行。静态审计仍为 605/462/6/137；证据见 [蜜罐易用性评审](HONEYPOT-USABILITY-REVIEW.md)。
+
 本次依据生产路由注册、组件调用链和后端运行时核对。完整路由列表见 [自动生成清单](backend-api-routes.md)，产品合同和验证边界见 [接入记录](API-UI-INTEGRATION.md)。此处不是所有历史路由的完整能力清单。
 
 | 能力 | 现在的 API → 可达控件 | 持久化/运行时 |

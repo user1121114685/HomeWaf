@@ -45,11 +45,13 @@ const otherPort = JSON.stringify(configs.get(5001));
 let shared = { configured: false, revision: 0, config: clone(templates[0].policy.honeypot) };
 let failSave = false,
   failSharedSave = false,
-  failSharedRead = false;
+  failSharedRead = false,
+  failHoneyLogs = false;
 const report = { checks: [], screenshots: [], errors: [], writes: [] };
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light' });
 await context.addInitScript(() => {
+  if (window !== window.top) return; // Auth fixture belongs to the app, never the sandboxed preview.
   localStorage.setItem('access_token', 'isolated-defense-test');
   localStorage.setItem('lang', 'zh_CN');
 });
@@ -91,8 +93,14 @@ await context.route('**/api/**', async (route) => {
       issues: {},
     });
   if (action === 'templates') return ok(templates);
-  if (['migration/legacy', 'regions', 'gate/users', 'gate/sessions', 'state', 'logs', 'honeypot/logs'].includes(action))
+  if (action === 'honeypot/logs') {
+    if (failHoneyLogs) {
+      failHoneyLogs = false;
+      return fail('模拟蜜罐记录读取失败');
+    }
     return ok([]);
+  }
+  if (['migration/legacy', 'regions', 'gate/users', 'gate/sessions', 'state', 'logs'].includes(action)) return ok([]);
   if (action === 'defense') {
     const c = configs.get(port);
     return ok({
@@ -153,6 +161,7 @@ await context.route('**/api/**', async (route) => {
     }
     return ok({
       shared,
+      sources: [...configs.values()].map((c) => ({ port: c.port, name: c.name })),
       legacy: [...configs.values()]
         .filter((c) => !c.policy.defense && c.policy.honeypot.enabled)
         .map((c) => ({ port: c.port, name: c.name, config: c.policy.honeypot })),
@@ -260,9 +269,50 @@ try {
   await expect(honey().getByText('模拟蜜罐读取失败', { exact: true })).toBeVisible();
   await honey().getByRole('button', { name: '重试', exact: true }).click();
   await expect(honey().getByRole('button', { name: '保存统一蜜罐设置' })).toBeVisible();
-  await honey().getByRole('button', { name: '添加蜜罐提示' }).click();
+  await expect(honey().getByText('尚无服务选择蜜罐模式', { exact: true })).toBeVisible();
+  await expect(honey().getByRole('button', { name: '前往服务设置' })).toBeDisabled();
+  const preview = () => honey().getByTestId('honeypot-preview');
+  const previewBody = () => page.frameLocator('iframe[title="蜜罐响应外观"]').locator('body');
+  await expect(previewBody()).toContainText('管理控制台');
+  const writesBeforePreview = report.writes.length;
+  await preview().getByRole('button', { name: '模拟提交登录' }).click();
+  await expect(previewBody()).toContainText('账号或密码错误，请稍后重试。');
+  await preview().getByRole('radio', { name: '并发已满' }).check();
+  await expect(previewBody()).toHaveText('Service busy');
+  await expect(preview().getByText('HTTP 503 · 服务繁忙', { exact: true })).toBeVisible();
+  await preview().getByRole('radio', { name: '首次访问' }).check();
+  await honey().getByRole('button', { name: '使用设备管理模板' }).click();
+  await expect(honey().getByLabel('蜜罐提示1标题', { exact: true })).toHaveValue('设备管理');
+  await expect(previewBody()).toContainText('设备管理');
+  await honey().getByRole('button', { name: '使用文件管理模板' }).click();
+  await dialog().getByRole('button', { name: '保留当前文案' }).click();
+  await expect(honey().getByLabel('蜜罐提示1标题', { exact: true })).toHaveValue('设备管理');
+  for (const name of ['文件管理', '应用运维', '管理入口']) {
+    await honey()
+      .getByRole('button', { name: '使用' + name + '模板' })
+      .click();
+    await dialog().getByRole('button', { name: '替换文案' }).click();
+  }
+  const literal = '<script>window.previewExecuted=true</script><img src="https://invalid.example/decoy">';
+  await honey().getByLabel('蜜罐提示1内容', { exact: true }).fill(literal);
+  await expect(previewBody()).toContainText(literal);
+  await expect(page.frameLocator('iframe[title="蜜罐响应外观"]').locator('script, img')).toHaveCount(0);
+  await expect(honey().locator('iframe')).toHaveAttribute('sandbox', '');
+  if (report.writes.length !== writesBeforePreview) throw new Error('template or preview wrote to API');
+  report.checks.push(
+    'four templates, replacement cancellation, local GET/POST/503 feedback, escaped sandboxed preview with no API writes',
+  );
   await honey().getByRole('textbox', { name: '蜜罐提示1标题' }).fill('统一仿真入口');
   await honey().getByRole('textbox', { name: '蜜罐提示1内容' }).fill('独立记录安全拒绝，不连接真实业务。');
+  await honey().getByRole('button', { name: '添加蜜罐页面' }).click();
+  await honey().getByRole('button', { name: '使用设备管理模板' }).click();
+  await dialog().getByRole('button', { name: '替换文案' }).click();
+  await expect(honey().getByLabel('蜜罐提示2标题', { exact: true })).toHaveValue('设备管理');
+  await expect(honey().getByLabel('蜜罐提示1标题', { exact: true })).toHaveValue('统一仿真入口');
+  await honey().getByRole('button', { name: '移除蜜罐提示2', exact: true }).click();
+  await honey().getByLabel('确认不存在的陷阱路径', { exact: true }).fill('https://invalid.example/login');
+  await expect(honey().getByRole('button', { name: '保存统一蜜罐设置' })).toBeDisabled();
+  await honey().getByLabel('确认不存在的陷阱路径', { exact: true }).fill('/__decoy_test');
   failSharedSave = true;
   await honey().getByRole('button', { name: '保存统一蜜罐设置' }).click();
   await confirm();
@@ -270,7 +320,27 @@ try {
   await expect(honey().getByRole('textbox', { name: '蜜罐提示1标题' })).toHaveValue('统一仿真入口');
   await honey().getByRole('button', { name: '保存统一蜜罐设置' }).click();
   await confirm();
-  await expect(honey().getByText(/配置已读取/)).toBeVisible();
+  await expect(honey().getByText('配置已保存', { exact: true })).toBeVisible();
+  if (shared.config.trap_paths.join() !== '/__decoy_test') throw new Error('trap draft did not persist');
+  const savedLureID = shared.config.lures[0].id;
+  await page.reload();
+  await expect(honey().getByLabel('蜜罐提示1标题', { exact: true })).toHaveValue('统一仿真入口');
+  await honey().getByRole('button', { name: '使用文件管理模板' }).click();
+  await dialog().getByRole('button', { name: '替换文案' }).click();
+  await page.getByRole('button', { name: '重新加载', exact: true }).click();
+  await dialog().getByRole('button', { name: '取消', exact: true }).click();
+  await expect(honey().getByLabel('蜜罐提示1标题', { exact: true })).toHaveValue('文件管理中心');
+  await page.getByRole('button', { name: '重新加载', exact: true }).click();
+  await confirm();
+  await expect(honey().getByLabel('蜜罐提示1标题', { exact: true })).toHaveValue('统一仿真入口');
+  if (shared.config.lures[0].id !== savedLureID)
+    throw new Error('template replacement changed saved identity before save');
+  failHoneyLogs = true;
+  await honey().getByRole('button', { name: '刷新记录', exact: true }).click();
+  await expect(honey().getByText('模拟蜜罐记录读取失败', { exact: true })).toBeVisible();
+  await expect(honey().locator('.el-table')).toHaveCount(0);
+  await honey().getByRole('button', { name: '重试读取记录' }).click();
+  await expect(honey().locator('.el-table__empty-text')).toContainText('当前范围内暂无蜜罐记录');
   report.checks.push('standalone honeypot read failure/retry, shared write failure preserves draft, shared save');
   await expect(page.locator('.el-message:visible')).toHaveCount(0, { timeout: 6000 });
   for (const [width, height] of [
@@ -296,6 +366,21 @@ try {
       const file = `honeypot-${width}-${theme}.png`;
       await page.screenshot({ path: path.join(out, file), fullPage: true });
       report.screenshots.push(file);
+      for (const [label, state] of [
+        ['首次访问', 'visit'],
+        ['提交登录后', 'login'],
+        ['并发已满', 'busy'],
+      ]) {
+        await preview().getByRole('radio', { name: label, exact: true }).check();
+        const frame = honey().locator('iframe[title="蜜罐响应外观"]');
+        await frame.scrollIntoViewIfNeeded();
+        await expect(previewBody()).toContainText(state === 'busy' ? 'Service busy' : '统一仿真入口');
+        await page.waitForTimeout(150);
+        const responseShot = 'honeypot-preview-' + width + '-' + theme + '-' + state + '.png';
+        await frame.screenshot({ path: path.join(out, responseShot) });
+        report.screenshots.push(responseShot);
+      }
+      await preview().getByRole('radio', { name: '首次访问', exact: true }).check();
     }
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -310,6 +395,14 @@ try {
   await panel().getByRole('link', { name: '在新标签页配置统一蜜罐' }).click();
   const popup = await popupPromise;
   await expect(popup.getByTestId('shared-honeypot')).toBeVisible();
+  await expect(popup.getByText(/你从端口 :5000 的服务配置进入/)).toBeVisible();
+  await popup.getByRole('combobox', { name: '蜜罐记录服务' }).focus();
+  await popup.getByRole('combobox', { name: '蜜罐记录服务' }).press('ArrowDown');
+  await popup.getByRole('option', { name: '处置测试5001 · :5001' }).click();
+  await popup.getByRole('button', { name: '返回原服务' }).click();
+  await expect(
+    popup.getByTestId('defense-settings').getByRole('heading', { name: '异常访问处置 · :5000', exact: true }),
+  ).toBeVisible();
   await popup.close();
   await expect(panel()).toBeVisible();
   if (configs.get(5000).policy.defense.mode !== 'honeypot' || shared.config.lures[0].title !== '统一仿真入口')
