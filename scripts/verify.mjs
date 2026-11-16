@@ -33,6 +33,7 @@ run([
 ]);
 run([
   "test",
+  "./binarydist",
   "./internal/licensing",
   "./internal/secretfield",
   "./wafsec",

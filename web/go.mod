@@ -1,4 +1,4 @@
 // Isolate frontend/tool dependencies from the backend module traversal.
 module HomeWaf/web
 
-go 1.27.3
+go 1.27.4

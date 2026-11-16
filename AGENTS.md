@@ -6,7 +6,7 @@ HomeWaf protects websites and home services. `cmd/homewaf/` starts the superviso
 `web/` contains Vue 3, TypeScript, Vite, Element Plus, and Pinia. Routes live in `web/src/router/`, views in `pages/`, request clients in `apis/`, shared controls/tokens in `ui/`, and navigation in `layouts/`. Use `utils/request.ts` for authenticated/encrypted requests. Static assets live in `web/public/`; builds embed them into `public/dist/`. Documentation is under `docs/`.
 
 ## Build, Test & Development
-Use the versions in `go.mod` and `web/package.json` (currently Go 1.27.3 and Node 26.13.0). Run from the repository root:
+Use the versions in `go.mod` and `web/package.json` (currently Go 1.27.4 and Node 26.13.0). Run from the repository root:
 
 - `node scripts/dev.mjs`: start both services with reload; Windows also supports `.\dev.bat`. Console: port 3001; backend: 26666.
 - `node scripts/build.mjs`: install locked dependencies, type-check, and build frontend/backend into `artifacts/`.
