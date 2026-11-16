@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 /* WebSocket封装
  * @param url: WebSocket接口地址与携带参数必填

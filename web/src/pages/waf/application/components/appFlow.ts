@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // 应用管理（表单预检 / 提交编排 / 启动轮询）的纯逻辑。
 // 不依赖 Vue / axios，组件与 scripts/verify-app-flow.mjs 共用同一份实现。

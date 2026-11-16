@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // Package ccrule 负责把 CC 规则编译成可在请求热路径上直接求值的形态。
 //

@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // HomeWaf adaptation of go-captcha v2.0.5: import namespace and maintained OpenType rendering.
 /**

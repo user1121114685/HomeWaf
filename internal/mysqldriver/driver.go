@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // HomeWaf adapter: safe legacy DSNs, verified TLS and datetime compatibility. Upstream go-mysql v1.16.0.
 // This package implements database/sql/driver interface,

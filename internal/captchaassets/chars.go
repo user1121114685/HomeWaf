@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // Character lists from go-captcha-assets v1.0.7 (Apache-2.0).
 package captchaassets

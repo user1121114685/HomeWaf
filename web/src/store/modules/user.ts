@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 const state = { token: localStorage.getItem('access_token') || '', userInfo: { name: '', roles: [] as string[] } };
 const mutations = {

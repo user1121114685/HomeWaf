@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 export const zh = {
   title: '导出日志', tasks: '我的导出任务', create: '创建导出任务', refresh: '刷新', close: '关闭',

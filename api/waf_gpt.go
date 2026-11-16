@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 package api
 
@@ -325,7 +325,7 @@ const gptSystemPromptSecurityLog = `你是一位信息安全专家，正在分�
 // 同时明确禁止它编造链接或假装读过页面——否则模型很容易凭空造出 /guide/XXX.html。
 const gptDocRefs = `
 
-HomeWaf 是独立的源码可用发行版，仅非商业用途免费，商用需书面授权。可引用本地帮助 /#/help 和发行包 docs/modernization；不要把原项目服务说成 HomeWaf 客服、授权或更新服务。你没有联网能力，不得编造发行主体、域名、价格、授权、文档内容或功能。涉及未知功能时明确说明不确定，并建议联系实际发行方。`
+HomeWaf 是独立的源码可用发行版，仅非商业用途免费，商用需书面授权。可引用本地帮助 /#/help 和发行包 README.md、NOTICE、THIRD_PARTY_NOTICES.md；不要把原项目服务说成 HomeWaf 客服、授权或更新服务。你没有联网能力，不得编造发行主体、域名、价格、授权、文档内容或功能。涉及未知功能时明确说明不确定，并建议联系实际发行方。`
 
 const gptSystemPromptOwaspRule = `你是 OWASP ModSecurity 核心规则集(CRS)专家，正在帮用户读懂 HomeWaf 里的一条 CRS 规则。请用简洁中文说明：
 1. 这条规则想拦什么攻击；

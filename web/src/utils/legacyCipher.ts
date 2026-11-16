@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // Legacy AES transport is retained solely to migrate existing backend sessions.
 import { cbc } from '@noble/ciphers/aes.js';

@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 import request from '@/utils/request'
 // 获取 GPT 参数（gpt_url/gpt_model/是否已配置密钥；密钥不回传明文）

@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 import axios from 'axios';
 import type {AxiosRequestConfig,AxiosInstance} from 'axios';

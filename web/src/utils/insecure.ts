@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 /** 顶部 HTTP 提示条"本次会话已收起"的标记（sessionStorage） */
 export const INSECURE_BANNER_DISMISS_KEY = '__samwaf_insecure_dismissed__';

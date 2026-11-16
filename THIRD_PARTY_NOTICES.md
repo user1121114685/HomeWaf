@@ -6,7 +6,7 @@ See [NOTICE](NOTICE) for upstream attribution and [LICENSES/THIRD_PARTY.txt](LIC
 
 The license bundle groups only byte-identical texts and retains every original source label and copyright notice. The labels inside the bundle are an index, not separate repository files. Licenses beside copied source files remain in place.
 
-When dependencies or embedded assets change, update this inventory, the corresponding texts in the license bundle and [provenance.json](docs/modernization/provenance.json). Keep package versions in `go.mod` / `go.sum` and `web/package-lock.json`; store temporary audit reports and SBOM exports under ignored `artifacts/` or `.cache/` directories.
+When dependencies or embedded assets change, update this inventory and the corresponding texts in the license bundle. Keep package versions in `go.mod` / `go.sum` and `web/package-lock.json`; store temporary audit reports and SBOM exports under ignored `artifacts/` or `.cache/` directories.
 
 ## Backend modules
 
@@ -439,19 +439,19 @@ MapLibre GL JS and its added dependency license texts are retained in [LICENSES/
 
 | Component | License and provenance |
 |---|---|
-| SamWaf backend and SamWafWeb UI | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`upstream`) |
+| SamWaf backend and SamWafWeb UI | Apache-2.0; LICENSES/THIRD_PARTY.txt; source commits in NOTICE |
 | Historical TDesign Vue Starter template portions | MIT; LICENSES/THIRD_PARTY.txt; runtime framework removed |
-| SQLite 3.54.1 through modernc.org/sqlite 1.62.0 (pure Go) | BSD-3-Clause and public-domain/component notices; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`sqlite-provenance`) |
+| SQLite 3.54.1 through modernc.org/sqlite 1.62.0 (pure Go) | BSD-3-Clause and public-domain/component notices; LICENSES/THIRD_PARTY.txt; module versions in go.mod / go.sum |
 | GORM SQLite 1.6.0 and MySQL 1.6.0 adapters; go-mysql 1.16.0 adapter | MIT; LICENSES/THIRD_PARTY.txt; preserved upstream notices |
 | GoCaptcha 2.0.5 and character data | Apache-2.0; internal/thirdparty/gocaptcha/LICENSE and internal/captchaassets/LICENSE-CHARS |
-| Grule 1.20.4 local adapter, Git loader omitted | Apache-2.0; internal/thirdparty/grule/LICENSE*; docs/modernization/provenance.json (`grule-provenance`) |
-| GoDLP 1.2.15 local adapter, maintained YAML v4 | MIT; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`godlp-provenance`) |
-| CAP Go server 1.0.1 local copy | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`cap-server-provenance`) |
-| Geist and Geist Mono, WOFF2-compressed variable fonts | SIL OFL-1.1; LICENSES/fonts/OFL-Geist.txt and OFL-GeistMono.txt; source hashes in docs/modernization/provenance.json |
+| Grule 1.20.4 local adapter, Git loader omitted | Apache-2.0; internal/thirdparty/grule/LICENSE* |
+| GoDLP 1.2.15 local adapter, maintained YAML v4 | MIT; LICENSES/THIRD_PARTY.txt |
+| CAP Go server 1.0.1 local copy | Apache-2.0; LICENSES/THIRD_PARTY.txt |
+| Geist and Geist Mono, WOFF2-compressed variable fonts | SIL OFL-1.1; LICENSES/fonts/OFL-Geist.txt and OFL-GeistMono.txt |
 | LXGW WenKai 1.530, original font | SIL OFL-1.1; LICENSES/THIRD_PARTY.txt; no font is sold by itself |
-| CAP widget 0.1.61 / wasm 0.0.8 | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`embedded-web`) |
-| OWASP CRS 4.30.0 | Apache-2.0; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`crs-provenance`) |
-| ip2region IPv4 XDB | Apache-2.0 OR MIT; LICENSES/THIRD_PARTY.txt; docs/modernization/provenance.json (`ip2region-provenance`) |
+| CAP widget 0.1.61 / wasm 0.0.8 | Apache-2.0; LICENSES/THIRD_PARTY.txt |
+| OWASP CRS 4.30.0 | Apache-2.0; LICENSES/THIRD_PARTY.txt |
+| ip2region IPv4 XDB | Apache-2.0 OR MIT; LICENSES/THIRD_PARTY.txt |
 | ip2region IPv6 XDB | Apache-2.0 OR MIT; LICENSES/ip2region/LICENSE.txt; pinned source, size and hashes in cmd/homewaf/exedata/ip2region_v6.source.json |
 | HomeWaf logos, CSS backgrounds and click challenge UI | Original HomeWaf additions; root LICENSE |
 | Short weak-password rejection list in wafenginecore/accessgate/password.go | Project-authored list of common trivial passwords; no external password corpus imported; root LICENSE. Shared by account creation and login/honeypot classification. Attempted passwords are not retained in plaintext. |
@@ -461,4 +461,4 @@ DOMPurify is used under its Apache-2.0 alternative. Geist and Geist Mono are bun
 The optional user-supplied MaxMind databases and ML models are not included in releases; their operators must obtain the corresponding rights.
 Unused upstream crawler IP archives, map data, login imagery, frontend binary bundles and UPX executables are not distributed.
 
-CAP WASM upstream Rust build dependencies are listed in docs/modernization/provenance.json (`cap-wasm-build-dependencies`) with crate checksums and LICENSES/THIRD_PARTY.txt notices. The official released WASM is used without claiming its compiler-internal dependencies were independently upgraded.
+CAP WASM uses the official released artifact; bundled upstream notices are retained in LICENSES/THIRD_PARTY.txt. Its compiler-internal dependencies are not claimed to have been independently upgraded.

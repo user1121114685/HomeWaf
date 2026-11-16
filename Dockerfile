@@ -1,4 +1,4 @@
-# HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+# HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 # HomeWaf source build with pinned base images; update digests deliberately.
 FROM node:26.13.0-alpine@sha256:8996bb5821d62a8fd9bb27c1cb07462f3fdce6e47d640c6a881ead0b064ce216 AS web
@@ -29,9 +29,8 @@ LABEL org.opencontainers.image.licenses="LicenseRef-HomeWaf-NC-1.0"
 WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata iptables
 COPY --from=backend /out/homewaf /app/homewaf
-COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md /app/
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md /app/
 COPY LICENSES /app/LICENSES
-COPY docs/modernization/MIGRATION.md docs/modernization/SECURITY.md docs/modernization/provenance.json /app/docs/modernization/
 VOLUME ["/app/conf", "/app/data", "/app/.homewaf-keys", "/app/logs", "/app/ssl"]
 EXPOSE 26666 80 443 443/udp
 ENTRYPOINT ["/app/homewaf"]

@@ -1,4 +1,4 @@
-<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
+<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE. -->
 
 <template>
   <!-- AI(GPT) 参数设置弹窗：规则编辑页、AI 助手等入口共用一份，避免各处各写一遍 -->

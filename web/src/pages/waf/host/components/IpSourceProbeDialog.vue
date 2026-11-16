@@ -1,4 +1,4 @@
-<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
+<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE. -->
 
 <template>
   <!-- 真实IP来源诊断：展示最近真实到达该站点的请求头(已脱敏)。

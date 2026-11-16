@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 import { defineComponent, h, ref } from 'vue';
 import { ElUpload, ElButton } from 'element-plus';

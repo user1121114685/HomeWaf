@@ -1,4 +1,4 @@
-<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
+<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE. -->
 
 <template>
     <hw-dialog class="log-export-dialog" attach="body" :header="tr('title')" :visible="visible" width="min(1180px, calc(100vw - 32px))"

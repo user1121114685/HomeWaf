@@ -1,4 +1,4 @@
-# HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+# HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 /vue/
 /release/
@@ -55,10 +55,4 @@ dist/
 /.taste-skill/
 /.homewaf-keys/
 
-# Temporary migration and dependency audit reports belong in artifacts/ or .cache/.
-/docs/modernization/*-audit.json
-/docs/modernization/*-versions.json
-/docs/modernization/sbom*.json
-/docs/modernization/verification.json
-/docs/modernization/original-go.mod
 /.aider-desk

@@ -1,4 +1,4 @@
-# HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+# HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 # 升级现场观测脚本 —— 用来确认 Windows 自升级 "Access is denied" 的根因。
 #

@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 import {createI18n} from 'vue-i18n';
 import zh_CN from './zh_CN';import en_US from './en_US';

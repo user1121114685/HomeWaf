@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // Package wafupgradenotice 提供「升级须知」的内置清单：解析、校验与按版本区间挑选。
 //

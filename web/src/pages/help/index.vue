@@ -64,9 +64,8 @@
         </p>
         <h2 id="installation">安装与升级</h2>
         <p>
-          发布前请备份 conf、data、ssl、plugins
-          目录及授权文件。沿用既有数据库与协议兼容标识；不要同时运行新旧服务。详细步骤见发行包
-          docs/modernization/MIGRATION.md。
+          升级前请配套备份 conf、data、ssl、plugins、.homewaf-keys
+          目录及授权文件。不要让两个独立实例共用数据目录；内置平滑升级由 Supervisor 管理交接。安装与更新步骤见发行包 README.md。
         </p>
         <p>
           管理端初始口令由本机首次启动生成。首次登录后请修改密码并限制管理端访问范围。后台 API 权限以服务端校验为准。
@@ -81,8 +80,7 @@
           DNS、证书申请、通知或 AI 服务会向对应服务商发送实现功能所需的数据。
         </p>
         <p>
-          构建、迁移与发布步骤见源码 docs/modernization/MIGRATION.md；内嵌资源来源见同目录的
-          provenance.json，依赖版本及许可见第三方清单。
+          构建与安全边界见源码 README.md；上游来源见来源声明，内嵌资源、依赖版本及许可见第三方清单。
         </p>
       </article>
     </main>

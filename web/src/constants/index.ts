@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // localStorage 保留字段配置
 export const LOCALSTORAGE_PRESERVE_KEYS = [

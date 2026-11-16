@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 type Handler=(...args:any[])=>void;
 const listeners=new Map<string,Set<Handler>>();

@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // Wire-compatible NaCl box/secretbox adapter using maintained noble primitives.
 // The existing backend's swt2 protocol uses X25519 -> HSalsa20 -> XSalsa20-Poly1305.

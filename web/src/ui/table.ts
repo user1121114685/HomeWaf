@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 import { computed, defineComponent, h, ref, reactive, watch, nextTick } from 'vue';
 import { ElTable, ElTableColumn, ElPagination, ElPopover, ElInput, ElButton, ElIcon } from 'element-plus';

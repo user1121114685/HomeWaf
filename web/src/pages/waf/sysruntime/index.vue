@@ -1,4 +1,4 @@
-<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization. -->
+<!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE. -->
 <template>
   <div class="runtime-page">
     <PageActions><ElButton :loading="loading" @click="load">刷新参数</ElButton></PageActions>

@@ -12,8 +12,8 @@ HomeWaf changes include branding, framework and dependency migration,
 publisher endpoint isolation, signed licensing and plugin admission,
 database adapters, asset replacement, build and distribution changes.
 The root HomeWaf license applies only within its expressly stated scope.
-See docs/modernization for provenance and migration details, and
-THIRD_PARTY_NOTICES.md and LICENSES for third-party attributions and licenses.
+See THIRD_PARTY_NOTICES.md and LICENSES for third-party sources,
+attributions and licenses.
 
 Compatibility identifiers retained for existing installations are not a
 claim of ownership or trademark rights in the upstream name.

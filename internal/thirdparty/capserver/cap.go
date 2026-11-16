@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // HomeWaf modification: current CAP nonce arrays and legacy triplets; upstream v1.0.1 Apache-2.0 rights retained.
 package capserver

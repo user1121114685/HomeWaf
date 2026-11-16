@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // HomeWaf sensitive-word adapter over Cloudflare's BSD-3-Clause matcher.
 package multimatch

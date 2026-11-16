@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // 常见 AI 服务商预设（OpenAI 兼容接口），供 GPT 参数设置里一键填充 url/model。
 // url 填"基础地址"（后端会自动补 /chat/completions 或 /v1/chat/completions）。

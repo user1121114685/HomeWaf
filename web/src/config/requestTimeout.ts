@@ -1,4 +1,4 @@
-// HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 // 前端请求超时（浏览器本地设置，存 localStorage，与后端无关）。
 // 统一在这里管理，request.ts 与"系统配置页-前端请求超时"卡片都读写这里，避免各处散落魔法数字。

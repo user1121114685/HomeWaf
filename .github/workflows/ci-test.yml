@@ -1,4 +1,4 @@
-# HomeWaf modification (2026-11-09): independent distribution; see NOTICE and docs/modernization.
+# HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 name: HomeWaf build and focused checks
 on:
@@ -50,6 +50,4 @@ jobs:
             LICENSES/THIRD_PARTY.txt
             LICENSES/ip2region/LICENSE.txt
             cmd/homewaf/exedata/ip2region_v6.source.json
-            docs/modernization/MIGRATION.md
-            docs/modernization/SECURITY.md
-            docs/modernization/provenance.json
+            README.md
