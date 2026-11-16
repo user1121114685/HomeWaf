@@ -1,7 +1,7 @@
 <template>
   <section class="access-choices" :inert="disabled || undefined" data-testid="access-restrictions">
     <h3>额外访问限制 <span>可选，可组合</span></h3>
-    <p class="access-intro">先检查访问来源，再执行已开启的登录认证、限流和攻击检测。</p>
+    <p class="access-intro">需要限制谁能访问时再选择。先检查来源，再执行已开启的账号或令牌认证，最后继续安全检测。</p>
     <div class="access-choice">
       <ElCheckbox v-model="policy.gate.enabled" :disabled="policy.gate.require_token" aria-label="使用独立访问账号"
         >独立访问账号</ElCheckbox
@@ -10,7 +10,9 @@
         {{
           policy.gate.require_token
             ? '当前 API 模板使用服务令牌，保存后在认证设置中生成。'
-            : '先登录 HomeWaf，再访问原服务，减少未认证请求直接触达原服务漏洞的机会。'
+            : onboarding
+              ? '访客先通过 HomeWaf 的访问登录页，再进入原服务。勾选后需要在下方创建访问账号；原服务自己的登录仍然保留。'
+              : '访客先通过 HomeWaf 的访问登录页，再进入原服务。访问账号在“认证与账号”中管理；原服务自己的登录仍然保留。'
         }}
       </p>
     </div>
@@ -18,7 +20,10 @@
       <ElCheckbox v-model="regional" aria-label="限制允许访问的地区" @change="updateSources(true)"
         >仅允许指定地区</ElCheckbox
       >
-      <p>直接选择中国、重庆等国家或省市，无需填写 IP 段。IPv4 和 IPv6 共用所选地区规则。</p>
+      <p>
+        按访客 IP 所在地区限制访问，例如只允许中国或重庆。出差或使用异地网络的访客可能被拒绝；IPv4 和 IPv6
+        使用同一规则。
+      </p>
       <div v-if="regional" class="access-detail">
         <label for="allowed-service-regions">允许访问的地区</label>
         <ElSelectV2
@@ -40,7 +45,7 @@
       <ElCheckbox v-model="allowGroupsEnabled" aria-label="使用白名单IP组" @change="updateSources(true)"
         >仅允许白名单 IP 组</ElCheckbox
       >
-      <p>选用已维护的 IP 组；没有合适的组时，可在这里新建。</p>
+      <p>只让指定 IP 地址或网段进入，例如家庭或 VPN 出口。地址变化后需要更新 IP 组；可直接选用已有组或在这里新建。</p>
       <div v-if="allowGroupsEnabled" class="access-detail">
         <IPGroupPicker
           v-model="chosenAllowGroups"
@@ -148,7 +153,11 @@ import { getIPDBStatusApi } from '@/apis/iplocation';
 import { wafIPGroupOptionsApi } from '@/apis/ipgroup';
 import IPGroupPicker from './IPGroupPicker.vue';
 import type { Policy } from './model';
-const props = defineProps({ policy: { type: Object as PropType<Policy>, required: true }, disabled: Boolean });
+const props = defineProps({
+  policy: { type: Object as PropType<Policy>, required: true },
+  disabled: Boolean,
+  onboarding: Boolean,
+});
 const emit = defineEmits(['invalid']);
 const regional = ref(false),
   allowGroupsEnabled = ref(false),

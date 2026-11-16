@@ -2,7 +2,7 @@
   <div class="guided-setup" data-testid="guided-setup" :aria-busy="busy">
     <ol class="setup-steps" aria-label="接入进度">
       <li
-        v-for="(label, index) in ['选择服务', '连接服务', '确认配置']"
+        v-for="(label, index) in ['选择服务', '连接服务', '异常处置', '确认配置']"
         :key="label"
         :class="{ current: step === index, complete: step > index }"
         :aria-current="step === index ? 'step' : undefined"
@@ -11,11 +11,13 @@
         >{{ label }}
       </li>
     </ol>
-    <div v-if="error" class="setup-error" role="alert">{{ error }}</div>
-    <div :inert="busy || undefined">
+    <div v-if="error" ref="errorSummary" class="setup-error" role="alert" tabindex="-1">{{ error }}</div>
+    <div ref="stepContent" class="setup-content" :inert="busy || undefined">
       <section v-if="step === 0" class="setup-section">
         <h2>选择要保护的服务</h2>
-        <p class="setup-lead">选一个使用场景，HomeWaf 会带入对应配置。</p>
+        <p class="setup-lead">
+          选一个使用场景，再填写服务地址和异常处置方式。保存后服务暂不对外监听，由你决定何时启用。
+        </p>
         <div class="scene-options" role="radiogroup" aria-label="服务场景">
           <label v-if="!config.template?.id" class="scene-option" :class="{ selected: usingDraft }"
             ><input v-model="selectedTemplate" type="radio" name="service-scene" value="__draft__" /><Connection
@@ -57,7 +59,9 @@
       </section>
       <section v-else-if="step === 1" class="setup-section">
         <h2>连接现有服务</h2>
-        <p class="setup-lead">填写现在能访问这个服务的地址，其余设置已按场景带入。</p>
+        <p class="setup-lead">
+          填写现在能访问这个服务的地址。访问账号和来源限制按需选择，不确定的连接选项可以保留默认值。
+        </p>
         <label class="setup-field"
           ><span>现有服务地址 <em>必填</em></span>
           <ElInput
@@ -68,6 +72,7 @@
             :aria-invalid="!!fieldErrors.upstream"
             aria-describedby="upstream-help upstream-error"
             autocomplete="off"
+            @input="fieldErrors.upstream = ''"
             @keydown.enter.prevent="next"
           />
           <small id="upstream-help">这是原来服务的地址，不是 HomeWaf 管理地址。未填写协议时使用 HTTP。</small>
@@ -80,7 +85,7 @@
             >HomeWaf <b>:{{ draft.port }}</b></span
           ><ArrowRight aria-hidden="true" /><span>{{ draft.upstream || '你的服务' }}</span>
         </div>
-        <AccessRestrictions ref="accessRestrictions" :policy="draft.policy" />
+        <AccessRestrictions ref="accessRestrictions" :policy="draft.policy" onboarding />
         <div v-if="draft.policy.gate.enabled" class="setup-account">
           <h3>设置访问账号</h3>
           <p>访客先用这个账号登录，再进入你的服务。它与 HomeWaf 管理账号独立。</p>
@@ -95,6 +100,7 @@
                 maxlength="128"
                 :aria-invalid="!!fieldErrors.username"
                 aria-describedby="username-error"
+                @input="fieldErrors.username = ''"
               /><span v-if="fieldErrors.username" id="username-error" class="field-error" role="alert">{{
                 fieldErrors.username
               }}</span></label
@@ -111,6 +117,7 @@
                 maxlength="72"
                 :aria-invalid="!!fieldErrors.password"
                 aria-describedby="password-help password-error"
+                @input="fieldErrors.password = ''"
               /><small id="password-help">至少 10 个字符，避免常见弱密码。</small
               ><span v-if="fieldErrors.password" id="password-error" class="field-error" role="alert">{{
                 fieldErrors.password
@@ -126,8 +133,10 @@
           <div class="setup-columns">
             <label class="setup-field"
               ><span>服务名称 <em>可选</em></span
-              ><ElInput v-model="draft.name" placeholder="留空自动命名" aria-label="服务名称" maxlength="100"
-            /></label>
+              ><ElInput v-model="draft.name" placeholder="留空自动命名" aria-label="服务名称" maxlength="100" /><small
+                >用于在控制台辨认服务，不会修改原服务的名称或地址。</small
+              ></label
+            >
             <label class="setup-field"
               ><span>HomeWaf 监听端口</span
               ><ElInputNumber
@@ -136,37 +145,45 @@
                 :max="65535"
                 controls-position="right"
                 aria-label="HomeWaf 监听端口"
-              /><small>已避开已知配置，下一步检查实际占用情况。</small></label
+              /><small>访客以后访问这个端口，由 HomeWaf 检查后转发到原服务。保存前会检查端口占用。</small></label
             >
             <label class="setup-field"
               ><span>访客连接协议</span
               ><ElSelect v-model="draft.protocol" aria-label="访客连接协议"
                 ><ElOption label="HTTP" value="http" /><ElOption label="HTTPS（需要证书）" value="https" /></ElSelect
-              ><small>仅影响访客到 HomeWaf 的连接，与现有服务协议独立。</small></label
+              ><small>HTTP 不加密访客连接；HTTPS 会加密，需要下方的证书和私钥。与原服务地址的协议独立。</small></label
             >
             <label class="setup-field"
               ><span>允许访问的域名 <em>可选</em></span
               ><ElInput v-model="hostNames" placeholder="例如 nas.example.com" aria-label="允许访问的域名" /><small
-                >多个域名用逗号分隔。留空接受所有域名。</small
+                >多个域名用逗号分隔。填写后只接受这些域名的请求；留空接受所有域名，也可用 IP 访问。</small
               ></label
             >
           </div>
           <div v-if="draft.protocol === 'https'" class="setup-columns certificate-fields">
             <label class="setup-field"
-              ><span>TLS 证书 PEM</span
-              ><ElInput v-model="secrets.tls_certificate" type="textarea" :rows="4" aria-label="TLS 证书 PEM"
-            /></label>
+              ><span>TLS 证书 PEM <em>HTTPS 必填</em></span
+              ><ElInput v-model="secrets.tls_certificate" type="textarea" :rows="4" aria-label="TLS 证书 PEM" /><small
+                >粘贴证书文件内容，包含 BEGIN CERTIFICATE 和 END CERTIFICATE。证书应覆盖访客访问的域名。</small
+              ></label
+            >
             <label class="setup-field"
-              ><span>TLS 私钥 PEM</span
+              ><span>TLS 私钥 PEM <em>HTTPS 必填</em></span
               ><ElInput
                 v-model="secrets.tls_private_key"
                 type="textarea"
                 :rows="4"
                 aria-label="TLS 私钥 PEM"
                 autocomplete="off"
-            /></label>
+              /><small>粘贴与该证书配套的私钥文件内容，只用于 HomeWaf 接受 HTTPS 连接。</small></label
+            >
           </div>
         </details>
+      </section>
+      <section v-else-if="step === 2" class="setup-section">
+        <h2>设置异常访问处置</h2>
+        <p class="setup-lead">选择这个服务遇到异常访问时的处理方式。下方会显示完整规则，保存前还可以返回修改。</p>
+        <DefensePolicyFields ref="defenseFields" :config="defenseConfig" required :busy="busy" />
       </section>
       <section v-else class="setup-section">
         <h2>确认服务配置</h2>
@@ -216,6 +233,10 @@
               }}
             </dd>
           </div>
+          <div>
+            <dt>异常访问处置</dt>
+            <dd>{{ defenseSummary(defense) }}</dd>
+          </div>
         </dl>
         <div class="setup-check-result">
           <CircleCheck aria-hidden="true" />
@@ -238,7 +259,7 @@
       </section>
     </div>
     <footer class="setup-actions">
-      <span role="status">{{ busy ? progress : `第 ${step + 1} 步，共 3 步` }}</span>
+      <span role="status">{{ busy ? progress : `第 ${step + 1} 步，共 4 步` }}</span>
       <ElButton
         v-if="step > 0"
         :disabled="busy"
@@ -248,8 +269,9 @@
         "
         >上一步</ElButton
       >
-      <ElButton v-if="step < 2" type="primary" :loading="busy" :disabled="!selected && !usingDraft" @click="next"
-        >{{ step === 0 ? '继续填写地址' : '检查连接并继续' }}<ArrowRight class="button-icon" aria-hidden="true"
+      <ElButton v-if="step < 3" type="primary" :loading="busy" :disabled="!selected && !usingDraft" @click="next"
+        >{{ step === 0 ? '继续填写地址' : step === 1 ? '继续设置异常处置' : '检查配置并继续'
+        }}<ArrowRight class="button-icon" aria-hidden="true"
       /></ElButton>
       <ElButton v-else type="primary" :loading="busy" :disabled="!preview || created" @click="save"
         >保存服务配置</ElButton
@@ -274,6 +296,8 @@ import {
 } from './onboarding';
 import Trace from './Trace.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
+import DefensePolicyFields from './DefensePolicyFields.vue';
+import { defenseSummary, defenseValidation, newDefensePolicy, type DefensePolicy } from './defensePolicy';
 import { accessSourceSummary } from './accessPolicy';
 
 const props = defineProps({
@@ -282,9 +306,20 @@ const props = defineProps({
 });
 const emit = defineEmits(['saved', 'busy']);
 const draft = ref(clone(props.config));
+// Every new service makes an explicit mode choice; copied parameters stay available.
+const defense = ref<DefensePolicy>({
+  ...newDefensePolicy(),
+  ...clone(props.config.policy.defense || {}),
+  enabled: true,
+  mode: '',
+});
+const defenseConfig = computed(() => ({ ...draft.value, policy: { ...draft.value.policy, defense: defense.value } }));
+const defenseFields = ref<InstanceType<typeof DefensePolicyFields>>();
+const errorSummary = ref<HTMLElement>();
 if (props.config.template?.id) optionalAccessDefaults(draft.value);
 const accessRestrictions = ref<any>();
 const selectedTemplate = ref(props.config.template?.id || '__draft__');
+const appliedTemplate = ref(selectedTemplate.value);
 const usingDraft = computed(() => selectedTemplate.value === '__draft__');
 const selected = computed(() => props.templates.find((tpl) => tpl.id === selectedTemplate.value));
 const availableScenes = computed(() =>
@@ -300,6 +335,11 @@ const step = ref(0),
   error = ref(''),
   progress = ref('');
 watch(busy, (value) => emit('busy', value), { flush: 'sync' });
+const stepContent = ref<HTMLElement>();
+watch(step, async () => {
+  await nextTick();
+  stepContent.value?.querySelector('h2')?.scrollIntoView({ block: 'start' });
+});
 const preview = ref<any>(null),
   previewKey = ref('');
 const hostNames = ref(draft.value.host_names.join(', '));
@@ -308,9 +348,9 @@ const fieldErrors = reactive({ upstream: '', username: '', password: '' });
 const addressInput = ref<any>(),
   usernameInput = ref<any>(),
   passwordInput = ref<any>();
-const fingerprint = () => JSON.stringify({ config: draft.value, secrets });
+const fingerprint = () => JSON.stringify({ config: draft.value, defense: defense.value, secrets });
 watch(
-  [draft, secrets, hostNames],
+  [draft, secrets, hostNames, defense],
   () => {
     preview.value = null;
     previewKey.value = '';
@@ -325,16 +365,20 @@ async function run(work: () => Promise<void>) {
     await work();
   } catch (cause: any) {
     error.value = cause?.message || '操作未完成，请重试。已填写的内容会保留。';
+    await nextTick();
+    errorSummary.value?.focus();
   } finally {
     busy.value = false;
     progress.value = '';
   }
 }
 async function next() {
+  if (busy.value || created.value) return;
+  if (step.value === 2 && !(await defenseFields.value?.validate())) return;
   await run(async () => {
     if (step.value === 0) {
       if (!selected.value && !usingDraft.value) throw new Error('请选择一个可用的服务模板。');
-      if (usingDraft.value)
+      if (usingDraft.value && appliedTemplate.value !== '__draft__')
         draft.value = { ...draft.value, policy: clone(props.config.policy), template: clone(props.config.template) };
       if (!usingDraft.value && draft.value.template?.id !== selectedTemplate.value) {
         progress.value = '正在准备场景配置…';
@@ -346,9 +390,29 @@ async function next() {
         draft.value = result.config;
         optionalAccessDefaults(draft.value);
       }
+      appliedTemplate.value = selectedTemplate.value;
       step.value = 1;
       await nextTick();
       addressInput.value?.focus();
+      return;
+    }
+    if (step.value === 2) {
+      draft.value.policy.defense = clone(defense.value);
+      progress.value = '正在检查端口是否可用…';
+      await pipelinePost('ports/check', draft.value);
+      progress.value = '正在从 HomeWaf 连接你的服务…';
+      await pipelinePost('upstream/test', { upstream: draft.value.upstream });
+      progress.value = '正在检查访问策略…';
+      preview.value = await pipelinePost('explain', {
+        config: draft.value,
+        client_ip: '198.51.100.25',
+        method: 'GET',
+        path: '/',
+        headers: { Accept: 'text/html' },
+        body: '',
+      });
+      previewKey.value = fingerprint();
+      step.value = 3;
       return;
     }
     fieldErrors.upstream = '';
@@ -376,20 +440,6 @@ async function next() {
     draft.value.name = draft.value.name.trim() || suggestedName(selectedTemplate.value, draft.value.upstream);
     draft.value.host_names = parseLines(hostNames.value);
     secrets.initial_username = secrets.initial_username.trim();
-    progress.value = '正在检查端口是否可用…';
-    await pipelinePost('ports/check', draft.value);
-    progress.value = '正在从 HomeWaf 连接你的服务…';
-    await pipelinePost('upstream/test', { upstream: draft.value.upstream });
-    progress.value = '正在检查访问策略…';
-    preview.value = await pipelinePost('explain', {
-      config: draft.value,
-      client_ip: '198.51.100.25',
-      method: 'GET',
-      path: '/',
-      headers: { Accept: 'text/html' },
-      body: '',
-    });
-    previewKey.value = fingerprint();
     step.value = 2;
   });
   if (step.value === 1 && !busy.value) {
@@ -405,6 +455,8 @@ async function next() {
 async function save() {
   await run(async () => {
     if (!preview.value || previewKey.value !== fingerprint()) throw new Error('配置已变化，请返回上一步重新检查。');
+    const defenseError = defenseValidation(defense.value, true);
+    if (defenseError) throw new Error(defenseError);
     progress.value = '正在保存服务配置…';
     const result = await pipelinePost<PortConfig>('ports/save', {
       config: { ...draft.value, listen_enabled: false },
@@ -427,6 +479,17 @@ async function save() {
   --setup-muted: var(--el-text-color-regular);
   color: var(--el-text-color-primary);
   font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(88dvh - 160px);
+  min-height: 0;
+}
+.setup-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 4px;
 }
 .setup-steps {
   display: flex;
@@ -435,6 +498,7 @@ async function save() {
   margin: 0;
   border-bottom: 1px solid var(--el-border-color-light);
   gap: 24px;
+  flex-shrink: 0;
 }
 .setup-steps li {
   display: flex;
@@ -644,16 +708,14 @@ async function save() {
   font-size: 13px;
 }
 .setup-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+  flex-shrink: 0;
   background: var(--el-bg-color);
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
   padding: 16px 0;
-  margin-top: 24px;
+  margin-top: 16px;
   border-top: 1px solid var(--el-border-color-light);
 }
 .setup-actions > span {
@@ -680,6 +742,7 @@ async function save() {
   background: var(--el-color-danger-light-9);
   border-radius: 8px;
   margin-top: 16px;
+  flex-shrink: 0;
 }
 .setup-review {
   margin: 0;
@@ -728,6 +791,8 @@ async function save() {
 }
 @media (max-width: 600px) {
   .setup-steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     padding-bottom: 16px;
   }

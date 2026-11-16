@@ -131,8 +131,6 @@ await context.route('**/api/**', async (route) => {
     }
     const old = configs.get(port);
     if (old.revision !== input.config.revision) return fail('配置版本冲突');
-    if (!old.policy.defense && input.config.policy.defense && !input.confirm_defense_migration)
-      return fail('未确认迁移');
     const value = clone(input.config);
     value.revision++;
     if (value.policy.defense) {
@@ -194,10 +192,7 @@ async function confirm() {
   await expect(page.locator('.el-message-box:visible')).toHaveCount(0);
 }
 async function chooseMode(name) {
-  const input = panel().getByRole('combobox', { name: '异常访问处置模式' });
-  await input.focus();
-  await input.press('ArrowDown');
-  await page.getByRole('option', { name, exact: true }).click();
+  await panel().getByRole('radio', { name, exact: true }).check();
 }
 async function openDefense() {
   await card().getByRole('button', { name: '异常访问处置', exact: true }).click();
@@ -215,25 +210,28 @@ async function savePort() {
 try {
   await page.goto(origin + '/#/waf-pipeline/ports');
   await openDefense();
-  await panel().getByRole('button', { name: '配置新处置模式' }).click();
+  await panel().getByRole('button', { name: '配置异常访问处置' }).click();
   await expect(editor().getByRole('button', { name: '保存端口配置' })).toBeDisabled();
-  await panel().getByText('我已核对差异，确认用新模式替代旧端口处置', { exact: true }).click();
+  await expect(panel().getByText('迁移确认', { exact: true })).toHaveCount(0);
+  await chooseMode('无提示拒绝');
   await expect(editor().getByRole('button', { name: '保存端口配置' })).toBeEnabled();
-  await expect(panel().getByRole('spinbutton', { name: '统计窗口（分钟）' })).toHaveValue('30');
-  await expect(panel().getByRole('spinbutton', { name: '触发次数' })).toHaveValue('10');
+  await expect(panel().getByRole('spinbutton', { name: '累计异常的时间范围（分钟）' })).toHaveValue('30');
+  await expect(panel().getByRole('spinbutton', { name: '触发处置的异常次数' })).toHaveValue('10');
   failSave = true;
   await savePort();
   await expect(editor().getByText('模拟服务保存失败，草稿已保留', { exact: true })).toBeVisible();
-  await expect(panel().getByRole('spinbutton', { name: '统计窗口（分钟）' })).toHaveValue('30');
+  await expect(panel().getByRole('spinbutton', { name: '累计异常的时间范围（分钟）' })).toHaveValue('30');
   await savePort();
   await expect(editor()).toBeHidden();
   await openDefense();
-  await expect(panel().getByRole('button', { name: '配置新处置模式' })).toHaveCount(0);
+  await expect(panel().getByRole('button', { name: '配置异常访问处置' })).toHaveCount(0);
   if (configs.get(5000).policy.defense.mode !== 'quiet' || JSON.stringify(configs.get(5001)) !== otherPort)
     throw new Error('wrong persistence scope');
-  report.checks.push('migration confirmation, defaults, save failure retains draft, save/reopen, port isolation');
+  report.checks.push(
+    'configuration without migration confirmation, explicit mode choice, defaults, save failure retains draft, save/reopen, port isolation',
+  );
   await chooseMode('收紧 IP 访问');
-  await expect(panel().getByText(/没有有效历史时会关闭整个服务访问/)).toBeVisible();
+  await expect(panel().getByText(/刚接入时通常还没有成功访问记录/)).toBeVisible();
   await closeEditor();
   if (configs.get(5000).policy.defense.mode !== 'quiet') throw new Error('cancel saved a draft');
   for (const action of ['release', 'close']) {
@@ -421,13 +419,14 @@ try {
         document.documentElement.setAttribute('data-theme', theme);
         document.documentElement.classList.toggle('dark', theme === 'dark');
       }, theme);
-      const count = panel().getByRole('spinbutton', { name: '触发次数' });
+      const count = panel().getByRole('spinbutton', { name: '触发处置的异常次数' });
       await count.fill('12');
       await count.press('Tab');
       await expect(count).toHaveValue('12');
+      await expect(panel().locator('.rule-summary')).toContainText('累计 12 次');
       await count.fill('10');
       await count.press('Tab');
-      await panel().getByRole('spinbutton', { name: '持续时间（小时）' }).scrollIntoViewIfNeeded();
+      await panel().getByRole('spinbutton', { name: '自动恢复等待时间（小时）' }).scrollIntoViewIfNeeded();
       await page.waitForTimeout(250);
       const file = `defense-${width}-${theme}.png`;
       await page.screenshot({ path: path.join(out, file) });

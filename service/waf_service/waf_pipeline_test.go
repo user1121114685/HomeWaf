@@ -46,7 +46,7 @@ func TestPortPersistenceRejectsMissingAccountAndRollsBackBind(t *testing.T) {
 		}
 		return nil
 	}}
-	c := wafpipeline.PortConfig{Schema: 1, Port: 45123, Name: "fixture", Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: wafpipeline.DefaultPolicy()}
+	c := wafpipeline.PortConfig{Schema: 1, Port: 45123, Name: "fixture", Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: newServicePolicyFixture()}
 	c.Policy.Gate.Enabled = true
 	if _, err := s.Save(PortSaveRequest{Config: c}); err == nil {
 		t.Fatal("enabled empty gate accepted")

@@ -46,9 +46,7 @@ func TestPipelineStateSQLiteRestoreAndManagement(t *testing.T) {
 	policy.Honeypot.Enabled = true
 	policy.HitPolicy.Lockdown.Enabled = true
 	config := wafpipeline.PortConfig{Schema: 1, Port: 45126, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: policy}
-	if _, err := WafPipelineServiceApp.Save(PortSaveRequest{Config: config}); err != nil {
-		t.Fatal(err)
-	}
+	config = seedLegacyPortFixture(t, WafPipelineServiceApp, db, config)
 	s := &WafPipelineStateService{Punisher: wafpipeline.NewPunisher()}
 	if err := s.Load(); err != nil {
 		t.Fatal(err)

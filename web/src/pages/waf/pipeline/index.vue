@@ -245,8 +245,8 @@
         <p class="enable-help">
           {{
             enableMode === 'observe'
-              ? '只记录攻击规则命中，暂不拦截或自动处罚。访问限制、IP 名单与登录要求仍然有效。'
-              : '使用刚刚保存的策略。启用后，请通过 HomeWaf 的新入口实际访问一次。'
+              ? '只记录检测命中，暂不拦截或自动处罚，刚配置的异常访问处置也会暂停。访问限制、IP 名单与登录要求仍然有效。'
+              : '使用已保存的访问策略和异常访问处置方式。启用后，请通过 HomeWaf 的新入口实际访问一次。'
           }}
         </p>
         <div v-if="enablePreview" class="enable-result" role="status">
@@ -1222,6 +1222,9 @@ summary {
 .pipeline-page :deep(.el-dialog:not(.service-config-dialog) > .el-dialog__body) {
   max-height: 77vh;
   overflow: auto;
+}
+.pipeline-page :deep(.setup-dialog > .el-dialog__body) {
+  overflow: hidden;
 }
 @media (max-width: 800px) {
   .summary-grid {

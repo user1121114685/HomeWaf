@@ -84,7 +84,7 @@ func TestTamperCaptureQueueBoundsStaleRevisionAndShutdownDrain(t *testing.T) {
 	changes := 0
 	s.OnChange = func(*wafpipeline.Snapshot, *wafpipeline.Snapshot) error { changes++; return nil }
 	rule := wafpipeline.TamperRule{ID: "home", Path: "/", Mode: wafpipeline.ModeBlock, Action: "replace", MaxBytes: 1024}
-	c := wafpipeline.PortConfig{Schema: 1, Port: 5405, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: wafpipeline.DefaultPolicy()}
+	c := wafpipeline.PortConfig{Schema: 1, Port: 5405, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: newServicePolicyFixture()}
 	c.Policy.Network.Response.Tamper = []wafpipeline.TamperRule{rule}
 	var err error
 	c, err = s.Save(PortSaveRequest{Config: c})

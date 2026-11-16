@@ -63,7 +63,7 @@
           <ElButton :disabled="busy" @click="importLegacy">将所选内容填入草稿</ElButton>
         </template>
         <small
-          >只导入内容、陷阱路径、运行限制和归档。旧自动处罚阈值不会导入；原服务在确认迁移前继续按旧设置工作。</small
+          >只导入内容、陷阱路径、运行限制和归档。旧自动处罚阈值不会导入；服务保存所选处置方式后，才会使用统一蜜罐。</small
         >
       </details>
       <div class="save-row">

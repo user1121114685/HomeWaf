@@ -80,6 +80,6 @@ run(["test", "./utils", "-run", "^TestOutboundRequestError", "-count=1"]);
 run(["test", "./api", "./router", "./middleware", "./wafmangeweb", "./enums", "-count=1"]);
 run(["test", "./service/waf_service", "./wafenginecore", "-run", "^Test(SSLOrder|SensitiveConfig|SystemConfigRejects)", "-count=1"]);
 run(["test", "./wafpipeline", "-short", "-count=1"]);
-run(["test", "./service/waf_service", "./firewall", "-run", "^Test(Defense|FlowDrop)", "-count=1"]);
+run(["test", "./service/waf_service", "./firewall", "-run", "^Test(NewServiceRequiresEnabledDefense|Defense|FlowDrop)", "-count=1"]);
 run(["test", "./internal/acmelog", "./internal/acmelease", "-count=1"]);
 run(["test", "./utils/ssl", "-run", "^TestSSLOrderLegoLogger", "-count=1"]);

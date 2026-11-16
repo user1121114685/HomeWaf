@@ -311,7 +311,7 @@
           </EditorSection></ElTabPane
         >
         <ElTabPane name="defense" label="异常访问处置">
-          <DefenseSettings :config="draft" :original="config" :busy="busy" :dirty="dirty" @invalid="invalid.defense = $event" @migration="defenseMigrationConfirmed = $event" @committed="emit('saved', $event)" />
+          <DefenseSettings :config="draft" :busy="busy" :dirty="dirty" @invalid="invalid.defense = $event" @committed="emit('saved', $event)" />
         </ElTabPane>
         <ElTabPane name="hit_policy" label="自动处罚"
           ><template #label
@@ -546,7 +546,7 @@
             </div>
             <details class="space">
               <summary>高级：编辑完整策略JSON（不含口令/私钥）</summary>
-              <p v-if="draft.policy.defense" class="muted">蜜罐内容在独立页面管理；此处 honeypot 是只读迁移备份。已迁移服务不再启用旧多来源自保或跨端口自动封禁。</p>
+              <p v-if="draft.policy.defense" class="muted">蜜罐内容在独立页面管理；此处 honeypot 是只读内容，服务使用统一蜜罐设置。</p>
               <p class="muted">
                 可设置所有范围、参数和观察条件。服务端严格验证字段与数值；这里不会修改监听端口或凭据。
               </p>
@@ -619,7 +619,6 @@ const props = defineProps({
 });
 const emit = defineEmits(['saved', 'close', 'busy']);
 const draft = ref<PortConfig>(clone(props.config));
-const defenseMigrationConfirmed = ref(false);
 const busy = ref(false),
   error = ref(''),
   activeTab = ref(props.initialTab === 'honeypot' ? 'defense' : props.initialTab);
@@ -906,7 +905,6 @@ async function save() {
     if (props.isNew) draft.value.listen_enabled = false;
     const result = await pipelinePost<PortConfig>('ports/save', {
       config: draft.value,
-      confirm_defense_migration: defenseMigrationConfirmed.value,
       ...secrets,
       business_headers,
       plugin_profiles,

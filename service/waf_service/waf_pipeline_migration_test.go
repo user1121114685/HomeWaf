@@ -441,7 +441,7 @@ func TestLegacyMigrationCopiesCacheRulesWithoutDiskData(t *testing.T) {
 
 func TestLegacyEditorCannotClaimNativePortsOrEditHandedOffSource(t *testing.T) {
 	s, _ := legacyMigrationFixture(t)
-	c := wafpipeline.PortConfig{Schema: 1, Port: 5350, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: wafpipeline.DefaultPolicy()}
+	c := wafpipeline.PortConfig{Schema: 1, Port: 5350, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: newServicePolicyFixture()}
 	c.Policy.Gate.Enabled = false
 	if _, err := s.Save(PortSaveRequest{Config: c}); err != nil {
 		t.Fatal(err)

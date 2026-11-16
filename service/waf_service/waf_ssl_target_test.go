@@ -25,7 +25,7 @@ func TestSSLCertificateTargetsAndNativeBinding(t *testing.T) {
 	if err := db.Create(&model.Hosts{BaseOrm: pipelineORM(), Code: "global-only", Host: "*", GLOBAL_HOST: 1}).Error; err != nil {
 		t.Fatal(err)
 	}
-	config := wafpipeline.PortConfig{Schema: 1, Port: 15000, Name: "家庭 NAS", Protocol: "http", HostNames: []string{"nas.example.com", "*.example.com"}, Upstream: "http://127.0.0.1:5000", Policy: wafpipeline.DefaultPolicy()}
+	config := wafpipeline.PortConfig{Schema: 1, Port: 15000, Name: "家庭 NAS", Protocol: "http", HostNames: []string{"nas.example.com", "*.example.com"}, Upstream: "http://127.0.0.1:5000", Policy: newServicePolicyFixture()}
 	config.Policy.Gate.Enabled = false
 	config, err := s.Save(PortSaveRequest{Config: config})
 	if err != nil {

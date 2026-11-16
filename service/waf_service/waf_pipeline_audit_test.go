@@ -20,7 +20,7 @@ func TestPortAuditRecordsChangedSectionsWithoutSecretValues(t *testing.T) {
 		global.GQEQUE_LOG_DB = oldQueue
 		global.GQEQUE_MESSAGE_DB = oldMessages
 	}()
-	c := wafpipeline.PortConfig{Schema: 1, Port: 54321, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: wafpipeline.DefaultPolicy()}
+	c := wafpipeline.PortConfig{Schema: 1, Port: 54321, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: newServicePolicyFixture()}
 	c.Policy.Gate.Enabled = false
 	c, err := s.Save(PortSaveRequest{Config: c, Operator: "fixture-reviewer"})
 	if err != nil {

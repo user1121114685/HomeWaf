@@ -37,10 +37,7 @@ func TestPortPolicyRepeatedEditsPersistWithoutRecreationOrSecretLoss(t *testing.
 	service := &WafPipelineService{Prepare: runtime.Prepare}
 	config := wafpipeline.PortConfig{Schema: 1, Port: 45129, Name: "editable", Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: wafpipeline.DefaultPolicy()}
 	config.Policy.Gate.Enabled = false
-	config, err = service.Save(PortSaveRequest{Config: config})
-	if err != nil {
-		t.Fatal(err)
-	}
+	config = seedLegacyPortFixture(t, service, db, config)
 	initial := wafpipeline.CloneConfig(config)
 	snapshot, _ := wafpipeline.Ports.Get(config.Port)
 	gateKey := snapshot.Secrets.GateKey

@@ -33,6 +33,8 @@ API 接入时的基线：599 条注册路由，456 条静态可达引用，74 �
 
 处置模式与参数仍使用原 `pipeline/ports/save`，不写旧站点 ID 的管理接口。成功网络摘要独立于日志采样；实际关闭与恢复有本地 TCP/HTTP 回归。浏览器接口夹具、原生运行时测试和系统内核抓包验收是不同层次，后者在本环境未执行。
 
+首次接入调整：`pipeline/ports/save` 在数据库确定为新服务后强制验证启用的处置配置，不能通过伪造版本绕过；删除迁移确认字段与门槛。接入与编辑共用 `DefensePolicyFields`，`defense/capabilities` 用于 TCP 选项，`honeypot.shared.configured` 用于蜜罐就绪与返回重试。模式/参数进入原 `PortConfig` 和 `DefenseEngine`，无新增 API 或第二条保存路径。见 [首次接入评审](SERVICE-ONBOARDING-REVIEW.md)。
+
 ## 证书编辑字段与恢复（2026-11-16）
 
 `sslconfig/list` → 证书库记录 → `CertificateEditor` → `sslconfig/add/edit` → 原 `SslConfig` 持久化/更新通知/导出流程。列表返回的域名、颁发者、有效期、绑定服务、PEM 内容、自动加载、四个路径和导出状态均有原任务内可达位置。`sslconfig/detail` 仍为已有读取接口，编辑沿用完整列表记录；不因它没有静态 UI 引用而新增重复详情页。

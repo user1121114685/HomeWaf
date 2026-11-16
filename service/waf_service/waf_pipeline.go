@@ -193,26 +193,25 @@ func (s *WafPipelineService) Get(port uint16) (wafpipeline.PortConfig, error) {
 }
 
 type PortSaveRequest struct {
-	ConfirmDefenseMigration bool `json:"confirm_defense_migration,omitempty"`
-	defenseWrite            bool
-	accessIntent            bool
-	defenseOwner            string
-	Config                  wafpipeline.PortConfig                 `json:"config"`
-	Username                string                                 `json:"initial_username,omitempty"`
-	Password                string                                 `json:"initial_password,omitempty"`
-	InitialTOTP             string                                 `json:"initial_totp_secret,omitempty"`
-	TLSCert                 string                                 `json:"tls_certificate,omitempty"`
-	TLSKey                  string                                 `json:"tls_private_key,omitempty"`
-	UpstreamCA              string                                 `json:"upstream_ca,omitempty"`
-	ClearUpstreamCA         bool                                   `json:"clear_upstream_ca,omitempty"`
-	BusinessHeaders         map[string]wafpipeline.BusinessHeaders `json:"business_headers,omitempty"`
-	PluginProfiles          map[string]wafpipeline.PluginLaunch    `json:"plugin_profiles,omitempty"`
-	PrivacyConfig           string                                 `json:"privacy_engine_config,omitempty"`
-	ClearPrivacyConfig      bool                                   `json:"clear_privacy_engine_config,omitempty"`
-	Operator                string                                 `json:"-"`
-	TLSRefresh              *pipelineTLSRefresh                    `json:"-"`
-	TLSBind                 *pipelineTLSRefresh                    `json:"-"`
-	TamperUpdates           map[string]wafpipeline.TamperBaseline  `json:"-"`
+	defenseWrite       bool
+	accessIntent       bool
+	defenseOwner       string
+	Config             wafpipeline.PortConfig                 `json:"config"`
+	Username           string                                 `json:"initial_username,omitempty"`
+	Password           string                                 `json:"initial_password,omitempty"`
+	InitialTOTP        string                                 `json:"initial_totp_secret,omitempty"`
+	TLSCert            string                                 `json:"tls_certificate,omitempty"`
+	TLSKey             string                                 `json:"tls_private_key,omitempty"`
+	UpstreamCA         string                                 `json:"upstream_ca,omitempty"`
+	ClearUpstreamCA    bool                                   `json:"clear_upstream_ca,omitempty"`
+	BusinessHeaders    map[string]wafpipeline.BusinessHeaders `json:"business_headers,omitempty"`
+	PluginProfiles     map[string]wafpipeline.PluginLaunch    `json:"plugin_profiles,omitempty"`
+	PrivacyConfig      string                                 `json:"privacy_engine_config,omitempty"`
+	ClearPrivacyConfig bool                                   `json:"clear_privacy_engine_config,omitempty"`
+	Operator           string                                 `json:"-"`
+	TLSRefresh         *pipelineTLSRefresh                    `json:"-"`
+	TLSBind            *pipelineTLSRefresh                    `json:"-"`
+	TamperUpdates      map[string]wafpipeline.TamperBaseline  `json:"-"`
 }
 
 func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, error) {
@@ -247,6 +246,9 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	var oldSnap *wafpipeline.Snapshot
 	secrets := wafpipeline.PortSecrets{}
 	if isNew {
+		if c.Policy.Defense == nil || !c.Policy.Defense.Enabled {
+			return c, errors.New("接入服务前必须选择并启用一种异常访问处置方式")
+		}
 		var count int64
 		if err = db.Model(&model.PortConfig{}).Count(&count).Error; err != nil {
 			return c, err
@@ -491,10 +493,7 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 			}
 		}
 		if oldSnap.Config.Policy.Defense != nil && c.Policy.Defense == nil {
-			return c, errors.New("已迁移的端口不能恢复旧处置结构，请关闭新处置开关")
-		}
-		if oldSnap.Config.Policy.Defense == nil && c.Policy.Defense != nil && !req.ConfirmDefenseMigration {
-			return c, errors.New("请先确认迁移差异：旧蜜罐与多来源自保将由所选处置模式替代")
+			return c, errors.New("异常访问处置配置不能删除；如需暂停，请关闭处置开关")
 		}
 		if !req.defenseWrite {
 			c.DefenseState = oldSnap.Config.DefenseState

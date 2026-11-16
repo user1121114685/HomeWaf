@@ -7,18 +7,142 @@ import (
 	"HomeWaf/wafdb"
 	"HomeWaf/wafpipeline"
 	"HomeWaf/wafsec"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+func newServicePolicyFixture() wafpipeline.Policy {
+	p := wafpipeline.DefaultPolicy()
+	d := wafpipeline.DefaultDefense()
+	d.Enabled = true
+	p.Defense = &d
+	return p
+}
+
+// Older stored configurations remain loadable, but may no longer be created
+// through the service onboarding save path.
+func seedLegacyPortFixture(t *testing.T, s *WafPipelineService, db *gorm.DB, c wafpipeline.PortConfig) wafpipeline.PortConfig {
+	t.Helper()
+	c.Revision = 1
+	c.HostCode = "pipeline-" + fmt.Sprint(c.Port)
+	key, err := pipelineSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secrets, err := json.Marshal(wafpipeline.PortSecrets{GateKey: key})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(&model.PortConfig{BaseOrm: pipelineORM(), Port: int(c.Port), Revision: 1, ConfigJSON: string(raw), SecretsJSON: string(secrets)}).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func TestNewServiceRequiresEnabledDefenseBeforePersistence(t *testing.T) {
+	s, db, _ := defenseServiceFixture(t)
+	c := wafpipeline.PortConfig{Schema: 1, Port: 45131, Protocol: "http", Upstream: "http://127.0.0.1:1", Policy: wafpipeline.DefaultPolicy()}
+	for _, kind := range []string{"missing", "disabled", "invalid-mode", "invalid-threshold", "unready-honeypot", "proxied-quiet"} {
+		t.Run(kind, func(t *testing.T) {
+			candidate := wafpipeline.CloneConfig(c)
+			if kind != "missing" {
+				d := wafpipeline.DefaultDefense()
+				d.Enabled = kind != "disabled"
+				if kind == "invalid-mode" {
+					d.Mode = ""
+				}
+				if kind == "invalid-threshold" {
+					d.Count = 0
+				}
+				if kind == "unready-honeypot" {
+					d.Mode = wafpipeline.DefenseHoney
+				}
+				if kind == "proxied-quiet" {
+					candidate.Policy.Network.TrustedProxies = []string{"127.0.0.1/32"}
+				}
+				candidate.Policy.Defense = &d
+			}
+			// Forging a revision must not bypass creation validation.
+			candidate.Revision = 8
+			if _, err := s.ports().Save(PortSaveRequest{Config: candidate}); err == nil {
+				t.Fatal("unconfigured service was accepted")
+			}
+			var count int64
+			if err := db.Model(&model.PortConfig{}).Where("port = ?", c.Port).Count(&count).Error; err != nil || count != 0 {
+				t.Fatalf("invalid onboarding persisted: %d %v", count, err)
+			}
+			if _, exists := wafpipeline.Ports.Get(c.Port); exists {
+				t.Fatal("invalid onboarding published runtime")
+			}
+		})
+	}
+	c.Policy = newServicePolicyFixture()
+	c.Policy.Defense.Mode = wafpipeline.DefenseClose
+	c.Policy.Defense.Count = 2
+	saved, err := s.ports().Save(PortSaveRequest{Config: c})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.ListenEnabled {
+		t.Fatal("new service started listening")
+	}
+	wafpipeline.Ports = wafpipeline.NewRegistry[wafpipeline.Snapshot](200)
+	if err := s.ports().Load(); err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := s.ports().Get(c.Port)
+	if err != nil || reloaded.Policy.Defense == nil || *reloaded.Policy.Defense != *c.Policy.Defense {
+		t.Fatalf("onboarding policy did not reload: %+v %v", reloaded.Policy.Defense, err)
+	}
+	reloaded.ListenEnabled = true
+	reloaded, err = s.ports().Save(PortSaveRequest{Config: reloaded})
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := triggerDefense(t, s, reloaded)
+	if active.Policy.Access.Enabled {
+		t.Fatal("configured onboarding defense did not close access")
+	}
+}
+
+func TestDefenseConfigurationDoesNotRequireMigrationConfirmation(t *testing.T) {
+	s, db, _ := defenseServiceFixture(t)
+	c := wafpipeline.PortConfig{Schema: 1, Port: 45132, Protocol: "http", Upstream: "http://127.0.0.1:1", Policy: wafpipeline.DefaultPolicy()}
+	c.Policy.Honeypot.Enabled, c.Policy.HitPolicy.Lockdown.Enabled = true, true
+	c = seedLegacyPortFixture(t, s.ports(), db, c)
+	d := wafpipeline.DefaultDefense()
+	d.Enabled = true
+	c.Policy.Defense = &d
+	saved, err := s.ports().Save(PortSaveRequest{Config: c})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Policy.Defense == nil || saved.Policy.Honeypot.Enabled || saved.Policy.HitPolicy.Lockdown.Enabled || saved.Policy.HitPolicy.BanScope != "port" {
+		t.Fatal("old controls remained active")
+	}
+	saved.Policy.Defense = nil
+	if _, err := s.ports().Save(PortSaveRequest{Config: saved}); err == nil || !strings.Contains(err.Error(), "配置不能删除") {
+		t.Fatalf("defense removal was accepted: %v", err)
+	}
+}
 
 func defenseServiceFixture(t *testing.T) (*WafPipelineDefenseService, *gorm.DB, *time.Time) {
 	t.Helper()

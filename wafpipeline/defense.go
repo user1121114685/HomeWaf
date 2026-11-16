@@ -20,7 +20,7 @@ const (
 	MaxTotalSuccessPrefixes = 32768
 )
 
-// Nil preserves legacy behavior until the administrator confirms migration.
+// Nil is accepted when loading older configurations. New service saves require an enabled policy.
 type DefenseConfig struct {
 	Enabled         bool   `json:"enabled"`
 	Mode            string `json:"mode"`
