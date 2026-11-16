@@ -22,6 +22,8 @@ declare module 'axios' {
     background?: boolean;
     /** 强制当作前台请求：失败照常弹通知（GET 默认不弹时用它覆盖） */
     foreground?: boolean;
+    /** Decode structured validation errors for forms that handle their own recovery. */
+    decodeErrorData?: boolean;
   }
 }
 
@@ -212,6 +214,13 @@ instance.interceptors.response.use(
         data.data = JSON.parse(tmpSrcContent)
         return data;
       } else {
+        if (response.config.decodeErrorData && typeof data.data === 'string') {
+          try {
+            const decoded = secDecrypt(data.data);
+            if (decoded !== null) data.data = JSON.parse(decoded);
+            else if (!isSecPayload(data.data)) data.data = JSON.parse(AesDecrypt(data.data));
+          } catch { /* Keep the original failure message if its details cannot be decoded. */ }
+        }
         if (data.code === CODE.NEED_REHANDSHAKE) {
           // 服务端没有本次会话密钥(多为重启或过期)：重新握手后重发这一条请求。
           // 只重试一次——握手完还是 -5 说明是服务端侧的问题，再重发只会转圈。

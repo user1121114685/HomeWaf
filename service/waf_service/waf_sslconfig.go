@@ -29,6 +29,15 @@ type WafSslConfigService struct{}
 
 var WafSslConfigServiceApp = new(WafSslConfigService)
 
+// SslConfigValidationError identifies safe, actionable input errors without
+// exposing certificate contents, private keys, or database diagnostics.
+type SslConfigValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *SslConfigValidationError) Error() string { return e.Message }
+
 // validateCertKeyPair 校验 key_content 为合法私钥且与证书配对。
 // 安全加固(EXT-2026-0821-01)：SSL 导出功能会把 key_content 原样落盘到用户指定路径，
 // 若不校验，任意文本即可经导出写入宿主机任意文件。要求私钥合法且与证书匹配后，
@@ -41,7 +50,7 @@ func validateCertKeyPair(certContent, keyContent string) error {
 		return nil
 	}
 	if _, err := tls.X509KeyPair([]byte(certContent), []byte(keyContent)); err != nil {
-		return errors.New("私钥格式非法或与证书不匹配")
+		return &SslConfigValidationError{Field: "key_content", Message: "私钥格式非法或与证书不匹配，请提供与证书配对的未加密 PEM 私钥"}
 	}
 	return nil
 }
@@ -50,12 +59,12 @@ func validateCertKeyPair(certContent, keyContent string) error {
 func (receiver *WafSslConfigService) AddApi(req request.SslConfigAddReq) (string, error) {
 	block, _ := pem.Decode([]byte(req.CertContent))
 	if block == nil {
-		return "", errors.New("无法解码PEM数据")
+		return "", &SslConfigValidationError{Field: "cert_content", Message: "无法解码 PEM 数据，请提供包含完整 BEGIN/END CERTIFICATE 标记的证书"}
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return "", errors.New("解析证书失败")
+		return "", &SslConfigValidationError{Field: "cert_content", Message: "解析证书失败，请检查证书内容是否完整、格式是否为 PEM"}
 	}
 
 	// 安全加固：私钥必须合法且与证书配对，防止任意文本经导出功能写入宿主机
@@ -192,12 +201,12 @@ func (receiver *WafSslConfigService) CheckIsExistApi(serialNo string) error {
 func (receiver *WafSslConfigService) ModifyApi(req request.SslConfigEditReq) error {
 	block, _ := pem.Decode([]byte(req.CertContent))
 	if block == nil {
-		return errors.New("无法解码PEM数据")
+		return &SslConfigValidationError{Field: "cert_content", Message: "无法解码 PEM 数据，请提供包含完整 BEGIN/END CERTIFICATE 标记的证书"}
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return errors.New("解析证书失败")
+		return &SslConfigValidationError{Field: "cert_content", Message: "解析证书失败，请检查证书内容是否完整、格式是否为 PEM"}
 	}
 
 	// 安全加固：私钥必须合法且与证书配对，防止任意文本经导出功能写入宿主机

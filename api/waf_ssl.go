@@ -36,9 +36,10 @@ func (s *WafSslConfigApi) AddSslConfigApi(c *gin.Context) {
 		sslId, err := wafSslConfigService.AddApi(req)
 		if err == nil {
 			//证书已保存成功，导出只是附加动作：失败只提示，不改变保存结果
-			response.OkWithMessage("添加成功"+s.exportTip(c, sslId), c)
+			tip, exportFailed := s.exportTip(c, sslId)
+			response.OkWithDetailed(gin.H{"export_failed": exportFailed}, "添加成功"+tip, c)
 		} else {
-			response.FailWithMessage("添加失败:"+err.Error(), c)
+			sslConfigInputError(c, err, "添加失败:"+err.Error())
 		}
 		return
 	} else {
@@ -137,14 +138,15 @@ func (s *WafSslConfigApi) ModifySslConfigApi(c *gin.Context) {
 		oldSslBean := wafSslConfigService.GetDetailInner(req.Id)
 		err = wafSslConfigService.ModifyApi(req)
 		if err != nil {
-			response.FailWithMessage("编辑发生错误", c)
+			sslConfigInputError(c, err, "证书保存失败，请稍后重试")
 		} else {
 			newSslBean := wafSslConfigService.GetDetailInner(req.Id)
 			if oldSslBean.SerialNo != newSslBean.SerialNo {
 				s.NotifySslUpdate(oldSslBean, newSslBean)
 			}
 			//证书已保存成功，导出只是附加动作：失败只提示，不改变保存结果
-			response.OkWithMessage("编辑成功"+s.exportTip(c, req.Id), c)
+			tip, exportFailed := s.exportTip(c, req.Id)
+			response.OkWithDetailed(gin.H{"export_failed": exportFailed}, "编辑成功"+tip, c)
 		}
 	} else {
 		response.FailWithMessage("解析失败", c)
@@ -154,20 +156,29 @@ func (s *WafSslConfigApi) ModifySslConfigApi(c *gin.Context) {
 // exportTip 保存成功后触发证书导出(落盘)，把结果拼成一句可展示的提示，
 // 并把这次「向宿主机落盘」的敏感操作记入统一安全审计(security_audit_log, config 类)。
 // 未配置导出返回空串、也不记审计（不是敏感操作）；导出失败/被拒只提示，不影响证书本身已保存。
-func (s *WafSslConfigApi) exportTip(c *gin.Context, sslId string) string {
+func (s *WafSslConfigApi) exportTip(c *gin.Context, sslId string) (string, bool) {
 	if sslId == "" {
-		return ""
+		return "", false
 	}
 	msg, err := wafSslConfigService.ExportById(sslId)
 	// 未配置导出：msg 与 err 都空 —— 不是敏感操作，不记审计
 	if msg == "" && err == nil {
-		return ""
+		return "", false
 	}
 	s.auditExport(c, msg, err)
 	if err != nil {
-		return "，但证书导出失败：" + err.Error()
+		return "，但证书导出失败：" + err.Error(), true
 	}
-	return "，" + msg
+	return "，" + msg, false
+}
+
+func sslConfigInputError(c *gin.Context, err error, fallback string) {
+	var invalid *waf_service.SslConfigValidationError
+	if errors.As(err, &invalid) {
+		response.FailWithDetailed(gin.H{"field_errors": gin.H{invalid.Field: invalid.Message}}, invalid.Message, c)
+		return
+	}
+	response.FailWithMessage(fallback, c)
 }
 
 // auditExport 把一次证书导出(成功/被拒)记入统一安全审计。Message 只含目标路径/原因，绝不含证书或私钥内容。

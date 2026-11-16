@@ -244,10 +244,10 @@
 | GET | `/api/v1/sql_query/queryable` | 仅登录令牌 | 有 | 通过 × 3 | 参数绑定 | [WafSqlQueryApi.GetQueryableSchemaApi](../../api/waf_sql_query.go#L60) |
 | GET | `/api/v1/sql_query/table_info` | 仅登录令牌 | 有 | 通过 × 3 | 参数绑定 | [WafSqlQueryApi.GetTableInfoApi](../../api/waf_sql_query.go#L45) |
 | POST | `/api/v1/sslconfig/add` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.AddSslConfigApi](../../api/waf_ssl.go#L32) |
-| GET | `/api/v1/sslconfig/del` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.DelSslConfigApi](../../api/waf_ssl.go#L106) |
-| GET | `/api/v1/sslconfig/detail` | 登录令牌/API Key | 无 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.GetSslConfigDetailApi](../../api/waf_ssl.go#L59) |
-| POST | `/api/v1/sslconfig/edit` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.ModifySslConfigApi](../../api/waf_ssl.go#L133) |
-| POST | `/api/v1/sslconfig/list` | 登录令牌/API Key | 无 | 通过 × 3 | JSON | [WafSslConfigApi.GetSslConfigListApi](../../api/waf_ssl.go#L80) |
+| GET | `/api/v1/sslconfig/del` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.DelSslConfigApi](../../api/waf_ssl.go#L107) |
+| GET | `/api/v1/sslconfig/detail` | 登录令牌/API Key | 无 | 通过 × 3 | 参数绑定 | [WafSslConfigApi.GetSslConfigDetailApi](../../api/waf_ssl.go#L60) |
+| POST | `/api/v1/sslconfig/edit` | 登录令牌/API Key | 有 | 通过 × 3 | JSON | [WafSslConfigApi.ModifySslConfigApi](../../api/waf_ssl.go#L134) |
+| POST | `/api/v1/sslconfig/list` | 登录令牌/API Key | 无 | 通过 × 3 | JSON | [WafSslConfigApi.GetSslConfigListApi](../../api/waf_ssl.go#L81) |
 | GET | `/api/v1/statrumtimesysinfo` | 登录令牌/API Key | 无 | 通过 × 3 | 自定义/无请求体 | [WafStatApi.StatRumtimeSysinfoApi](../../api/waf_stat.go#L42) |
 | GET | `/api/v1/statsysinfo` | 登录令牌/API Key | 无 | 通过 × 3 | 自定义/无请求体 | [WafStatApi.StatSysinfoApi](../../api/waf_stat.go#L25) |
 | GET | `/api/v1/sys_log/detail` | 登录令牌/API Key | 有 | 通过 × 3 | 参数绑定 | [WafSysLogApi.GetDetailApi](../../api/waf_sys_log.go#L24) |
