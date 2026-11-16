@@ -13,6 +13,7 @@ export default [
     redirect: '/waf-pipeline/ports',
     meta: { title: 'menu.pipeline.parent_title', icon: UserSafetyIcon },
     children: [
+      { path: 'honeypot', name: 'WafPipelineHoneypot', component: () => import('@/pages/waf/pipeline/SharedHoneypot.vue'), meta: { title: 'menu.pipeline.honeypot', keepAlive: false, roleCode: 'WafHost' } },
       { path: 'ports', name: 'WafPipeline', component: () => import('@/pages/waf/pipeline/index.vue'), meta: { title: 'menu.pipeline.ports', keepAlive: false, roleCode: 'WafHost' } },
       { path: 'templates', name: 'WafPipelineTemplates', component: () => import('@/pages/waf/pipeline/index.vue'), meta: { title: 'menu.pipeline.templates', keepAlive: false, roleCode: 'WafHost' } },
       { path: 'legacy-sources', name: 'LegacyWafHosts', component: () => import('@/pages/waf/host/index.vue'), meta: { title: 'menu.host.host_title', hidden: true, keepAlive: false, roleCode: 'WafHost' } },

@@ -48,6 +48,9 @@ func honeypotInteraction(c *RequestContext) *HoneypotInteraction {
 // Access shutdown, unavailable policy, lockdown, auth gates and observe mode
 // keep their original behavior. There is no new route to the business handler.
 func captureDeniedStep(s *Snapshot, step Step) Step {
+	if s.Config.Policy.Defense != nil {
+		return step
+	}
 	if !s.Config.Policy.Honeypot.Enabled || !s.Config.Policy.Honeypot.CaptureDenied ||
 		!(step.Number == 2 && step.Name == "ip_group" || step.Number == 3 && !step.FailClosed) {
 		return step
@@ -79,10 +82,11 @@ func captureDeniedStep(s *Snapshot, step Step) Step {
 func TrapStep(s *Snapshot) Step {
 	return Step{Number: 3, Name: "trap_path", Inspect: func(c *RequestContext) (Verdict, error) {
 		policy := s.Config.Policy
-		if !policy.Honeypot.Enabled || !policy.HitPolicy.Enabled {
+		cfg := HoneypotPolicy(s)
+		if !cfg.Enabled || policy.Defense == nil && !policy.HitPolicy.Enabled {
 			return Verdict{Action: Continue}, nil
 		}
-		for _, path := range policy.Honeypot.TrapPaths {
+		for _, path := range cfg.TrapPaths {
 			if c.View.Path == path {
 				c.Hit("trap_path", "trap_path", Low, false, "configured nonexistent path")
 				return Verdict{Action: Honeypot, Reason: "trap_path", RuleID: "trap_path"}, nil
@@ -109,7 +113,7 @@ func (h *HoneyHandler) Respond(s *Snapshot, c *RequestContext, w http.ResponseWr
 		c.Values["response_verdict"] = v
 		c.Trace.Add(TraceEntry{Stage: v.Stage, Check: "honeypot_response", Verdict: v})
 	}()
-	cfg := effectiveHoneypot(s.Config.Policy.Honeypot)
+	cfg := effectiveHoneypot(HoneypotPolicy(s))
 	if !h.admission.Acquire(s.Config.Port, cfg.MaxConcurrent) {
 		v.Status = http.StatusServiceUnavailable
 		w.Header().Set("Retry-After", "1")

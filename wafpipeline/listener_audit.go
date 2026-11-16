@@ -29,7 +29,7 @@ func (a *protocolAudit) attach(server *http.Server) {
 			state = observed.state
 		}
 		a.connections.Store(conn, state)
-		return context.WithValue(ctx, protocolConnectionKey{}, state)
+		return context.WithValue(withDefenseConnection(ctx, conn), protocolConnectionKey{}, state)
 	}
 	server.ConnState = func(conn net.Conn, state http.ConnState) {
 		value, ok := a.connections.Load(conn)
@@ -118,5 +118,6 @@ func (m *ListenerManager) ProtocolStats(port uint16) map[string]uint64 {
 	stats["connections"] = uint64(p.tracker.Count())
 	stats["global_connections"] = uint64(activePipelineConnections.Load())
 	stats["global_connection_rejections"] = rejectedPipelineConnections.Load()
+	stats["global_defense_connection_rejections"] = defenseConnectionRejections.Load()
 	return stats
 }

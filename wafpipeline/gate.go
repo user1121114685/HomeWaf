@@ -136,6 +136,9 @@ func (g *Gate) Step(s *Snapshot) Step {
 			}
 		}
 		if cfg.RequireToken {
+			if d := s.Config.Policy.Defense; d != nil && d.Enabled && cfg.TokenHeader != "" && len(c.Request.Header.Values(cfg.TokenHeader)) > 0 {
+				c.Hit("auth_fail", "service_token", Low, false, "service token verification failed")
+			}
 			return Verdict{Action: Challenge, Status: 401, Reason: "gate:token_required"}, nil
 		}
 		if len(s.Secrets.GateKey) < 32 && !c.DryRun {
@@ -159,6 +162,9 @@ func (g *Gate) Step(s *Snapshot) Step {
 				}
 				c.Values["gate_cookie"] = token
 				return Verdict{Action: Continue, Reason: "gate:basic"}, nil
+			}
+			if d := s.Config.Policy.Defense; d != nil && d.Enabled && c.Request.Header.Get("Authorization") != "" {
+				c.Hit("auth_fail", "auth_gate", Low, false, "invalid basic credentials")
 			}
 		}
 		if g.Store.Probe(c) {
@@ -334,6 +340,9 @@ func (g *Gate) Respond(s *Snapshot, c *RequestContext, w http.ResponseWriter, v 
 	rw := &gateResponseWriter{ResponseWriter: w}
 	w = rw
 	defer func() {
+		if handled, _ := c.Values["defense_response"].(bool); handled {
+			return
+		}
 		if rw.status == 0 {
 			rw.status = 200
 		}
@@ -352,6 +361,16 @@ func (g *Gate) Respond(s *Snapshot, c *RequestContext, w http.ResponseWriter, v 
 	}
 	cfg := s.Config.Policy.Gate
 	prefix := strings.TrimRight(cfg.Prefix, "/")
+	reject := func(status int, category, message string) {
+		if d := s.Config.Policy.Defense; d != nil && d.Enabled {
+			v = Verdict{Action: Deny, Stage: 3, Status: status, Reason: "gate:" + category}
+			c.Hit(category, "auth_gate", Medium, false, "authentication endpoint rejected request")
+			if c.RejectResponse != nil && c.RejectResponse(w, v) {
+				return
+			}
+		}
+		gateJSON(w, status, message)
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -391,18 +410,18 @@ func (g *Gate) Respond(s *Snapshot, c *RequestContext, w http.ResponseWriter, v 
 		r.Body = http.MaxBytesReader(w, r.Body, 8192)
 		if c.View.Path == prefix+"/login" && !g.reserveLogin(s, c) {
 			w.Header().Set("Retry-After", "60")
-			gateJSON(w, 429, "请稍后重试")
+			reject(429, "gate_rate_limit", "请稍后重试")
 			return true
 		}
 		if r.ParseForm() != nil || !sameOrigin(r) {
-			gateJSON(w, 403, "请求验证失败")
+			reject(403, "gate_request_rejected", "请求验证失败")
 			return true
 		}
 		csrf := r.PostForm.Get("csrf")
 		cookie := oneCookie(r, "hw_csrf_"+strconv.Itoa(int(s.Config.Port)))
 		_, ok := gateVerify(s.Secrets.GateKey, csrf, c.PortID, "csrf")
 		if !ok || cookie == "" || subtle.ConstantTimeCompare([]byte(csrf), []byte(cookie)) != 1 {
-			gateJSON(w, 403, "请求验证失败")
+			reject(403, "gate_request_rejected", "请求验证失败")
 			return true
 		}
 		if c.View.Path == prefix+"/logout" {
@@ -419,6 +438,10 @@ func (g *Gate) Respond(s *Snapshot, c *RequestContext, w http.ResponseWriter, v 
 		r.PostForm.Del("otp")
 		r.Form.Del("otp")
 		if status != 0 {
+			failure := Verdict{Action: Deny, Stage: 3, Reason: "gate:authentication_failed", Status: status}
+			if c.RejectResponse != nil && c.RejectResponse(w, failure) {
+				return true
+			}
 			if status == 429 {
 				w.Header().Set("Retry-After", "60")
 			}

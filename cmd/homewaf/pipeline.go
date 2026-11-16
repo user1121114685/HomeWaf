@@ -78,6 +78,13 @@ func initializePortPipeline() {
 	wafpipeline.Listeners.SetEvents(punisher)
 	wafpipeline.Live.Sink = punisher
 	wafpipeline.Live.State = punisher
+	defenseService := waf_service.WafPipelineDefenseServiceApp
+	defenseService.Engine.RequireRegistered = true
+	wafpipeline.Live.Defense = defenseService.Engine
+	wafpipeline.Live.SilentDrop = waf_service.DropPipelineConnection
+	if err := waf_service.WafPipelineHoneypotServiceApp.Load(); err != nil {
+		zlog.Error("统一蜜罐设置加载失败", err.Error())
+	}
 	wafpipeline.Live.OnResult = func(s *wafpipeline.Snapshot, c *wafpipeline.RequestContext, result wafpipeline.Result) {
 		stateService.LogResult(s, c, result)
 		globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.RecordPipelineWebLog(s, c, result)
@@ -88,6 +95,11 @@ func initializePortPipeline() {
 		zlog.Error("端口登录门加载失败", err.Error())
 	}
 	gate := wafpipeline.NewGate(gateStore)
+	defenseService.OwnsRuntime = waf_service.WafPipelineGateServiceApp.OwnsRuntime
+	defenseService.Owner = waf_service.WafPipelineGateServiceApp.RuntimeOwner()
+	if err := defenseService.LoadHistory(); err != nil {
+		zlog.Error("成功来源记录加载失败", err.Error())
+	}
 	rules := wafpipeline.NewRulesA(gate)
 	bots := wafpipeline.NewBOTCache()
 	rules.BotIdentity = bots.Lookup
@@ -164,7 +176,23 @@ func initializePortPipeline() {
 	go func() { defer close(stateDone); punisher.Run(ctx) }()
 	go punisher.RunPersistence(ctx)
 	go stateService.PruneLogs(ctx)
+	defenseDone := make(chan struct{})
+	go func() { defer close(defenseDone); defenseService.Run(ctx) }()
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		_ = waf_service.PipelineFlowDropper.Reconcile()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				_ = waf_service.PipelineFlowDropper.Reconcile()
+			}
+		}
+	}()
 	finishPortPipeline = func() {
+		<-defenseDone
 		<-tamperDone
 		<-legacyTamperDone
 		<-done

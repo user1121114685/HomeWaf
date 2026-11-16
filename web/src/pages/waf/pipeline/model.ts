@@ -5,6 +5,7 @@ export interface LegacySource { code: string; name: string; enabled: boolean }
 export interface LegacyPortSummary { port: number; sources: LegacySource[]; imported: boolean; state: string }
 export interface LegacyPortPreview extends LegacyPortSummary { config: PortConfig; policy_host: string; preview_token: string; account_names: string[]; requires_totp?: boolean; warnings: string[]; blockers: string[] }
 export interface PortConfig {
+  defense_state?: { id: string; mode: string; reason: string; started_at: number; expires_at: number; prefixes?: string[]; access_was_enabled: boolean };
   schema_version: number; port: number; name: string; protocol: string; listen_enabled: boolean;
   upstream: string; upstream_dial_ip?: string; header_profile?: string; routes?: UpstreamRoute[]; script_groups?: Record<string, string[]>; host_names: string[]; host_code?: string; policy: Policy;
   template: { id?: string; version?: number; applied_at?: number }; revision: number;
@@ -14,8 +15,8 @@ export interface Field { path: string; label: string; help: string; kind?: 'bool
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 export function newTOTPSecret(): string { const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits=0, value=0, output=''; for(const byte of crypto.getRandomValues(new Uint8Array(20))){value=(value<<8)|byte;bits+=8;while(bits>=5){bits-=5;output+=alphabet[(value>>>bits)&31]}value&=(1<<bits)-1}return output; }
 export const modes: Array<[RuleMode, string]> = [['off', '关闭'], ['observe', '仅观察'], ['block', '拦截']];
-export const sections = ['access', 'ip_group', 'ruleset', 'gate', 'hit_policy', 'honeypot', 'network'];
-export const sectionNames: Record<string, string> = { access: '1 · 访问开关', ip_group: '2 · IP 组', ruleset: '3 · 规则集', gate: '3 · 登录门', hit_policy: '4 · 命中限制', honeypot: '4 · 蜜罐', network: '5 · 业务代理' };
+export const sections = ['access', 'ip_group', 'ruleset', 'gate', 'hit_policy', 'honeypot', 'defense', 'network'];
+export const sectionNames: Record<string, string> = { access: '1 · 访问开关', ip_group: '2 · IP 组', ruleset: '3 · 规则集', gate: '3 · 登录门', hit_policy: '4 · 命中限制', honeypot: '4 · 旧蜜罐内容', defense: '4 · 异常访问处置', network: '5 · 业务代理' };
 export const ruleNames: Record<string, string> = { malformed: '畸形 HTTP', scanner: '扫描器', sqli: 'SQL 注入', xss: '跨站脚本 XSS', upload: '文件上传', lfi: '文件包含 / 路径穿越', rce: '命令注入', java_inject: 'Java 代码注入', java_deser: 'Java 反序列化', php_deser: 'PHP 反序列化', php_inject: 'PHP 代码注入', asp_inject: 'ASP 代码注入', ssti: '模板注入', csrf: 'CSRF 同源校验', ssrf: 'SSRF URL 检测' };
 export const ruleHelp: Record<string, string> = {
   malformed: '协议歧义与非法编码；常用 WebDAV 方法默认允许。HTTP 解析器提前拒绝只观察，不归罪前置代理。',
@@ -35,10 +36,15 @@ export const ruleHelp: Record<string, string> = {
   ssrf: '检测参数中的内网/回环/元数据 URL，不发 DNS 请求，也无法防御 DNS 重绑定。',
 };
 export function newPort(template: PolicyTemplate, port = 5000): PortConfig {
-  return { schema_version: 1, port, name: '', protocol: 'http', listen_enabled: false, upstream: '', host_names: [], policy: clone(template.policy), template: { id: template.id, version: template.version }, revision: 0 };
+  const policy = clone(template.policy);
+  policy.defense ||= { enabled: false, mode: 'quiet', window_seconds: 1800, count: 10, duration_seconds: 10800, tcp_action: 'reset' };
+  policy.honeypot.enabled = false; policy.hit_policy.lockdown.enabled = false; policy.hit_policy.ban_scope = 'port';
+  if (policy.ip_group.unlisted_action === 'honeypot') policy.ip_group.unlisted_action = 'deny';
+  return { schema_version: 1, port, name: '', protocol: 'http', listen_enabled: false, upstream: '', host_names: [], policy, template: { id: template.id, version: template.version }, revision: 0 };
 }
 export function observationConfig(config: PortConfig): PortConfig {
   const next = clone(config); next.policy.hit_policy.enabled = false; next.policy.hit_policy.lockdown.enabled = false;
+  if (next.policy.defense) next.policy.defense.enabled = false;
   next.policy.honeypot.enabled = false; next.policy.ruleset.qps.mode = 'observe'; next.policy.ruleset.cc.mode = 'observe'; next.policy.ruleset.bot = 'observe';
   if (next.policy.ruleset.owasp !== 'off') next.policy.ruleset.owasp = 'observe';
   if (next.policy.ruleset.ai && next.policy.ruleset.ai !== 'off') next.policy.ruleset.ai = 'observe';

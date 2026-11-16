@@ -53,7 +53,7 @@ func validateHoneypotControls(cfg HoneypotConfig) error {
 // issuing any client-side script. This server never uses display text as
 // instructions to a model or tool.
 func selectHoneypotLure(s *Snapshot, c *RequestContext) HoneypotLure {
-	lures := s.Config.Policy.Honeypot.Lures
+	lures := HoneypotPolicy(s).Lures
 	total := 0
 	for _, lure := range lures {
 		if lure.Weight > 0 {

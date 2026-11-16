@@ -14,6 +14,8 @@ import (
 
 type FeedReader interface{ Contains(netip.Addr, int64) bool }
 type Runtime struct {
+	Defense              *DefenseEngine
+	SilentDrop           func(*http.Request) error
 	PluginPrepare        func(*Snapshot) error
 	PluginStats          func() map[string]uint64
 	CertificateChallenge func(*Snapshot, *RequestContext) (string, bool)
@@ -121,6 +123,9 @@ func (r *Runtime) Prepare(s *Snapshot) error {
 			return Verdict{Action: Continue}, nil
 		}})
 	}
+	if r.Defense != nil {
+		steps = append(steps, r.Defense.Step(s))
+	}
 	steps = append(steps, r.ipStep(s))
 	if len(s.Config.Routes) > 0 {
 		steps = append(steps, businessEntryStep(s))
@@ -193,6 +198,14 @@ func (r *Runtime) Serve(s *Snapshot, w http.ResponseWriter, req *http.Request) {
 	}
 	req = WithTrustedExternalScheme(req, forwardedScheme(s, req))
 	c := NewRequestContext(req, PortID(s.Config.Port), ip, s.Config.Policy.RuleSet.View)
+	c.RejectResponse = func(w http.ResponseWriter, v Verdict) bool { return r.defenseResponse(s, c, w, v) }
+	c.BusinessResponse = func(v Verdict) {
+		if r.Defense != nil && SuccessfulBusiness(c, v) {
+			copy := *c
+			copy.Values = make(map[string]any)
+			r.Defense.Observe(s, &copy, v)
+		}
+	}
 	c.Values["response_writer"] = w
 	result := s.Compiled.Pipeline.evaluate(c, false)
 	submitted := len(c.Hits)
@@ -210,6 +223,9 @@ func (r *Runtime) Serve(s *Snapshot, w http.ResponseWriter, req *http.Request) {
 		}
 		if interaction, ok := c.Values["honeypot_interaction"].(*HoneypotInteraction); ok {
 			result.Honeypot = interaction
+		}
+		if r.Defense != nil {
+			r.Defense.Observe(s, c, result.Verdict)
 		}
 		r.recordScriptFailures(s, c, result)
 		if result.Verdict.Action != Allow && result.Verdict.Action != Continue && result.Verdict.Action != Bypass {
@@ -277,6 +293,9 @@ func (r *Runtime) Serve(s *Snapshot, w http.ResponseWriter, req *http.Request) {
 			http.Redirect(w, c.Request, target, 302)
 			return
 		}
+	}
+	if r.defenseResponse(s, c, w, v) {
+		return
 	}
 	if r.Respond != nil && r.Respond(s, c, w, v) {
 		return

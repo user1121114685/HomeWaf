@@ -295,6 +295,9 @@ func (p *Punisher) ban(s *Snapshot, e HitEvent, count, duration int, now time.Ti
 	return []PunishmentChange{{r, "ban_created"}}
 }
 func (p *Punisher) honey(s *Snapshot, e HitEvent, count int, now time.Time) []PunishmentChange {
+	if s.Config.Policy.Defense != nil {
+		return nil
+	}
 	if !s.Config.Policy.Honeypot.Enabled {
 		return nil
 	}
@@ -310,6 +313,9 @@ func (p *Punisher) honey(s *Snapshot, e HitEvent, count int, now time.Time) []Pu
 	return []PunishmentChange{{r, "honeypot_created"}}
 }
 func (p *Punisher) lock(s *Snapshot, e HitEvent, now time.Time) []PunishmentChange {
+	if s.Config.Policy.Defense != nil {
+		return nil
+	}
 	cfg := s.Config.Policy.HitPolicy.Lockdown
 	if !cfg.Enabled || e.Severity.Rank() < High.Rank() || strings.HasPrefix(e.Category, "response_") {
 		return nil
@@ -351,6 +357,9 @@ func (p *Punisher) process(s *Snapshot, e HitEvent, now time.Time) []PunishmentC
 		return nil
 	}
 	cfg := s.Config.Policy
+	if cfg.Defense != nil && (e.Category == "honeypot_visit" || e.Category == "honeypot_escalation" || e.Category == "trap_path") {
+		return nil
+	}
 	if e.Category == "honeypot_visit" {
 		return p.honeypotHit(s, e, now)
 	}

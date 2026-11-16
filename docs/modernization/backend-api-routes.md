@@ -2,7 +2,7 @@
 
 由 `node scripts/audit-backend-apis.mjs` 从生产 `RegisterRoutes` 生成，包含开启调试时的路由及测试应急入口。没有启动监听端口或调用业务写操作。
 
-总计 599 条；登录令牌/API Key 520 条，仅登录令牌 73 条，公开 5 条，下载票据 1 条。
+总计 605 条；登录令牌/API Key 526 条，仅登录令牌 73 条，公开 5 条，下载票据 1 条。
 
 “鉴权拒绝”表示已实际请求验证缺失令牌、过期令牌、非法角色均被拦截，不表示该接口全部业务分支均已测试。“角色限制”来自真实中间件链；细分角色和 API Key 的权限语义见审计报告。参数绑定列仅为源码索引，不等同完整输入校验。
 
@@ -196,10 +196,12 @@
 | GET | `/api/v1/owasp/usage/doc` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafOwaspApi.UsageDocApi](../../api/waf_owasp.go#L886) |
 | GET | `/api/v1/pipeline/cc/hits` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineCCHits](../../api/waf_pipeline_cc.go#L39) |
 | POST | `/api/v1/pipeline/cc/recommend` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.RecommendPipelineCC](../../api/waf_pipeline_cc.go#L18) |
-| POST | `/api/v1/pipeline/explain` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ExplainPort](../../api/waf_pipeline.go#L288) |
-| POST | `/api/v1/pipeline/feed/save` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SaveFeed](../../api/waf_pipeline.go#L393) |
-| POST | `/api/v1/pipeline/feed/sync` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SyncFeed](../../api/waf_pipeline.go#L416) |
-| GET | `/api/v1/pipeline/feed` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.FeedConfig](../../api/waf_pipeline.go#L367) |
+| GET | `/api/v1/pipeline/defense/capabilities` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineDefenseCapabilities](../../api/waf_pipeline_defense.go#L24) |
+| GET | `/api/v1/pipeline/defense` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineDefense](../../api/waf_pipeline_defense.go#L11) |
+| POST | `/api/v1/pipeline/explain` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ExplainPort](../../api/waf_pipeline.go#L312) |
+| POST | `/api/v1/pipeline/feed/save` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SaveFeed](../../api/waf_pipeline.go#L417) |
+| POST | `/api/v1/pipeline/feed/sync` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SyncFeed](../../api/waf_pipeline.go#L440) |
+| GET | `/api/v1/pipeline/feed` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.FeedConfig](../../api/waf_pipeline.go#L391) |
 | POST | `/api/v1/pipeline/gate/sessions/kick` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.KickGateSession](../../api/waf_pipeline_gate.go#L125) |
 | POST | `/api/v1/pipeline/gate/sessions/revoke` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.RevokeGateSessions](../../api/waf_pipeline_gate.go#L146) |
 | GET | `/api/v1/pipeline/gate/sessions` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.GateSessions](../../api/waf_pipeline_gate.go#L105) |
@@ -207,28 +209,32 @@
 | POST | `/api/v1/pipeline/gate/users/delete` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.DeleteGateUser](../../api/waf_pipeline_gate.go#L81) |
 | POST | `/api/v1/pipeline/gate/users/save` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SaveGateUser](../../api/waf_pipeline_gate.go#L57) |
 | GET | `/api/v1/pipeline/gate/users` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.GateUsers](../../api/waf_pipeline_gate.go#L32) |
-| GET | `/api/v1/pipeline/issues` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineIssues](../../api/waf_pipeline.go#L129) |
-| GET | `/api/v1/pipeline/logs` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineLogs](../../api/waf_pipeline.go#L250) |
+| GET | `/api/v1/pipeline/honeypot/logs` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SharedPipelineHoneypotLogs](../../api/waf_pipeline_defense.go#L77) |
+| POST | `/api/v1/pipeline/honeypot/save` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SaveSharedPipelineHoneypot](../../api/waf_pipeline_defense.go#L64) |
+| GET | `/api/v1/pipeline/honeypot` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SharedPipelineHoneypot](../../api/waf_pipeline_defense.go#L39) |
+| GET | `/api/v1/pipeline/issues` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineIssues](../../api/waf_pipeline.go#L138) |
+| GET | `/api/v1/pipeline/logs` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineLogs](../../api/waf_pipeline.go#L274) |
 | POST | `/api/v1/pipeline/migration/import` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ImportLegacyPipelinePort](../../api/waf_pipeline_migration.go#L67) |
 | GET | `/api/v1/pipeline/migration/legacy` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.LegacyPipelinePorts](../../api/waf_pipeline_migration.go#L23) |
 | POST | `/api/v1/pipeline/migration/preview` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PreviewLegacyPipelinePort](../../api/waf_pipeline_migration.go#L43) |
 | GET | `/api/v1/pipeline/overview` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineOverview](../../api/waf_pipeline.go#L33) |
-| POST | `/api/v1/pipeline/ports/check` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.CheckPipelinePort](../../api/waf_pipeline.go#L81) |
-| POST | `/api/v1/pipeline/ports/copy` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.CopyPort](../../api/waf_pipeline.go#L642) |
-| POST | `/api/v1/pipeline/ports/delete` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.DeletePort](../../api/waf_pipeline.go#L488) |
-| POST | `/api/v1/pipeline/ports/save` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SavePort](../../api/waf_pipeline.go#L462) |
-| GET | `/api/v1/pipeline/ports` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ListPorts](../../api/waf_pipeline.go#L441) |
-| GET | `/api/v1/pipeline/regions` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineRegions](../../api/waf_pipeline.go#L348) |
-| POST | `/api/v1/pipeline/state/manage` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ManagePipelineState](../../api/waf_pipeline.go#L221) |
-| GET | `/api/v1/pipeline/state` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineState](../../api/waf_pipeline.go#L201) |
-| GET | `/api/v1/pipeline/stats` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineStats](../../api/waf_pipeline.go#L145) |
-| POST | `/api/v1/pipeline/templates/delete` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.DeleteTemplate](../../api/waf_pipeline.go#L557) |
-| GET | `/api/v1/pipeline/templates/export` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ExportTemplate](../../api/waf_pipeline.go#L611) |
-| POST | `/api/v1/pipeline/templates/import-preview` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PreviewTemplateImport](../../api/waf_pipeline.go#L105) |
-| POST | `/api/v1/pipeline/templates/preview` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PreviewTemplate](../../api/waf_pipeline.go#L581) |
-| POST | `/api/v1/pipeline/templates/save` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SaveTemplate](../../api/waf_pipeline.go#L532) |
-| GET | `/api/v1/pipeline/templates` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.Templates](../../api/waf_pipeline.go#L511) |
-| POST | `/api/v1/pipeline/upstream/test` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.TestUpstream](../../api/waf_pipeline.go#L667) |
+| POST | `/api/v1/pipeline/ports/access` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineAccess](../../api/waf_pipeline_defense.go#L27) |
+| POST | `/api/v1/pipeline/ports/check` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.CheckPipelinePort](../../api/waf_pipeline.go#L90) |
+| POST | `/api/v1/pipeline/ports/copy` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.CopyPort](../../api/waf_pipeline.go#L666) |
+| POST | `/api/v1/pipeline/ports/delete` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.DeletePort](../../api/waf_pipeline.go#L512) |
+| POST | `/api/v1/pipeline/ports/save` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SavePort](../../api/waf_pipeline.go#L486) |
+| GET | `/api/v1/pipeline/ports` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ListPorts](../../api/waf_pipeline.go#L465) |
+| GET | `/api/v1/pipeline/regions` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineRegions](../../api/waf_pipeline.go#L372) |
+| POST | `/api/v1/pipeline/state/manage` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ManagePipelineState](../../api/waf_pipeline.go#L245) |
+| GET | `/api/v1/pipeline/state` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineState](../../api/waf_pipeline.go#L210) |
+| GET | `/api/v1/pipeline/stats` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PipelineStats](../../api/waf_pipeline.go#L154) |
+| POST | `/api/v1/pipeline/templates/delete` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.DeleteTemplate](../../api/waf_pipeline.go#L581) |
+| GET | `/api/v1/pipeline/templates/export` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.ExportTemplate](../../api/waf_pipeline.go#L635) |
+| POST | `/api/v1/pipeline/templates/import-preview` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PreviewTemplateImport](../../api/waf_pipeline.go#L114) |
+| POST | `/api/v1/pipeline/templates/preview` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.PreviewTemplate](../../api/waf_pipeline.go#L605) |
+| POST | `/api/v1/pipeline/templates/save` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.SaveTemplate](../../api/waf_pipeline.go#L556) |
+| GET | `/api/v1/pipeline/templates` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.Templates](../../api/waf_pipeline.go#L535) |
+| POST | `/api/v1/pipeline/upstream/test` | 登录令牌/API Key | 有 | 通过 × 3 | 自定义/无请求体 | [WafPipelineApi.TestUpstream](../../api/waf_pipeline.go#L691) |
 | GET | `/api/v1/public/dashboard-share` | 公开 | 无 | 单独验证 | 自定义/无请求体 | [WafDashboardScreenApi.PublicShare](../../api/waf_dashboard_screen.go#L116) |
 | POST | `/api/v1/public/login` | 公开 | 无 | 单独验证 | JSON | [WafLoginApi.LoginApi](../../api/waf_login.go#L29) |
 | POST | `/api/v1/public/seckey` | 公开 | 无 | 单独验证 | JSON | [WafSecKeyApi.SecKeyApi](../../api/waf_seckey.go#L31) |

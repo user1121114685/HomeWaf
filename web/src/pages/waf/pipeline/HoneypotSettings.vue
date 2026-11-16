@@ -1,8 +1,8 @@
 <template>
   <section class="honeypot-settings" data-testid="honeypot-settings">
-    <h3>蜜罐设置</h3>
-    <p class="help">可随时修改并保存当前服务的蜜罐策略，无需重新创建服务。</p>
-    <Fields :model="model" :definitions="group('enabled', 'capture_denied')" />
+    <h3>{{ shared ? '所有蜜罐模式服务共用的设置' : '蜜罐设置' }}</h3>
+    <p class="help">{{ shared ? '保存后更新所有已选择蜜罐模式的服务；不连接真实业务上游。旧服务须先确认迁移。' : '可随时修改并保存当前服务的蜜罐策略，无需重新创建服务。' }}</p>
+    <Fields v-if="!shared" :model="model" :definitions="group('enabled', 'capture_denied')" />
 
     <section class="settings-section">
       <div class="section-heading"><h4>仿真提示与权重</h4><ElButton :disabled="lures.length >= 32" @click="addLure">添加蜜罐提示</ElButton></div>
@@ -20,13 +20,13 @@
       <p v-for="error in lureErrors" :key="error" class="field-error" role="alert">{{ error }}</p>
     </section>
 
-    <section class="settings-section">
+    <section v-if="!shared" class="settings-section">
       <h4>命中后丢弃响应</h4>
       <ElAlert v-if="!hitPolicyEnabled" title="自动处罚当前关闭，以下命中阈值不会生效。" type="warning" :closable="false"><ElButton text @click="emit('open-punishment')">配置自动处罚</ElButton></ElAlert>
       <Fields :model="model" :definitions="dropFields" />
     </section>
     <section class="settings-section"><h4>请求归档</h4><Fields :model="model" :definitions="group('archive_body', 'archive_max_bytes')" /></section>
-    <section class="settings-section"><h4>陷阱路径与运行限制</h4><Fields :model="model" :definitions="runtimeFields" /></section>
+    <section class="settings-section"><h4>陷阱路径与运行限制</h4><Fields :model="model" :definitions="shared ? group('max_concurrent', 'max_delay_ms', 'trap_paths') : runtimeFields" /></section>
   </section>
 </template>
 <script setup lang="ts">
@@ -35,7 +35,7 @@ import type { PropType } from 'vue';
 import { ElAlert, ElButton, ElInput, ElInputNumber } from 'element-plus';
 import Fields from './Fields.vue';
 import { fields } from './model';
-const props = defineProps({ model: { type: Object as PropType<Record<string, any>>, required: true }, hitPolicyEnabled: { type: Boolean, required: true } });
+const props = defineProps({ model: { type: Object as PropType<Record<string, any>>, required: true }, hitPolicyEnabled: { type: Boolean, default: false }, shared: Boolean });
 const emit = defineEmits(['invalid', 'open-punishment']);
 const group = (...paths: string[]) => fields.honeypot.filter(field => paths.includes(field.path));
 const dropFields = fields.honeypot.filter(field => field.path.startsWith('drop_') || field.path.startsWith('distributed_drop.'));

@@ -6,6 +6,7 @@ export const pageDescriptions: Record<string, string> = {
   DashboardStats: '查看请求速率、队列积压、响应延迟与资源变化。',
   WafPipeline: '连接现有服务，配置访问策略并启用监听。',
   WafPipelineTemplates: '复用防护设置；应用模板后，每个服务独立管理。',
+  WafPipelineHoneypot: '集中管理蜜罐内容、运行限制与访问记录；服务选择蜜罐模式后共用设置。',
   LegacyWafHosts: '查看已有站点，并迁入按端口管理的服务配置。',
   WebsiteDiagnostic: '从入口、证书到源站，逐项定位访问问题。',
   WafRule: '定义请求匹配条件和命中后的处理方式。',

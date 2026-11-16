@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -124,6 +125,9 @@ func decodePort(row model.PortConfig) (*wafpipeline.Snapshot, error) {
 	if err := wafpipeline.StrictDecode([]byte(row.ConfigJSON), &c); err != nil {
 		return nil, err
 	}
+	if err := wafpipeline.ValidateDefenseState(c.DefenseState); err != nil {
+		return nil, err
+	}
 	if err := json.Unmarshal([]byte(row.SecretsJSON), &secrets); err != nil {
 		return nil, errors.New("port secret unavailable")
 	}
@@ -189,27 +193,35 @@ func (s *WafPipelineService) Get(port uint16) (wafpipeline.PortConfig, error) {
 }
 
 type PortSaveRequest struct {
-	Config             wafpipeline.PortConfig                 `json:"config"`
-	Username           string                                 `json:"initial_username,omitempty"`
-	Password           string                                 `json:"initial_password,omitempty"`
-	InitialTOTP        string                                 `json:"initial_totp_secret,omitempty"`
-	TLSCert            string                                 `json:"tls_certificate,omitempty"`
-	TLSKey             string                                 `json:"tls_private_key,omitempty"`
-	UpstreamCA         string                                 `json:"upstream_ca,omitempty"`
-	ClearUpstreamCA    bool                                   `json:"clear_upstream_ca,omitempty"`
-	BusinessHeaders    map[string]wafpipeline.BusinessHeaders `json:"business_headers,omitempty"`
-	PluginProfiles     map[string]wafpipeline.PluginLaunch    `json:"plugin_profiles,omitempty"`
-	PrivacyConfig      string                                 `json:"privacy_engine_config,omitempty"`
-	ClearPrivacyConfig bool                                   `json:"clear_privacy_engine_config,omitempty"`
-	Operator           string                                 `json:"-"`
-	TLSRefresh         *pipelineTLSRefresh                    `json:"-"`
-	TLSBind            *pipelineTLSRefresh                    `json:"-"`
-	TamperUpdates      map[string]wafpipeline.TamperBaseline  `json:"-"`
+	ConfirmDefenseMigration bool `json:"confirm_defense_migration,omitempty"`
+	defenseWrite            bool
+	accessIntent            bool
+	defenseOwner            string
+	Config                  wafpipeline.PortConfig                 `json:"config"`
+	Username                string                                 `json:"initial_username,omitempty"`
+	Password                string                                 `json:"initial_password,omitempty"`
+	InitialTOTP             string                                 `json:"initial_totp_secret,omitempty"`
+	TLSCert                 string                                 `json:"tls_certificate,omitempty"`
+	TLSKey                  string                                 `json:"tls_private_key,omitempty"`
+	UpstreamCA              string                                 `json:"upstream_ca,omitempty"`
+	ClearUpstreamCA         bool                                   `json:"clear_upstream_ca,omitempty"`
+	BusinessHeaders         map[string]wafpipeline.BusinessHeaders `json:"business_headers,omitempty"`
+	PluginProfiles          map[string]wafpipeline.PluginLaunch    `json:"plugin_profiles,omitempty"`
+	PrivacyConfig           string                                 `json:"privacy_engine_config,omitempty"`
+	ClearPrivacyConfig      bool                                   `json:"clear_privacy_engine_config,omitempty"`
+	Operator                string                                 `json:"-"`
+	TLSRefresh              *pipelineTLSRefresh                    `json:"-"`
+	TLSBind                 *pipelineTLSRefresh                    `json:"-"`
+	TamperUpdates           map[string]wafpipeline.TamperBaseline  `json:"-"`
 }
 
 func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.saveLocked(req)
+}
+
+func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortConfig, error) {
 	pipelineGroupReferenceMu.RLock()
 	defer pipelineGroupReferenceMu.RUnlock()
 	c := wafpipeline.CloneConfig(req.Config)
@@ -470,10 +482,50 @@ func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, 
 		}
 	}
 	if oldSnap != nil {
+		if oldSnap.Config.Policy.Defense != nil && !req.defenseWrite {
+			if !reflect.DeepEqual(c.Policy.Honeypot, oldSnap.Config.Policy.Honeypot) {
+				return c, errors.New("蜜罐内容已由统一蜜罐页面管理，端口中的旧蜜罐配置只读")
+			}
+			if c.Policy.HitPolicy.Lockdown.Enabled || c.Policy.HitPolicy.BanScope != "port" {
+				return c, errors.New("新端口处置不再使用旧多来源自保或跨端口自动封禁")
+			}
+		}
+		if oldSnap.Config.Policy.Defense != nil && c.Policy.Defense == nil {
+			return c, errors.New("已迁移的端口不能恢复旧处置结构，请关闭新处置开关")
+		}
+		if oldSnap.Config.Policy.Defense == nil && c.Policy.Defense != nil && !req.ConfirmDefenseMigration {
+			return c, errors.New("请先确认迁移差异：旧蜜罐与多来源自保将由所选处置模式替代")
+		}
+		if !req.defenseWrite {
+			c.DefenseState = oldSnap.Config.DefenseState
+			modeChanged := defenseModeChanged(oldSnap.Config.Policy.Defense, c.Policy.Defense)
+			// Parameter edits never lose an automatic reopen. Changing modes while
+			// automatically closed takes effect after that existing closure ends.
+			if modeChanged && (c.DefenseState == nil || c.DefenseState.Mode != wafpipeline.DefenseClose) || c.Policy.Access.Enabled != oldSnap.Config.Policy.Access.Enabled || !c.ListenEnabled {
+				c.DefenseState = nil
+			}
+		}
 		c.AccessChangedAt = oldSnap.Config.AccessChangedAt
 		c.AccessChangedBy = oldSnap.Config.AccessChangedBy
 	}
-	if isNew || oldSnap != nil && oldSnap.Config.Policy.Access.Enabled != c.Policy.Access.Enabled {
+	if isNew {
+		c.DefenseState = nil
+	}
+	if c.Policy.Defense != nil {
+		c.Policy.Honeypot.Enabled, c.Policy.Honeypot.CaptureDenied = false, false
+		c.Policy.Honeypot.DropAfterHits, c.Policy.Honeypot.DistributedDrop.Enabled = 0, false
+		c.Policy.HitPolicy.Lockdown.Enabled = false
+		c.Policy.HitPolicy.BanScope = "port"
+		if c.Policy.IPGroup.UnlistedAction == wafpipeline.Honeypot {
+			c.Policy.IPGroup.UnlistedAction = wafpipeline.Deny
+		}
+		if !req.defenseWrite {
+			if err := validateDefenseAvailability(c); err != nil {
+				return c, err
+			}
+		}
+	}
+	if isNew || req.accessIntent || oldSnap != nil && oldSnap.Config.Policy.Access.Enabled != c.Policy.Access.Enabled {
 		c.AccessChangedAt = time.Now().Unix()
 		c.AccessChangedBy = req.Operator
 	}
@@ -514,6 +566,9 @@ func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, 
 	previousOwner := wafpipeline.OwnsLegacyPort(c.Port)
 	createdUserID := ""
 	err = db.Transaction(func(tx *gorm.DB) error {
+		if err := defenseTransactionOwner(tx, req.defenseOwner); err != nil {
+			return err
+		}
 		if isNew {
 			if err := tx.Create(&row).Error; err != nil {
 				return err
@@ -603,17 +658,22 @@ func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, 
 		}
 	}
 	s.auditDetail(req.Operator, c.Port, "port_config_saved", portChangeSummary(oldSnap, snap))
-	if req.TamperUpdates == nil {
+	if req.TamperUpdates == nil && !req.defenseWrite {
 		if err := WafPipelineGateServiceApp.Reload(c.Port); err != nil {
 			return c, err
 		}
 	}
 	delete(s.issues, c.Port)
+	if oldSnap == nil || defensePolicyChanged(oldSnap.Config.Policy.Defense, c.Policy.Defense) || oldSnap.Config.DefenseState != nil && c.DefenseState == nil {
+		WafPipelineDefenseServiceApp.Engine.Reset(c.Port)
+	}
 	return c, nil
 }
 func (s *WafPipelineService) Delete(port uint16, operator string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defenseHistoryMu.Lock()
+	defer defenseHistoryMu.Unlock()
 	db, err := pipelineDB()
 	if err != nil {
 		return err
@@ -640,11 +700,17 @@ func (s *WafPipelineService) Delete(port uint16, operator string) error {
 				return err
 			}
 		}
+		if tx.Migrator().HasTable(&model.PipelineSuccessSource{}) {
+			if err := tx.Where("port = ?", port).Delete(&model.PipelineSuccessSource{}).Error; err != nil {
+				return err
+			}
+		}
 		return tx.Delete(&row).Error
 	}); err != nil {
 		return err
 	}
 	wafpipeline.Ports.Remove(port)
+	WafPipelineDefenseServiceApp.Engine.Forget(port)
 	if err := WafPipelineGateServiceApp.Reload(port); err != nil {
 		return err
 	}

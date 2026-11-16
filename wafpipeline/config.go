@@ -223,6 +223,7 @@ type NetworkConfig struct {
 	PreserveHost          bool           `json:"preserve_host"`
 }
 type Policy struct {
+	Defense   *DefenseConfig  `json:"defense,omitempty"`
 	Access    AccessConfig    `json:"access"`
 	IPGroup   IPGroupConfig   `json:"ip_group"`
 	RuleSet   RuleSetConfig   `json:"ruleset"`
@@ -237,6 +238,7 @@ type TemplateSource struct {
 	AppliedAt int64  `json:"applied_at,omitempty"`
 }
 type PortConfig struct {
+	DefenseState    *DefenseState       `json:"defense_state,omitempty"`
 	ACMEHosts       map[string]string   `json:"acme_hosts,omitempty"`
 	Schema          int                 `json:"schema_version"`
 	Port            uint16              `json:"port"`
@@ -360,6 +362,9 @@ func CloneConfig(c PortConfig) PortConfig {
 }
 func ValidMode(m Mode) bool { return m == ModeOff || m == ModeObserve || m == ModeBlock }
 func ValidateConfig(c PortConfig, managePort uint16) error {
+	if err := ValidateDefense(c.Policy.Defense); err != nil {
+		return err
+	}
 	if len(c.ACMEHosts) > 100 {
 		return fmt.Errorf("too many certificate challenge hosts")
 	}

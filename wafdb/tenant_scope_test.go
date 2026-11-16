@@ -28,7 +28,7 @@ func (tenantScopeTestModel) TableName() string { return "samwaf_tenant_scope_tes
 
 func TestTenantScopeAllowsInstancePipelineTables(t *testing.T) {
 	db := openTenantTestDB(t, "sqlite")
-	models := []any{&model.PipelinePortMigration{}, &model.GateRuntime{}, &model.PipelineState{}, &model.PipelineDailyMetrics{}, &model.PipelineLog{}}
+	models := []any{&model.PipelinePortMigration{}, &model.GateRuntime{}, &model.PipelineState{}, &model.PipelineDailyMetrics{}, &model.PipelineLog{}, &model.PipelineSuccessSource{}, &model.PipelineHoneypot{}}
 	if err := db.AutoMigrate(models...); err != nil {
 		t.Fatal(err)
 	}

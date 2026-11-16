@@ -225,7 +225,10 @@ func (s *WafPipelineStateService) logs(port uint16, honeypotOnly bool) ([]model.
 		return nil, errors.New("log database unavailable")
 	}
 	rows := []model.PipelineLog{}
-	query := global.GWAF_LOCAL_LOG_DB.Where("port_id = ?", wafpipeline.PortID(port))
+	query := global.GWAF_LOCAL_LOG_DB.Model(&model.PipelineLog{})
+	if port != 0 || !honeypotOnly {
+		query = query.Where("port_id = ?", wafpipeline.PortID(port))
+	}
 	limit := 100
 	if honeypotOnly {
 		query = query.Where("kind = ? AND (verdict = ? OR (verdict = ? AND reason LIKE ?))", "request", string(wafpipeline.Honeypot), string(wafpipeline.Drop), "honeypot:drop:%")

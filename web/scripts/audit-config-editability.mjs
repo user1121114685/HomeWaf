@@ -12,6 +12,10 @@ for (const domain of domains) {
   const relative = `web/src/pages/waf/${domain}/index.vue`, file = path.join(root, relative);
   if (!fs.existsSync(file)) continue;
   const sourceFiles = [file];
+  if (domain === 'pipeline') for (const name of ['PortEditor.vue', 'DefenseSettings.vue', 'SharedHoneypot.vue', 'HoneypotSettings.vue']) {
+    const child = path.join(path.dirname(file), name);
+    if (fs.existsSync(child)) sourceFiles.push(child);
+  }
   function collect(directory) {
     if (!fs.existsSync(directory)) return;
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

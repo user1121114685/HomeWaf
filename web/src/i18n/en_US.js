@@ -429,7 +429,7 @@ export default {
     }
   },
   menu: {
-	  pipeline: { parent_title: 'Services and policies', ports: 'Services', templates: 'Policy templates' },
+	  pipeline: { parent_title: 'Services and policies', ports: 'Services', templates: 'Policy templates', honeypot: 'Shared honeypot' },
     dashboard: {
       parent_title: "Dashboard",
       dashboard_title: "Overview Dashboard",

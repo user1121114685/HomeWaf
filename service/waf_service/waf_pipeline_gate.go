@@ -4,6 +4,7 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/utils"
 	"HomeWaf/wafpipeline"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -27,6 +28,22 @@ var errGateOwnerChanged = errors.New("gate persistence belongs to a newer worker
 var WafPipelineGateServiceApp = &WafPipelineGateService{Store: wafpipeline.NewGateStore()}
 
 func (s *WafPipelineGateService) Ready() bool { return s.owner != "" }
+
+func (s *WafPipelineGateService) RuntimeOwner() string { return s.owner }
+
+func (s *WafPipelineGateService) OwnsRuntime() bool {
+	if s.owner == "" {
+		return false
+	}
+	db, err := pipelineDB()
+	if err != nil {
+		return false
+	}
+	var runtime model.GateRuntime
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return db.WithContext(ctx).First(&runtime, "id = ?", 1).Error == nil && runtime.Owner == s.owner
+}
 
 func gateAccount(u model.GateUser) wafpipeline.GateAccount {
 	version := u.AuthVersion

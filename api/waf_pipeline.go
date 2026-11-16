@@ -50,6 +50,7 @@ func (w *WafPipelineApi) PipelineOverview(c *gin.Context) {
 		local[r.PortID][r.Kind]++
 	}
 	rows := make([]gin.H, 0, len(configs))
+	defenseReady := waf_service.WafPipelineDefenseServiceApp.Ready()
 	for _, config := range configs {
 		port := wafpipeline.PortID(config.Port)
 		stats := map[string]uint64{}
@@ -57,7 +58,15 @@ func (w *WafPipelineApi) PipelineOverview(c *gin.Context) {
 			stats = s.Compiled.Metrics.Stats()
 		}
 		counts := local[port]
-		rows = append(rows, gin.H{"config": config, "stats": stats, "ban_count": globalBans + counts["ban"], "honeypot_count": counts["honeypot"], "drop_count": counts["drop"], "locked": counts["lockdown"] > 0 || counts["honeypot_lockdown"] > 0, "listener": wafpipeline.Listeners.Status(config.Port)})
+		if config.Policy.Defense != nil {
+			counts = map[string]int{"ban": counts["ban"]}
+		}
+		locked := config.DefenseState != nil && config.DefenseState.Mode == wafpipeline.DefenseClose
+		if config.Policy.Defense == nil {
+			locked = counts["lockdown"] > 0 || counts["honeypot_lockdown"] > 0
+		}
+		defense := waf_service.WafPipelineDefenseServiceApp.Status(config, defenseReady)
+		rows = append(rows, gin.H{"config": config, "stats": stats, "defense": defense, "ban_count": globalBans + counts["ban"], "honeypot_count": counts["honeypot"], "drop_count": counts["drop"], "locked": locked, "listener": wafpipeline.Listeners.Status(config.Port)})
 	}
 	data := gin.H{"ports": rows, "issues": waf_service.WafPipelineServiceApp.Issues(), "punishment": waf_service.WafPipelineStateServiceApp.Punisher.Stats()}
 	if global.GQEQUE_LOG_DB != nil {
@@ -203,7 +212,22 @@ func (w *WafPipelineApi) PipelineState(c *gin.Context) {
 	if !ok {
 		return
 	}
-	response.OkWithDetailed(waf_service.WafPipelineStateServiceApp.Punisher.Records(wafpipeline.PortID(p)), "", c)
+	config, err := waf_service.WafPipelineServiceApp.Get(p)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	rows := waf_service.WafPipelineStateServiceApp.Punisher.Records(wafpipeline.PortID(p))
+	if config.Policy.Defense != nil {
+		active := make([]wafpipeline.PunishmentRecord, 0, len(rows))
+		for _, row := range rows {
+			if row.Kind == "ban" || row.Kind == "history" {
+				active = append(active, row)
+			}
+		}
+		rows = active
+	}
+	response.OkWithDetailed(rows, "", c)
 }
 
 // ManagePipelineState releases, makes permanent, or whitelists a captured IP.

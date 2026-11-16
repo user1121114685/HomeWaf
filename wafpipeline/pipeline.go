@@ -123,18 +123,20 @@ func WithRecorder(ctx context.Context, r *Recorder) context.Context {
 }
 
 type RequestContext struct {
-	Started  time.Time
-	Context  context.Context
-	Request  *http.Request
-	PortID   string
-	ClientIP netip.Addr
-	ReqID    string
-	Trusted  bool
-	DryRun   bool
-	View     *NormalizedView
-	Trace    *Recorder
-	Hits     []HitEvent
-	Values   map[string]any
+	RejectResponse   func(http.ResponseWriter, Verdict) bool
+	BusinessResponse func(Verdict)
+	Started          time.Time
+	Context          context.Context
+	Request          *http.Request
+	PortID           string
+	ClientIP         netip.Addr
+	ReqID            string
+	Trusted          bool
+	DryRun           bool
+	View             *NormalizedView
+	Trace            *Recorder
+	Hits             []HitEvent
+	Values           map[string]any
 }
 
 func NewRequestContext(r *http.Request, portID string, ip netip.Addr, limits ViewLimits) *RequestContext {

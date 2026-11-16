@@ -39,6 +39,7 @@ for (const port of [5000, 5001]) {
   users.set(port, [{ username: 'owner', enabled: true, expires_at: 0, remark: '初始备注' }]);
 }
 const otherPort = JSON.stringify(configs.get(5001));
+let sharedHoneypot = { revision: 0, configured: false, config: clone(configs.get(5000).policy.honeypot) };
 let failNextSave = false;
 const report = { checks: [], errors: [], writes: [], origin };
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -97,6 +98,34 @@ await context.route('**/api/**', async (route) => {
     users.set(port, list);
     return ok({});
   }
+  if (action === 'defense')
+    return ok({
+      revision: configs.get(port).revision,
+      legacy: true,
+      enabled: false,
+      history_ready: true,
+      failures: 0,
+      success_prefixes: 0,
+    });
+  if (action === 'defense/capabilities')
+    return ok({ reset_supported: true, drop_supported: false, drop_reason: 'Isolated fixture' });
+  if (action === 'honeypot/logs') return ok([]);
+  if (action === 'honeypot')
+    return ok({
+      shared: sharedHoneypot,
+      legacy: [],
+      services: [],
+      sources: [...configs.values()].map((c) => ({ port: c.port, name: c.name })),
+    });
+  if (action === 'honeypot/save') {
+    if (failNextSave) {
+      failNextSave = false;
+      return fail('模拟保存失败，草稿应保留');
+    }
+    if (input.revision !== sharedHoneypot.revision) return fail('蜜罐配置版本冲突');
+    sharedHoneypot = { ...clone(input), revision: sharedHoneypot.revision + 1, configured: true };
+    return ok(sharedHoneypot);
+  }
   if (action === 'ports/save') {
     if (failNextSave) {
       failNextSave = false;
@@ -127,6 +156,7 @@ const card = () =>
     .filter({ hasText: /测试服务5000|持续修改的服务/ });
 const editor = () => page.getByTestId('port-editor');
 async function openCommon() {
+  if (!page.url().includes('/waf-pipeline/ports')) await page.goto(origin + '/#/waf-pipeline/ports');
   await card().getByRole('button', { name: '配置服务', exact: true }).click();
   await expect(editor()).toBeVisible();
 }
@@ -144,62 +174,57 @@ async function cancelPort() {
 try {
   await page.goto(origin + '/#/waf-pipeline/ports');
   await expect(card()).toBeVisible({ timeout: 30000 });
-  await card().getByRole('button', { name: '蜜罐设置', exact: true }).click();
-  await expect(editor().getByRole('tab', { name: '蜜罐设置' })).toHaveAttribute('aria-selected', 'true');
-  await expect(editor().getByRole('tab', { name: '代理与证书' })).toBeVisible();
-  const honey = editor().getByTestId('honeypot-settings');
+  await page.goto(origin + '/#/waf-pipeline/honeypot');
+  const sharedPage = page.getByTestId('shared-honeypot');
+  const honey = sharedPage.getByTestId('honeypot-settings');
+  const saveHoney = async () => {
+    await sharedPage.getByRole('button', { name: '保存统一蜜罐设置', exact: true }).click();
+    const box = page.locator('.el-message-box:visible');
+    await box.locator('.el-message-box__btns button').last().click();
+    await expect(page.locator('.el-message-box:visible')).toHaveCount(0);
+  };
   const setSwitch = async (name) => {
     const control = honey.getByRole('switch', { name, exact: true });
     if ((await control.getAttribute('aria-checked')) !== 'true') await control.locator('xpath=..').click();
   };
-  await setSwitch('启用内置蜜罐');
   await honey.getByRole('button', { name: '添加蜜罐提示', exact: true }).click();
   await honey.getByLabel('蜜罐提示1标题', { exact: true }).fill('持续可修改的提示');
   await honey.getByLabel('蜜罐提示1内容', { exact: true }).fill('第一版内容');
   await honey.getByRole('spinbutton', { name: '蜜罐提示1权重', exact: true }).fill('70');
-  await honey.getByRole('spinbutton', { name: '单来源命中多少次后丢弃', exact: true }).fill('5');
-  await setSwitch('多来源触发本端口丢弃');
   await setSwitch('归档脱敏后的提交内容');
-  await savePort();
-  const lureID = configs.get(5000).policy.honeypot.lures[0].id;
+  await saveHoney();
+  await expect(sharedPage.getByText('配置已读取', { exact: true })).toBeVisible();
+  const lureID = sharedHoneypot.config.lures[0].id;
   expect(configs.get(5000).listen_enabled).toBe(true);
-  expect(configs.get(5000).policy.honeypot.lures[0].weight).toBe(70);
-  expect(configs.get(5000).policy.honeypot.drop_after_hits).toBe(5);
-  report.checks.push('running service exposes a permanent honeypot entry and saves without recreation or stopping');
-
+  expect(sharedHoneypot.config.lures[0].weight).toBe(70);
+  report.checks.push('independent shared honeypot settings save without recreating or stopping services');
   await page.reload();
-  await card().getByRole('button', { name: '蜜罐设置', exact: true }).click();
   await expect(honey.getByLabel('蜜罐提示1标题', { exact: true })).toHaveValue('持续可修改的提示');
-  await expect(honey.getByRole('spinbutton', { name: '蜜罐提示1权重', exact: true })).toHaveValue('70');
   await honey.getByLabel('蜜罐提示1内容', { exact: true }).fill('第二版内容');
   await honey.getByRole('button', { name: '添加蜜罐提示', exact: true }).click();
   await honey.getByLabel('蜜罐提示2标题', { exact: true }).fill('可删除的提示');
   await honey.getByLabel('蜜罐提示1标题', { exact: true }).fill('');
-  await expect(editor().getByRole('button', { name: '保存端口配置' })).toBeDisabled();
+  await expect(sharedPage.getByRole('button', { name: '保存统一蜜罐设置' })).toBeDisabled();
   await honey.getByLabel('蜜罐提示1标题', { exact: true }).fill('持续可修改的提示');
-  await expect(editor().getByRole('button', { name: '保存端口配置' })).toBeEnabled();
   failNextSave = true;
-  await editor().getByRole('button', { name: '保存端口配置' }).click();
-  await expect(editor().getByText('模拟保存失败，草稿应保留', { exact: true })).toBeVisible();
+  await saveHoney();
+  await expect(sharedPage.getByText('模拟保存失败，草稿应保留', { exact: true })).toBeVisible();
   await expect(honey.getByLabel('蜜罐提示1内容', { exact: true })).toHaveValue('第二版内容');
-  expect(configs.get(5000).policy.honeypot.lures[0].message).toBe('第一版内容');
-  await savePort();
-  expect(configs.get(5000).policy.honeypot.lures[0].id).toBe(lureID);
-  await card().getByRole('button', { name: '蜜罐设置', exact: true }).click();
+  expect(sharedHoneypot.config.lures[0].message).toBe('第一版内容');
+  await saveHoney();
+  await expect(sharedPage.getByText('配置已读取', { exact: true })).toBeVisible();
+  expect(sharedHoneypot.config.lures[0].id).toBe(lureID);
   await honey.getByRole('button', { name: '移除蜜罐提示2', exact: true }).click();
-  await savePort();
-  expect(configs.get(5000).policy.honeypot.lures).toHaveLength(1);
-  report.checks.push(
-    'honeypot reopens after refresh, edits/adds/removes prompts, validates values and preserves failed-save drafts',
-  );
-
-  await openCommon();
-  await editor().getByRole('tab', { name: '蜜罐设置' }).click();
-  await expect(editor().getByRole('tab', { name: '蜜罐设置' })).toHaveAttribute('aria-selected', 'true');
+  await saveHoney();
+  await expect(sharedPage.getByText('配置已读取', { exact: true })).toBeVisible();
+  expect(sharedHoneypot.config.lures).toHaveLength(1);
+  report.checks.push('shared honeypot reopens, edits/adds/removes prompts, validates and retains failed-save drafts');
   await honey.getByLabel('蜜罐提示1内容', { exact: true }).fill('取消的内容');
-  await cancelPort();
-  expect(configs.get(5000).policy.honeypot.lures[0].message).toBe('第二版内容');
-  report.checks.push('common settings links directly to honeypot and cancel leaves saved settings unchanged');
+  await page.getByRole('button', { name: '返回我的服务', exact: true }).click();
+  await page.locator('.el-message-box:visible .el-message-box__btns button').last().click();
+  await expect(card()).toBeVisible();
+  expect(sharedHoneypot.config.lures[0].message).toBe('第二版内容');
+  report.checks.push('discarding a shared honeypot draft preserves saved content');
 
   await openCommon();
   await editor().getByLabel('服务名称', { exact: true }).fill('持续修改的服务');
@@ -220,7 +245,7 @@ try {
   await editor().getByRole('spinbutton', { name: '代理最大跳数', exact: true }).fill('12');
   await savePort();
   expect(configs.get(5000).policy.network.max_proxy_hops).toBe(12);
-  expect(configs.get(5000).policy.honeypot.lures[0].message).toBe('第二版内容');
+  expect(sharedHoneypot.config.lures[0].message).toBe('第二版内容');
   report.checks.push(
     'connection settings reopen and invalid proxy JSON survives task switches, can be located, corrected and saved',
   );
@@ -258,11 +283,11 @@ try {
 
   await page.getByRole('button', { name: '表格与批量管理', exact: true }).click();
   const row = page.getByTestId('ports-table').locator('.el-table__body-wrapper tbody tr').filter({ hasText: '5000' });
-  await row.getByRole('button', { name: '蜜罐设置', exact: true }).click();
-  await expect(editor().getByRole('tab', { name: '蜜罐设置' })).toHaveAttribute('aria-selected', 'true');
+  await row.getByRole('button', { name: '异常访问处置', exact: true }).click();
+  await expect(editor().getByRole('tab', { name: '异常访问处置' })).toHaveAttribute('aria-selected', 'true');
   await cancelPort();
   expect(JSON.stringify(configs.get(5001))).toBe(otherPort);
-  report.checks.push('table and card entries both edit honeypot without changing another service');
+  report.checks.push('table and card entries both open per-port defense without changing another service');
 
   await page.locator('.task-navigation').getByRole('link', { name: '策略模板', exact: true }).click();
   const templateCard = page.locator('.el-card').filter({ hasText: '可修改模板' });
@@ -286,20 +311,20 @@ try {
   const cardViewButton = page.getByRole('button', { name: '卡片视图', exact: true });
   if (await cardViewButton.count()) await cardViewButton.click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await card().getByRole('button', { name: '蜜罐设置', exact: true }).click();
-  await expect(honey.getByLabel('蜜罐提示1内容', { exact: true })).toHaveValue('第二版内容');
-  await expect(editor().locator('.editor-task-select')).toContainText('蜜罐设置');
+  await card().getByRole('button', { name: '异常访问处置', exact: true }).click();
+  await expect(editor().getByTestId('defense-settings')).toBeVisible();
+  await expect(editor().locator('.editor-task-select')).toContainText('异常访问处置');
   await editor().locator('.editor-task-select .el-select').click();
   await page.getByRole('option', { name: '监听入口', exact: true }).click();
   await expect(editor().getByText('关闭业务访问时', { exact: true })).toBeVisible();
   await editor().locator('.editor-task-select .el-select').click();
-  await page.getByRole('option', { name: '蜜罐设置', exact: true }).click();
+  await page.getByRole('option', { name: '异常访问处置', exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
     .toBeLessThanOrEqual(2);
-  await page.screenshot({ path: path.join(output, 'honeypot-mobile.png'), animations: 'disabled' });
+  await page.screenshot({ path: path.join(output, 'defense-mobile.png'), animations: 'disabled' });
   await page.setViewportSize({ width: 1440, height: 1050 });
-  await page.screenshot({ path: path.join(output, 'honeypot-desktop.png'), animations: 'disabled' });
+  await page.screenshot({ path: path.join(output, 'defense-desktop.png'), animations: 'disabled' });
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expect

@@ -133,7 +133,7 @@ func ImportTemplate(data []byte) (Template, error) {
 	return t, ValidateTemplate(t)
 }
 
-var PolicySections = []string{"access", "ip_group", "ruleset", "hit_policy", "honeypot", "gate", "network"}
+var PolicySections = []string{"access", "ip_group", "ruleset", "hit_policy", "honeypot", "defense", "gate", "network"}
 
 func ApplyTemplate(c PortConfig, t Template, sections []string) (PortConfig, error) {
 	if err := ValidateTemplate(t); err != nil {
@@ -148,6 +148,10 @@ func ApplyTemplate(c PortConfig, t Template, sections []string) (PortConfig, err
 	_ = json.Unmarshal(data, &p)
 	for _, s := range sections {
 		switch s {
+		case "defense":
+			if p.Defense != nil {
+				out.Policy.Defense = p.Defense
+			}
 		case "access":
 			out.Policy.Access = p.Access
 		case "ip_group":
@@ -167,8 +171,14 @@ func ApplyTemplate(c PortConfig, t Template, sections []string) (PortConfig, err
 			}
 		case "hit_policy":
 			out.Policy.HitPolicy = p.HitPolicy
+			if out.Policy.Defense != nil {
+				out.Policy.HitPolicy.Lockdown.Enabled = false
+				out.Policy.HitPolicy.BanScope = "port"
+			}
 		case "honeypot":
-			out.Policy.Honeypot = p.Honeypot
+			if out.Policy.Defense == nil {
+				out.Policy.Honeypot = p.Honeypot
+			}
 		case "gate":
 			ips := out.Policy.Gate.ExemptIPs
 			cookiePrefixes, headers := out.Policy.Gate.CredentialCookiePrefixes, out.Policy.Gate.CredentialHeaders
@@ -195,6 +205,10 @@ type SectionDiff struct {
 }
 
 func TemplateDiff(c PortConfig, t Template) []SectionDiff {
+	if c.Policy.Defense != nil {
+		t.Policy.HitPolicy.Lockdown.Enabled = false
+		t.Policy.HitPolicy.BanScope = "port"
+	}
 	clean := TemplateFromPort("diff", "diff", c)
 	a, _ := json.Marshal(clean.Policy)
 	b, _ := json.Marshal(t.Policy)
@@ -203,6 +217,9 @@ func TemplateDiff(c PortConfig, t Template) []SectionDiff {
 	_ = json.Unmarshal(b, &right)
 	var out []SectionDiff
 	for _, key := range PolicySections {
+		if c.Policy.Defense != nil && (key == "honeypot" || key == "defense" && t.Policy.Defense == nil) {
+			continue
+		}
 		if !reflect.DeepEqual(left[key], right[key]) {
 			out = append(out, SectionDiff{key, left[key], right[key]})
 		}

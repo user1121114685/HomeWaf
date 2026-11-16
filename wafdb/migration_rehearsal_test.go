@@ -63,7 +63,7 @@ func TestV201SchemaMigrationRehearsal(t *testing.T) {
 	if !reflect.DeepEqual(before, after) || !reflect.DeepEqual(allowBefore, allowAfter) {
 		t.Fatal("migration changed legacy host or IP policy")
 	}
-	for _, table := range []string{"port_config", "config_template", "gate_user", "gate_session", "gate_runtime", "pipeline_state", "pipeline_daily_metrics", "pipeline_port_migration"} {
+	for _, table := range []string{"port_config", "config_template", "gate_user", "gate_session", "gate_runtime", "pipeline_state", "pipeline_daily_metrics", "pipeline_port_migration", "pipeline_success_source", "pipeline_honeypot"} {
 		if !db.Migrator().HasTable(table) {
 			t.Errorf("missing new table %s", table)
 		}

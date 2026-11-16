@@ -107,6 +107,13 @@ func (w *localResponseWriter) finish() {
 		return
 	}
 	resp := &http.Response{StatusCode: w.status, Header: w.Header(), Body: io.NopCloser(bytes.NewReader(w.body.Bytes())), ContentLength: int64(w.body.Len())}
+	if err := w.f.inspectDefenseLogin(w.state, resp); err != nil {
+		w.sent = true
+		if !errors.Is(err, errDefenseResponseHandled) {
+			http.Error(w.w, "Upstream response unavailable", 502)
+		}
+		return
+	}
 	w.f.transformResponse(w.state, resp)
 	w.w.WriteHeader(resp.StatusCode)
 	_, _ = io.Copy(w.w, resp.Body)

@@ -324,7 +324,7 @@ func before_query(db *gorm.DB) {
 	// not embed BaseOrm. Keep tenant filtering for every other table, including
 	// schema-less Table(...).Find/Count queries.
 	switch db.Statement.Table {
-	case "pipeline_port_migration", "gate_runtime", "pipeline_state", "pipeline_daily_metrics", "pipeline_log":
+	case "pipeline_port_migration", "gate_runtime", "pipeline_state", "pipeline_daily_metrics", "pipeline_log", "pipeline_success_source", "pipeline_honeypot":
 		return
 	}
 	db.Where("tenant_id = ? and user_code=? ", global.GWAF_TENANT_ID, global.GWAF_USER_CODE)

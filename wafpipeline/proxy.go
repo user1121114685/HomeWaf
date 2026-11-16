@@ -123,6 +123,7 @@ type forwardResponse struct {
 	location, encoding, contentType string
 	sample                          *responsePrefix
 	login                           *LoginObservation
+	loginObserved                   bool
 	weak                            bool
 	credential                      bool
 	cacheHit                        bool
@@ -362,16 +363,25 @@ func (f *Forwarder) prepareTarget(s *Snapshot, upstream string, shared *http.Tra
 			record.sample = &responsePrefix{ReadCloser: response.Body, limit: record.login.BodyPrefixBytes}
 			response.Body = record.sample
 		}
+		if err := f.inspectDefenseLogin(state, response); err != nil {
+			return err
+		}
 		if p.responseHeaders != nil {
 			applyBusinessHeaders(response.Header, p.responseHeaders(state.request.Request, state.request.ClientIP.String()))
 		}
 		f.transformResponse(state, response)
+		if response.StatusCode == 101 && strings.EqualFold(response.Header.Get("Upgrade"), "websocket") && strings.EqualFold(state.request.Request.Header.Get("Upgrade"), "websocket") && state.request.BusinessResponse != nil {
+			state.request.BusinessResponse(Verdict{Action: Allow, Stage: 5, Status: 101, Reason: "upstream_response"})
+		}
 		if p.cache != nil {
 			p.cache.capture(response, state)
 		}
 		return nil
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		if errors.Is(err, errDefenseResponseHandled) {
+			return
+		}
 		state, ok := r.Context().Value(forwardingContextKey{}).(*forwardRequest)
 		if !ok {
 			http.Error(w, "Bad Gateway", 502)
@@ -586,6 +596,9 @@ func (f *Forwarder) Serve(s *Snapshot, c *RequestContext, w http.ResponseWriter)
 	}
 	started := time.Now()
 	defer func() {
+		if handled, _ := c.Values["defense_response"].(bool); handled {
+			return
+		}
 		v := Verdict{Action: Allow, Stage: 5, Reason: "upstream_response", Status: record.status}
 		if record.cacheHit {
 			v.Reason = "business_cache_hit"
@@ -624,7 +637,7 @@ func (f *Forwarder) Serve(s *Snapshot, c *RequestContext, w http.ResponseWriter)
 		if target.responseHeaders != nil {
 			applyBusinessHeaders(w.Header(), target.responseHeaders(c.Request, c.ClientIP.String()))
 		}
-		writer := &localResponseWriter{w: w, state: &forwardRequest{snapshot: s, request: c, response: record}, f: f, noBuffer: !bodyResponsePolicyActive(s, c) && s.Config.Policy.Network.Response.Compression.IsEnable != 1}
+		writer := &localResponseWriter{w: w, state: &forwardRequest{snapshot: s, request: c, response: record}, f: f, noBuffer: !bodyResponsePolicyActive(s, c) && s.Config.Policy.Network.Response.Compression.IsEnable != 1 && !(record.login != nil && s.Config.Policy.Defense != nil && s.Config.Policy.Defense.Enabled)}
 		target.handler.ServeHTTP(writer, c.Request.WithContext(ctx))
 		writer.finish()
 		record.status = writer.status
@@ -649,6 +662,9 @@ func responseHit(c *RequestContext, category, rule string, observe bool, status 
 	}
 }
 func (f *Forwarder) observe(s *Snapshot, c *RequestContext, target *ProxyTarget, r *forwardResponse) {
+	if r.loginObserved {
+		return
+	}
 	if c.DryRun || r.status == 0 || r.status == 101 || r.transportError || r.policyDenied {
 		return
 	}
@@ -682,7 +698,7 @@ func (f *Forwarder) observe(s *Snapshot, c *RequestContext, target *ProxyTarget,
 		if success {
 			responseHit(c, "business_auth_success", "business_login", true, r.status)
 		} else {
-			responseHit(c, "auth_fail", "business_login", !policy.ResponseSignals, r.status)
+			responseHit(c, "auth_fail", "business_login", !policy.ResponseSignals && (s.Config.Policy.Defense == nil || !s.Config.Policy.Defense.Enabled), r.status)
 			if r.weak {
 				responseHit(c, "weak_pwd", "business_login", !policy.ResponseSignals, r.status)
 			}

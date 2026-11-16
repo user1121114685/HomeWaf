@@ -17,6 +17,8 @@ var coreSchemaModels = []any{
 	&model.GateRuntime{},
 	&model.PipelineState{},
 	&model.PipelineDailyMetrics{},
+	&model.PipelineSuccessSource{},
+	&model.PipelineHoneypot{},
 	&model.Hosts{},
 	&model.Rules{},
 	&model.LDPUrl{},

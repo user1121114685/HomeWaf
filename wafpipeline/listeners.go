@@ -171,7 +171,7 @@ func (m *ListenerManager) Start(s *Snapshot) error {
 	}
 	m.servers[port] = runtime
 	go func() {
-		wrapped := wafnet.WithReadiness(tracker.Listener(limitPipelineListener(ln, s.Config.Policy.Network.MaxInFlight)), ready)
+		wrapped := wafnet.WithReadiness(tracker.Listener(limitPipelineListener(&defenseListener{Listener: ln, port: port}, s.Config.Policy.Network.MaxInFlight)), ready)
 		var err error
 		if s.Config.Protocol == "https" {
 			err = server.ServeTLS(wrapped, "", "")

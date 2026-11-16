@@ -37,6 +37,7 @@ export const workspaceGroups = [
     id: 'protection',
     label: ['防护策略', 'Protection'],
     names: [
+      'WafPipelineHoneypot',
       'WafRule',
       'Wafruleedit',
       'WafAntiCCList',
@@ -134,6 +135,7 @@ export const taskTitles: Record<string, [string, string]> = {
   OPlatformDoc: ['接口文档', 'API reference'],
   WafPipeline: ['我的服务', 'My services'],
   WafPipelineTemplates: ['策略模板', 'Policy templates'],
+  WafPipelineHoneypot: ['统一蜜罐', 'Shared honeypot'],
   WafSSLOrderList: ['申请与续期', 'Issuance & renewal'],
   WafSSLConfigList: ['证书库', 'Certificate library'],
   WafsslExpireList: ['到期检测', 'Expiry checks'],

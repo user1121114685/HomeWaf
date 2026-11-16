@@ -133,7 +133,7 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 		// Apply active honeypot drops before a blacklist can route back to a lure.
 		if state, ok := r.State.(interface {
 			HoneypotDropReason(string, netip.Addr) string
-		}); ok && !protectedAddress(c.ClientIP) && !p.Trusted.Contains(ip, now) && (r.Protected == nil || !r.Protected(c.ClientIP)) {
+		}); ok && s.Config.Policy.Defense == nil && !protectedAddress(c.ClientIP) && !p.Trusted.Contains(ip, now) && (r.Protected == nil || !r.Protected(c.ClientIP)) {
 			if reason := state.HoneypotDropReason(c.PortID, c.ClientIP); reason != "" {
 				honeypotInteraction(c)
 				return Verdict{Action: Drop, Reason: "honeypot:drop:" + reason}, nil
@@ -218,10 +218,10 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 		if !protected && s.Config.Policy.IPGroup.FeedEnabled && r.Feed != nil && r.Feed.Contains(c.ClientIP, now) {
 			return Verdict{Action: Deny, Reason: "blacklist:vip", Status: 403}, nil
 		}
-		if r.State != nil && r.State.Locked(c.PortID) {
+		if s.Config.Policy.Defense == nil && r.State != nil && r.State.Locked(c.PortID) {
 			return Verdict{Action: s.Config.Policy.HitPolicy.Lockdown.Action, Reason: "lockdown", Status: 503}, nil
 		}
-		if !protected && s.Config.Policy.Honeypot.Enabled && r.State != nil && r.State.InHoneypot(c.PortID, c.ClientIP) {
+		if s.Config.Policy.Defense == nil && !protected && s.Config.Policy.Honeypot.Enabled && r.State != nil && r.State.InHoneypot(c.PortID, c.ClientIP) {
 			return Verdict{Action: Honeypot, Reason: "honeypot:state"}, nil
 		}
 		if groupAllowed {

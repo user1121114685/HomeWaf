@@ -28,7 +28,7 @@
           { value: 'gate', label: '认证与账号' },
           { value: 'ip_group', label: '访问名单' },
           { value: 'ruleset', label: '检测规则' },
-          { value: 'honeypot', label: '蜜罐设置' },
+          { value: 'defense', label: '异常访问处置' },
           { value: 'hit_policy', label: '自动处罚' },
           { value: 'network', label: '代理与证书' },
           { value: 'explain', label: '请求诊断' },
@@ -310,24 +310,18 @@
             ><ElButton class="space" @click="tighten">将所选规则设为拦截</ElButton>
           </EditorSection></ElTabPane
         >
-        <ElTabPane name="honeypot" label="蜜罐设置"
-          ><template #label
-            ><span class="editor-tab-label">蜜罐设置<small>诱捕提示与命中策略</small></span></template
-          ><HoneypotSettings
-            :model="draft.policy.honeypot"
-            :hit-policy-enabled="draft.policy.hit_policy.enabled"
-            @invalid="invalid.honeypot = $event"
-            @open-punishment="openAdvanced('hit_policy')"
-        /></ElTabPane>
+        <ElTabPane name="defense" label="异常访问处置">
+          <DefenseSettings :config="draft" :original="config" :busy="busy" :dirty="dirty" @invalid="invalid.defense = $event" @migration="defenseMigrationConfirmed = $event" @committed="emit('saved', $event)" />
+        </ElTabPane>
         <ElTabPane name="hit_policy" label="自动处罚"
           ><template #label
             ><span class="editor-tab-label">自动处罚<small>阈值、封禁与自保</small></span></template
           ><EditorSection
             ><template #title>自动处置</template
             ><ElAlert
-              title="第4步是异步旁路：只改变后续请求。当前请求动作由第3步决定。trusted和受保护来源只告警，不被自动处罚。"
+              :title="draft.policy.defense ? '以下设置管理单来源封禁，trusted 和受保护来源保留豁免。整个端口的阈值与恢复时间在异常访问处置中配置。' : '第4步是异步旁路：只改变后续请求。当前请求动作由第3步决定。trusted和受保护来源只告警，不被自动处罚。'"
               :closable="false"
-              class="space" /><Fields :model="draft.policy.hit_policy" :definitions="fields.hit_policy"
+              class="space" /><Fields :model="draft.policy.hit_policy" :definitions="draft.policy.defense ? fields.hit_policy.filter(field => !field.path.startsWith('lockdown.') && field.path !== 'ban_scope') : fields.hit_policy"
           /></EditorSection>
           <EditorSection
             ><template #title>单IP累计阈值</template>
@@ -357,7 +351,7 @@
               ></ElTable
             >
             <p class="muted">提示、命中后丢弃和请求归档已移到独立的蜜罐设置。</p>
-            <ElButton @click="activeTab = 'honeypot'">配置蜜罐</ElButton></EditorSection
+            <ElButton @click="activeTab = 'defense'">配置异常访问处置</ElButton></EditorSection
           >
           <EditorSection
             ><template #title>可选业务登录观察（JSON）</template>
@@ -552,6 +546,7 @@
             </div>
             <details class="space">
               <summary>高级：编辑完整策略JSON（不含口令/私钥）</summary>
+              <p v-if="draft.policy.defense" class="muted">蜜罐内容在独立页面管理；此处 honeypot 是只读迁移备份。已迁移服务不再启用旧多来源自保或跨端口自动封禁。</p>
               <p class="muted">
                 可设置所有范围、参数和观察条件。服务端严格验证字段与数值；这里不会修改监听端口或凭据。
               </p>
@@ -607,7 +602,7 @@ import { pipelinePost } from '@/apis/pipeline';
 import { clone, fields, modes, ruleHelp, ruleNames, sectionNames, sections, type Field, type PolicyTemplate, type PortConfig } from './model';
 import GuidedSetup from './GuidedSetup.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
-import HoneypotSettings from './HoneypotSettings.vue';
+import DefenseSettings from './DefenseSettings.vue';
 import Fields from './Fields.vue';
 import Scope from './Scope.vue';
 import Trace from './Trace.vue';
@@ -624,17 +619,18 @@ const props = defineProps({
 });
 const emit = defineEmits(['saved', 'close', 'busy']);
 const draft = ref<PortConfig>(clone(props.config));
+const defenseMigrationConfirmed = ref(false);
 const busy = ref(false),
   error = ref(''),
-  activeTab = ref(props.initialTab);
+  activeTab = ref(props.initialTab === 'honeypot' ? 'defense' : props.initialTab);
 function openAdvanced(tab: string, panels?: string[]) {
   activeTab.value = panels?.length === 1 && panels[0] === 'gate' ? 'gate' : tab;
   if (panels) rulePanels.value = panels.filter((panel) => panel !== 'gate');
 }
 function locateInvalid() {
   const key = Object.keys(invalid).find((key) => invalid[key]);
-  if (key === 'honeypot') {
-    activeTab.value = 'honeypot';
+  if (key === 'defense') {
+    activeTab.value = 'defense';
     return;
   }
   if (key === 'accessRestrictions') {
@@ -910,6 +906,7 @@ async function save() {
     if (props.isNew) draft.value.listen_enabled = false;
     const result = await pipelinePost<PortConfig>('ports/save', {
       config: draft.value,
+      confirm_defense_migration: defenseMigrationConfirmed.value,
       ...secrets,
       business_headers,
       plugin_profiles,

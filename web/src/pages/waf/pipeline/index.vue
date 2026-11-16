@@ -139,7 +139,7 @@
           <ElTableColumn label="操作" min-width="300" :fixed="isMobile ? false : 'right'"
             ><template #default="{ row }"
               ><ElButton link type="primary" @click="edit(row.config)">配置</ElButton
-              ><ElButton link @click="editHoneypot(row.config)">蜜罐设置</ElButton
+              ><ElButton link @click="editHoneypot(row.config)">异常访问处置</ElButton
               ><ElButton link @click="openAccessLogs(row)">访问记录</ElButton
               ><ElButton link @click="inspect(row)">运行诊断</ElButton
               ><ElButton link @click="copy(row.config)">复制</ElButton
@@ -664,7 +664,7 @@ function editToken(config: PortConfig) {
 }
 function editHoneypot(config: PortConfig) {
   edit(config);
-  editorTab.value = 'honeypot';
+  editorTab.value = 'defense';
 }
 async function closeEditor(done?: () => void) {
   if (editorBusy.value) return;
@@ -1017,7 +1017,8 @@ async function followEntry() {
   const action = route.query.action,
     enable = route.query.enable,
     inspectPort = route.query.inspect,
-    editPort = route.query.edit;
+    editPort = route.query.edit,
+    editTab = route.query.tab;
   if (!action && !enable && !inspectPort && !editPort) return;
   await router.replace({ name: route.name, query: {} });
   if (action === 'create') {
@@ -1031,6 +1032,7 @@ async function followEntry() {
   }
   if (editPort) {
     edit(row.config);
+    if (editTab === 'defense') editorTab.value = 'defense';
     return;
   }
   if (enable) {
