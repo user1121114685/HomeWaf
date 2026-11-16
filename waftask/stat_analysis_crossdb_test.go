@@ -6,7 +6,8 @@
 //
 // 这里的 upsert 走方言分支（UpsertExcludedRef 在 PG/SQLite 是 excluded.x、MySQL 是 VALUES(x)），
 // 冲突目标又落在一个六列的唯一索引上——任一引擎对不上，症状都是「每批新建一行、计数翻倍」
-// 这种不报错的静默错账，所以必须三边各跑一遍真实迁移 + 真实写入。
+// 这种不报错的静默错账，所以必须三边各跑一遍当前表结构初始化 + 真实写入。
+// 测试从空库开始，不回放历史升级或迁移旧数据。
 //
 // 跑法：go test -tags crossdb ./waftask/ -run TestCollectAnalysisStatsCrossEngine
 // MySQL / PostgreSQL 连不上时跳过，不阻塞。
@@ -112,8 +113,8 @@ func setupAnalysisSQLite(t *testing.T) (*gorm.DB, func()) {
 		t.Logf("sqlite 打开失败（跳过）: %v", err)
 		return nil, nil
 	}
-	if err := wafdb.RunStatsDBMigrations(db); err != nil {
-		t.Fatalf("sqlite stats 迁移失败: %v", err)
+	if err := wafdb.InitializeStatsSchema(db); err != nil {
+		t.Fatalf("sqlite stats 表结构初始化失败: %v", err)
 	}
 	return db, func() {
 		if s, e := db.DB(); e == nil {
@@ -142,8 +143,8 @@ func setupAnalysisMySQL(t *testing.T) (*gorm.DB, func()) {
 	if err != nil {
 		t.Fatalf("mysql 打开失败: %v", err)
 	}
-	if err := wafdb.RunStatsDBMigrations(db); err != nil {
-		t.Fatalf("mysql stats 迁移失败: %v", err)
+	if err := wafdb.InitializeStatsSchema(db); err != nil {
+		t.Fatalf("mysql stats 表结构初始化失败: %v", err)
 	}
 	return db, func() {
 		if s, e := db.DB(); e == nil {
@@ -176,8 +177,8 @@ func setupAnalysisPostgres(t *testing.T) (*gorm.DB, func()) {
 	if err != nil {
 		t.Fatalf("postgres 打开失败: %v", err)
 	}
-	if err := wafdb.RunStatsDBMigrations(db); err != nil {
-		t.Fatalf("postgres stats 迁移失败: %v", err)
+	if err := wafdb.InitializeStatsSchema(db); err != nil {
+		t.Fatalf("postgres stats 表结构初始化失败: %v", err)
 	}
 	return db, func() {
 		if s, e := db.DB(); e == nil {

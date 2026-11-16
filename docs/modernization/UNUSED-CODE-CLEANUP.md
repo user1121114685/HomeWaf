@@ -71,6 +71,6 @@ node web/node_modules/typescript/bin/tsc --project web/.cache/typecheck/tsconfig
 
 浏览器运行使用隔离模拟响应，不连接真实防护实例；不能据此宣称验证了外部通知、证书签发、AI 服务或真实上游可达性。后端运行时与持久化保证来自对应隔离测试。桌面、平板及手机深色截图已抽查；未进行页面视觉重设计。
 
-**清理前已存在的限制：** `go test -tags=crossdb ./waftask -run '^$'` 无法编译，旧测试引用不存在的 `wafdb.RunLogDBMigrations` 和 `wafdb.RunStatsDBMigrations`。本次清理前后的报错相同，未删除这些测试或伪报通过。默认构建及规定的验证命令不受影响。
+**后续修复（2026-11-16）：** 清理时发现的 `crossdb` 编译问题已修复。归档和统计测试直接使用现有的 `InitializeLogSchema`、`InitializeStatsSchema` 创建当前表结构；归档元数据表在空测试库中直接创建，不恢复旧迁移函数、不回放历史升级、不搬迁现有数据。新增临时 SQLite 日志表初始化检查，并执行分析汇总、IP 标签累加回归。`scripts/verify.mjs` 现包含全包 `crossdb,iptagperf` 编译及这些 SQLite 用例，避免特殊标签代码再次遗漏；MySQL/PostgreSQL 分支完成编译，未连接外部数据库执行集成测试。
 
 静态 API/UI 审计现在为 599 条注册路由、456 条静态可达引用、6 条客户端需复核、137 条无静态引用。后两类不等于服务端死代码；路由注册与外部 API 调用仍是有效入口。

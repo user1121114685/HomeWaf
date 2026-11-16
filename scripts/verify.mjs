@@ -20,6 +20,17 @@ run(["test", "./service/waf_service", "./utils", "./api", "./wafnotify/channels"
 
 // Compile every production and test package; execute only focused regressions.
 run(["test", "./...", "-run", "^$"]);
+// Keep opt-in database/performance tests compilable without connecting to a database server.
+run(["test", "-tags=crossdb,iptagperf", "./...", "-run", "^$"]);
+// Exercise current schema initialization and upserts using temporary SQLite databases only.
+run([
+  "test",
+  "-tags=crossdb",
+  "./waftask",
+  "-run",
+  "^Test(InitializeArchiveSchema|CollectAnalysisStatsCrossEngine|CollectStatsIPTagCrossEngine)$/^sqlite$",
+  "-count=1",
+]);
 run([
   "test",
   "./internal/licensing",

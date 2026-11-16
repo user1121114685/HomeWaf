@@ -21,15 +21,42 @@ import (
 	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafdb/partition"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	mysqldriver "HomeWaf/internal/mysql"
+	sqlitedriver "HomeWaf/internal/sqlitedialect"
 	pgdriver "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 const xtestArchiveDB = "samwaf_xtest_archive"
+
+func TestInitializeArchiveSchema(t *testing.T) {
+	db, err := gorm.Open(sqlitedriver.Open(sqlitedriver.FileDSN(filepath.Join(t.TempDir(), "log.db"))), analysisSilentCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	initializeArchiveSchema(t, db)
+	for _, table := range []string{wafdb.LogTableName, model.AccessLogTableName, model.SecurityEventTableName, model.EventPayloadTableName} {
+		if !db.Migrator().HasTable(table) {
+			t.Errorf("missing current log table %s", table)
+		}
+	}
+	if !db.Migrator().HasTable(&model.ShareDb{}) {
+		t.Error("missing archive metadata table")
+	}
+	if db.Migrator().HasTable("migrations") {
+		t.Error("fresh schema initialization replayed historical migrations")
+	}
+}
 
 func TestCleanExpiredArchiveShardCrossEngine(t *testing.T) {
 	engines := map[string]func(*testing.T) (*gorm.DB, func()){
@@ -179,7 +206,7 @@ func setupArchiveMySQL(t *testing.T) (*gorm.DB, func()) {
 	if err != nil {
 		t.Fatalf("mysql 打开失败: %v", err)
 	}
-	migrateArchiveSchema(t, db)
+	initializeArchiveSchema(t, db)
 	return db, func() {
 		if s, e := db.DB(); e == nil {
 			s.Close()
@@ -211,7 +238,7 @@ func setupArchivePostgres(t *testing.T) (*gorm.DB, func()) {
 	if err != nil {
 		t.Fatalf("postgres 打开失败: %v", err)
 	}
-	migrateArchiveSchema(t, db)
+	initializeArchiveSchema(t, db)
 	return db, func() {
 		if s, e := db.DB(); e == nil {
 			s.Close()
@@ -223,15 +250,15 @@ func setupArchivePostgres(t *testing.T) (*gorm.DB, func()) {
 	}
 }
 
-// migrateArchiveSchema 建出用例要的表：日志三层走真实迁移（嵌入结构的索引名在多张表上会撞，
-// 直接 AutoMigrate 会失败，这是 M2 踩过的坑），分片元数据表单独 AutoMigrate。
-func migrateArchiveSchema(t *testing.T, db *gorm.DB) {
+// initializeArchiveSchema 在空测试库中创建当前日志表、索引和分片元数据表。
+// 日志结构复用生产初始化入口，不回放历史升级或迁移旧数据。
+func initializeArchiveSchema(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	if err := wafdb.RunLogDBMigrations(db); err != nil {
-		t.Fatalf("日志库迁移失败: %v", err)
+	if err := wafdb.InitializeLogSchema(db); err != nil {
+		t.Fatalf("日志表结构初始化失败: %v", err)
 	}
-	if err := db.AutoMigrate(&model.ShareDb{}); err != nil {
-		t.Fatalf("分片表迁移失败: %v", err)
+	if err := db.Migrator().CreateTable(&model.ShareDb{}); err != nil {
+		t.Fatalf("分片元数据表初始化失败: %v", err)
 	}
 }
 

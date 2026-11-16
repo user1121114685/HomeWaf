@@ -7,7 +7,7 @@
 // 这一步是整批一条 upsert（冲突目标 = uni_iptags_full 的四列，累加表达式走
 // dialect.UpsertExcludedRef，PG/SQLite 是 excluded.cnt、MySQL 是 VALUES(cnt)）。
 // 任一引擎对不上，症状都是不报错的静默错账：要么每批新建一行、同一个 IP+标签出现多行，
-// 要么 cnt 被覆盖成最后一批的值而不是累加。所以三边各跑一遍真实迁移 + 真实写入。
+// 要么 cnt 被覆盖成最后一批的值而不是累加。所以三边各跑一遍当前表结构初始化 + 真实写入。
 //
 // 跑法：go test -tags crossdb ./waftask/ -run TestCollectStatsIPTagCrossEngine
 // MySQL / PostgreSQL 连不上时跳过，不阻塞。
