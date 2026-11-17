@@ -12,11 +12,11 @@ import (
 	"testing"
 )
 
-func TestSSRFAllowsBrowserContextHeaders(t *testing.T) {
-	for _, origin := range []string{"http://192.168.1.10:8080", "http://10.0.0.10", "http://127.0.0.1:8080", "http://localhost:8080", "http://[::1]:8080", "http://[fd00::10]:8080"} {
+func TestSSRFInspectsOriginAndReferer(t *testing.T) {
+	for _, origin := range []string{"http://192.168.1.10:8080", "http://10.0.0.10", "http://127.0.0.1:8080", "http://localhost:8080", "http://[::1]:8080", "http://[fd00::10]:8080", "http://169.254.169.254", "file:///etc/passwd", "gopher://127.0.0.1:6379"} {
 		for _, header := range []string{"Origin", "Referer", "both"} {
 			t.Run(origin+"/"+header, func(t *testing.T) {
-				r := httptest.NewRequest("POST", origin+"/api/photos?page=1", strings.NewReader(`{"album":"family"}`))
+				r := httptest.NewRequest("POST", "http://example.test/api/photos?page=1", strings.NewReader(`{"album":"family"}`))
 				r.Header.Set("Content-Type", "application/json")
 				if header != "Referer" {
 					r.Header.Set("Origin", origin)
@@ -24,8 +24,8 @@ func TestSSRFAllowsBrowserContextHeaders(t *testing.T) {
 				if header != "Origin" {
 					r.Header.Set("Referer", origin+"/photos")
 				}
-				if got := evalDetector(t, "ssrf", r); got.Verdict.Action != Allow || len(got.Hits) != 0 {
-					t.Fatalf("browser context treated as an SSRF target: %+v", got)
+				if got := evalDetector(t, "ssrf", r); got.Verdict.Action != Deny || len(got.Hits) != 1 || !strings.Contains(got.Hits[0].Evidence, "ssrf signature in header (internal_url)") {
+					t.Fatalf("SSRF target in Origin/Referer was exempted: %+v", got)
 				}
 			})
 		}
@@ -58,12 +58,12 @@ func TestSSRFContextHeadersDoNotExemptPayloads(t *testing.T) {
 	for _, target := range []string{"http://192.168.1.10:8080/admin", "http://169.254.169.254/latest/meta-data/", "http://2130706433/", "file:///etc/passwd"} {
 		for _, source := range []string{"query", "form", "json", "multipart", "body", "cookie", "header"} {
 			t.Run(source+"/"+target, func(t *testing.T) {
-				const origin = "http://192.168.1.10:8080"
+				const origin = "http://photos.example.test"
 				r := httptest.NewRequest("POST", origin+"/fetch", nil)
 				field := "url"
 				switch source {
 				case "query":
-					// Header exemptions must not apply to identically named parameters.
+					// Header-like parameter names must also remain subject to inspection.
 					field = "Referer"
 					r.URL.RawQuery = url.Values{field: {url.QueryEscape(target)}}.Encode()
 				case "form":
@@ -127,19 +127,21 @@ func TestSSRFProxyContextHeadersAndEnforcement(t *testing.T) {
 			}, false)
 			f.update(t, func(s *Snapshot) {
 				s.Config.Policy.RuleSet.BudgetMillis = 1000
+				// Keep the fixture transport on loopback while using a public browser origin.
+				s.Config.Policy.RuleSet.CSRFOrigins = []string{"http://photos.example.test"}
 				s.Config.Policy.RuleSet.Rules = []Rule{
 					{ID: "ssrf", Category: "ssrf", Mode: mode, Severity: High},
 					{ID: "csrf", Category: "csrf", Mode: ModeBlock, Severity: Medium},
 				}
 			})
-			headers := map[string]string{"Referer": f.front.URL + "/photos", "Cookie": "session=business"}
+			headers := map[string]string{"Referer": "http://photos.example.test/photos", "Cookie": "session=business"}
 			for _, path := range []string{"/photos", "/assets/app.js"} {
 				status, _, _ := proxyCall(t, f, "GET", path, "", headers)
 				if status != http.StatusOK {
 					t.Fatalf("normal navigation blocked: %s status=%d", path, status)
 				}
 			}
-			headers["Origin"] = f.front.URL
+			headers["Origin"] = "http://photos.example.test"
 			headers["Content-Type"] = "application/json"
 			const body = `{"album":"family"}`
 			status, forwarded, _ := proxyCall(t, f, "POST", "/api/photos", body, headers)
@@ -154,7 +156,7 @@ func TestSSRFProxyContextHeadersAndEnforcement(t *testing.T) {
 				t.Fatalf("CSRF enforcement lost: status=%d requests=%d hits=%+v", status, f.requests.Load(), hits)
 			}
 
-			headers["Origin"] = f.front.URL
+			headers["Origin"] = "http://photos.example.test"
 			status, _, _ = proxyCall(t, f, "GET", "/fetch?url="+url.QueryEscape("http://169.254.169.254/latest/meta-data/"), "", headers)
 			wantStatus, wantRequests := http.StatusForbidden, int64(3)
 			if mode == ModeObserve {
@@ -163,6 +165,18 @@ func TestSSRFProxyContextHeadersAndEnforcement(t *testing.T) {
 			hits = f.sink.snapshot()
 			if status != wantStatus || f.requests.Load() != wantRequests || len(hits) != 2 || hits[1].Category != "ssrf" || hits[1].Observe != (mode == ModeObserve) {
 				t.Fatalf("SSRF enforcement lost: mode=%s status=%d requests=%d hits=%+v", mode, status, f.requests.Load(), hits)
+			}
+			for i, header := range []string{"Origin", "Referer"} {
+				probe := map[string]string{"Origin": "http://photos.example.test", "Referer": "http://photos.example.test/photos"}
+				probe[header] = "http://169.254.169.254/latest/meta-data/"
+				status, _, _ = proxyCall(t, f, "GET", "/fetch", "", probe)
+				if mode == ModeObserve {
+					wantRequests++
+				}
+				hits = f.sink.snapshot()
+				if status != wantStatus || f.requests.Load() != wantRequests || len(hits) != 3+i || hits[len(hits)-1].Category != "ssrf" || hits[len(hits)-1].Observe != (mode == ModeObserve) {
+					t.Fatalf("%s SSRF disposition incorrect: status=%d forwarded=%d hits=%+v", header, status, f.requests.Load(), hits)
+				}
 			}
 		})
 	}

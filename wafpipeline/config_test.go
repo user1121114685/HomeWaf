@@ -32,6 +32,35 @@ func TestTemplatesCopyIsolationAndRejectCredentials(t *testing.T) {
 		t.Fatal("accepted manual IPs in template")
 	}
 }
+
+func TestFamilyNASTemplateDisablesOnlyItsSSRFDefault(t *testing.T) {
+	for _, tpl := range BuiltinTemplates() {
+		wantMode, wantVersion := ModeObserve, 1
+		if tpl.ID == "family-nas" {
+			wantMode, wantVersion = ModeOff, 2
+		}
+		found := false
+		for _, rule := range tpl.Policy.RuleSet.Rules {
+			if rule.Category == "ssrf" {
+				found = true
+				if rule.Mode != wantMode || tpl.Version != wantVersion {
+					t.Fatalf("template %s: SSRF=%s version=%d, want %s/%d", tpl.ID, rule.Mode, tpl.Version, wantMode, wantVersion)
+				}
+			}
+			if tpl.ID == "family-nas" && rule.Category == "csrf" && rule.Mode != ModeObserve {
+				t.Fatal("NAS SSRF default changed CSRF policy")
+			}
+		}
+		if !found {
+			t.Fatalf("template %s lost the configurable SSRF rule", tpl.ID)
+		}
+	}
+	for _, rule := range DefaultPolicy().RuleSet.Rules {
+		if rule.Category == "ssrf" && rule.Mode != ModeObserve {
+			t.Fatal("NAS template changed the global SSRF default")
+		}
+	}
+}
 func TestPortConfigValidation(t *testing.T) {
 	c := PortConfig{Schema: 1, Port: 5000, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: DefaultPolicy()}
 	if err := ValidateConfig(c, 26666); err != nil {

@@ -22,6 +22,7 @@ func BuiltinTemplates() []Template {
 	out := make([]Template, 0, len(names))
 	for _, n := range names {
 		p := DefaultPolicy()
+		version := 1
 		switch n.id {
 		case "family-whitelist":
 			p.IPGroup.UnlistedAction = Deny
@@ -29,10 +30,15 @@ func BuiltinTemplates() []Template {
 			p.Honeypot.Enabled = true
 			p.HitPolicy.Lockdown.Enabled = true
 		case "family-nas":
+			version = 2
 			p.Gate.Enabled = true
 			p.RuleSet.QPS.PerIP = 60
 			p.RuleSet.QPS.Burst = 200
 			for i := range p.RuleSet.Rules {
+				// NAS/photo clients carry LAN URLs; SSRF remains opt-in for this template.
+				if p.RuleSet.Rules[i].Category == "ssrf" {
+					p.RuleSet.Rules[i].Mode = ModeOff
+				}
 				if p.RuleSet.Rules[i].Category == "upload" {
 					p.RuleSet.Rules[i].Scope = Scope{Paths: []string{"/webdav", "/dav", "/remote.php/dav", "/upload", "/api/upload"}, Methods: []string{"POST", "PUT", "PATCH"}}
 				}
@@ -64,7 +70,7 @@ func BuiltinTemplates() []Template {
 				p.RuleSet.Rules[i].Mode = ModeObserve
 			}
 		}
-		out = append(out, Template{Schema: SchemaVersion, ID: n.id, Name: n.name, Version: 1, Builtin: true, Policy: p})
+		out = append(out, Template{Schema: SchemaVersion, ID: n.id, Name: n.name, Version: version, Builtin: true, Policy: p})
 	}
 	return out
 }
