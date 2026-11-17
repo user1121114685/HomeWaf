@@ -25,7 +25,7 @@ func TestCRSRealRulesModeScopeAndFailedReload(t *testing.T) {
 		}
 		return result
 	}
-	if got := check("http://example.test/?q=family+photo"); got.Verdict.Action != Allow {
+	if got := check("http://example.test/?q=family+photo"); got.Verdict.Action != Allow || len(got.Hits) != 0 {
 		t.Fatalf("CRS normal request blocked %+v", got)
 	}
 	r := httptest.NewRequest("PROPFIND", "http://example.test/dav", nil)

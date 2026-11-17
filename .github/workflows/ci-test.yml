@@ -12,6 +12,8 @@ concurrency:
   group: homewaf-ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  security:
+    uses: ./.github/workflows/security.yml
   verify:
     strategy:
       fail-fast: false
@@ -40,10 +42,6 @@ jobs:
         run: node scripts/build.mjs
       - name: Compile all packages and run focused regressions
         run: node scripts/verify.mjs
-      - name: Audit frontend graph
-        run: npm audit --prefix web --audit-level=low
-      - name: Analyze reachable Go vulnerabilities
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: HomeWaf-${{ runner.os }}-${{ runner.arch }}

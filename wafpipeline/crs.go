@@ -160,6 +160,15 @@ func (p *CRSProvider) Step(s *Snapshot) Step {
 		seen := map[string]bool{}
 		for _, match := range tx.MatchedRules() {
 			id := match.Rule().ID()
+			// Initialization and skipAfter rules also appear in MatchedRules.
+			// Only attack-tagged rules are security findings.
+			attack := false
+			for _, tag := range match.Rule().Tags() {
+				attack = attack || strings.HasPrefix(tag, "attack-")
+			}
+			if !attack {
+				continue
+			}
 			category := crsCategory(id)
 			if category == "" || seen[category] {
 				continue

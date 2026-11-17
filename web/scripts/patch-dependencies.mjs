@@ -3,8 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyMitigation } from './picomatch-security.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const modulePath = (...names) => path.join(root, 'node_modules', ...names);
+applyMitigation(modulePath('picomatch'));
 const walkerPath = modulePath('estree-walker', 'package.json');
 const walker = JSON.parse(fs.readFileSync(walkerPath, 'utf8'));
 if (walker.version !== '3.0.3') throw new Error('Review the estree-walker adapter for this version');

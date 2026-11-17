@@ -1,0 +1,97 @@
+# HomeWaf modification (2026-11-18): continuous dependency and defense regression checks.
+name: HomeWaf security checks
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 2 * * *'
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.13.1'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install locked dependencies and verified security mitigation
+        run: npm ci --prefix web
+      - name: Check live npm advisories and mitigation regressions
+        run: npm run audit:security --prefix web
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Check reachable vulnerabilities against the current Go database
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+  defense:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+      HOMEWAF_WAF_CORPUS: ${{ github.workspace }}/.cache/waf-corpus
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.13.1'
+      - name: Fetch pinned OWASP CRS attack data with source attribution
+        run: node scripts/fetch-waf-corpus.mjs
+      - name: Replay attacks and benign traffic through isolated protection fixtures
+        run: go test -trimpath ./wafpipeline -short -count=1
+      - name: Report upstream corpus coverage
+        run: go test -trimpath ./wafpipeline -run '^TestCRSUpstreamAttackCorpus$' -count=1 -v
+      - name: Fetch the current upstream attack corpus for continuous discovery
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.workflow == 'HomeWaf security checks')
+        run: node scripts/fetch-waf-corpus.mjs --latest
+      - name: Test the latest corpus without changing shipped rules
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.workflow == 'HomeWaf security checks')
+        env:
+          HOMEWAF_WAF_CORPUS: ${{ github.workspace }}/.cache/waf-corpus-latest
+        run: go test -trimpath ./wafpipeline -run '^TestCRSUpstreamAttackCorpus$' -count=1 -v
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: HomeWaf-attack-corpus-${{ runner.os }}
+          include-hidden-files: true
+          retention-days: 14
+          path: |
+            .cache/waf-corpus/
+            .cache/waf-corpus-latest/
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Mutate encoded requests and verify bounded inspection and exact upstream replay
+        run: go test -trimpath ./wafpipeline -run '^$' -fuzz '^FuzzNormalizedRequestReplay$' -fuzztime=30s -parallel=2
+      - name: Mutate imported policies and verify trust boundaries
+        run: go test -trimpath ./wafpipeline -run '^$' -fuzz '^FuzzTemplateImport$' -fuzztime=30s -parallel=2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: HomeWaf-fuzz-reproducers
+          retention-days: 14
+          path: wafpipeline/testdata/fuzz/

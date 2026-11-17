@@ -16,7 +16,10 @@ concurrency:
   group: homewaf-release
   cancel-in-progress: false
 jobs:
+  security:
+    uses: ./.github/workflows/security.yml
   package:
+    needs: security
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
