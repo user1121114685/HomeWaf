@@ -738,6 +738,22 @@ button.ipl-link {
   background: var(--hw-subtle);
   border-radius: 0 0 var(--hw-r-lg) var(--hw-r-lg);
 }
+.software-update-notes {
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+.software-update-notes + .software-update-notes {
+  padding-top: 12px;
+  border-top: 1px solid var(--hw-line);
+}
+.software-update-notes h4 {
+  margin: 0 0 8px;
+  color: var(--hw-ink);
+}
+.software-update-notes ul {
+  margin: 0;
+  padding-left: 20px;
+}
 .el-drawer {
   max-width: 100vw;
 }

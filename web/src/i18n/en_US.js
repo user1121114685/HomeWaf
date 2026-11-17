@@ -247,8 +247,10 @@ export default {
   topNav: {
     update: {
       has_new_version: "New version available",
-      confirm_update: "Confirm Update",
-      update_danger_tips: "Please note that the service will be interrupted for a few minutes during the upgrade. We recommend scheduling the update during off-peak hours.",
+      confirm_update: "Update",
+      notes_empty: "No release notes are available for this version.",
+      request_failed: "The update request failed. Check the connection and try again.",
+      update_danger_tips: "Updates restart smoothly and automatically: a ready new process takes over while existing connections drain within the configured timeout. Back up configuration and data first.",
       beta_version_warning: 'Warning: This is a beta version which may contain unstable features. Not recommended for production environments.',
       version_label: "Version:",
       desc_label: "Description:",
@@ -273,7 +275,7 @@ export default {
         eta: '{n}s left',
         waited: 'waited {n}s',
         restarting_probe: 'Restarting service... (probe #{n})',
-        foot_hint: 'Protection stays online during the upgrade; the service restarts automatically after the binary is replaced',
+        foot_hint: 'Automatic smooth restart: a ready new process takes over while existing connections drain within the configured timeout',
         restart_hint: 'The service is restarting. A brief API outage is expected, please keep this page open',
         background_run: 'Run in background',
         cancel: 'Cancel upgrade',

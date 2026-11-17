@@ -247,8 +247,10 @@ export default {
   topNav: {
     update: {
       has_new_version: "有新版本啦",
-      confirm_update: "确认更新",
-      update_danger_tips: "升级时候服务会中断几分钟,请注意安排在闲时更新",
+      confirm_update: "更新",
+      notes_empty: "此版本暂无更新说明。",
+      request_failed: "更新请求失败，请检查网络后重试。",
+      update_danger_tips: "更新完成后将自动平滑重启：新进程就绪后接管请求，旧连接在排空时间内结束。建议更新前备份配置与数据。",
       beta_version_warning: '请注意：即将升级的版本为测试版本，可能存在不稳定因素，不建议在生产环境使用',
       version_label: "版本:",
       desc_label: "描述:",
@@ -273,7 +275,7 @@ export default {
         eta: '约剩 {n} 秒',
         waited: '已等待 {n} 秒',
         restarting_probe: '正在重启服务…（第 {n} 次探测）',
-        foot_hint: '升级期间站点防护不中断；替换完成后服务会自动重启',
+        foot_hint: '更新后自动平滑重启；新进程就绪后接管请求，旧连接按配置的排空时间结束',
         restart_hint: '服务重启中，接口短暂不可用属正常现象，请勿关闭浏览器',
         background_run: '后台运行',
         cancel: '取消升级',

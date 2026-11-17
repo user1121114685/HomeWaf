@@ -175,6 +175,7 @@ func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
 		CmdName:        "homewaf_update",
 	}
 	available, newVer, desc, err := updater.UpdateAvailable()
+	channel := "official"
 	unversioned := errors.Is(err, wafupdate.ErrUnversionedBuild)
 	message := "当前已是最新版本"
 	if unversioned {
@@ -189,6 +190,7 @@ func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
 		betaAvailable, betaVersion, betaDesc, betaErr := updater.UpdateAvailableWithChannel("github")
 		if betaAvailable {
 			available, newVer, desc, err = true, betaVersion, betaDesc, nil
+			channel = "github"
 		} else if betaErr != nil && !errors.Is(betaErr, wafupdate.ErrNoPublishedRelease) {
 			err = betaErr
 		}
@@ -202,16 +204,29 @@ func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
 	if available {
 		message = "有新版本"
 	}
+	var notes []model.VersionReleaseNote
+	notesWarning := ""
+	if available {
+		releases, notesErr := updater.RecentReleaseNotes(channel)
+		for _, release := range releases {
+			notes = append(notes, model.VersionReleaseNote{Version: release.Version, Items: release.Items})
+		}
+		if notesErr != nil {
+			notesWarning = "历史版本说明暂时无法读取，当前仅显示目标版本的更新内容。"
+		}
+	}
 	response.OkWithDetailed(model.VersionInfo{
 		Version:        global.GWAF_RELEASE_VERSION,
 		VersionName:    global.GWAF_RELEASE_VERSION_NAME,
 		VersionRelease: global.GWAF_RELEASE,
 		NeedUpdate:     available,
 		BuildID:        global.GWAF_BUILD_ID, BuildCommit: global.GWAF_BUILD_COMMIT, BuildTime: global.GWAF_BUILD_TIME, BuildChannel: global.GWAF_BUILD_CHANNEL,
-		VersionNew:        newVer,
-		VersionDesc:       desc,
-		Container:         utils.DetectContainerRuntime(),
-		SelfUpdateAllowed: isSelfUpdateAllowed() && !unversioned,
+		VersionNew:          newVer,
+		VersionDesc:         desc,
+		VersionNotes:        notes,
+		VersionNotesWarning: notesWarning,
+		Container:           utils.DetectContainerRuntime(),
+		SelfUpdateAllowed:   isSelfUpdateAllowed() && !unversioned,
 	}, message, c)
 }
 

@@ -1,17 +1,24 @@
 package model
 
+type VersionReleaseNote struct {
+	Version string   `json:"version"`
+	Items   []string `json:"items"`
+}
+
 type VersionInfo struct {
-	BuildID        string `json:"build_id,omitempty"`
-	BuildCommit    string `json:"build_commit,omitempty"`
-	BuildTime      string `json:"build_time,omitempty"`
-	BuildChannel   string `json:"build_channel,omitempty"`
-	NeedUpdate     bool   `json:"need_update"`
-	Version        string `json:"version"`
-	VersionName    string `json:"version_name"`
-	VersionRelease string `json:"version_release"`
-	VersionNew     string `json:"version_new"`
-	VersionDesc    string `json:"version_desc"`
-	WebVersion     string `json:"web_version"` //内嵌管理端前端版本
+	BuildID             string               `json:"build_id,omitempty"`
+	BuildCommit         string               `json:"build_commit,omitempty"`
+	BuildTime           string               `json:"build_time,omitempty"`
+	BuildChannel        string               `json:"build_channel,omitempty"`
+	NeedUpdate          bool                 `json:"need_update"`
+	Version             string               `json:"version"`
+	VersionName         string               `json:"version_name"`
+	VersionRelease      string               `json:"version_release"`
+	VersionNew          string               `json:"version_new"`
+	VersionDesc         string               `json:"version_desc"`
+	VersionNotes        []VersionReleaseNote `json:"version_notes,omitempty"`
+	VersionNotesWarning string               `json:"version_notes_warning,omitempty"`
+	WebVersion          string               `json:"web_version"` //内嵌管理端前端版本
 	// 容器类型：空=非容器；docker/podman/containerd/lxc/oci
 	// 容器环境下应用内升级只在本次容器生命周期有效，容器重建即回退，故前端应引导用户改用更新镜像的方式
 	Container string `json:"container"`

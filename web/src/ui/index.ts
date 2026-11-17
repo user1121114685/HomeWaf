@@ -292,7 +292,10 @@ function dialog(drawer = false) {
               p.footer === false
                 ? undefined
                 : slots.footer ||
-                  (() => [action(p.cancelBtn, '取消', 'cancel'), action(p.confirmBtn, '确定', 'confirm')]),
+                  (() => [
+                    slots.cancelBtn?.() ?? action(p.cancelBtn, '取消', 'cancel'),
+                    slots.confirmBtn?.() ?? action(p.confirmBtn, '确定', 'confirm'),
+                  ]),
           },
         );
     },

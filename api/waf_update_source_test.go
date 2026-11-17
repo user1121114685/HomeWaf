@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -51,6 +52,74 @@ func TestHomeWafUpdateSourceResponses(t *testing.T) {
 			}
 		} else if result.Code == 0 || !strings.Contains(result.Msg, "失败") {
 			t.Fatalf("network error hidden: %s", rec.Body.String())
+		}
+	}
+}
+
+func TestHomeWafUpdateSourceGroupedNotes(t *testing.T) {
+	oldManifest, oldRelease, oldBeta := global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL
+	oldVersion, oldUpdating := global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_IS_UPDATETING
+	oldNew, oldDesc := global.GWAF_RUNTIME_NEW_VERSION, global.GWAF_RUNTIME_NEW_VERSION_DESC
+	t.Cleanup(func() {
+		global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL = oldManifest, oldRelease, oldBeta
+		global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = oldVersion, oldUpdating
+		global.GWAF_RUNTIME_NEW_VERSION, global.GWAF_RUNTIME_NEW_VERSION_DESC = oldNew, oldDesc
+	})
+	global.GUPDATE_VERSION_URL, global.GUPDATE_GITHUB_VERSION_URL = "", ""
+	global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = "v2.0.1", false
+	platform := map[string]string{"windows-amd64": "Windows_x86_64", "linux-amd64": "Linux_x86_64", "linux-arm64": "Linux_arm64", "darwin-amd64": "Darwin_x86_64", "darwin-arm64": "Darwin_arm64"}[runtime.GOOS+"-"+runtime.GOARCH]
+	if platform == "" {
+		t.Skip("unsupported release platform")
+	}
+	extension := ".tar.gz"
+	if runtime.GOOS == "windows" {
+		extension = ".zip"
+	}
+	asset := "HomeWaf_" + platform + "_2.0.3" + extension
+	historyFails := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/releases/latest" {
+			json.NewEncoder(w).Encode(map[string]any{"tag_name": "v2.0.3", "body": "* " + strings.Repeat("a", 40) + " fix: 修复升级按钮", "assets": []map[string]any{{"name": asset, "browser_download_url": "https://github.com/example/HomeWaf/releases/download/v2.0.3/" + asset, "digest": "sha256:" + strings.Repeat("0", 64)}}})
+			return
+		}
+		if historyFails {
+			w.WriteHeader(503)
+			return
+		}
+		json.NewEncoder(w).Encode([]map[string]any{{"tag_name": "v2.0.2", "body": "改进证书管理"}, {"tag_name": "v2.0.1", "body": "已安装版本"}})
+	}))
+	defer server.Close()
+	global.GUPDATE_RELEASE_URL = server.URL + "/releases/latest"
+	for _, fails := range []bool{false, true} {
+		historyFails = fails
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		ctx.Request = httptest.NewRequest("GET", "/api/v1/sysinfo/checkversion", nil)
+		ctx.Set("is_openapi", true)
+		new(WafSysInfoApi).CheckVersionApi(ctx)
+		var response struct {
+			Code int `json:"code"`
+			Data struct {
+				NeedUpdate bool `json:"need_update"`
+				Notes      []struct {
+					Version string   `json:"version"`
+					Items   []string `json:"items"`
+				} `json:"version_notes"`
+				Warning string `json:"version_notes_warning"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		if response.Code != 0 || !response.Data.NeedUpdate || len(response.Data.Notes) == 0 || response.Data.Notes[0].Version != "v2.0.3" || response.Data.Notes[0].Items[0] != "修复升级按钮" {
+			t.Fatalf("invalid update response: %s", recorder.Body.String())
+		}
+		if fails {
+			if len(response.Data.Notes) != 1 || response.Data.Warning == "" {
+				t.Fatal("history failure was hidden")
+			}
+		} else if len(response.Data.Notes) != 2 || response.Data.Notes[1].Version != "v2.0.2" || response.Data.Warning != "" {
+			t.Fatal("cross-version release notes are incomplete")
 		}
 	}
 }

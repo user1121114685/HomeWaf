@@ -2,7 +2,15 @@
 
 <template>
   <div class="console-header">
-    <hw-dialog width="600px" v-model:visible="update_visible" :header="$t('topNav.update.has_new_version')">
+    <hw-dialog
+      width="600px"
+      v-model:visible="update_visible"
+      :header="$t('topNav.update.has_new_version')"
+      :cancel-btn="{ content: $t('common.cancel'), disabled: isUpdateloading }"
+      :show-close="!isUpdateloading"
+      :close-on-esc-keydown="!isUpdateloading"
+      data-testid="software-update-dialog"
+    >
       <template #confirmBtn>
         <!-- 容器环境：应用内升级会在容器重建后回退，这里不给"确认更新"，只给文档入口 -->
         <hw-link
@@ -17,14 +25,16 @@
         </hw-link>
         <hw-button
           v-else
-          :theme="update_new_ver && update_new_ver.toLowerCase().includes('beta') ? 'danger' : 'warning'"
+          :theme="update_new_ver && update_new_ver.toLowerCase().includes('beta') ? 'danger' : 'primary'"
+          :loading="isUpdateloading"
+          :disabled="isUpdateloading"
           @click="handleConfirmUpdate"
         >
           {{ $t('topNav.update.confirm_update') }}
         </hw-button>
       </template>
 
-      <hw-alert v-if="!self_update_allowed" theme="error" :title="$t('topNav.update.container_blocked_title')">
+      <hw-alert v-if="!self_update_allowed" theme="error" :closable="false" :title="$t('topNav.update.container_blocked_title')">
         <template #message>
           <div>{{ $t('topNav.update.container_blocked_tips', { container: container_type || 'container' }) }}</div>
           <div style="margin-top: 8px">
@@ -47,15 +57,17 @@ Windows PowerShell:
           <div>{{ $t('topNav.update.container_howto_tips') }}</div>
         </template>
       </hw-alert>
-      <hw-alert v-else theme="warning">
+      <hw-alert v-else theme="warning" :closable="false">
         <template #message>
           {{ $t('topNav.update.update_danger_tips') }}
         </template>
       </hw-alert>
+      <hw-alert v-if="update_error" theme="error" :closable="false" :title="update_error" role="alert" />
+      <hw-alert v-if="update_notes_warning" theme="warning" :closable="false" :title="update_notes_warning" />
       <div style="margin: 16px 0 0 0; line-height: 1.8">
         <div>
           <strong>{{ $t('topNav.update.version_label') }}</strong>
-          {{ update_new_ver }}
+          <template v-if="update_current_ver">{{ update_current_ver }} → </template>{{ update_new_ver }}
         </div>
         <span style="color: red" v-if="update_new_ver && update_new_ver.toLowerCase().includes('beta')">
           {{ $t('topNav.update.beta_version_warning') }}
@@ -63,12 +75,13 @@ Windows PowerShell:
 
         <div>
           <strong>{{ $t('topNav.update.desc_label') }}</strong>
-          <div v-html="compiledMarkdown"></div>
-        </div>
-        <div>
-          <hw-link theme="primary" underline href="/#/help" target="_blank" rel="noopener noreferrer">{{
-            $t('topNav.update.more_label')
-          }}</hw-link>
+          <section v-for="notes in updateNotes" :key="notes.version" class="software-update-notes">
+            <h4>{{ notes.version }}</h4>
+            <ul v-if="notes.items.length">
+              <li v-for="item in notes.items" :key="item">{{ item }}</li>
+            </ul>
+            <p v-else>{{ $t('topNav.update.notes_empty') }}</p>
+          </section>
         </div>
       </div>
     </hw-dialog>
@@ -323,7 +336,7 @@ import {
   TranslateIcon,
 } from '@/ui/icons';
 import { CheckVersionApi, DoUpdateApi, GetRollbackListApi, DoRollbackApi } from '@/apis/sysinfo';
-import { marked } from 'marked'; // 导入 marked
+import { releaseNoteGroups, type ReleaseNoteGroup } from '@/utils/releaseNotes';
 
 import Notice from './Notice.vue';
 import Search from './Search.vue';
@@ -367,7 +380,11 @@ export default defineComponent({
       isUpdateloading: false,
       update_visible: false,
       update_new_ver: '',
+      update_current_ver: '',
       update_desc: '',
+      update_notes: [] as ReleaseNoteGroup[],
+      update_notes_warning: '',
+      update_error: '',
       /**运行环境：容器类型(空=非容器)与是否允许应用内升级。
        * 容器里升级只对当前容器有效，容器重建就回退到镜像版本，而数据库回不去，
        * 所以容器环境下后端会直接拒绝升级，前端这里换成镜像更新指引。**/
@@ -417,8 +434,8 @@ export default defineComponent({
     pageTitle() {
       return taskTitles[String(this.$route.name)]?.[this.$store.state.language.currentLanguage === 'en_US' ? 1 : 0] || this.$t(String(this.$route.meta.title || '控制台'));
     },
-    compiledMarkdown() {
-      return marked(this.update_desc || '');
+    updateNotes() {
+      return releaseNoteGroups(this.update_new_ver, this.update_desc, this.update_notes);
     },
   },
   mounted() {
@@ -511,13 +528,20 @@ export default defineComponent({
               that.hasNewVersion = false;
               that.update_new_ver = '';
               that.update_desc = '';
+              that.update_notes = [];
+              that.update_notes_warning = '';
+              that.update_error = '';
               that.update_visible = false;
               if (method === 'manual') that.$message.info(resdata.msg);
               return;
             }
             that.hasNewVersion = true;
             that.update_new_ver = resdata.data.version_new;
+            that.update_current_ver = resdata.data.version || '';
             that.update_desc = resdata.data.version_desc;
+            that.update_notes = resdata.data.version_notes || [];
+            that.update_notes_warning = resdata.data.version_notes_warning || '';
+            that.update_error = '';
             that.container_type = resdata.data.container || '';
             // 老后端没有这个字段时按"允许"处理，避免升级入口被误屏蔽
             that.self_update_allowed = resdata.data.self_update_allowed !== false;
@@ -553,6 +577,7 @@ export default defineComponent({
         });
     },
     handleConfirmUpdate() {
+      if (this.isUpdateloading) return;
       // 如果是beta版本，需要二次确认
       if (this.update_new_ver && this.update_new_ver.toLowerCase().includes('beta')) {
         const confirmDia = this.$dialog.confirm({
@@ -632,12 +657,14 @@ export default defineComponent({
     handleDoUpdate() {
       //处理升级
       let that = this;
+      if (that.isUpdateloading) return;
       // 容器环境后端会直接拒绝，这里先拦一道，避免无谓请求和误导性的 loading
       if (!that.self_update_allowed) {
         that.$message.warning(that.$t('topNav.update.container_blocked_title'));
         return;
       }
       that.isUpdateloading = true;
+      that.update_error = '';
       // 检查是否为beta版本，如果是则添加渠道参数
       const params =
         that.update_new_ver && that.update_new_ver.toLowerCase().includes('beta')
@@ -654,6 +681,7 @@ export default defineComponent({
             that.isUpdateloading = false;
             (that.$refs.updateProgress as any)?.start();
           } else {
+            that.update_error = resdata.msg || that.$t('topNav.update.request_failed');
             that.$message.warning(resdata.msg);
             // 升级失败，关闭加载并显示错误信息
             that.isUpdateloading = false;
@@ -662,6 +690,7 @@ export default defineComponent({
         .catch((e: Error) => {
           // 请求异常，关闭加载并显示错误信息
           that.isUpdateloading = false;
+          that.update_error = that.$t('topNav.update.request_failed');
           console.log(e);
         });
     },
