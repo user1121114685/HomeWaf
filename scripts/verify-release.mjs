@@ -7,6 +7,7 @@ import http from 'node:http';
 import net from 'node:net';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { listenLoopbackForTest as listen } from './test-listener.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const [archiveInput, version] = process.argv.slice(2);
@@ -36,7 +37,6 @@ if (process.platform === 'win32') {
 } else {
   run('bash', [path.join(root, 'install_homewaf.sh'), '--version', version, '--dir', dir, '--no-service', ...(online ? [] : ['--archive', archive, '--checksums', checksums])]);
 }
-const listen = server => new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', () => resolve(server.address().port)); });
 const reserve = net.createServer();
 const port = await listen(reserve);
 await new Promise(r => reserve.close(r));

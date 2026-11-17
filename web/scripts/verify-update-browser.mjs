@@ -5,6 +5,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { listenLoopbackForTest } from '../../scripts/test-listener.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const dist = path.join(root, 'web/dist');
@@ -20,7 +21,7 @@ const server = http.createServer(async (req, res) => {
     res.end(data);
   } catch { res.writeHead(404).end(); }
 });
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+await listenLoopbackForTest(server);
 const browser = await chromium.launch({ headless: true, ...(process.env.CI ? {} : { channel: 'chrome' }) });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
 await context.addInitScript(() => {

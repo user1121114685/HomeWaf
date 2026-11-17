@@ -5,6 +5,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { listenLoopbackForTest } from '../../scripts/test-listener.mjs';
 const root = fileURLToPath(new URL('../..', import.meta.url)),
   dist = path.join(root, 'web/dist'),
   output = path.join(root, 'artifacts/console-subpages/browser');
@@ -27,7 +28,7 @@ const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', mime[path.extname(file)] || 'application/octet-stream');
   fs.createReadStream(file).pipe(res);
 });
-await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+await listenLoopbackForTest(server);
 const origin = `http://127.0.0.1:${server.address().port}`,
   browser = await chromium.launch({ headless: true, ...(process.env.CI ? {} : { channel: 'chrome' }) });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, reducedMotion: 'reduce' }),
