@@ -60,7 +60,7 @@ func TestDefaultReleaseSource(t *testing.T) {
 
 func TestReleaseNoDowngradeOrRedownload(t *testing.T) {
 	withReleaseSource(t)
-	for _, current := range []string{"v2.0.1", "2.0.1", "v2.1.0"} {
+	for _, current := range []string{"v2.0.1", "2.0.1", "v2.1.0", "v2.0.1+local.20261117140000.g2593713c.dirty"} {
 		t.Run(current, func(t *testing.T) {
 			mr := releaseRequester(t, testRelease(t))
 			u := &Updater{CurrentVersion: current, Requester: mr, OnSuccessfulUpdate: func() { t.Fatal("must not replace current binary") }}
@@ -71,6 +71,35 @@ func TestReleaseNoDowngradeOrRedownload(t *testing.T) {
 				t.Fatal("download requested without newer release")
 			}
 		})
+	}
+}
+
+func TestInternalBuildStillFindsNewerRelease(t *testing.T) {
+	withReleaseSource(t)
+	u := &Updater{CurrentVersion: "v2.0.0+local.20261117140000.g2593713c", Requester: releaseRequester(t, testRelease(t))}
+	available, version, _, err := u.UpdateAvailable()
+	if err != nil || !available || version != "v2.0.1" {
+		t.Fatalf("newer release hidden: %v %s %v", available, version, err)
+	}
+}
+
+func TestInternalBuildDoesNotOfferSameRelease(t *testing.T) {
+	withReleaseSource(t)
+	u := &Updater{CurrentVersion: "v2.0.1+local.20261117140000.g2593713c.dirty", Requester: releaseRequester(t, testRelease(t))}
+	if available, _, _, err := u.UpdateAvailable(); err != nil || available {
+		t.Fatalf("same release offered: %v %v", available, err)
+	}
+}
+
+func TestUnversionedBuildDoesNotOfferOrInstallRelease(t *testing.T) {
+	u := &Updater{CurrentVersion: "dev", Requester: &mockRequester{}}
+	if available, _, _, err := u.UpdateAvailable(); available || !errors.Is(err, ErrUnversionedBuild) {
+		t.Fatalf("unversioned check: %v %v", available, err)
+	}
+	for _, channel := range []string{"official", "github"} {
+		if err := u.UpdateWithChannel(channel); !errors.Is(err, ErrUnversionedBuild) {
+			t.Fatalf("unversioned install: %v", err)
+		}
 	}
 }
 

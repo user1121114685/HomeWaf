@@ -66,12 +66,21 @@
         <ElTabPane name="access" label="监听入口"
           ><template #label
             ><span class="editor-tab-label">监听入口<small>协议、域名与关闭方式</small></span></template
-          ><EditorSection title="监听入口" description="端口号保持不变；更改监听相关参数前，按服务端要求停止监听。"
+          ><EditorSection title="监听入口" description="端口号保持不变；运行中的服务更改协议时，保存前会确认平滑重启。"
             ><Fields
               :model="draft"
-              :definitions="
-                basicFields.filter((field) => ['protocol', 'host_names'].includes(field.path))
-              " /></EditorSection
+              :definitions="basicFields.filter((field) => ['protocol', 'host_names'].includes(field.path))"
+            />
+            <ServiceTLS
+              v-if="draft.protocol === 'https'"
+              ref="tlsFields"
+              v-model:mode="tlsMode"
+              :port="draft.port"
+              :revision="draft.revision"
+              :hosts="draft.host_names"
+              :secrets="secrets"
+              @busy="certificateBusy = $event"
+            /> </EditorSection
           ><EditorSection title="关闭业务访问时"
             ><Fields
               :model="draft.policy.access"
@@ -311,7 +320,13 @@
           </EditorSection></ElTabPane
         >
         <ElTabPane name="defense" label="异常访问处置">
-          <DefenseSettings :config="draft" :busy="busy" :dirty="dirty" @invalid="invalid.defense = $event" @committed="emit('saved', $event)" />
+          <DefenseSettings
+            :config="draft"
+            :busy="busy"
+            :dirty="dirty"
+            @invalid="invalid.defense = $event"
+            @committed="emit('saved', $event)"
+          />
         </ElTabPane>
         <ElTabPane name="hit_policy" label="自动处罚"
           ><template #label
@@ -319,9 +334,21 @@
           ><EditorSection
             ><template #title>自动处置</template
             ><ElAlert
-              :title="draft.policy.defense ? '以下设置管理单来源封禁，trusted 和受保护来源保留豁免。整个端口的阈值与恢复时间在异常访问处置中配置。' : '第4步是异步旁路：只改变后续请求。当前请求动作由第3步决定。trusted和受保护来源只告警，不被自动处罚。'"
+              :title="
+                draft.policy.defense
+                  ? '以下设置管理单来源封禁，trusted 和受保护来源保留豁免。整个端口的阈值与恢复时间在异常访问处置中配置。'
+                  : '第4步是异步旁路：只改变后续请求。当前请求动作由第3步决定。trusted和受保护来源只告警，不被自动处罚。'
+              "
               :closable="false"
-              class="space" /><Fields :model="draft.policy.hit_policy" :definitions="draft.policy.defense ? fields.hit_policy.filter(field => !field.path.startsWith('lockdown.') && field.path !== 'ban_scope') : fields.hit_policy"
+              class="space" /><Fields
+              :model="draft.policy.hit_policy"
+              :definitions="
+                draft.policy.defense
+                  ? fields.hit_policy.filter(
+                      (field) => !field.path.startsWith('lockdown.') && field.path !== 'ban_scope',
+                    )
+                  : fields.hit_policy
+              "
           /></EditorSection>
           <EditorSection
             ><template #title>单IP累计阈值</template>
@@ -451,14 +478,10 @@
           <EditorSection
             ><template #title>证书与信任</template>
             <p class="muted">
-              迁入证书继续跟随源站点证书夹续期；新握手热更新，不中断现有连接。手动提交新证书会解除源证书绑定；留空保留。HTTP-01仅响应迁入主机已登记的本地挑战，访问总开关仍有效。
+              HTTPS 证书在“监听入口”中选择和检查。上游私有 CA 用于 HomeWaf 验证原服务的 HTTPS 连接，与访客连接证书独立。
             </p>
             <div class="two-columns">
               <label
-                >TLS证书PEM（留空保留）<ElInput v-model="secrets.tls_certificate" type="textarea" :rows="4" /></label
-              ><label
-                >TLS私钥PEM（留空保留）<ElInput v-model="secrets.tls_private_key" type="textarea" :rows="4" /></label
-              ><label
                 >上游私有CA PEM（留空保留）<ElInput v-model="secrets.upstream_ca" type="textarea" :rows="4" /></label
               ><label
                 ><ElCheckbox v-model="secrets.clear_upstream_ca">清除已保存的上游私有CA</ElCheckbox
@@ -546,7 +569,9 @@
             </div>
             <details class="space">
               <summary>高级：编辑完整策略JSON（不含口令/私钥）</summary>
-              <p v-if="draft.policy.defense" class="muted">蜜罐内容在独立页面管理；此处 honeypot 是只读内容，服务使用统一蜜罐设置。</p>
+              <p v-if="draft.policy.defense" class="muted">
+                蜜罐内容在独立页面管理；此处 honeypot 是只读内容，服务使用统一蜜罐设置。
+              </p>
               <p class="muted">
                 可设置所有范围、参数和观察条件。服务端严格验证字段与数值；这里不会修改监听端口或凭据。
               </p>
@@ -594,13 +619,44 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import type { PropType } from 'vue';
-import { ElAlert, ElButton, ElCheckbox, ElCheckboxGroup, ElCollapse, ElCollapseItem, ElDialog, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElOption, ElSelect, ElSwitch, ElTable, ElTableColumn, ElTabPane, ElTag } from 'element-plus';
+import {
+  ElAlert,
+  ElButton,
+  ElCheckbox,
+  ElCheckboxGroup,
+  ElCollapse,
+  ElCollapseItem,
+  ElDialog,
+  ElInput,
+  ElInputNumber,
+  ElMessage,
+  ElMessageBox,
+  ElOption,
+  ElSelect,
+  ElSwitch,
+  ElTable,
+  ElTableColumn,
+  ElTabPane,
+  ElTag,
+} from 'element-plus';
 import { pipelinePost } from '@/apis/pipeline';
-import { clone, fields, modes, ruleHelp, ruleNames, sectionNames, sections, type Field, type PolicyTemplate, type PortConfig } from './model';
+import {
+  clone,
+  fields,
+  modes,
+  ruleHelp,
+  ruleNames,
+  sectionNames,
+  sections,
+  type Field,
+  type PolicyTemplate,
+  type PortConfig,
+} from './model';
 import GuidedSetup from './GuidedSetup.vue';
+import ServiceTLS from './ServiceTLS.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
 import DefenseSettings from './DefenseSettings.vue';
 import Fields from './Fields.vue';
@@ -645,17 +701,19 @@ function locateInvalid() {
     ['controls', 'attacks'],
   );
 }
-watch(busy, (value) => emit('busy', value), { flush: 'sync' });
+const certificateBusy = ref(false);
+watch([busy, certificateBusy], ([saving, editing]) => emit('busy', saving || editing), { flush: 'sync' });
 const secrets = reactive({
   initial_username: '',
   initial_password: '',
-  tls_certificate: '',
-  tls_private_key: '',
+  tls_certificate_id: '',
   upstream_ca: '',
   clear_upstream_ca: false,
   privacy_engine_config: '',
   clear_privacy_engine_config: false,
 });
+const tlsMode = ref('current'),
+  tlsFields = ref<InstanceType<typeof ServiceTLS>>();
 const businessHeadersJSON = ref('');
 const pluginProfilesJSON = ref('');
 function reloadPlugins() {
@@ -729,9 +787,9 @@ const basicFields: Field[] = [
   { path: 'upstream', label: '上游地址', help: '明确填写http(s)://主机:端口，不能在URL中夹带账号密码。' },
   {
     path: 'host_names',
-    label: '允许的主机名',
+    label: '允许的主机名（域名或 IP）',
     kind: 'lines',
-    help: '每行一个，不含端口；留空接受所有Host。同一端口的所有域名共用安全策略。',
+    help: '填写访客访问 HomeWaf 时使用的域名或 IP，例如 nas.example.com 或 192.168.1.10。每行一个，不含协议、端口或路径；留空接受所有主机名。同一端口共用安全策略。',
   },
 ];
 function normalize() {
@@ -882,6 +940,15 @@ async function save() {
   await run(async () => {
     parseBusinessLogin();
     if (Object.values(invalid).some(Boolean)) throw new Error('请先修正JSON字段');
+    if (
+      draft.value.protocol === 'https' &&
+      (props.config.protocol !== 'https' ||
+        JSON.stringify(draft.value.host_names) !== JSON.stringify(props.config.host_names) ||
+        tlsMode.value !== 'current')
+    ) {
+      activeTab.value = 'access';
+      if (!(await tlsFields.value?.validate())) return;
+    }
     let plugin_profiles;
     if (pluginProfilesJSON.value.trim()) {
       plugin_profiles = JSON.parse(pluginProfilesJSON.value);
@@ -902,18 +969,32 @@ async function save() {
         '确认切换访问开关',
         { type: 'warning' },
       );
+    const restartListener =
+      !props.isNew &&
+      props.config.listen_enabled &&
+      draft.value.listen_enabled &&
+      props.config.protocol !== draft.value.protocol;
+    if (restartListener) {
+      await ElMessageBox.confirm(
+        `服务“${draft.value.name || draft.value.port}”（端口 ${draft.value.port}）将从 ${props.config.protocol.toUpperCase()} 切换为 ${draft.value.protocol.toUpperCase()}，保存后立即平滑重启监听。新连接可能短暂中断，已有请求和长连接最多等待 ${props.config.policy.access.drain_seconds || 0} 秒后关闭；失败时尝试恢复原监听。${draft.value.protocol === 'http' ? '切换为 HTTP 后，访客连接将不再加密。' : '访客需要使用 HTTPS 地址重新连接。'}`,
+        '确认平滑重启服务',
+        { type: 'warning', confirmButtonText: '保存并平滑重启', cancelButtonText: '返回修改' },
+      );
+    }
     if (props.isNew) draft.value.listen_enabled = false;
     const result = await pipelinePost<PortConfig>('ports/save', {
       config: draft.value,
+      confirm_listener_restart: restartListener,
       ...secrets,
+      tls_certificate_id:
+        draft.value.protocol === 'https' && tlsMode.value === 'stored' ? secrets.tls_certificate_id : '',
       business_headers,
       plugin_profiles,
     });
     Object.assign(secrets, {
       initial_username: '',
       initial_password: '',
-      tls_certificate: '',
-      tls_private_key: '',
+      tls_certificate_id: '',
       upstream_ca: '',
       clear_upstream_ca: false,
       privacy_engine_config: '',
@@ -924,6 +1005,8 @@ async function save() {
     ElMessage.success(props.isNew ? '端口已创建，尚未监听' : '端口配置已保存');
     emit('saved', result);
   });
+  await nextTick();
+  tlsFields.value?.focusError();
 }
 watch([selectedTemplate, () => selectedSections.value.join(',')], () => {
   templatePreview.value = null;

@@ -10,6 +10,7 @@ function template() {
   }};
 }
 test('new port and applied template own independent mutable policy copies',()=>{
+  assert.equal(newPort(template()).port, 0);
   const source=template(),a=newPort(source,5000),b=newPort(source,5001);
   a.policy.ruleset.rules[0].mode='observe';a.policy.gate.enabled=false;
   assert.equal(b.policy.ruleset.rules[0].mode,'block');assert.equal(source.policy.gate.enabled,true);

@@ -60,8 +60,18 @@
       <section v-else-if="step === 1" class="setup-section">
         <h2>连接现有服务</h2>
         <p class="setup-lead">
-          填写现在能访问这个服务的地址。访问账号和来源限制按需选择，不确定的连接选项可以保留默认值。
+          先确认原服务地址，再设置访客访问 HomeWaf 的入口。HTTPS 证书可从证书管理选择，也可在这里新增。
         </p>
+        <label class="setup-field service-name"
+          ><span>服务名称 <em>可选</em></span>
+          <ElInput
+            v-model="draft.name"
+            placeholder="例如家庭相册；留空自动命名"
+            aria-label="服务名称"
+            maxlength="100"
+          />
+          <small>用于在控制台辨认服务，不会修改原服务地址。</small>
+        </label>
         <label class="setup-field"
           ><span>现有服务地址 <em>必填</em></span>
           <ElInput
@@ -80,9 +90,61 @@
             fieldErrors.upstream
           }}</span>
         </label>
+        <div class="setup-columns connection-fields">
+          <label class="setup-field"
+            ><span>HomeWaf 监听端口 <em>必填</em></span
+            ><ElInput
+              ref="portInput"
+              v-model="listenPort"
+              inputmode="numeric"
+              placeholder="填写你要使用的端口，例如 8080"
+              aria-label="HomeWaf 监听端口"
+              :aria-invalid="!!fieldErrors.port"
+              aria-describedby="port-help port-error"
+              @input="fieldErrors.port = ''"
+            /><small id="port-help"
+              >访客访问 HomeWaf 的这个端口，再转发到原服务。不能占用管理端口或已用端口，保存前会检查。</small
+            ><span v-if="fieldErrors.port" id="port-error" class="field-error" role="alert">{{
+              fieldErrors.port
+            }}</span></label
+          >
+          <label class="setup-field"
+            ><span>允许的主机名（域名或 IP） <em>可选</em></span
+            ><ElInput
+              ref="hostsInput"
+              v-model="hostNames"
+              placeholder="例如 nas.example.com 或 192.168.1.10"
+              aria-label="允许的主机名（域名或 IP）"
+              :aria-invalid="!!fieldErrors.hosts"
+              aria-describedby="hosts-help hosts-error"
+              @input="fieldErrors.hosts = ''"
+            /><small id="hosts-help"
+              >请填写访客访问 HomeWaf 时使用的域名或
+              IP，不含协议、端口和路径；多个用逗号分隔。留空接受所有主机名。</small
+            ></label
+          >
+        </div>
+        <span v-if="fieldErrors.hosts" id="hosts-error" class="field-error" role="alert">{{ fieldErrors.hosts }}</span>
+        <label class="setup-field connection-fields"
+          ><span>监听协议</span>
+          <ElSelect v-model="draft.protocol" aria-label="监听协议"
+            ><ElOption label="HTTP" value="http" /><ElOption label="HTTPS（需要证书）" value="https"
+          /></ElSelect>
+          <small>这是访客连接 HomeWaf 使用的协议，与原服务地址的协议独立。HTTPS 需要匹配访问域名或 IP 的证书。</small>
+        </label>
+        <ServiceTLS
+          v-if="draft.protocol === 'https'"
+          ref="tlsFields"
+          v-model:mode="tlsMode"
+          :port="draft.port"
+          :revision="0"
+          :hosts="parseLines(hostNames.replaceAll('，', ','))"
+          :secrets="secrets"
+          @busy="certificateBusy = $event"
+        />
         <div class="connection-preview" aria-label="请求转发路径">
           <span>访客</span><ArrowRight aria-hidden="true" /><span
-            >HomeWaf <b>:{{ draft.port }}</b></span
+            >HomeWaf <b>{{ listenPort ? `:${listenPort}` : '（待填写端口）' }}</b></span
           ><ArrowRight aria-hidden="true" /><span>{{ draft.upstream || '你的服务' }}</span>
         </div>
         <AccessRestrictions ref="accessRestrictions" :policy="draft.policy" onboarding />
@@ -128,57 +190,6 @@
         <p v-if="draft.policy.gate.require_token" class="setup-note">
           此场景需要服务令牌。保存后，在服务配置中生成令牌，再启用服务。
         </p>
-        <details class="setup-details">
-          <summary>连接选项 <span>名称、端口、HTTPS 与域名</span></summary>
-          <div class="setup-columns">
-            <label class="setup-field"
-              ><span>服务名称 <em>可选</em></span
-              ><ElInput v-model="draft.name" placeholder="留空自动命名" aria-label="服务名称" maxlength="100" /><small
-                >用于在控制台辨认服务，不会修改原服务的名称或地址。</small
-              ></label
-            >
-            <label class="setup-field"
-              ><span>HomeWaf 监听端口</span
-              ><ElInputNumber
-                v-model="draft.port"
-                :min="1"
-                :max="65535"
-                controls-position="right"
-                aria-label="HomeWaf 监听端口"
-              /><small>访客以后访问这个端口，由 HomeWaf 检查后转发到原服务。保存前会检查端口占用。</small></label
-            >
-            <label class="setup-field"
-              ><span>访客连接协议</span
-              ><ElSelect v-model="draft.protocol" aria-label="访客连接协议"
-                ><ElOption label="HTTP" value="http" /><ElOption label="HTTPS（需要证书）" value="https" /></ElSelect
-              ><small>HTTP 不加密访客连接；HTTPS 会加密，需要下方的证书和私钥。与原服务地址的协议独立。</small></label
-            >
-            <label class="setup-field"
-              ><span>允许访问的域名 <em>可选</em></span
-              ><ElInput v-model="hostNames" placeholder="例如 nas.example.com" aria-label="允许访问的域名" /><small
-                >多个域名用逗号分隔。填写后只接受这些域名的请求；留空接受所有域名，也可用 IP 访问。</small
-              ></label
-            >
-          </div>
-          <div v-if="draft.protocol === 'https'" class="setup-columns certificate-fields">
-            <label class="setup-field"
-              ><span>TLS 证书 PEM <em>HTTPS 必填</em></span
-              ><ElInput v-model="secrets.tls_certificate" type="textarea" :rows="4" aria-label="TLS 证书 PEM" /><small
-                >粘贴证书文件内容，包含 BEGIN CERTIFICATE 和 END CERTIFICATE。证书应覆盖访客访问的域名。</small
-              ></label
-            >
-            <label class="setup-field"
-              ><span>TLS 私钥 PEM <em>HTTPS 必填</em></span
-              ><ElInput
-                v-model="secrets.tls_private_key"
-                type="textarea"
-                :rows="4"
-                aria-label="TLS 私钥 PEM"
-                autocomplete="off"
-              /><small>粘贴与该证书配套的私钥文件内容，只用于 HomeWaf 接受 HTTPS 连接。</small></label
-            >
-          </div>
-        </details>
       </section>
       <section v-else-if="step === 2" class="setup-section">
         <h2>设置异常访问处置</h2>
@@ -200,6 +211,10 @@
           <div>
             <dt>新入口</dt>
             <dd>{{ draft.protocol.toUpperCase() }} · HomeWaf 所在机器的 {{ draft.port }} 端口</dd>
+          </div>
+          <div>
+            <dt>允许的主机名</dt>
+            <dd>{{ draft.host_names.join('、') || '所有主机名（未限制）' }}</dd>
           </div>
           <div>
             <dt>策略模板</dt>
@@ -242,7 +257,11 @@
           <CircleCheck aria-hidden="true" />
           <div>
             <strong>端口检查与 TCP 连接通过</strong>
-            <p>这不代表业务登录或 HTTPS 证书已经验证，请在启用后实际访问一次。</p>
+            <p>
+              {{
+                draft.protocol === 'https' ? '证书覆盖范围、有效期与私钥已检查；' : ''
+              }}这不代表业务登录或客户端信任已经验证，请在启用后实际访问一次。
+            </p>
           </div>
         </div>
         <details class="setup-details">
@@ -283,12 +302,14 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import type { PropType } from 'vue';
-import { ElButton, ElInput, ElInputNumber, ElOption, ElSelect } from 'element-plus';
+import { ElButton, ElInput, ElOption, ElSelect } from 'element-plus';
 import { ArrowRight, CircleCheck, Connection, FolderOpened, Monitor, VideoCamera } from '@element-plus/icons-vue';
 import { pipelinePost } from '@/apis/pipeline';
 import { clone, parseLines, type PolicyTemplate, type PortConfig } from './model';
 import {
   normalizeServiceAddress,
+  parseListenPort,
+  parseServiceHosts,
   optionalAccessDefaults,
   serviceScenes,
   suggestedName,
@@ -296,6 +317,7 @@ import {
 } from './onboarding';
 import Trace from './Trace.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
+import ServiceTLS from './ServiceTLS.vue';
 import DefensePolicyFields from './DefensePolicyFields.vue';
 import { defenseSummary, defenseValidation, newDefensePolicy, type DefensePolicy } from './defensePolicy';
 import { accessSourceSummary } from './accessPolicy';
@@ -334,7 +356,8 @@ const step = ref(0),
   created = ref(false),
   error = ref(''),
   progress = ref('');
-watch(busy, (value) => emit('busy', value), { flush: 'sync' });
+const certificateBusy = ref(false);
+watch([busy, certificateBusy], ([saving, editing]) => emit('busy', saving || editing), { flush: 'sync' });
 const stepContent = ref<HTMLElement>();
 watch(step, async () => {
   await nextTick();
@@ -343,14 +366,24 @@ watch(step, async () => {
 const preview = ref<any>(null),
   previewKey = ref('');
 const hostNames = ref(draft.value.host_names.join(', '));
-const secrets = reactive({ initial_username: '', initial_password: '', tls_certificate: '', tls_private_key: '' });
-const fieldErrors = reactive({ upstream: '', username: '', password: '' });
+const listenPort = ref(draft.value.port ? String(draft.value.port) : '');
+const secrets = reactive({
+  initial_username: '',
+  initial_password: '',
+  tls_certificate_id: '',
+});
+const tlsMode = ref('stored'),
+  tlsFields = ref<InstanceType<typeof ServiceTLS>>();
+const fieldErrors = reactive({ upstream: '', port: '', hosts: '', username: '', password: '' });
 const addressInput = ref<any>(),
+  portInput = ref<any>(),
+  hostsInput = ref<any>(),
   usernameInput = ref<any>(),
   passwordInput = ref<any>();
-const fingerprint = () => JSON.stringify({ config: draft.value, defense: defense.value, secrets });
+const fingerprint = () =>
+  JSON.stringify({ config: draft.value, defense: defense.value, secrets, tlsMode: tlsMode.value });
 watch(
-  [draft, secrets, hostNames, defense],
+  [draft, secrets, hostNames, listenPort, defense, tlsMode],
   () => {
     preview.value = null;
     previewKey.value = '';
@@ -416,6 +449,8 @@ async function next() {
       return;
     }
     fieldErrors.upstream = '';
+    fieldErrors.port = '';
+    fieldErrors.hosts = '';
     fieldErrors.username = '';
     fieldErrors.password = '';
     try {
@@ -423,33 +458,54 @@ async function next() {
     } catch (cause: any) {
       fieldErrors.upstream = cause.message;
     }
+    try {
+      draft.value.port = parseListenPort(listenPort.value);
+    } catch (cause: any) {
+      fieldErrors.port = cause.message;
+    }
+    try {
+      draft.value.host_names = parseServiceHosts(hostNames.value);
+    } catch (cause: any) {
+      fieldErrors.hosts = cause.message;
+    }
     if (draft.value.policy.gate.enabled) {
       if (!secrets.initial_username.trim()) fieldErrors.username = '填写供访客使用的访问账号。';
       if (secrets.initial_password.length < 10) fieldErrors.password = '访问密码至少需要 10 个字符。';
     }
     if (Object.values(fieldErrors).some(Boolean)) {
       await nextTick();
-      (fieldErrors.upstream ? addressInput : fieldErrors.username ? usernameInput : passwordInput).value?.focus();
+      (fieldErrors.upstream
+        ? addressInput
+        : fieldErrors.port
+          ? portInput
+          : fieldErrors.hosts
+            ? hostsInput
+            : fieldErrors.username
+              ? usernameInput
+              : passwordInput
+      ).value?.focus();
       return;
     }
     if (!accessRestrictions.value?.validate()) throw new Error('请完成所选的访问限制，或取消不需要的选项。');
-    if (!Number.isInteger(draft.value.port) || draft.value.port < 1 || draft.value.port > 65535)
-      throw new Error('请在连接选项中填写 1–65535 之间的端口。');
-    if (draft.value.protocol === 'https' && (!secrets.tls_certificate.trim() || !secrets.tls_private_key.trim()))
-      throw new Error('已选择 HTTPS，请在连接选项中填写 TLS 证书和私钥。');
+    if (draft.value.protocol === 'https' && !(await tlsFields.value?.validate())) return;
     draft.value.name = draft.value.name.trim() || suggestedName(selectedTemplate.value, draft.value.upstream);
-    draft.value.host_names = parseLines(hostNames.value);
     secrets.initial_username = secrets.initial_username.trim();
     step.value = 2;
   });
-  if (step.value === 1 && !busy.value) {
+  if (step.value === 1) {
     await nextTick();
-    (fieldErrors.username && !fieldErrors.upstream
-      ? usernameInput
-      : fieldErrors.password && !fieldErrors.upstream
-        ? passwordInput
-        : addressInput
-    ).value?.focus();
+    if (Object.values(fieldErrors).some(Boolean)) {
+      (fieldErrors.upstream
+        ? addressInput
+        : fieldErrors.port
+          ? portInput
+          : fieldErrors.hosts
+            ? hostsInput
+            : fieldErrors.username
+              ? usernameInput
+              : passwordInput
+      ).value?.focus();
+    } else tlsFields.value?.focusError();
   }
 }
 async function save() {
@@ -462,8 +518,8 @@ async function save() {
       config: { ...draft.value, listen_enabled: false },
       initial_username: draft.value.policy.gate.enabled ? secrets.initial_username : '',
       initial_password: draft.value.policy.gate.enabled ? secrets.initial_password : '',
-      tls_certificate: draft.value.protocol === 'https' ? secrets.tls_certificate : '',
-      tls_private_key: draft.value.protocol === 'https' ? secrets.tls_private_key : '',
+      tls_certificate_id:
+        draft.value.protocol === 'https' && tlsMode.value === 'stored' ? secrets.tls_certificate_id : '',
     });
     created.value = true;
     Object.keys(secrets).forEach((key) => {
@@ -641,6 +697,12 @@ async function save() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px 24px;
+}
+.connection-fields {
+  margin-top: 20px;
+}
+.service-name {
+  margin-bottom: 24px;
 }
 .connection-preview {
   display: flex;

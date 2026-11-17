@@ -92,18 +92,22 @@ var (
 	GWAF_LOG_DEBUG_DB_ENABLE     bool                = false                 //是否开启数据库日志，默认关闭
 	GWAF_RELEASE                 string              = "false"               // 当前是否为发行版
 	GWAF_RELEASE_VERSION_NAME    string              = "HomeWaf development" // 发行版的版本号名称
-	GWAF_RELEASE_VERSION         string              = "v2.0.0-dev"          // 发行版的版本号
-	GWAF_WEB_VERSION             string              = "本地构建"                // 内嵌管理端前端版本（main 启动时从 public 包版本戳读取）
-	GWAF_LAST_UPDATE_TIME        time.Time                                   // 上次时间
-	GWAF_NOTICE_ENABLE           bool                = false                 // 是否开启通知
-	GWAF_NOTICE_TITLE            string                                      // 通知消息标题前缀（用于区分多实例，默认使用 custom_server_name）
-	GWAF_CAN_EXPORT_DOWNLOAD_LOG bool                = false                 //是否可以导出下载日志
-	GWAF_CAN_APP_MANAGE          bool                = false                 //是否启用应用管理功能（默认关闭，需服务端配置才能开启）
-	GWAF_APP_ALLOW_DIRS          string              = "data/applications"   //应用允许的工作目录（逗号分隔多路径）
-	GWAF_APP_OP_PASSWORD         string                                      //应用操作密码（高危操作二次确认，自动生成存 config.yml）
-	GWAF_DLP                     dlpheader.EngineAPI                         // 脱敏引擎
-	GWAF_DLP_CONFIG              string                                      // 脱敏引擎配置数据
-	GWAF_AI_DETECTOR             *wafai.Detector                             // AI智能检测器（持有当前模型，失败安全）
+	GWAF_RELEASE_VERSION         string              = "dev"                 // Unversioned direct builds do not participate in release updates.
+	GWAF_BUILD_ID                string              = ""
+	GWAF_BUILD_COMMIT            string              = ""
+	GWAF_BUILD_TIME              string              = ""
+	GWAF_BUILD_CHANNEL           string              = ""
+	GWAF_WEB_VERSION             string              = "本地构建"              // 内嵌管理端前端版本（main 启动时从 public 包版本戳读取）
+	GWAF_LAST_UPDATE_TIME        time.Time                                 // 上次时间
+	GWAF_NOTICE_ENABLE           bool                = false               // 是否开启通知
+	GWAF_NOTICE_TITLE            string                                    // 通知消息标题前缀（用于区分多实例，默认使用 custom_server_name）
+	GWAF_CAN_EXPORT_DOWNLOAD_LOG bool                = false               //是否可以导出下载日志
+	GWAF_CAN_APP_MANAGE          bool                = false               //是否启用应用管理功能（默认关闭，需服务端配置才能开启）
+	GWAF_APP_ALLOW_DIRS          string              = "data/applications" //应用允许的工作目录（逗号分隔多路径）
+	GWAF_APP_OP_PASSWORD         string                                    //应用操作密码（高危操作二次确认，自动生成存 config.yml）
+	GWAF_DLP                     dlpheader.EngineAPI                       // 脱敏引擎
+	GWAF_DLP_CONFIG              string                                    // 脱敏引擎配置数据
+	GWAF_AI_DETECTOR             *wafai.Detector                           // AI智能检测器（持有当前模型，失败安全）
 
 	GWAF_OWASP         *wafowasp.WafOWASP     //owasp引擎（兼容保留：由 GWAF_OWASP_MANAGER.Current() 更新；请勿直接赋值新实例，否则热重载会失效）
 	GWAF_OWASP_MANAGER *wafowasp.OwaspManager //owasp 管理器（支持热重载）

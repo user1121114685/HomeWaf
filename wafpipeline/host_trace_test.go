@@ -51,3 +51,28 @@ func TestHostRejectionHasTraceAndMatchesExplainAfterAccessSwitch(t *testing.T) {
 		}
 	}
 }
+
+func TestIPHostRestrictionReachesOnlyAllowedOrigin(t *testing.T) {
+	f := newProxyFixture(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }, false)
+	f.update(t, func(s *Snapshot) { s.Config.HostNames = []string{"192.0.2.10", "2001:db8::1"} })
+	for _, tc := range []struct {
+		host   string
+		status int
+	}{
+		{"192.0.2.10:8080", 204}, {"[2001:0db8:0:0::1]:8080", 204}, {"[2001:db8::1]", 204},
+		{"192.0.2.11:8080", 403}, {"[2001:db8::2]:8080", 403}, {"unknown.test", 403},
+	} {
+		req, _ := http.NewRequest("GET", f.front.URL+"/", nil)
+		req.Host = tc.host
+		before := f.requests.Load()
+		response, err := f.front.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, response.Body)
+		response.Body.Close()
+		if response.StatusCode != tc.status || (f.requests.Load() == before) != (tc.status != 204) {
+			t.Fatalf("host %s returned %d", tc.host, response.StatusCode)
+		}
+	}
+}

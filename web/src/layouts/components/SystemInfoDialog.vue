@@ -92,17 +92,22 @@ export default defineComponent({
       const versionText = [info.version_name, info.version ? `(${info.version})` : ''].filter(Boolean).join(' ');
       if (versionText) {
         const isDebug = info.version_release === 'false';
+        const isInternal = info.build_channel === 'internal';
         const isPrerelease = !isDebug && PRERELEASE_RE.test(versionText);
         let tag = t('release_official');
-        if (isDebug) tag = t('release_debug');
+        if (isInternal) tag = t('release_internal');
+        else if (isDebug) tag = t('release_debug');
         else if (isPrerelease) tag = t('release_beta');
         rows.push({
           label: t('software_version'),
           value: versionText,
           tag,
-          tagTheme: isDebug || isPrerelease ? 'warning' : 'success',
+          tagTheme: isDebug || isInternal || isPrerelease ? 'warning' : 'success',
         });
       }
+      if (info.build_id) rows.push({ label: t('build_id'), value: info.build_id });
+      if (info.build_commit) rows.push({ label: t('build_commit'), value: info.build_commit });
+      if (info.build_time) rows.push({ label: t('build_time'), value: info.build_time });
       if (info.os_name) {
         rows.push({ label: t('os'), value: info.os_name });
       }

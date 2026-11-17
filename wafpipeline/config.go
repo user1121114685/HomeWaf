@@ -511,10 +511,8 @@ func ValidateConfig(c PortConfig, managePort uint16) error {
 			routeKeys[key] = true
 		}
 	}
-	for _, host := range c.HostNames {
-		if host == "" || len(host) > 253 || strings.ContainsAny(host, "/:@\\\x00\r\n ") {
-			return fmt.Errorf("invalid route hostname")
-		}
+	if err := ValidateHostNames(c.HostNames); err != nil {
+		return err
 	}
 	if _, err := upstreamDialOverrides(c); err != nil {
 		return err
@@ -538,6 +536,21 @@ func ValidateConfig(c PortConfig, managePort uint16) error {
 		}
 	}
 	return ValidatePolicy(c.Policy)
+}
+
+func ValidateHostNames(hosts []string) error {
+	if len(hosts) > 100 {
+		return fmt.Errorf("最多填写 100 个域名或 IP")
+	}
+	for _, host := range hosts {
+		if address, err := netip.ParseAddr(host); err == nil && address.Zone() == "" {
+			continue
+		}
+		if host == "" || len(host) > 253 || strings.ContainsAny(host, "/:@\\\x00\r\n\t []") {
+			return fmt.Errorf("主机名应为域名或 IP，不含协议、端口或路径：%s", host)
+		}
+	}
+	return nil
 }
 
 // Transport canonicalizes internationalized names before dialing. Validate and

@@ -20,12 +20,18 @@ fs.mkdirSync(artifact, { recursive: true });
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const configs = new Map(),
   users = new Map(),
+  certificateBindings = new Map(),
   tokens = new Set();
 let templates = clone(source),
   saveCalls = [],
   savePayloads = [],
   failSavePort = 0,
-  failConnection = false;
+  failConnection = false,
+  failCertificates = false,
+  emptyCertificates = false,
+  certificateCreated = false,
+  failCertificateSave = true,
+  canCreateCertificate = true;
 const report = { checks: [], errors: [], writes: [] };
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ viewport: { width: 1600, height: 1100 }, colorScheme: 'light' });
@@ -78,6 +84,19 @@ await context.route('**/api/**', async (route) => {
   if (endpoint === 'iplocation/status')
     return ok({ ipv4_file_size: 11122714, ipv6_file_size: 37283761, ipv4_builtin: true, ipv6_builtin: true });
   if (endpoint === 'wafhost/ipgroup/options') return ok([]);
+  if (endpoint === 'sslconfig/add') {
+    if (failCertificateSave)
+      return route.fulfill({
+        json: {
+          code: 1,
+          msg: '证书与私钥不匹配',
+          data: AesEncrypt(JSON.stringify({ field_errors: { key_content: '证书与私钥不匹配' } })),
+        },
+      });
+    certificateCreated = true;
+    report.writes.push({ action: 'sslconfig/add' });
+    return ok({ id: 'new-cert', export_failed: false });
+  }
   if (!endpoint.startsWith('pipeline/')) return ok({ list: [], total: 0 });
   const action = endpoint.slice(9);
   if (req.method() === 'POST') report.writes.push({ action, port: p || undefined });
@@ -121,6 +140,36 @@ await context.route('**/api/**', async (route) => {
     });
   }
   if (action === 'ports/check') return configs.has(input.port) ? fail('端口已有独立配置') : ok('检查通过');
+  if (action === 'tls/options') {
+    if (failCertificates) return fail('读取证书列表失败，请重试');
+    const valid = !input.host_names.some((host) => host !== 'nas.example.test');
+    const certificate = {
+      id: 'nas-cert',
+      domains: ['nas.example.test'],
+      expires_at: '2030-01-01T00:00:00Z',
+      valid,
+      reason: valid ? '' : '证书未覆盖域名或 IP：' + input.host_names.join(', '),
+    };
+    return ok({
+      can_create: canCreateCertificate,
+      certificates: emptyCertificates
+        ? []
+        : [
+            certificate,
+            { ...certificate, id: 'expired-cert', valid: false, reason: '证书已过期，请更新证书' },
+            ...(certificateCreated ? [{ ...certificate, id: 'new-cert' }] : []),
+          ],
+      current: certificateBindings.has(p) ? certificate : undefined,
+    });
+  }
+  if (action === 'tls/check') {
+    if (input.host_names.some((host) => host !== 'nas.example.test'))
+      return fail('证书未覆盖域名或 IP：' + input.host_names.join(', '));
+    if (input.tls_certificate || input.tls_private_key) return fail('证书或私钥不合法，或两者不匹配');
+    if (!['nas-cert', 'new-cert'].includes(input.tls_certificate_id) && !certificateBindings.has(p))
+      return fail('HTTPS 需要证书和私钥，请选择已有证书或填写 PEM');
+    return ok({ id: 'nas-cert', domains: ['nas.example.test'], valid: true, expires_at: '2030-01-01T00:00:00Z' });
+  }
   if (action === 'upstream/test') return failConnection ? fail('无法连接现有服务，请检查地址和端口') : ok('连接成功');
   if (action === 'explain') return ok(resultFor(input.config));
   if (action === 'ports/save') {
@@ -128,6 +177,8 @@ await context.route('**/api/**', async (route) => {
     const old = configs.get(p),
       config = clone(input.config);
     if (old && old.revision !== config.revision) return fail('配置已更新，请刷新');
+    if (old?.listen_enabled && old.protocol !== config.protocol && !input.confirm_listener_restart)
+      return fail('更改监听协议将平滑重启该服务，请确认后保存');
     if (
       config.policy.gate.enabled &&
       !(users.get(p) || []).some((u) => u.enabled) &&
@@ -143,6 +194,7 @@ await context.route('**/api/**', async (route) => {
     savePayloads.push(clone(input));
     config.revision = (old?.revision || 0) + 1;
     configs.set(p, config);
+    if (input.tls_certificate_id) certificateBindings.set(p, input.tls_certificate_id);
     if (input.initial_username)
       users.set(p, [{ username: input.initial_username, enabled: true, expires_at: 0, remark: '' }]);
     return ok(config);
@@ -223,11 +275,51 @@ try {
   await guide.getByRole('button', { name: '上一步' }).click();
   await guide.getByRole('radio', { name: /公开网站/ }).check();
   await guide.getByRole('button', { name: '继续填写地址' }).click();
-  await expect(guide.locator('input.el-input__inner:visible')).toHaveCount(1);
+  await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toBeVisible();
+  await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toHaveValue('');
+  await expect(guide.getByLabel('允许的主机名（域名或 IP）', { exact: true })).toBeVisible();
   await guide.getByLabel('现有服务地址', { exact: true }).fill('https://user:secret@nas.test');
   await guide.getByRole('button', { name: '继续设置异常处置' }).click();
   await expect(guide.getByText('地址中不能包含账号密码，请只填写服务地址。')).toBeVisible();
   await guide.getByLabel('现有服务地址', { exact: true }).fill('127.0.0.1:18080');
+  await guide.getByRole('button', { name: '继续设置异常处置' }).click();
+  await expect(guide.getByText('填写 HomeWaf 监听端口，供访客访问。')).toBeVisible();
+  await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toBeFocused();
+  await guide.getByLabel('HomeWaf 监听端口', { exact: true }).fill('65536');
+  await guide.getByRole('button', { name: '继续设置异常处置' }).click();
+  await expect(guide.getByText('监听端口必须是 1–65535 之间的整数。')).toBeVisible();
+  await guide.getByLabel('HomeWaf 监听端口', { exact: true }).fill('18480');
+  await guide.getByLabel('允许的主机名（域名或 IP）', { exact: true }).fill('https://nas.example.test');
+  await guide.getByRole('button', { name: '继续设置异常处置' }).click();
+  await expect(guide.getByText('请只填写域名或 IP，不含协议、端口和路径：https://nas.example.test')).toBeVisible();
+  await guide.getByLabel('允许的主机名（域名或 IP）', { exact: true }).fill('nas.example.test,192.0.2.10,2001:db8::1');
+  for (const [width, height] of [
+    [1440, 1000],
+    [820, 1180],
+    [390, 844],
+    [320, 780],
+  ]) {
+    await page.setViewportSize({ width, height });
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((theme) => {
+        document.documentElement.setAttribute('theme-mode', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }, theme);
+      await guide.getByLabel('HomeWaf 监听端口', { exact: true }).scrollIntoViewIfNeeded();
+      await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toBeInViewport();
+      await guide.getByLabel('允许的主机名（域名或 IP）', { exact: true }).scrollIntoViewIfNeeded();
+      await expect(guide.getByLabel('允许的主机名（域名或 IP）', { exact: true })).toBeInViewport();
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
+        .toBeLessThanOrEqual(2);
+      await page.screenshot({
+        animations: 'disabled',
+        path: path.join(artifact, `guided-connection-${width}-${theme}.png`),
+      });
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await guide.getByRole('button', { name: '继续设置异常处置' }).click();
   await expect(guide.getByRole('heading', { name: '设置异常访问处置' })).toBeVisible();
   await expect(guide.getByRole('radio', { checked: true })).toHaveCount(0);
@@ -304,7 +396,7 @@ try {
   await expect(guide.getByRole('heading', { name: '确认服务配置' })).toBeVisible();
   await expect(guide.locator('.setup-review')).toContainText('累计 12 次');
   const beforeNewSave = saveCalls.length;
-  failSavePort = 5000;
+  failSavePort = 18480;
   await guide.getByRole('button', { name: '保存服务配置' }).click();
   await expect(guide.getByText('模拟并发修改，原配置保留')).toBeVisible();
   expect(saveCalls.length).toBe(beforeNewSave);
@@ -315,10 +407,11 @@ try {
   });
   await expect(guide).toHaveCount(0);
   expect(saveCalls.length).toBe(beforeNewSave + 1);
-  expect(configs.get(5000).listen_enabled).toBe(false);
-  expect(configs.get(5000).policy.gate.enabled).toBe(false);
-  expect(configs.get(5000).name).toBe('公开网站 · 127.0.0.1');
-  expect(configs.get(5000).policy.defense).toMatchObject({ enabled: true, mode: 'close', count: 12 });
+  expect(configs.get(18480).listen_enabled).toBe(false);
+  expect(configs.get(18480).policy.gate.enabled).toBe(false);
+  expect(configs.get(18480).name).toBe('公开网站 · 127.0.0.1');
+  expect(configs.get(18480).policy.defense).toMatchObject({ enabled: true, mode: 'close', count: 12 });
+  expect(configs.get(18480).host_names).toEqual(['nas.example.test', '192.0.2.10', '2001:db8::1']);
   expect(savePayloads.at(-1)).not.toHaveProperty('confirm_defense_migration');
   expect(savePayloads.at(-1).initial_username).toBe('');
   expect(savePayloads.at(-1).initial_password).toBe('');
@@ -328,7 +421,11 @@ try {
   );
 
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const serviceCard = page.getByTestId('service-cards').locator('article').filter({ hasText: '公开网站 · 127.0.0.1' });
+  const serviceCard = page
+    .getByTestId('service-cards')
+    .locator('article')
+    .filter({ hasText: '公开网站 · 127.0.0.1' })
+    .filter({ hasText: '18480' });
   await serviceCard.getByRole('button', { name: '异常访问处置', exact: true }).click();
   const editor = page.getByTestId('port-editor');
   await expect(editor.getByRole('radio', { name: '自动关闭访问', exact: true })).toBeChecked();
@@ -337,11 +434,13 @@ try {
   await editor.getByRole('spinbutton', { name: '触发处置的异常次数' }).press('Tab');
   await editor.getByRole('button', { name: '保存端口配置', exact: true }).click();
   await expect(editor).toBeHidden();
-  expect(configs.get(5000).policy.defense.count).toBe(15);
+  expect(configs.get(18480).policy.defense.count).toBe(15);
   report.checks.push('new service reopens with persisted defense and supports subsequent edits');
 
   await serviceCard.getByRole('button', { name: '更多服务操作' }).click();
   await page.getByRole('menuitem', { name: '复制服务配置' }).click();
+  await expect(page.getByLabel('复制目标端口', { exact: true })).toHaveValue('');
+  await page.getByLabel('复制目标端口', { exact: true }).fill('19480');
   await page.getByRole('button', { name: '生成复制草稿' }).click();
   await guide.getByRole('button', { name: '继续填写地址' }).click();
   await guide.getByRole('button', { name: '继续设置异常处置' }).click();
@@ -359,9 +458,9 @@ try {
   await guide.getByRole('button', { name: '保存服务配置' }).click();
   await expect(guide).toBeHidden();
   const copied = savePayloads.at(-1).config;
-  expect(copied.port).not.toBe(5000);
+  expect(copied.port).toBe(19480);
   expect(copied.policy.defense).toMatchObject({ enabled: true, mode: 'quiet', count: 15 });
-  expect(configs.get(5000).policy.defense.mode).toBe('close');
+  expect(configs.get(18480).policy.defense.mode).toBe('close');
   report.checks.push('copied service requires a mode, retains parameters through back navigation, saves independently');
 
   await page.goto(origin + '/#/waf-pipeline/ports?action=create');
@@ -372,14 +471,15 @@ try {
   await guide.getByLabel('现有服务地址', { exact: true }).fill('127.0.0.1:18080');
   await guide.getByLabel('访问账号', { exact: true }).fill('visitor');
   await guide.getByLabel('访问密码', { exact: true }).fill('isolated-visitor-password');
-  await guide.locator('summary').filter({ hasText: '连接选项' }).click();
-  await guide.getByRole('combobox', { name: '访客连接协议' }).focus();
-  await guide.getByRole('combobox', { name: '访客连接协议' }).press('ArrowDown');
+  await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toHaveValue('');
+  await guide.getByLabel('HomeWaf 监听端口', { exact: true }).fill('18481');
+  await guide.getByRole('combobox', { name: '监听协议', exact: true }).focus();
+  await guide.getByRole('combobox', { name: '监听协议', exact: true }).press('ArrowDown');
   await page.getByRole('option', { name: 'HTTPS（需要证书）', exact: true }).click();
   await guide.getByRole('button', { name: '继续设置异常处置' }).click();
-  await expect(guide.getByText('已选择 HTTPS，请在连接选项中填写 TLS 证书和私钥。')).toBeVisible();
-  await guide.getByRole('combobox', { name: '访客连接协议' }).focus();
-  await guide.getByRole('combobox', { name: '访客连接协议' }).press('ArrowDown');
+  await expect(guide.getByText('请从证书管理选择匹配域名或 IP 的证书，或新增证书。')).toBeVisible();
+  await guide.getByRole('combobox', { name: '监听协议', exact: true }).focus();
+  await guide.getByRole('combobox', { name: '监听协议', exact: true }).press('ArrowDown');
   await page.getByRole('option', { name: 'HTTP', exact: true }).click();
   await guide.getByRole('button', { name: '继续设置异常处置' }).click();
   await guide.getByRole('radio', { name: '收紧 IP 访问', exact: true }).check();
@@ -398,6 +498,152 @@ try {
   expect(storage).not.toContain('isolated-visitor-password');
   report.checks.push(
     'account and HTTPS prerequisites explain missing input, credentials survive safe back navigation and never enter browser storage, cancellation does not save',
+  );
+
+  configs.get(18480).listen_enabled = true;
+  await page.reload();
+  await serviceCard.getByRole('button', { name: '配置服务', exact: true }).click();
+  await editor.getByRole('tab', { name: /监听入口/ }).click();
+  await expect(editor.getByLabel('允许的主机名（域名或 IP）', { exact: true })).toHaveValue(
+    'nas.example.test\n192.0.2.10\n2001:db8::1',
+  );
+  await editor.getByLabel('允许的主机名（域名或 IP）', { exact: true }).fill('nas.example.test');
+  failCertificates = true;
+  await editor.getByRole('combobox', { name: '监听协议', exact: true }).focus();
+  await editor.getByRole('combobox', { name: '监听协议', exact: true }).press('ArrowDown');
+  await page.getByRole('option', { name: 'HTTPS', exact: true }).click();
+  await expect(editor.getByText('读取证书列表失败，请重试')).toBeVisible();
+  failCertificates = false;
+  emptyCertificates = true;
+  await editor.getByRole('button', { name: '重新读取证书', exact: true }).first().click();
+  await expect(editor.getByText(/还没有已保存的证书/)).toBeVisible();
+  emptyCertificates = false;
+  await editor.getByRole('button', { name: '重新读取证书', exact: true }).click();
+  await expect(editor.locator('.service-tls .el-select')).toContainText('nas.example.test');
+  await expect(editor.getByText(/已匹配：nas.example.test/)).toBeVisible();
+  for (const [width, height] of [
+    [1440, 1000],
+    [820, 1180],
+    [390, 844],
+    [320, 780],
+  ]) {
+    await page.setViewportSize({ width, height });
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((theme) => {
+        document.documentElement.setAttribute('theme-mode', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }, theme);
+      await editor.getByRole('heading', { name: 'HTTPS 证书', exact: true }).scrollIntoViewIfNeeded();
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
+        .toBeLessThanOrEqual(2);
+      await page.screenshot({ animations: 'disabled', path: path.join(artifact, `service-tls-${width}-${theme}.png`) });
+      await editor.getByRole('combobox', { name: '域名证书', exact: true }).scrollIntoViewIfNeeded();
+      await expect(editor.getByRole('combobox', { name: '域名证书', exact: true })).toBeInViewport();
+      await page.screenshot({
+        animations: 'disabled',
+        path: path.join(artifact, `service-tls-controls-${width}-${theme}.png`),
+      });
+    }
+  }
+  await editor.getByRole('button', { name: '保存端口配置', exact: true }).click();
+  const restart = page.getByRole('dialog', { name: '确认平滑重启服务', exact: true });
+  await expect(restart).toContainText('18480');
+  await expect(restart).toContainText('HTTP 切换为 HTTPS');
+  const beforeRestart = saveCalls.length;
+  await restart.getByRole('button', { name: '返回修改', exact: true }).click();
+  expect(saveCalls.length).toBe(beforeRestart);
+  expect(configs.get(18480).protocol).toBe('http');
+  await editor.getByRole('button', { name: '保存端口配置', exact: true }).click();
+  await restart.getByRole('button', { name: '保存并平滑重启', exact: true }).click();
+  await expect(editor).toBeHidden();
+  expect(configs.get(18480).protocol).toBe('https');
+  expect(certificateBindings.get(18480)).toBe('nas-cert');
+  expect(savePayloads.at(-1).tls_certificate_id).toBe('nas-cert');
+  expect(savePayloads.at(-1)).not.toHaveProperty('tls_private_key');
+  expect(savePayloads.at(-1).confirm_listener_restart).toBe(true);
+  expect(configs.get(18480).listen_enabled).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await serviceCard.getByRole('button', { name: '配置服务', exact: true }).click();
+  await editor.getByRole('tab', { name: /监听入口/ }).click();
+  await expect(editor.getByText(/当前证书检查通过/)).toBeVisible();
+  await editor.getByLabel('允许的主机名（域名或 IP）', { exact: true }).fill('wrong.example.test');
+  await expect(editor.getByText('证书未覆盖域名或 IP：wrong.example.test')).toBeVisible();
+  const beforeMismatch = saveCalls.length;
+  await editor.getByRole('button', { name: '保存端口配置', exact: true }).click();
+  await expect(editor).toBeVisible();
+  expect(saveCalls.length).toBe(beforeMismatch);
+  expect(configs.get(18480).host_names).toEqual(['nas.example.test']);
+  await editor.getByLabel('允许的主机名（域名或 IP）', { exact: true }).fill('nas.example.test');
+  await editor.getByRole('button', { name: '保存端口配置', exact: true }).click();
+  await expect(editor).toBeHidden();
+  report.checks.push(
+    'HTTP to HTTPS selects a matching stored certificate, distinguishes read failure and empty catalog, persists only its identity, and blocks hostname mismatch on reopen',
+  );
+
+  await page.goto(origin + '/#/waf-pipeline/ports?action=create');
+  await guide.getByRole('button', { name: '继续填写地址' }).click();
+  await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toHaveValue('');
+  await guide.getByLabel('现有服务地址', { exact: true }).fill('127.0.0.1:18080');
+  await guide.getByLabel('HomeWaf 监听端口', { exact: true }).fill('18480');
+  await guide.getByLabel('允许的主机名（域名或 IP）', { exact: true }).fill('nas.example.test');
+  await guide.getByRole('combobox', { name: '监听协议', exact: true }).focus();
+  await guide.getByRole('combobox', { name: '监听协议', exact: true }).press('ArrowDown');
+  await page.getByRole('option', { name: 'HTTPS（需要证书）', exact: true }).click();
+  await expect(guide.getByText(/已匹配：nas.example.test/)).toBeVisible();
+  await expect(guide.getByLabel('服务名称', { exact: true })).toBeVisible();
+  await guide.getByRole('button', { name: '新增证书', exact: true }).click();
+  const certificateEditor = page.getByTestId('certificate-editor');
+  await expect(certificateEditor).toBeVisible();
+  await certificateEditor.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(certificateEditor).toBeHidden();
+  await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toHaveValue('18480');
+  await guide.getByRole('button', { name: '新增证书', exact: true }).click();
+  const certificatePEM = '-----BEGIN CERTIFICATE-----\nZmFrZS1jZXJ0\n-----END CERTIFICATE-----';
+  const privatePEM = '-----BEGIN PRIVATE KEY-----\nprivate-key-fixture\n-----END PRIVATE KEY-----';
+  await certificateEditor.locator('#certificate-cert_content').fill(certificatePEM);
+  await certificateEditor.locator('#certificate-key_content').fill(privatePEM);
+  for (const [width, height] of [[1440, 1000], [390, 844]]) {
+    await page.setViewportSize({ width, height });
+    await certificateEditor.locator('#certificate-key_content').scrollIntoViewIfNeeded();
+    await expect(certificateEditor.locator('#certificate-key_content')).toBeInViewport();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(2);
+    await page.screenshot({ animations: 'disabled', path: path.join(artifact, `inline-certificate-${width}.png`) });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await certificateEditor.locator('button[type="submit"]').click();
+  await expect(certificateEditor.getByText('证书与私钥不匹配').first()).toBeVisible();
+  await expect(certificateEditor.locator('#certificate-key_content')).toHaveValue(privatePEM);
+  failCertificateSave = false;
+  await certificateEditor.locator('button[type="submit"]').click();
+  await expect(certificateEditor).toBeHidden();
+  await expect(guide.getByText('证书已保存到证书管理，服务草稿已保留。')).toBeVisible();
+  await guide.getByRole('button', { name: '继续设置异常处置' }).click();
+  await guide.getByRole('radio', { name: '无提示拒绝', exact: true }).check();
+  await guide.getByRole('button', { name: '检查配置并继续' }).click();
+  await expect(guide.getByText('端口已有独立配置')).toBeVisible();
+  await guide.getByRole('button', { name: '上一步' }).click();
+  await expect(guide.getByLabel('允许的主机名（域名或 IP）', { exact: true })).toHaveValue('nas.example.test');
+  await guide.getByLabel('HomeWaf 监听端口', { exact: true }).fill('28443');
+  await expect(guide.getByText(/已匹配：nas.example.test/)).toBeVisible();
+  await guide.getByRole('button', { name: '继续设置异常处置' }).click();
+  await guide.getByRole('button', { name: '检查配置并继续' }).click();
+  await expect(guide.locator('.setup-review')).toContainText('28443');
+  await expect(guide.locator('.setup-review')).toContainText('nas.example.test');
+  await guide.getByRole('button', { name: '保存服务配置' }).click();
+  await expect(guide).toBeHidden();
+  expect(configs.get(28443).protocol).toBe('https');
+  expect(configs.get(28443).listen_enabled).toBe(false);
+  expect(certificateBindings.get(28443)).toBe('new-cert');
+  expect(certificateCreated).toBe(true);
+  expect(savePayloads.at(-1)).not.toHaveProperty('tls_certificate');
+  expect(savePayloads.at(-1)).not.toHaveProperty('tls_private_key');
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain(
+    'private-key-fixture',
+  );
+  report.checks.push(
+    'new HTTPS service uses an explicit port, keeps input through port conflict and invalid PEM, preserves certificate selection on Back, and saves a managed binding without leaking manual keys',
   );
   expect(report.errors).toEqual([]);
   fs.writeFileSync(path.join(artifact, 'onboarding-report.json'), JSON.stringify(report, null, 2));

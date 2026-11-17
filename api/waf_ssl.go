@@ -37,7 +37,7 @@ func (s *WafSslConfigApi) AddSslConfigApi(c *gin.Context) {
 		if err == nil {
 			//证书已保存成功，导出只是附加动作：失败只提示，不改变保存结果
 			tip, exportFailed := s.exportTip(c, sslId)
-			response.OkWithDetailed(gin.H{"export_failed": exportFailed}, "添加成功"+tip, c)
+			response.OkWithDetailed(gin.H{"id": sslId, "export_failed": exportFailed}, "添加成功"+tip, c)
 		} else {
 			sslConfigInputError(c, err, "添加失败:"+err.Error())
 		}

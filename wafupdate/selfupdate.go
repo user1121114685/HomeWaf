@@ -36,6 +36,7 @@ const (
 var (
 	ErrHashMismatch       = errors.New("new file hash mismatch after patch")
 	ErrNoPublishedRelease = errors.New("HomeWaf 更新源尚未发布可用版本")
+	ErrUnversionedBuild   = errors.New("当前开发构建没有可比较的发布版本，请使用构建脚本或指定 HOMEWAF_VERSION")
 
 	defaultHTTPRequester = HTTPRequester{}
 )
@@ -193,6 +194,9 @@ func (u *Updater) ClearUpdateState() {
 	os.Remove(path)
 }
 func (u *Updater) UpdateAvailableWithChannel(channel string) (bool, string, string, error) {
+	if !semver.IsValid(normalizedVersion(u.CurrentVersion)) {
+		return false, "", "", ErrUnversionedBuild
+	}
 
 	path, err := os.Executable()
 	if err != nil {
@@ -247,6 +251,9 @@ func (u *Updater) UpdateAvailable() (bool, string, string, error) {
 
 // Update initiates the self update process
 func (u *Updater) Update() error {
+	if !semver.IsValid(normalizedVersion(u.CurrentVersion)) {
+		return ErrUnversionedBuild
+	}
 	if u.ApiURL == "" {
 		return u.updateRelease(false)
 	}
@@ -323,6 +330,9 @@ func (u *Updater) UpdateWithChannel(channel string) error {
 }
 
 func (u *Updater) updateRelease(beta bool) error {
+	if !semver.IsValid(normalizedVersion(u.CurrentVersion)) {
+		return ErrUnversionedBuild
+	}
 	u.Tracker.StageStart(StageManifest)
 	var err error
 	if beta {

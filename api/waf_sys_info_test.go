@@ -154,3 +154,23 @@ func TestCheckVersionNeedUploadApi(t *testing.T) {
 		})
 	}
 }
+
+func TestInternalBuildVersionAPIKeepsBuildIdentityWithoutSameReleasePrompt(t *testing.T) {
+	r := isolateVersionCheck(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"Version": "v2.0.2", "Sha256": make([]byte, 32), "Desc": "same source baseline"})
+	})
+	oldID, oldCommit, oldTime, oldChannel := global.GWAF_BUILD_ID, global.GWAF_BUILD_COMMIT, global.GWAF_BUILD_TIME, global.GWAF_BUILD_CHANNEL
+	t.Cleanup(func() {
+		global.GWAF_BUILD_ID, global.GWAF_BUILD_COMMIT, global.GWAF_BUILD_TIME, global.GWAF_BUILD_CHANNEL = oldID, oldCommit, oldTime, oldChannel
+	})
+	global.GWAF_RELEASE_VERSION = "v2.0.2+local.20261117140000.g2593713c.dirty"
+	global.GWAF_BUILD_ID, global.GWAF_BUILD_COMMIT, global.GWAF_BUILD_TIME, global.GWAF_BUILD_CHANNEL = "20261117140000.g2593713c.dirty", "2593713c", "2026-11-17T14:00:00Z", "internal"
+	out := checkVersionFixture(t, r)
+	var data model.VersionInfo
+	if err := json.Unmarshal(out.Data, &data); err != nil {
+		t.Fatal(err)
+	}
+	if out.Code != 0 || data.NeedUpdate || data.VersionNew != "" || data.BuildID != global.GWAF_BUILD_ID || data.BuildChannel != "internal" {
+		t.Fatalf("incorrect internal version response: %s", out.Data)
+	}
+}

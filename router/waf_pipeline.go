@@ -30,6 +30,8 @@ func InitPipelineRouter(group *gin.RouterGroup) {
 	r.POST("/cc/recommend", a.RecommendPipelineCC)
 	r.POST("/ports/save", a.SavePort)
 	r.POST("/ports/check", a.CheckPipelinePort)
+	r.POST("/tls/options", a.PipelineTLSOptions)
+	r.POST("/tls/check", a.CheckPipelineTLS)
 	r.POST("/ports/delete", a.DeletePort)
 	r.POST("/ports/copy", a.CopyPort)
 	r.GET("/templates", a.Templates)

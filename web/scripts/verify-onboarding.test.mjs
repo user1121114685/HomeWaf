@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   normalizeServiceAddress,
   serviceStatus,
-  suggestPort,
+  parseListenPort,
+  parseServiceHosts,
   suggestedName,
   optionalAccessDefaults,
   parseAllowedSources,
@@ -43,9 +44,28 @@ test('address validation prevents credentials and silently dropping a path', () 
   ])
     assert.throws(() => normalizeServiceAddress(input));
 });
-test('port recommendations skip both new and legacy listeners without exceeding 65535', () => {
-  assert.equal(suggestPort([5000, 5001, 5003]), 5002);
-  assert.equal(suggestPort([65535], 65535), 1024);
+test('listener port must be explicitly entered and remain in range', () => {
+  assert.equal(parseListenPort(' 8443 '), 8443);
+  assert.equal(parseListenPort('65535'), 65535);
+  for (const value of ['', '0', '65536', '-1', '8e3', '80.5', 'http://80']) assert.throws(() => parseListenPort(value));
+});
+test('allowed hosts accept domains and IP addresses without protocols or ports', () => {
+  assert.deepEqual(parseServiceHosts('nas.example.test，192.0.2.10\n2001:db8::1,nas.example.test'), [
+    'nas.example.test',
+    '192.0.2.10',
+    '2001:db8::1',
+  ]);
+  assert.deepEqual(parseServiceHosts(''), []);
+  assert.deepEqual(parseServiceHosts('*.example.test'), ['*.example.test']);
+  for (const value of [
+    'https://nas.test',
+    'nas.test:8443',
+    'nas.test/path',
+    'nas.test?x=1',
+    'user@nas.test',
+    '2001:xyz::1',
+  ])
+    assert.throws(() => parseServiceHosts(value));
 });
 test('generated names describe the selected service and actual host', () => {
   assert.equal(suggestedName('public-site', '192.168.1.2:8080'), '公开网站 · 192.168.1.2');

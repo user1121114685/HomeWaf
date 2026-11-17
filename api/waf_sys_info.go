@@ -112,6 +112,7 @@ func (w *WafSysInfoApi) GetAnnouncementApi(c *gin.Context) {
 // @Router       /sysinfo/version [get]
 func (w *WafSysInfoApi) SysVersionApi(c *gin.Context) {
 	response.OkWithDetailed(model.VersionInfo{
+		BuildID: global.GWAF_BUILD_ID, BuildCommit: global.GWAF_BUILD_COMMIT, BuildTime: global.GWAF_BUILD_TIME, BuildChannel: global.GWAF_BUILD_CHANNEL,
 		Version:        global.GWAF_RELEASE_VERSION,
 		VersionName:    global.GWAF_RELEASE_VERSION_NAME,
 		VersionRelease: global.GWAF_RELEASE,
@@ -132,6 +133,7 @@ func (w *WafSysInfoApi) SysRuntimeInfoApi(c *gin.Context) {
 	detail := utils.GetOSDetail()
 
 	info := model.RuntimeSystemInfo{
+		BuildID: global.GWAF_BUILD_ID, BuildCommit: global.GWAF_BUILD_COMMIT, BuildTime: global.GWAF_BUILD_TIME, BuildChannel: global.GWAF_BUILD_CHANNEL,
 		Version:        global.GWAF_RELEASE_VERSION,
 		VersionName:    global.GWAF_RELEASE_VERSION_NAME,
 		VersionRelease: global.GWAF_RELEASE,
@@ -173,12 +175,17 @@ func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
 		CmdName:        "homewaf_update",
 	}
 	available, newVer, desc, err := updater.UpdateAvailable()
+	unversioned := errors.Is(err, wafupdate.ErrUnversionedBuild)
 	message := "当前已是最新版本"
+	if unversioned {
+		message = err.Error()
+		err = nil
+	}
 	if errors.Is(err, wafupdate.ErrNoPublishedRelease) {
 		message = "HomeWaf 更新源尚未发布正式版本，发布后即可检查更新"
 		err = nil
 	}
-	if !available && global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION == 1 && global.GUPDATE_GITHUB_VERSION_URL != "" {
+	if !unversioned && !available && global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION == 1 && global.GUPDATE_GITHUB_VERSION_URL != "" {
 		betaAvailable, betaVersion, betaDesc, betaErr := updater.UpdateAvailableWithChannel("github")
 		if betaAvailable {
 			available, newVer, desc, err = true, betaVersion, betaDesc, nil
@@ -196,14 +203,15 @@ func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
 		message = "有新版本"
 	}
 	response.OkWithDetailed(model.VersionInfo{
-		Version:           global.GWAF_RELEASE_VERSION,
-		VersionName:       global.GWAF_RELEASE_VERSION_NAME,
-		VersionRelease:    global.GWAF_RELEASE,
-		NeedUpdate:        available,
+		Version:        global.GWAF_RELEASE_VERSION,
+		VersionName:    global.GWAF_RELEASE_VERSION_NAME,
+		VersionRelease: global.GWAF_RELEASE,
+		NeedUpdate:     available,
+		BuildID:        global.GWAF_BUILD_ID, BuildCommit: global.GWAF_BUILD_COMMIT, BuildTime: global.GWAF_BUILD_TIME, BuildChannel: global.GWAF_BUILD_CHANNEL,
 		VersionNew:        newVer,
 		VersionDesc:       desc,
 		Container:         utils.DetectContainerRuntime(),
-		SelfUpdateAllowed: isSelfUpdateAllowed(),
+		SelfUpdateAllowed: isSelfUpdateAllowed() && !unversioned,
 	}, message, c)
 }
 

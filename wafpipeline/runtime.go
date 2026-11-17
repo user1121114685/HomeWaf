@@ -328,10 +328,18 @@ func portHostAllowed(names []string, host string) bool {
 		} else {
 			hostname = strings.TrimSuffix(strings.TrimPrefix(hostname, "["), "]")
 		}
-	} else if i := strings.LastIndexByte(hostname, ':'); i >= 0 {
-		hostname = hostname[:i]
+	} else if _, err := netip.ParseAddr(hostname); err != nil {
+		if i := strings.LastIndexByte(hostname, ':'); i >= 0 {
+			hostname = hostname[:i]
+		}
 	}
+	address, addressErr := netip.ParseAddr(hostname)
 	for _, allowed := range names {
+		if addressErr == nil {
+			if candidate, err := netip.ParseAddr(allowed); err == nil && address == candidate {
+				return true
+			}
+		}
 		if strings.EqualFold(allowed, hostname) || strings.HasPrefix(allowed, "*.") && strings.HasSuffix(hostname, strings.ToLower(allowed[1:])) {
 			return true
 		}

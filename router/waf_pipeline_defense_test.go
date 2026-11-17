@@ -24,6 +24,8 @@ func TestPipelineDefenseRouteAuthenticationAndRoles(t *testing.T) {
 		{"GET", "/honeypot"},
 		{"GET", "/honeypot/logs"},
 		{"POST", "/honeypot/save"},
+		{"POST", "/tls/options"},
+		{"POST", "/tls/check"},
 	}
 	for _, tc := range []struct {
 		name, role string

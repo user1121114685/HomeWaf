@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { resolveBuildVersion, buildMetadataFlags } from './build-version.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
@@ -61,10 +62,10 @@ if (!process.argv.includes("--web-only")) {
     os === "windows"
       ? "HomeWaf64.exe"
       : `HomeWaf${os === "darwin" ? "Darwin" : "Linux"}${arch === "arm64" ? "Arm64" : "64"}`;
-  const version = process.env.HOMEWAF_VERSION || "v2.0.0-dev";
-  if (!/^v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.-]+)?$/.test(version))
-    throw new Error("Invalid HOMEWAF_VERSION");
-  let flags = `-s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=${version} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf`;
+  const build = resolveBuildVersion({ root });
+  const version = build.version;
+  console.log(`Building ${version} (${build.channel}, build ${build.buildId})`);
+  let flags = `-s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=${version} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf ${buildMetadataFlags(build)}`;
   for (const [envName, target] of [
     [
       "HOMEWAF_LICENSE_PUBLIC_KEYS",

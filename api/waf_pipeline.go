@@ -1,6 +1,7 @@
 package api
 
 import (
+	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/model/common/response"
 	"HomeWaf/service/waf_service"
@@ -18,6 +19,58 @@ import (
 )
 
 type WafPipelineApi struct{}
+
+// PipelineTLSOptions checks stored certificates against the service's proposed hostnames.
+// @Summary Find compatible certificates without returning private material
+// @Tags Pipeline
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Description Requires security-admin role. Does not save or bind certificates. Management transport encrypts the request and response.
+// @Param request body waf_service.PipelineTLSRequest true "Proposed service identity and hostnames"
+// @Success 200 {object} response.Response{data=waf_service.PipelineTLSOptions}
+// @Failure 401 {object} response.Response
+// @Failure 403 {object} response.Response
+// @Router /api/v1/pipeline/tls/options [post]
+func (w *WafPipelineApi) PipelineTLSOptions(c *gin.Context) {
+	var req waf_service.PipelineTLSRequest
+	if !pipelineBind(c, &req) {
+		return
+	}
+	result, err := waf_service.WafPipelineServiceApp.TLSOptions(req)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	role := c.GetString("userRole")
+	result.CanCreate = role == enums.ROLE_SUPER_ADMIN || role == enums.ROLE_SYSTEM_ADMIN
+	response.OkWithDetailed(result, "", c)
+}
+
+// CheckPipelineTLS validates a selected, current or manually supplied certificate without saving.
+// @Summary Check TLS key pairing, validity and hostname coverage
+// @Tags Pipeline
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Description Requires security-admin role. Save repeats validation. Does not verify client trust or network reachability.
+// @Param request body waf_service.PipelineTLSRequest true "Certificate selection and proposed hostnames"
+// @Success 200 {object} response.Response{data=waf_service.PipelineTLSCertificate}
+// @Failure 401 {object} response.Response
+// @Failure 403 {object} response.Response
+// @Router /api/v1/pipeline/tls/check [post]
+func (w *WafPipelineApi) CheckPipelineTLS(c *gin.Context) {
+	var req waf_service.PipelineTLSRequest
+	if !pipelineBind(c, &req) {
+		return
+	}
+	result, err := waf_service.WafPipelineServiceApp.CheckTLS(req)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithDetailed(result, "证书检查通过；保存时会再次校验", c)
+}
 
 // PipelineOverview returns port configuration and bounded runtime summaries.
 // @Summary PipelineOverview returns port configuration and bounded runtime summaries.

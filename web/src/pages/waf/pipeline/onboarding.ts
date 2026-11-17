@@ -35,11 +35,38 @@ export const serviceScenes = [
   },
 ];
 
-export function suggestPort(used: number[], start = 5000): number {
-  const taken = new Set(used);
-  for (let port = start; port <= 65535; port++) if (!taken.has(port)) return port;
-  for (let port = 1024; port < start; port++) if (!taken.has(port)) return port;
-  throw new Error('没有可推荐的端口，请先释放一个端口。');
+export function parseListenPort(input: string): number {
+  const value = input.trim();
+  if (!value) throw new Error('填写 HomeWaf 监听端口，供访客访问。');
+  const port = Number(value);
+  if (!/^\d+$/.test(value) || !Number.isInteger(port) || port < 1 || port > 65535)
+    throw new Error('监听端口必须是 1–65535 之间的整数。');
+  return port;
+}
+
+export function parseServiceHosts(input: string): string[] {
+  const hosts = [
+    ...new Set(
+      input
+        .split(/[\r\n,，]+/)
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (hosts.length > 100) throw new Error('最多填写 100 个域名或 IP。');
+  return hosts.map((host) => {
+    const invalid = () => new Error(`请只填写域名或 IP，不含协议、端口和路径：${host}`);
+    if (host.includes(':')) {
+      try {
+        const parsed = new URL(`http://[${host}]/`);
+        return parsed.hostname.slice(1, -1);
+      } catch {
+        throw invalid();
+      }
+    }
+    if (host.length > 253 || /[\s/:@\\\0\[\]?#]/.test(host)) throw invalid();
+    return host;
+  });
 }
 
 export function normalizeServiceAddress(input: string): string {

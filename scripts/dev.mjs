@@ -1,5 +1,6 @@
 // Development only: watch -> staged build -> existing rolling-restart.
 import fs from "node:fs";
+import { resolveBuildVersion, buildMetadataFlags } from './build-version.mjs';
 import path from "node:path";
 import net from "node:net";
 import { spawn, spawnSync } from "node:child_process";
@@ -103,9 +104,11 @@ function cleanBinaries() {
 }
 async function rebuild() {
   await run(process.execPath, ["scripts/prepare-ip-databases.mjs", "--check"]);
-  const version = `v2.0.0-dev.${Date.now()}.${++generation}`;
+  const build = resolveBuildVersion({ root });
+  const version = build.version;
+  ++generation;
   log(`Building ${version}...`);
-  await run("go", ["build", `-ldflags=-X HomeWaf/global.GWAF_RELEASE=false -X HomeWaf/global.GWAF_RELEASE_VERSION=${version}`, "-o", candidate, "./cmd/homewaf"]);
+  await run("go", ["build", `-ldflags=-X HomeWaf/global.GWAF_RELEASE=false -X HomeWaf/global.GWAF_RELEASE_VERSION=${version} ${buildMetadataFlags(build)}`, "-o", candidate, "./cmd/homewaf"]);
   if (stopping) return;
   const before = readState();
   if ((supervisor || attached) && before?.upgrading) throw new Error("Supervisor is already switching Workers; save again after it finishes");

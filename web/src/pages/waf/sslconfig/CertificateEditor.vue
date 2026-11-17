@@ -6,6 +6,7 @@
     width="820px"
     class="certificate-editor"
     data-testid="certificate-editor"
+    append-to-body
     :close-on-click-modal="false"
     :close-on-press-escape="!busy && !reading"
     :show-close="!busy && !reading"
@@ -179,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -217,7 +218,10 @@ interface CertificateRecord extends CertificateDraft {
   export_status?: string;
 }
 const { t } = useI18n();
-const emit = defineEmits<{ saved: [result: { message: string; exportFailed: boolean }] }>();
+const emit = defineEmits<{
+  saved: [result: { id?: string; message: string; exportFailed: boolean }];
+  'visibility-change': [visible: boolean];
+}>();
 const emptyDraft = (): CertificateDraft => ({
   cert_content: '',
   key_content: '',
@@ -234,6 +238,7 @@ const visible = ref(false),
   reading = ref(false);
 const snapshot = ref(''),
   originalContent = ref('');
+watch(visible, (value) => emit('visibility-change', value), { flush: 'sync' });
 const saveError = ref(''),
   readNotice = ref('');
 const fieldErrors = ref<Partial<Record<PemField, string>>>({});
@@ -344,6 +349,7 @@ async function save() {
     }
     snapshot.value = JSON.stringify(draft);
     emit('saved', {
+      id: result.data?.id || current.value.id,
       message: result.msg || t('page.ssl.editor.saved'),
       exportFailed: result.data?.export_failed === true || Boolean(result.msg?.includes('但证书导出失败')),
     });

@@ -193,25 +193,27 @@ func (s *WafPipelineService) Get(port uint16) (wafpipeline.PortConfig, error) {
 }
 
 type PortSaveRequest struct {
-	defenseWrite       bool
-	accessIntent       bool
-	defenseOwner       string
-	Config             wafpipeline.PortConfig                 `json:"config"`
-	Username           string                                 `json:"initial_username,omitempty"`
-	Password           string                                 `json:"initial_password,omitempty"`
-	InitialTOTP        string                                 `json:"initial_totp_secret,omitempty"`
-	TLSCert            string                                 `json:"tls_certificate,omitempty"`
-	TLSKey             string                                 `json:"tls_private_key,omitempty"`
-	UpstreamCA         string                                 `json:"upstream_ca,omitempty"`
-	ClearUpstreamCA    bool                                   `json:"clear_upstream_ca,omitempty"`
-	BusinessHeaders    map[string]wafpipeline.BusinessHeaders `json:"business_headers,omitempty"`
-	PluginProfiles     map[string]wafpipeline.PluginLaunch    `json:"plugin_profiles,omitempty"`
-	PrivacyConfig      string                                 `json:"privacy_engine_config,omitempty"`
-	ClearPrivacyConfig bool                                   `json:"clear_privacy_engine_config,omitempty"`
-	Operator           string                                 `json:"-"`
-	TLSRefresh         *pipelineTLSRefresh                    `json:"-"`
-	TLSBind            *pipelineTLSRefresh                    `json:"-"`
-	TamperUpdates      map[string]wafpipeline.TamperBaseline  `json:"-"`
+	defenseWrite           bool
+	accessIntent           bool
+	defenseOwner           string
+	Config                 wafpipeline.PortConfig                 `json:"config"`
+	Username               string                                 `json:"initial_username,omitempty"`
+	Password               string                                 `json:"initial_password,omitempty"`
+	InitialTOTP            string                                 `json:"initial_totp_secret,omitempty"`
+	TLSCert                string                                 `json:"tls_certificate,omitempty"`
+	TLSKey                 string                                 `json:"tls_private_key,omitempty"`
+	TLSCertificateID       string                                 `json:"tls_certificate_id,omitempty"`
+	ConfirmListenerRestart bool                                   `json:"confirm_listener_restart,omitempty"`
+	UpstreamCA             string                                 `json:"upstream_ca,omitempty"`
+	ClearUpstreamCA        bool                                   `json:"clear_upstream_ca,omitempty"`
+	BusinessHeaders        map[string]wafpipeline.BusinessHeaders `json:"business_headers,omitempty"`
+	PluginProfiles         map[string]wafpipeline.PluginLaunch    `json:"plugin_profiles,omitempty"`
+	PrivacyConfig          string                                 `json:"privacy_engine_config,omitempty"`
+	ClearPrivacyConfig     bool                                   `json:"clear_privacy_engine_config,omitempty"`
+	Operator               string                                 `json:"-"`
+	TLSRefresh             *pipelineTLSRefresh                    `json:"-"`
+	TLSBind                *pipelineTLSRefresh                    `json:"-"`
+	TamperUpdates          map[string]wafpipeline.TamperBaseline  `json:"-"`
 }
 
 func (s *WafPipelineService) Save(req PortSaveRequest) (wafpipeline.PortConfig, error) {
@@ -281,8 +283,8 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 		if c.Revision != oldRow.Revision {
 			return c, errors.New("配置已被修改，请刷新后重试")
 		}
-		if c.Protocol != oldSnap.Config.Protocol && oldSnap.Config.ListenEnabled {
-			return c, errors.New("更改协议前请先停止该端口")
+		if c.Protocol != oldSnap.Config.Protocol && oldSnap.Config.ListenEnabled && c.ListenEnabled && !req.ConfirmListenerRestart {
+			return c, errors.New("更改监听协议将平滑重启该服务，请确认后保存")
 		}
 		if c.Policy.Network.ListenIPVersion != oldSnap.Config.Policy.Network.ListenIPVersion && oldSnap.Config.ListenEnabled {
 			return c, errors.New("更改IP监听范围前请先停止该端口")
@@ -362,6 +364,21 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	if err := wafpipeline.ValidateBusinessHeaders(secrets.BusinessHeaders); err != nil {
 		return c, err
 	}
+	if req.TLSCertificateID != "" {
+		if req.TLSKey != "" || req.TLSCert != "" {
+			return c, errors.New("已有证书和手动 PEM 只能选择一种")
+		}
+		selected, err := selectedPipelineCertificate(req.TLSCertificateID)
+		if err != nil {
+			return c, err
+		}
+		if err := validatePipelineTLS(wafpipeline.PortSecrets{TLSCert: selected.Certificate, TLSKey: selected.PrivateKey}, c.HostNames); err != nil {
+			return c, err
+		}
+		if err := bindCertificateSource(&secrets, selected); err != nil {
+			return c, err
+		}
+	}
 	if req.TLSKey != "" || req.TLSCert != "" {
 		if req.TLSKey == "" || req.TLSCert == "" {
 			return c, errors.New("证书与私钥须同时提交")
@@ -421,6 +438,11 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	if secrets.TLSKey != "" || secrets.TLSCert != "" {
 		if _, err := tls.X509KeyPair([]byte(secrets.TLSCert), []byte(secrets.TLSKey)); err != nil {
 			return c, errors.New("证书或私钥不合法")
+		}
+	}
+	if c.Protocol == "https" && (isNew || req.TLSCertificateID != "" || req.TLSCert != "" || req.TLSKey != "" || oldSnap != nil && (oldSnap.Config.Protocol != "https" || !oldSnap.Config.ListenEnabled && c.ListenEnabled || !reflect.DeepEqual(oldSnap.Config.HostNames, c.HostNames))) {
+		if err := validatePipelineTLS(secrets, c.HostNames); err != nil {
+			return c, err
 		}
 	}
 	if c.ListenEnabled && s.OnChange == nil {

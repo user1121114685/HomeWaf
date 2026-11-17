@@ -127,3 +127,27 @@ func TestCertificateEditorValidationAndSaveResult(t *testing.T) {
 		t.Fatal("edit changed another certificate")
 	}
 }
+
+func TestCertificateAddReturnsManagedResourceIdentity(t *testing.T) {
+	setupNotifyTestEnv(t, &model.SslConfig{}, &model.Hosts{}, &model.SecurityAuditLog{})
+	cert, key := certificateEditorTestPair(t, 11)
+	payload, _ := json.Marshal(request.SslConfigAddReq{CertContent: cert, KeyContent: key})
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Set("is_openapi", true)
+	ctx.Request = httptest.NewRequest("POST", "/api/v1/sslconfig/add", bytes.NewReader(payload))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	new(WafSslConfigApi).AddSslConfigApi(ctx)
+	var result struct {
+		Code int `json:"code"`
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &result); err != nil || result.Code != 0 || result.Data.ID == "" {
+		t.Fatalf("missing saved identity: %s %v", recorder.Body.String(), err)
+	}
+	if strings.Contains(recorder.Body.String(), "PRIVATE KEY") {
+		t.Fatal("save leaked private material")
+	}
+}

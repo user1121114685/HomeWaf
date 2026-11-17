@@ -1,6 +1,10 @@
 package model
 
 type VersionInfo struct {
+	BuildID        string `json:"build_id,omitempty"`
+	BuildCommit    string `json:"build_commit,omitempty"`
+	BuildTime      string `json:"build_time,omitempty"`
+	BuildChannel   string `json:"build_channel,omitempty"`
 	NeedUpdate     bool   `json:"need_update"`
 	Version        string `json:"version"`
 	VersionName    string `json:"version_name"`
@@ -18,6 +22,10 @@ type VersionInfo struct {
 // RuntimeSystemInfo 系统运行环境信息(供前端版本弹窗展示，便于用户反馈问题时定位环境)
 // 说明：所有字段都是"取不到就为空/零值"，前端按需隐藏，不会因为某项探测失败而整体失败
 type RuntimeSystemInfo struct {
+	BuildID      string `json:"build_id,omitempty"`
+	BuildCommit  string `json:"build_commit,omitempty"`
+	BuildTime    string `json:"build_time,omitempty"`
+	BuildChannel string `json:"build_channel,omitempty"`
 	//软件信息
 	Version        string `json:"version"`         //软件版本Code 如 v1.0.0
 	VersionName    string `json:"version_name"`    //软件版本 如 20241028

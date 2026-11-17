@@ -296,7 +296,12 @@
     </ElDialog>
     <ElDialog v-model="copyVisible" title="复制端口配置" width="min(600px,94vw)"
       ><p>来源端口 {{ copySource?.port }}。凭据、会话与TLS私钥不复制，目标监听保持关闭，登录门须重新设置。</p>
-      <label>新端口<ElInputNumber v-model="copyTarget" :min="1" :max="65535" aria-label="复制目标端口" /></label
+      <label
+        >新端口<ElInput
+          v-model="copyTarget"
+          inputmode="numeric"
+          placeholder="填写新服务的监听端口"
+          aria-label="复制目标端口" /></label
       ><ElCheckbox v-model="copyIPs" class="space">同时复制地址名单和 IP 组引用（默认不复制）</ElCheckbox
       ><template #footer
         ><ElButton @click="copyVisible = false">取消</ElButton
@@ -461,6 +466,7 @@ import {
   ElTag,
 } from 'element-plus';
 import { pipelineGet, pipelinePost } from '@/apis/pipeline';
+import { parseListenPort } from './onboarding';
 import {
   clone,
   mapBounded,
@@ -476,7 +482,6 @@ import Trace from './Trace.vue';
 import { serviceReturnPath } from './diagnostics';
 import LegacyMigration from './LegacyMigration.vue';
 import ServiceCards from './ServiceCards.vue';
-import { suggestPort } from './onboarding';
 import { ArrowRight, Connection, Search } from '@element-plus/icons-vue';
 import type { LegacyPortSummary } from './model';
 const legacyPorts = ref<LegacyPortSummary[]>([]),
@@ -515,7 +520,7 @@ const enableVisible = ref(false),
   enableCandidate = ref<PortConfig | null>(null);
 const copyVisible = ref(false),
   copySource = ref<PortConfig | null>(null),
-  copyTarget = ref(5001),
+  copyTarget = ref(''),
   copyIPs = ref(false);
 const batchVisible = ref(false),
   batchTemplate = ref(''),
@@ -604,8 +609,7 @@ function create() {
   editorTab.value = 'common';
   const tpl = templates.value.find((t) => t.id === 'family-nas') || templates.value[0];
   if (!tpl) return;
-  const port = suggestPort([...overview.ports.map((r) => r.config.port), ...legacyPorts.value.map((r) => r.port)]);
-  editor.value = newPort(tpl, port);
+  editor.value = newPort(tpl);
   editorKey.value++;
   editorVisible.value = true;
 }
@@ -701,7 +705,7 @@ async function remove(row: any) {
 }
 function copy(config: PortConfig) {
   copySource.value = config;
-  copyTarget.value = Math.min(65535, config.port + 1);
+  copyTarget.value = '';
   copyIPs.value = false;
   copyVisible.value = true;
 }
@@ -709,7 +713,7 @@ async function confirmCopy() {
   await run(async () => {
     const candidate = await pipelinePost<PortConfig>('ports/copy', {
       source: copySource.value.port,
-      target: copyTarget.value,
+      target: parseListenPort(copyTarget.value),
       include_ips: copyIPs.value,
     });
     copyVisible.value = false;

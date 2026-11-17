@@ -14,7 +14,7 @@ builds:
     goos: [linux]
     goarch: [amd64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -X HomeWaf/global.GWAF_BUILD_ID={{.Version}}.{{.Commit}} -X HomeWaf/global.GWAF_BUILD_COMMIT={{.Commit}} -X HomeWaf/global.GWAF_BUILD_CHANNEL=release
   - id: homewaf_linux_arm64
     main: ./cmd/homewaf
     binary: HomeWafLinuxArm64
@@ -22,7 +22,7 @@ builds:
     goos: [linux]
     goarch: [arm64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -X HomeWaf/global.GWAF_BUILD_ID={{.Version}}.{{.Commit}} -X HomeWaf/global.GWAF_BUILD_COMMIT={{.Commit}} -X HomeWaf/global.GWAF_BUILD_CHANNEL=release
   - id: homewaf_windows
     main: ./cmd/homewaf
     binary: HomeWaf64
@@ -30,7 +30,7 @@ builds:
     goos: [windows]
     goarch: [amd64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -X HomeWaf/global.GWAF_BUILD_ID={{.Version}}.{{.Commit}} -X HomeWaf/global.GWAF_BUILD_COMMIT={{.Commit}} -X HomeWaf/global.GWAF_BUILD_CHANNEL=release
   - id: homewaf_macos
     main: ./cmd/homewaf
     binary: HomeWafDarwin64
@@ -38,7 +38,7 @@ builds:
     goos: [darwin]
     goarch: [amd64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -X HomeWaf/global.GWAF_BUILD_ID={{.Version}}.{{.Commit}} -X HomeWaf/global.GWAF_BUILD_COMMIT={{.Commit}} -X HomeWaf/global.GWAF_BUILD_CHANNEL=release
   - id: homewaf_macos_arm64
     main: ./cmd/homewaf
     binary: HomeWafDarwinArm64
@@ -46,7 +46,7 @@ builds:
     goos: [darwin]
     goarch: [arm64]
     ldflags:
-      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf
+      - -s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v{{.Version}} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf -X HomeWaf/global.GWAF_BUILD_ID={{.Version}}.{{.Commit}} -X HomeWaf/global.GWAF_BUILD_COMMIT={{.Commit}} -X HomeWaf/global.GWAF_BUILD_CHANNEL=release
 archives:
   - formats: [tar.gz]
     format_overrides:

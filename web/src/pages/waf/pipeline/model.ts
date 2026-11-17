@@ -35,7 +35,7 @@ export const ruleHelp: Record<string, string> = {
   csrf: '校验带 Cookie 的状态变更请求是否同源，不是 CSRF 令牌防护；Webhook/API 需例外。',
   ssrf: '检测参数中的内网/回环/元数据 URL，不发 DNS 请求，也无法防御 DNS 重绑定。',
 };
-export function newPort(template: PolicyTemplate, port = 5000): PortConfig {
+export function newPort(template: PolicyTemplate, port = 0): PortConfig {
   const policy = clone(template.policy);
   policy.defense ||= { enabled: false, mode: 'quiet', window_seconds: 1800, count: 10, duration_seconds: 10800, tcp_action: 'reset' };
   policy.honeypot.enabled = false; policy.hit_policy.lockdown.enabled = false; policy.hit_policy.ban_scope = 'port';

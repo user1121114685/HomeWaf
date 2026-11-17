@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -125,4 +126,103 @@ func TestIndependentPortListenersAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	get(b)
+}
+
+func TestProtocolRestartDrainsRequestsAndRestoresFailedSwitch(t *testing.T) {
+	previousRegistry := Ports
+	Ports = NewRegistry[Snapshot](200)
+	t.Cleanup(func() { Ports = previousRegistry })
+	manager := &ListenerManager{}
+	t.Cleanup(manager.StopAll)
+	entered, release := make(chan struct{}), make(chan struct{})
+	manager.SetHandler(func(s *Snapshot, w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/slow" {
+			close(entered)
+			<-release
+		}
+		_, _ = io.WriteString(w, s.Config.Protocol)
+	})
+	port := unusedPort(t)
+	old := &Snapshot{Config: PortConfig{Port: port, Protocol: "http", ListenEnabled: true, Policy: DefaultPolicy()}}
+	old.Config.Policy.Access.DrainSeconds = 10
+	old.Config.Policy.Network.ListenIPVersion = "ipv4"
+	_ = Ports.Publish(port, func() (*Snapshot, error) { return old, nil })
+	if err := manager.Start(old); err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	slow := make(chan string, 1)
+	go func() {
+		res, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/slow", port))
+		if err != nil {
+			slow <- err.Error()
+			return
+		}
+		defer res.Body.Close()
+		body, _ := io.ReadAll(res.Body)
+		slow <- string(body)
+	}()
+	select {
+	case <-entered:
+	case <-time.After(3 * time.Second):
+		close(release)
+		t.Fatal("slow request did not start")
+	}
+	fixture := httptest.NewTLSServer(nil)
+	defer fixture.Close()
+	key, err := x509.MarshalPKCS8PrivateKey(fixture.TLS.Certificates[0].PrivateKey)
+	if err != nil {
+		close(release)
+		t.Fatal(err)
+	}
+	next := &Snapshot{Config: CloneConfig(old.Config), Secrets: PortSecrets{
+		TLSCert: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: fixture.TLS.Certificates[0].Certificate[0]})),
+		TLSKey:  string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: key})),
+	}}
+	next.Config.Protocol = "https"
+	_ = Ports.Publish(port, func() (*Snapshot, error) { return next, nil })
+	started := time.Now()
+	err = manager.Apply(old, next)
+	if err != nil || time.Since(started) >= 4*time.Second {
+		close(release)
+		t.Fatalf("restart waited for active request: %v", err)
+	}
+	select {
+	case result := <-slow:
+		close(release)
+		t.Fatalf("old request closed early: %s", result)
+	default:
+	}
+	res, err := fixture.Client().Get(fmt.Sprintf("https://127.0.0.1:%d/", port))
+	if err != nil {
+		close(release)
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if string(body) != "https" {
+		close(release)
+		t.Fatal("new protocol did not serve")
+	}
+	close(release)
+	if result := <-slow; result != "http" {
+		t.Fatalf("in-flight response was interrupted: %s", result)
+	}
+	_ = Ports.Publish(port, func() (*Snapshot, error) { return old, nil })
+	if err := manager.Apply(next, old); err != nil {
+		t.Fatal(err)
+	}
+	bad := &Snapshot{Config: CloneConfig(next.Config)}
+	if err := manager.Apply(old, bad); err == nil {
+		t.Fatal("invalid TLS switch succeeded")
+	}
+	res, err = client.Get(fmt.Sprintf("http://127.0.0.1:%d/", port))
+	if err != nil {
+		t.Fatalf("old listener did not recover: %v", err)
+	}
+	body, _ = io.ReadAll(res.Body)
+	res.Body.Close()
+	if string(body) != "http" {
+		t.Fatal("rollback changed the protocol")
+	}
 }

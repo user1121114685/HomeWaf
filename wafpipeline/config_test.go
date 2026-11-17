@@ -47,3 +47,16 @@ func TestPortConfigValidation(t *testing.T) {
 		t.Fatal("upstream credential leak")
 	}
 }
+
+func TestAllowedHostNamesAcceptIPsWithoutURLOrPort(t *testing.T) {
+	for _, host := range []string{"nas.example.test", "*.example.test", "192.0.2.10", "2001:db8::1"} {
+		if err := ValidateHostNames([]string{host}); err != nil {
+			t.Fatalf("%s: %v", host, err)
+		}
+	}
+	for _, host := range []string{"https://nas.test", "nas.test:443", "nas.test/path", "2001:xyz::1", "fe80::1%eth0", "name\t.test"} {
+		if ValidateHostNames([]string{host}) == nil {
+			t.Fatalf("accepted %q", host)
+		}
+	}
+}

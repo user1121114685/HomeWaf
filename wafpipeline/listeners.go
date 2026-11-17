@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"sync"
@@ -16,6 +17,8 @@ import (
 type PortHandler func(*Snapshot, http.ResponseWriter, *http.Request)
 type handlerHolder struct{ handler PortHandler }
 type portListener struct {
+	listener         net.Listener
+	retiring         atomic.Bool
 	tls              atomic.Pointer[tls.Config]
 	server           *http.Server
 	tracker          *wafnet.ConnTracker
@@ -27,11 +30,13 @@ type portListener struct {
 	serveError       atomic.Value
 }
 type ListenerManager struct {
-	mu      sync.Mutex
-	closing bool
-	servers map[uint16]*portListener
-	handler atomic.Pointer[handlerHolder]
-	events  EventSink
+	mu       sync.Mutex
+	closing  bool
+	servers  map[uint16]*portListener
+	handler  atomic.Pointer[handlerHolder]
+	events   EventSink
+	draining sync.WaitGroup
+	retired  map[*portListener]struct{}
 }
 
 var Listeners = &ListenerManager{servers: make(map[uint16]*portListener)}
@@ -47,6 +52,9 @@ func (m *ListenerManager) Apply(old, next *Snapshot) error {
 	}
 	if !next.Config.ListenEnabled {
 		return m.Stop(next.Config.Port)
+	}
+	if old != nil && old.Config.ListenEnabled && old.Config.Protocol != next.Config.Protocol {
+		return m.restartProtocol(old, next)
 	}
 	if err := m.Start(next); err != nil {
 		return err
@@ -97,6 +105,10 @@ func (m *ListenerManager) updateAccessDrain(old, next *Snapshot) {
 func (m *ListenerManager) Start(s *Snapshot) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.startLocked(s)
+}
+
+func (m *ListenerManager) startLocked(s *Snapshot) error {
 	if m.closing {
 		return errors.New("监听管理器已进入退出排空，不能重新启动端口")
 	}
@@ -161,7 +173,7 @@ func (m *ListenerManager) Start(s *Snapshot) error {
 	server := &http.Server{Handler: handler, ReadHeaderTimeout: time.Duration(s.Config.Policy.Network.ReadHeaderSeconds) * time.Second, MaxHeaderBytes: s.Config.Policy.Network.MaxHeaderBytes, IdleTimeout: 90 * time.Second}
 	audit := &protocolAudit{port: port, sink: m.events}
 	audit.attach(server)
-	runtime := &portListener{server: server, tracker: tracker, ready: ready, drain: time.Duration(s.Config.Policy.Access.DrainSeconds) * time.Second, audit: audit}
+	runtime := &portListener{listener: ln, server: server, tracker: tracker, ready: ready, drain: time.Duration(s.Config.Policy.Access.DrainSeconds) * time.Second, audit: audit}
 	if s.Config.Protocol == "https" {
 		runtime.tls.Store(tlsConfig)
 		server.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12, Certificates: certificates, GetConfigForClient: func(*tls.ClientHelloInfo) (*tls.Config, error) { return runtime.tls.Load(), nil }}
@@ -178,7 +190,7 @@ func (m *ListenerManager) Start(s *Snapshot) error {
 		} else {
 			err = server.Serve(&protocolListener{Listener: wrapped, audit: audit})
 		}
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) && !runtime.retiring.Load() {
 			runtime.serveError.Store("监听异常终止，请检查日志并重新启用")
 			ready.Fail(err)
 		}
@@ -192,6 +204,60 @@ func (m *ListenerManager) Start(s *Snapshot) error {
 	}
 	return nil
 }
+
+// Close only the accepting socket before rebinding. Existing requests and
+// tracked WebSockets drain independently while the new protocol serves traffic.
+func (m *ListenerManager) restartProtocol(old, next *Snapshot) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closing {
+		return errors.New("监听管理器已进入退出排空，不能重新启动端口")
+	}
+	previous := m.servers[next.Config.Port]
+	if previous == nil {
+		return m.startLocked(next)
+	}
+	previous.retiring.Store(true)
+	previous.accessGeneration++
+	if previous.accessTimer != nil {
+		previous.accessTimer.Stop()
+	}
+	if err := previous.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+		previous.retiring.Store(false)
+		return err
+	}
+	delete(m.servers, next.Config.Port)
+	if m.retired == nil {
+		m.retired = map[*portListener]struct{}{}
+	}
+	m.retired[previous] = struct{}{}
+	m.draining.Add(1)
+	go func() {
+		defer m.draining.Done()
+		drainPortListener(previous)
+		m.mu.Lock()
+		delete(m.retired, previous)
+		m.mu.Unlock()
+	}()
+	if err := m.startLocked(next); err != nil {
+		if restoreErr := m.startLocked(old); restoreErr != nil {
+			return fmt.Errorf("协议切换失败且原监听恢复失败: %v; %w", err, restoreErr)
+		}
+		return fmt.Errorf("协议切换失败，已恢复原监听: %w", err)
+	}
+	return nil
+}
+
+func drainPortListener(p *portListener) {
+	ctx, cancel := context.WithTimeout(context.Background(), p.drain)
+	defer cancel()
+	err := p.server.Shutdown(ctx)
+	_ = p.tracker.Drain(ctx)
+	if err != nil {
+		_ = p.server.Close()
+	}
+}
+
 func (m *ListenerManager) Stop(port uint16) error {
 	m.mu.Lock()
 	p := m.servers[port]
@@ -206,13 +272,7 @@ func (m *ListenerManager) Stop(port uint16) error {
 	if p == nil {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), p.drain)
-	defer cancel()
-	err := p.server.Shutdown(ctx)
-	_ = p.tracker.Drain(ctx)
-	if err != nil {
-		_ = p.server.Close()
-	}
+	drainPortListener(p)
 	return nil
 }
 func (m *ListenerManager) StopAll() {
@@ -229,6 +289,7 @@ func (m *ListenerManager) StopAll() {
 		go func(port uint16) { defer wg.Done(); _ = m.Stop(port) }(p)
 	}
 	wg.Wait()
+	m.draining.Wait()
 	for _, port := range ports {
 		if snapshot, ok := Ports.Get(port); ok {
 			CloseRetiredProxy(snapshot, nil)
@@ -272,6 +333,9 @@ func (m *ListenerManager) Count() int64 {
 	defer m.mu.Unlock()
 	var n int64
 	for _, p := range m.servers {
+		n += p.tracker.Count()
+	}
+	for p := range m.retired {
 		n += p.tracker.Count()
 	}
 	return n
