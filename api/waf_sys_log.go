@@ -46,7 +46,20 @@ func (w *WafSysLogApi) GetListApi(c *gin.Context) {
 	var req request.WafSysLogSearchReq
 	err := c.ShouldBind(&req)
 	if err == nil {
-		beans, total, _ := wafSysLogService.GetListApi(req)
+		if req.PageIndex < 1 {
+			req.PageIndex = 1
+		}
+		if req.PageSize < 1 {
+			req.PageSize = 20
+		}
+		if req.PageSize > 100 {
+			req.PageSize = 100
+		}
+		beans, total, readErr := wafSysLogService.GetListApi(req)
+		if readErr != nil {
+			response.FailWithMessage("读取系统日志失败，请检查日志数据库状态", c)
+			return
+		}
 		response.OkWithDetailed(response.PageResult{
 			List:      beans,
 			Total:     total,

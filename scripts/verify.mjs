@@ -19,7 +19,7 @@ function run(args) {
 }
 run(["test", "./wafdb", "./wafdb/dialect", "./waflogexport", "-short", "-count=1"]);
 run(["test", "./service/waf_service", "-run", "^TestSecretServicesFailWithoutInstanceKey$", "-count=1"]);
-run(["test", "./service/waf_service", "./utils", "./api", "./wafnotify/channels", "-run", "^Test(LogServicesIncludePipelineAndPreserveLogIdentity|LogRequestOutcomeFiltersObserveAndResponseFailures|OutboundDNSFailureDoesNotRecommendAllowlistOrExposePath|NotifyProviderCreateEditTestAndSecretStorage|RejectsFailedOrMalformedProviderResponses)$", "-count=1"]);
+run(["test", "./service/waf_service", "./utils", "./api", "./wafnotify/channels", "-run", "^Test(LogServicesIncludePipelineAndPreserveLogIdentity|LogRequestOutcomeFiltersObserveAndResponseFailures|SystemLogFilteringAndFailures|OutboundDNSFailureDoesNotRecommendAllowlistOrExposePath|NotifyProviderCreateEditTestAndSecretStorage|RejectsFailedOrMalformedProviderResponses)$", "-count=1"]);
 
 // Compile every production and test package; execute only focused regressions.
 run(["test", "./...", "-run", "^$"]);
