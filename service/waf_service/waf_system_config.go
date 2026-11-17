@@ -259,8 +259,8 @@ func (receiver *WafSystemConfigService) GetListApi(req request.WafSystemConfigSe
 	if len(req.Remarks) > 0 {
 		whereValues = append(whereValues, "%"+req.Remarks+"%")
 	}
-	global.GWAF_LOCAL_DB.Model(&model.SystemConfig{}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
-	global.GWAF_LOCAL_DB.Model(&model.SystemConfig{}).Where(whereField, whereValues...).Count(&total)
+	global.GWAF_LOCAL_DB.Model(&model.SystemConfig{}).Where("item NOT IN ?", []string{"gpt_url", "gpt_token", "gpt_model", "ai_enable", "ai_mode"}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
+	global.GWAF_LOCAL_DB.Model(&model.SystemConfig{}).Where("item NOT IN ?", []string{"gpt_url", "gpt_token", "gpt_model", "ai_enable", "ai_mode"}).Where(whereField, whereValues...).Count(&total)
 	for i := range list {
 		decryptConfigBean(&list[i])
 	}

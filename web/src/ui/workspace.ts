@@ -50,7 +50,6 @@ export const workspaceGroups = [
       'WafFirewallIPBlock',
       'WafThreatIP',
       'OwaspManage',
-      'AIModelManage',
     ],
   },
   {
@@ -87,6 +86,7 @@ export const workspaceGroups = [
       'OTP',
       'UserIndex',
       'OPlatformKey',
+      'OPlatformMCP',
       'OPlatformLog',
       'OPlatformDoc',
     ],
@@ -125,7 +125,7 @@ export const taskFamilies = [
   ['WafSSLConfigList', 'WafSSLOrderList', 'WafsslExpireList'],
   ['NotifyChannel', 'NotifySubscription', 'NotifyLog'],
   ['WafAccessConfig', 'WafAccessAccount', 'WafAccessSession'],
-  ['OPlatformKey', 'OPlatformLog', 'OPlatformDoc'],
+  ['OPlatformKey', 'OPlatformMCP', 'OPlatformLog', 'OPlatformDoc'],
   ['DashboardBase', 'DashboardOverview', 'DashboardStats'],
   ['WafAnalysisLog', 'WafAnalysisSpiderLog', 'WafAnalysisSourcePath'],
   ['Account', 'LoginHistory', 'AccountLog', 'OTP'],
@@ -133,6 +133,7 @@ export const taskFamilies = [
 ] as const;
 
 export const taskTitles: Record<string, [string, string]> = {
+  OPlatformMCP: ['MCP 接入', 'MCP connections'],
   OPlatformDoc: ['接口文档', 'API reference'],
   WafPipeline: ['我的服务', 'My services'],
   WafPipelineTemplates: ['策略模板', 'Policy templates'],

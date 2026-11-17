@@ -48,7 +48,6 @@ type APIGroup struct {
 	WafHttpAuthSessionApi
 	WafTaskApi
 	WafBlockingPageApi
-	WafGPTApi
 	WafOtpApi
 	WafAnalysisApi
 	WafPrivateInfoApi
@@ -81,7 +80,6 @@ type APIGroup struct {
 	WafOwaspApi
 	WafHostPathRuleApi
 	WafAppApi
-	WafAIApi
 	WafUIPreferenceApi
 	WafUpgradeNoticeApi
 }
@@ -150,8 +148,6 @@ var (
 	wafAnalysisService     = waf_service.WafAnalysisServiceApp
 	wafAnalysisViewService = waf_service.WafAnalysisViewServiceApp
 
-	wafAIService      = waf_service.WafAIServiceApp
-	wafAILabelService = waf_service.WafAILabelServiceApp
 
 	wafPrivateInfoService  = waf_service.WafPrivateInfoServiceApp
 	wafPrivateGroupService = waf_service.WafPrivateGroupServiceApp

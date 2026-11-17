@@ -8,8 +8,6 @@ export const DEFAULT_REQUEST_TIMEOUT = 20000; // 默认 20 秒（原为 5 秒，
 export const MIN_REQUEST_TIMEOUT = 3000;       // 最小 3 秒
 export const MAX_REQUEST_TIMEOUT = 300000;     // 最大 300 秒
 
-// AI 生成等长耗时任务单独使用的超时：后端最多 3 次×60 秒的校验修复闭环，普通默认值会误杀。
-export const AI_GEN_TIMEOUT = 190000;
 
 // 读取当前生效的请求超时（毫秒）。非法或越界值回退默认。
 export function getRequestTimeout(): number {

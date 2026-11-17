@@ -3,6 +3,8 @@ package innerbean
 import "strings"
 
 type WebLog struct {
+	Diagnostics *RequestDiagnostics `gorm:"-" json:"diagnostics,omitempty"`
+
 	BodyTruncated      bool   `gorm:"-" json:"body_truncated,omitempty"`
 	WafInnerDFlag      string `gorm:"size:10" json:"waf_inner_dflag"` //日志队列处理方式
 	HOST               string `gorm:"size:255" json:"host"`
@@ -129,6 +131,14 @@ func (WebLog) TableName() string {
 // Only a fully verified identity may bypass ordinary failure accounting.
 func (w *WebLog) IsSafeBot() bool {
 	return w.IsBot == 1 && w.RISK_LEVEL == 0 && w.BotVerifyStrong == 1
+}
+
+// NormalizePipelineVisitorIdentity corrects the old pipeline placeholder on read.
+// A request outcome does not establish a visitor identity or trust level.
+func (w *WebLog) NormalizePipelineVisitorIdentity() {
+	if strings.HasPrefix(w.HOST_CODE, "pipeline-") && (w.GUEST_IDENTIFICATION == "" || w.GUEST_IDENTIFICATION == "正常访客") {
+		w.GUEST_IDENTIFICATION = "未识别访客"
+	}
 }
 
 // IsSecurityEvent 判断这条请求算不算「安全事件」——命中了规则、被拦了、或处于仅记录模式。

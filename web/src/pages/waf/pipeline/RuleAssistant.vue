@@ -1,6 +1,6 @@
 <template>
   <div class="rule-assistant">
-    <ElButton :disabled="disabled" @click="visible = true">构建 / AI 生成规则</ElButton>
+    <ElButton :disabled="disabled" @click="visible = true">构建自定义规则</ElButton>
     <ElDialog
       v-model="visible"
       title="准备自定义防护规则"
@@ -15,8 +15,7 @@
         }}。生成结果默认“仅观察”；验证后加入当前草稿，保存服务配置后才生效。
       </p>
       <ElRadioGroup v-model="method" :disabled="busy" aria-label="规则准备方式"
-        ><ElRadioButton value="builder">条件构建</ElRadioButton><ElRadioButton value="ai">AI 生成</ElRadioButton
-        ><ElRadioButton value="source">输入源码</ElRadioButton></ElRadioGroup
+        ><ElRadioButton value="builder">条件构建</ElRadioButton><ElRadioButton value="source">输入源码</ElRadioButton></ElRadioGroup
       >
       <section v-if="method === 'builder'" class="rule-preparation">
         <label
@@ -51,26 +50,6 @@
           ><ElButton :loading="busy" @click="build">生成规则预览</ElButton>
         </div>
       </section>
-      <section v-if="method === 'ai'" class="rule-preparation">
-        <label
-          >需要防护的请求<ElInput
-            v-model="intent"
-            type="textarea"
-            :rows="3"
-            :disabled="busy"
-            aria-label="防护需求"
-            placeholder="例如：观察访问 /private 且方法为 POST 的请求"
-        /></label>
-        <div class="assistant-actions">
-          <ElButton :loading="busy" @click="generate">生成规则</ElButton
-          ><ElButton :disabled="busy" @click="configVisible = true">AI 参数设置</ElButton
-          ><ElButton :disabled="busy" @click="loadPrompt">查看生成提示词</ElButton>
-        </div>
-        <details v-if="prompt" open>
-          <summary>后端生成提示词（可选中复制）</summary>
-          <ElInput :model-value="prompt" readonly type="textarea" :rows="5" aria-label="规则生成提示词" />
-        </details>
-      </section>
       <section class="rule-preparation">
         <label
           >规则源码预览<ElInput v-model="source" type="textarea" :rows="8" :disabled="busy" aria-label="生成规则源码"
@@ -88,29 +67,24 @@
         ></template
       >
     </ElDialog>
-    <GptConfigDialog v-model:visible="configVisible" />
   </div>
 </template>
 <script setup lang="ts">
 import { nextTick, ref, watch, type PropType } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import { ElAlert, ElButton, ElDialog, ElInput, ElOption, ElRadioButton, ElRadioGroup, ElSelect } from 'element-plus';
-import { wafRuleFormatApi, wafRuleAiGenApi, wafRuleAiPromptApi } from '@/apis/rules';
+import { wafRuleFormatApi } from '@/apis/rules';
 import { pipelinePost } from '@/apis/pipeline';
-import GptConfigDialog from '@/components/gpt-config/index.vue';
 import Trace from './Trace.vue';
 import { clone, type PortConfig } from './model';
 const props = defineProps({ config: { type: Object as PropType<PortConfig>, required: true }, disabled: Boolean });
 const emit = defineEmits(['add', 'editing', 'busy']);
 const visible = ref(false),
-  configVisible = ref(false),
   busy = ref(false),
   method = ref('builder');
 const conditions = ref([{ field: 'URL', operator: '==', value: '' }]),
   relation = ref('&&');
 const source = ref(''),
-  intent = ref(''),
-  prompt = ref(''),
   error = ref(''),
   validation = ref(''),
   validatedSource = ref(''),
@@ -176,24 +150,6 @@ async function build() {
     preview.value = undefined;
   });
 }
-async function generate() {
-  await run(async () => {
-    if (!intent.value.trim()) throw new Error('请填写防护需求。');
-    const result = await wafRuleAiGenApi({ intent: intent.value, lang: 'zh' });
-    if (result.code !== 0 || !result.data?.rule_content) throw new Error(result.msg || 'AI 生成失败，请检查 AI 参数。');
-    source.value = result.data.rule_content;
-    validatedSource.value = '';
-    preview.value = undefined;
-    if (!result.data.valid) throw new Error(result.data.error || '生成内容未通过后端校验，请修改后重试。');
-  });
-}
-async function loadPrompt() {
-  await run(async () => {
-    const result = await wafRuleAiPromptApi({ lang: 'zh' });
-    if (result.code !== 0) throw new Error(result.msg);
-    prompt.value = typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2);
-  });
-}
 async function validate() {
   await run(async () => {
     validatedSource.value = '';
@@ -219,7 +175,6 @@ function add() {
   emit('add', script());
   visible.value = false;
   source.value = '';
-  intent.value = '';
   preview.value = undefined;
   validatedSource.value = '';
   id.value = uuidv4();

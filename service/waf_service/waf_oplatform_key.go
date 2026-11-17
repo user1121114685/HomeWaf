@@ -14,6 +14,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -29,6 +30,30 @@ type WafOPlatformKeyService struct{}
 
 var WafOPlatformKeyServiceApp = new(WafOPlatformKeyService)
 
+func validateKeyRestrictions(name string, limit int64, whitelist, expiry string) error {
+	if strings.TrimSpace(name) == "" || len(name) > 255 || limit < 0 || limit > 60000 {
+		return errors.New("密钥名称或请求上限无效")
+	}
+	if expiry != "" {
+		if _, err := time.Parse("2006-01-02 15:04:05", expiry); err != nil {
+			return errors.New("有效期需为 UTC 时间 YYYY-MM-DD HH:mm:ss")
+		}
+	}
+	for _, entry := range strings.Split(whitelist, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if _, err := netip.ParseAddr(entry); err == nil {
+			continue
+		}
+		if _, err := netip.ParsePrefix(entry); err != nil {
+			return errors.New("来源限制必须是有效的 IP 或 CIDR")
+		}
+	}
+	return nil
+}
+
 // maskApiKey 对 API Key 做脱敏，保留前6位和后4位，中间替换为 ****
 func maskApiKey(key string) string {
 	if len(key) <= 10 {
@@ -38,6 +63,12 @@ func maskApiKey(key string) string {
 }
 
 func (receiver *WafOPlatformKeyService) AddApi(req request.WafOPlatformKeyAddReq) (string, string, error) {
+	if err := validateKeyRestrictions(req.KeyName, req.RateLimit, req.IPWhitelist, req.ExpireTime); err != nil {
+		return "", "", err
+	}
+	if req.MCPAccess != "" && req.MCPAccess != "read" && req.MCPAccess != "write" {
+		return "", "", errors.New("无效的 MCP 权限")
+	}
 	apiKey, err := newLocalAPIKey()
 	if err != nil {
 		return "", "", err
@@ -58,6 +89,7 @@ func (receiver *WafOPlatformKeyService) AddApi(req request.WafOPlatformKeyAddReq
 		KeyName:     req.KeyName,
 		ApiKey:      stored,
 		LocalOnly:   0,
+		MCPAccess:   req.MCPAccess,
 		Status:      1,
 		Remark:      req.Remark,
 		RateLimit:   req.RateLimit,
@@ -70,6 +102,9 @@ func (receiver *WafOPlatformKeyService) AddApi(req request.WafOPlatformKeyAddReq
 }
 
 func (receiver *WafOPlatformKeyService) ModifyApi(req request.WafOPlatformKeyEditReq) error {
+	if err := validateKeyRestrictions(req.KeyName, req.RateLimit, req.IPWhitelist, req.ExpireTime); err != nil {
+		return err
+	}
 	editMap := map[string]interface{}{
 		"KeyName":     req.KeyName,
 		"Status":      req.Status,

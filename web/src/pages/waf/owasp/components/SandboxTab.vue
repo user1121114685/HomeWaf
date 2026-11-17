@@ -161,22 +161,9 @@
           <hw-textarea :value="ruleDialog.data.content" :autosize="{ minRows: 8, maxRows: 20 }" readonly />
         </hw-form-item>
         <div style="text-align:right;margin-top:8px">
-          <hw-button variant="outline" @click="onRuleDialogAi">{{ $t('page.owasp.rules.ai_analyze') }}</hw-button>
           <hw-button variant="outline" style="margin-left:8px" @click="ruleDialog.visible = false">{{ $t('common.close') }}</hw-button>
         </div>
       </div></template>
-    </hw-dialog>
-
-    <!-- AI 分析预览确认 -->
-    <hw-dialog
-      :header="$t('page.owasp.rules.ai_analyze')"
-      v-model:visible="aiDialog.visible"
-      width="680px"
-      :onConfirm="confirmSendAi"
-      :onClose="() => { aiDialog.visible = false }"
-    >
-      <hw-alert theme="info" :message="$t('page.owasp.rules.ai_analyze_tip')" style="margin-bottom:10px" />
-      <hw-textarea v-model="aiDialog.prompt" :autosize="{ minRows: 8, maxRows: 18 }" />
     </hw-dialog>
 
     <!-- 禁用规则确认弹窗 -->
@@ -273,10 +260,6 @@ export default defineComponent({
         title: '',
         data: null as any,
         editContent: '',
-      },
-      aiDialog: {
-        visible: false,
-        prompt: '',
       },
       overrideDialog: {
         visible: false,
@@ -459,37 +442,6 @@ export default defineComponent({
           this.ruleDialog.visible = false;
         })
         .finally(() => { this.ruleDialog.loading = false; });
-    },
-    onRuleDialogAi() {
-      const f = this.ruleDialog.data;
-      if (!f) return;
-      const phaseText = f.phase ? `Phase ${f.phase} - ${this.phaseName(f.phase)}` : '-';
-      const plText = f.paranoia ? `PL${f.paranoia}` : '未指定（任意 PL 都启用）';
-      const tagsText = (f.tags && f.tags.length) ? f.tags.join(', ') : '-';
-      this.aiDialog.prompt = [
-        '以下是一条来自 OWASP 核心规则集（CRS, Core Rule Set）的 WAF 规则，请用中文解释：',
-        '1. 该规则的防护意图是什么？',
-        '2. 它在什么场景/条件下会被触发？',
-        '3. 可能导致哪些误报场景，管理员应如何调优？',
-        '',
-        `规则 ID：${f.id}`,
-        `指令类型：${f.directive || 'SecRule'}`,
-        `执行阶段：${phaseText}`,
-        `严重级别：${f.severity || '-'}`,
-        `偏执级别：${plText}`,
-        `描述（msg）：${f.message || '-'}`,
-        `标签：${tagsText}`,
-        `所属文件：${f.source_file || '-'}`,
-        '',
-        '规则原文：',
-        f.content || '-',
-      ].join('\n');
-      this.aiDialog.visible = true;
-    },
-    confirmSendAi() {
-      // 规则解读走 OWASP 规则提示词，不套风险评分格式
-      this.$bus.$emit('sendAi', { q: this.aiDialog.prompt, scene: 'owasp_rule' });
-      this.aiDialog.visible = false;
     },
     onDisableRule(row: any) {
       this.disableDialog.ruleId = row.id;

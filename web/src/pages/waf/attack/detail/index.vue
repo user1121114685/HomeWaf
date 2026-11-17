@@ -7,7 +7,10 @@
       <hw-loading size="28px" />
       <span class="vd-loading-text">{{ $t('page.visit_log.detail.loading') }}</span>
     </div>
-    <hw-alert v-else-if="detailError" theme="error" :message="detailError" />
+    <div v-else-if="detailError" role="alert">
+      <hw-alert theme="error" :message="detailError" />
+      <hw-button variant="outline" @click="reloadDetail">{{ diagnosticView.labels.retry }}</hw-button>
+    </div>
 
     <template v-else>
       <!-- 结论横幅：防御动作、命中规则与关键操作先给结论，细节往下展开 -->
@@ -20,14 +23,12 @@
             <div class="vd-hero-title">
               <span class="vd-verdict-label">{{ $t('page.visit_log.detail.defense_status_step') }}</span>
               <span class="vd-verdict">{{ detail_data.action || '—' }}</span>
-              <hw-tag v-if="detail_data.rule" class="vd-rule-tag" theme="danger" variant="light"
+              <hw-tag v-if="detail_data.rule" class="vd-rule-tag" :theme="outcome.observeOnly ? 'primary' : 'danger'" variant="light"
                 :title="detail_data.rule">
-                {{ $t('page.visit_log.detail.rule_hit') }} · {{ detail_data.rule }}
+                {{ ruleRecordLabel }} · {{ detail_data.rule }}
               </hw-tag>
-              <hw-tag v-if="detail_data.rule && detail_data.log_only_mode != '0'"
-                :theme="detail_data.log_only_mode == '1' ? 'danger' : 'success'" variant="light-outline">
-                {{ $t('page.visit_log.log_only_mode') }}：{{ detail_data.log_only_mode == '1'
-                  ? $t('page.visit_log.log_only_mode_on') : $t('page.visit_log.log_only_mode_off') }}
+              <hw-tag v-if="outcome.observeOnly" theme="primary" variant="light-outline">
+                {{ $i18n.locale === 'en_US' ? 'Observe only; allowed' : '仅观察，已放行' }}
               </hw-tag>
             </div>
             <div class="vd-hero-sub">
@@ -52,10 +53,6 @@
             </div>
           </div>
           <div class="vd-hero-actions">
-            <hw-button theme="primary" @click="beforeSendAi">
-              <template #icon><logo-android-icon  /></template>
-              {{ $t('page.visit_log.detail.ai.log_ai_analysis') }}
-            </hw-button>
             <hw-tooltip :content="$t('page.visit_log.detail.http_copy_mask_tip')">
               <hw-button variant="outline" theme="default" @click="loadHttpCopyMask">
                 <template #icon><hw-icon name="file-copy"  /></template>
@@ -88,6 +85,30 @@
           <div v-if="k.sub" class="vd-kpi-sub" :title="k.sub">{{ k.sub }}</div>
         </div>
       </div>
+
+      <section class="vd-card vd-diagnostics" :aria-label="diagnosticView.labels.title" data-testid="request-diagnostics">
+        <div class="vd-card-head">
+          <h2 class="vd-card-title">{{ diagnosticView.labels.title }}</h2>
+          <hw-button variant="outline" @click="copyText(diagnosticView.report)">{{ diagnosticView.labels.copy }}</hw-button>
+        </div>
+        <div class="vd-card-body">
+          <p class="vd-diagnostic-summary" role="status">{{ diagnosticView.summary }}</p>
+          <hw-button v-if="diagnosticView.state !== 'available'" variant="outline" @click="reloadDetail">{{ diagnosticView.labels.retry }}</hw-button>
+          <ul v-if="diagnosticView.hits.length" class="vd-diagnostic-hits">
+            <li v-for="(hit, i) in diagnosticView.hits" :key="i">
+              <div class="vd-diagnostic-heading"><strong>{{ hit.category }}</strong><hw-tag :theme="hit.observe ? 'primary' : 'danger'" variant="light">{{ hit.mode }}</hw-tag></div>
+              <p>{{ hit.reason }}</p>
+              <dl>
+                <div><dt>{{ diagnosticView.labels.rule }}</dt><dd>{{ hit.rule }}</dd></div>
+                <div><dt>{{ diagnosticView.labels.position }}</dt><dd>{{ hit.position }}</dd></div>
+                <div><dt>{{ diagnosticView.labels.code }}</dt><dd><code>{{ hit.code }}</code></dd></div>
+              </dl>
+            </li>
+          </ul>
+          <p v-if="diagnosticView.truncated" class="vd-diagnostic-summary">{{ diagnosticView.labels.truncated }}</p>
+          <p class="vd-diagnostic-privacy">{{ diagnosticView.labels.privacy }}</p>
+        </div>
+      </section>
 
       <!-- 主体：左报文 / 右上下文 -->
       <div class="vd-grid">
@@ -171,6 +192,11 @@
               <span class="vd-card-title">{{ $t('page.visit_log.detail.visitor_info') }}</span>
             </div>
             <div class="vd-card-body">
+              <div class="vd-sub-block">
+                <div class="vd-sub-label">{{ $i18n.locale === 'en_US' ? 'Visitor identity' : '访客身份' }}</div>
+                <div class="vd-sub-value" data-testid="visitor-identity">{{ detail_data.guest_identification || '—' }}</div>
+                <p class="vd-diagnostic-privacy">{{ $i18n.locale === 'en_US' ? 'Identity does not establish whether a request is safe. Check the action and detection details.' : '身份标记不代表请求安全，是否拦截及原因请看处理结果和检测记录。' }}</p>
+              </div>
               <div class="vd-ip-row">
                 <code class="vd-ip">{{ detail_data.src_ip || '—' }}</code>
                 <hw-button v-if="detail_data.src_ip" size="small" theme="danger" variant="outline"
@@ -242,7 +268,7 @@
     </template>
 
     <!-- 快捷加入规则：选中内容后浮出的确认按钮。
-         不再用「点击页面空白」这种隐式触发——那个方案会把 AI 分析、误报反馈等
+         不再用「点击页面空白」这种隐式触发——那个方案会把 误报反馈等
          任何一次点击都吞掉并劫持成跳转；改成显式点击本按钮才跳。 -->
     <button v-if="pendingSel" class="vd-sel-btn"
             :style="{ left: pendingSel.x + 'px', top: pendingSel.y + 'px' }"
@@ -254,12 +280,6 @@
       @confirm="() => { httpCopyMaskVisible = false }" :onCancel="() => { httpCopyMaskVisible = false }">
       <hw-alert theme="info" :message="$t('page.visit_log.detail.http_copy_mask_tip')" />
       <hw-textarea v-model="httpCopyMask" :autosize="{ minRows: 5, maxRows: 10 }" />
-    </hw-dialog>
-
-    <hw-dialog :header="$t('page.visit_log.detail.ai.before_send_ai')" v-model:visible="httpAiMaskVisible"
-      @confirm="handelToAi" :onCancel="() => { httpAiMaskVisible = false }" width="700px">
-      <hw-alert theme="info" :message="$t('page.visit_log.detail.ai.before_send_ai_tip')" />
-      <hw-textarea v-model="httpAiMask" :autosize="{ minRows: 5, maxRows: 10 }" />
     </hw-dialog>
 
     <!-- IP提取问题对话框 -->
@@ -340,6 +360,8 @@ import { LogoAndroidIcon, SecuredFilledIcon, ShieldErrorFilledIcon, ErrorTriangl
 
 import { wafIPBlockAddApi } from '@/apis/ipblock';
 import { getHeaderCopyDetail, geWebLogDetail } from '@/apis/waflog/attacklog';
+import { requestDiagnosticView } from './diagnostics';
+import { requestOutcome } from '../logPresentation';
 import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemconfig';
 
 // 可映射到规则引擎请求侧字段的报文块，必须与规则编辑页 setRuleContentByMode 的 case 一一对应：
@@ -371,6 +393,7 @@ export default {
       detail_data: {} as any,
       detailLoaded: false, // 详情已返回（payloadMissing 提示要等数据回来再判断）
       detailError: '',
+      detailSequence: 0,
       quickAddRuleChecked: false,
       // 各报文块的展开状态：>300 字符的块默认折叠，逐块展开
       expandedMap: {
@@ -390,8 +413,6 @@ export default {
       },
       httpCopyMask: '',
       httpCopyMaskVisible: false,
-      httpAiMask: '',
-      httpAiMaskVisible: false,
       ipExtractDialogVisible: false,
       ipExtractFormData: {
         item: 'gwaf_proxy_header',
@@ -405,6 +426,16 @@ export default {
     };
   },
   computed: {
+    outcome() {
+      return requestOutcome(this.detail_data);
+    },
+    ruleRecordLabel(): string {
+      if (this.outcome.observeOnly) return this.$i18n.locale === 'en_US' ? 'Observation' : '观察记录';
+      return this.$t('page.visit_log.detail.rule_hit');
+    },
+    diagnosticView() {
+      return requestDiagnosticView(this.detail_data, String(this.$i18n.locale));
+    },
     // 弹窗内嵌场景：由父组件传 prop_req_uuid
     isEmbedded(): boolean {
       return !!this.prop_req_uuid;
@@ -557,9 +588,9 @@ export default {
         },
         {
           title: this.$t('page.visit_log.detail.detection_time'),
-          value: d.rule ? `${this.$t('page.visit_log.detail.rule_hit')}：${d.rule}` : this.$t('page.visit_log.detail.not_hit'),
+          value: d.rule ? `${this.ruleRecordLabel}：${d.rule}` : this.$t('page.visit_log.detail.not_hit'),
           muted: !d.rule,
-          theme: d.rule ? 'error' : 'success',
+          theme: d.rule ? (this.outcome.observeOnly ? 'brand' : 'error') : 'success',
         },
         {
           title: this.$t('page.visit_log.detail.defense_status_step'),
@@ -604,6 +635,9 @@ export default {
         this.getDetail(`${newVal}#${this.prop_current_db}`);
       }
     },
+    prop_current_db() {
+      if (this.prop_req_uuid) this.getDetail(`${this.prop_req_uuid}#${this.prop_current_db}`);
+    },
     quickAddRuleChecked(v) {
       if (!v) {
         this.pendingSel = null;
@@ -618,10 +652,14 @@ export default {
     this.getDetail(target);
   },
   beforeUnmount() {
+    this.detailSequence += 1;
     document.removeEventListener('selectionchange', this.onSelectionChange);
     document.removeEventListener('scroll', this.dismissSel, true);
   },
   methods: {
+    reloadDetail() {
+      this.getDetail(`${this.detail_req.req_uuid}#${this.detail_req.current_db || ''}`);
+    },
     goToOwaspRule() {
       this.$router.push({
         path: '/sys/OwaspManage',
@@ -674,31 +712,6 @@ export default {
     openVideoTutorial() {
       window.open('https://www.bilibili.com/video/BV1pn8Ez2ELQ/', '_blank', 'noopener,noreferrer');
     },
-    handelToAi() {
-      // 日志详情走"安全风险分析"提示词
-      this.$bus.$emit('sendAi', { q: this.httpAiMask, scene: 'security_log' });
-      this.httpAiMaskVisible = false;
-    },
-    beforeSendAi() {
-      this.httpAiMask = '';
-      this.httpAiMaskVisible = false;
-      getHeaderCopyDetail({
-        req_uuid: this.detail_req.req_uuid,
-        current_db_name: this.detail_req.current_db,
-        output_format: 'raw',
-      })
-        .then((res) => {
-          if (res.code === 0 && typeof res.data === 'string' && res.data.trim()) {
-            this.httpAiMask = res.data;
-            this.httpAiMaskVisible = true;
-          } else {
-            this.$message.error(res.code !== 0 && res.msg ? res.msg : this.$t('page.visit_log.detail.copy_failed'));
-          }
-        })
-        .catch((e: Error) => {
-          this.$message.error(e.message || this.$t('page.visit_log.detail.copy_failed'));
-        });
-    },
     loadHttpCopyMask() {
       this.httpCopyMask = '';
       this.httpCopyMaskVisible = false;
@@ -727,8 +740,9 @@ export default {
         return;
       }
       const arr = String(uuid_and_name).split('#');
-      const id = arr[0];
+      const id = arr[0].trim();
       const current_db_name = arr[1];
+      const sequence = ++this.detailSequence;
 
       this.detail_req.req_uuid = id;
       this.detail_req.current_db = current_db_name;
@@ -751,7 +765,8 @@ export default {
         current_db_name,
       })
         .then((res) => {
-          if (res.code === 0 && res.data && res.data.req_uuid) {
+          if (sequence !== this.detailSequence) return;
+          if (res.code === 0 && res.data && res.data.req_uuid === id) {
             this.detail_data = res.data;
           } else {
             this.detailError = res.code !== 0 && res.msg ? res.msg : this.$t('page.visit_log.detail.load_failed');
@@ -759,6 +774,7 @@ export default {
           this.detailLoaded = true;
         })
         .catch((e: Error) => {
+          if (sequence !== this.detailSequence) return;
           this.detailError = e.message || this.$t('page.visit_log.detail.load_failed');
           this.detailLoaded = true;
         });

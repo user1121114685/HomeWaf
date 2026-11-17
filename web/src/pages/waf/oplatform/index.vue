@@ -19,7 +19,7 @@
 
       <hw-row justify="space-between">
         <div class="left-operation-container">
-          <PageActions><hw-button theme="primary" @click="handleAdd">{{ $t('page.oplatform.new_key') }}</hw-button></PageActions>
+          <PageActions><hw-button theme="primary" @click="handleAdd">{{ $t('page.oplatform.new_key') }}</hw-button><RouterLink class="el-button" to="/oplatform/mcp">MCP 接入</RouterLink></PageActions>
         </div>
         <div class="right-operation-container resource-filters">
           <hw-form ref="searchForm" :data="searchformData" layout="inline" colon :style="{ marginBottom: '8px' }">
@@ -56,6 +56,9 @@
         >
           <template #api_key="slotProps">
             <span>{{ slotProps.row.api_key }}</span>
+          </template>
+          <template #mcp_access="{ row }">
+            {{ row.mcp_access === 'write' ? 'MCP · 排障与配置' : row.mcp_access === 'read' ? 'MCP · 只读' : '开放 API' }}
           </template>
           <template #status="slotProps">
             <hw-tag :theme="slotProps.row.status === 1 ? 'success' : 'danger'">
@@ -217,6 +220,7 @@ export default {
       columns: [
         { colKey: 'key_name', title: this.$t('page.oplatform.key_name'), width: 150 },
         { colKey: 'api_key', title: 'API Key', width: 240 },
+        { colKey: 'mcp_access', title: '用途 / 权限', width: 160 },
         { colKey: 'status', title: this.$t('page.oplatform.status'), width: 100 },
         { colKey: 'rate_limit', title: this.$t('page.oplatform.rate_limit'), width: 120 },
         { colKey: 'ip_whitelist', title: this.$t('page.oplatform.ip_whitelist'), width: 160, ellipsis: true },

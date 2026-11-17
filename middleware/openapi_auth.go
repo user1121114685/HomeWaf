@@ -10,8 +10,10 @@ import (
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
 	"bytes"
+	"encoding/json"
 	"io"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +33,15 @@ var (
 	openApiLogService = waf_service.WafOPlatformLogServiceApp
 	rateLimitMap      sync.Map // key: api_key_id, value: *rateLimitEntry
 )
+
+func openAPIAuthFailure(message string, c *gin.Context) {
+	if c.GetBool("mcp_transport") {
+		c.Header("WWW-Authenticate", `Bearer realm="HomeWaf MCP"`)
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": message})
+		return
+	}
+	response.AuthFailWithMessage(message, c)
+}
 
 // bodyWriter 包装 gin.ResponseWriter，用于捕获响应体
 type bodyWriter struct {
@@ -66,24 +77,28 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 	keyBean, err := openApiKeyService.GetByApiKey(apiKey)
 	localOnly := err == nil && keyBean.LocalOnly == 1
 	if global.CurrentSettings().GCONFIG_OPEN_PLATFORM_ENABLED == 0 && !localOnly {
-		response.AuthFailWithMessage("开放平台已关闭", c)
+		openAPIAuthFailure("开放平台已关闭", c)
 		return model.OPlatformKey{}, false
 	}
 
 	// 2. 检查 Key 查询结果
 	if err != nil {
-		response.AuthFailWithMessage("无效的 API Key", c)
+		openAPIAuthFailure("无效的 API Key", c)
 		return model.OPlatformKey{}, false
 	}
 
 	// 3. 检查启用状态
+	if keyBean.MCPAccess != "" && !allowMCPKey(c, keyBean) {
+		openAPIAuthFailure("MCP 专用密钥不能调用普通管理 API", c)
+		return model.OPlatformKey{}, false
+	}
 	if keyBean.Status != 1 {
-		response.AuthFailWithMessage("API Key 已禁用", c)
+		openAPIAuthFailure("API Key 已禁用", c)
 		return model.OPlatformKey{}, false
 	}
 
 	if localOnly && !isDirectLoopbackRequest(c) {
-		response.AuthFailWithMessage("该 API Key 仅允许本机调用", c)
+		openAPIAuthFailure("该 API Key 仅允许本机调用", c)
 		return model.OPlatformKey{}, false
 	}
 
@@ -91,7 +106,7 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 	if keyBean.ExpireTime != "" {
 		expireTime, parseErr := time.Parse("2006-01-02 15:04:05", keyBean.ExpireTime)
 		if parseErr == nil && time.Now().After(expireTime) {
-			response.AuthFailWithMessage("API Key 已过期", c)
+			openAPIAuthFailure("API Key 已过期", c)
 			return model.OPlatformKey{}, false
 		}
 	}
@@ -119,7 +134,7 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 			}
 		}
 		if !ipAllowed {
-			response.AuthFailWithMessage("IP 不在白名单中", c)
+			openAPIAuthFailure("IP 不在白名单中", c)
 			return model.OPlatformKey{}, false
 		}
 	}
@@ -142,6 +157,11 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 		entry.mu.Unlock()
 
 		if currentCount > keyBean.RateLimit {
+			if c.GetBool("mcp_transport") {
+				c.Header("Retry-After", "60")
+				c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "请求频率超限，请稍后再试"})
+				return model.OPlatformKey{}, false
+			}
 			response.FailWithMessage("请求频率超限，请稍后再试", c)
 			return model.OPlatformKey{}, false
 		}
@@ -151,6 +171,11 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 	c.Set("openapi_key_id", keyBean.Id)
 	c.Set("openapi_key_name", keyBean.KeyName)
 	c.Set("openapi_local_only", localOnly)
+	if grant, ok := c.Request.Context().Value(mcpGrantKey{}).(mcpGrant); ok {
+		c.Set("mcp_dispatch", true)
+		c.Set("login_account", "mcp:"+keyBean.Id)
+		c.Set("mcp_tool", grant.tool)
+	}
 
 	return keyBean, true
 }
@@ -204,7 +229,7 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 			strings.Contains(path, "/upload") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/diagnostic")
 
-		omitRequestBody := c.GetBool("openapi_local_only") ||
+		omitRequestBody := c.GetBool("openapi_local_only") || c.GetBool("mcp_dispatch") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/add") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/edit")
 		if !isFileRequest && !omitRequestBody && c.Request.Body != nil {
@@ -230,7 +255,7 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 		duration := time.Since(startTime).Milliseconds()
 
 		// 站点新增/编辑响应与站点详情/列表响应可能包含站点敏感字段，本机 Key 的全部响应也不落日志。
-		omitResponseBody := c.GetBool("openapi_local_only") ||
+		omitResponseBody := c.GetBool("openapi_local_only") || c.GetBool("mcp_dispatch") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/add") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/edit") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/detail") ||
@@ -246,6 +271,16 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 		}
 
 		// 异步记录日志
+		if c.GetBool("mcp_dispatch") {
+			requestBody = "MCP tool: " + c.GetString("mcp_tool")
+			var outcome struct {
+				Code int `json:"code"`
+			}
+			if json.Unmarshal(bw.body.Bytes(), &outcome) == nil {
+				encoded, _ := json.Marshal(outcome)
+				responseBody = string(encoded)
+			}
+		}
 		logEntry := model.OPlatformLog{
 			ApiKeyId:      keyId.(string),
 			KeyName:       keyName.(string),
@@ -257,6 +292,13 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 			StatusCode:    bw.statusCode,
 			Duration:      duration,
 			TimeStr:       startTime.Format("2006-01-02 15:04:05"),
+		}
+		if c.GetBool("mcp_dispatch") {
+			if err := openApiLogService.AddLog(logEntry); err != nil {
+				zlog.Error("MCP 调用审计写入失败", "tool", c.GetString("mcp_tool"), "error", err.Error())
+			}
+			openApiKeyService.IncrCallCount(keyId.(string))
+			return
 		}
 		openApiLogService.AddLogAsync(logEntry)
 

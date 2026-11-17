@@ -137,7 +137,11 @@ func logExportAPIChanged(c *gin.Context) {
 }
 
 func (w *WafLogAPi) GetAllShareDbApi(c *gin.Context) {
-	wafShareList, _ := wafShareDbService.GetAllShareDbWithTiers()
+	wafShareList, err := wafShareDbService.GetAllShareDbWithTiers()
+	if err != nil {
+		response.FailWithMessage("日志分库读取失败，请重试", c)
+		return
+	}
 	liveName := wafdb.LiveLogName()                                     // 当前驱动的实时分片标识，用于标记默认选中项
 	allShareDbRep := make([]response2.AllShareDbRep, len(wafShareList)) // 创建数组
 	for i, _ := range wafShareList {

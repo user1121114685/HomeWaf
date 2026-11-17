@@ -104,13 +104,13 @@ await context.route('**/api/**', async (route) => {
       data = empty
         ? []
         : [
-            { name: '中国', value: url.searchParams.get('attack_type') ? 5200 : 19000 },
-            { name: '美国', value: 570 },
-            { name: '荷兰', value: 216 },
-            { name: '比利时', value: 128 },
-            { name: '新加坡', value: 29 },
-            { name: '英国', value: 29 },
-            { name: '法国', value: 23 },
+            { name: '中国', country: '中国', province: '重庆市', city: '重庆市', value: url.searchParams.get('attack_type') ? 5200 : 19000 },
+            { name: 'United States', country: 'United States', province: 'Florida', city: 'Miami', value: 570 },
+            { name: '中国', country: '中国', province: '浙江省', city: '杭州市', value: 216 },
+            { name: '比利时', country: '比利时', city: 'Brussels', value: 128 },
+            { name: '新加坡', country: '新加坡', city: 'Singapore', value: 29 },
+            { name: '英国', country: '英国', city: '', value: 29 },
+            { name: '法国', country: '法国', city: 'Paris', value: 23 },
           ];
     if (path === 'wafstatsumdaytopiprange')
       data = {
@@ -120,6 +120,7 @@ await context.route('**/api/**', async (route) => {
               ip: '203.0.113.' + (10 + i),
               count: 600 - i * 60,
               ip_belong: '中国',
+              country: '中国', province: '重庆市', city: '重庆市',
               ip_tags: [],
             })),
         NormalIPOfRange: empty
@@ -128,6 +129,7 @@ await context.route('**/api/**', async (route) => {
               ip: '198.51.100.' + (10 + i),
               count: 2000 - i * 100,
               ip_belong: '美国',
+              country: 'United States', province: 'Florida', city: 'Miami',
               ip_tags: [],
             })),
       };
@@ -170,6 +172,14 @@ async function noOverflow(width) {
       ).length,
   );
   expect(bad).toBe(0);
+  const unreadable = await root.evaluate((el) => [...el.querySelectorAll('.ip-description')].filter((item) => {
+    const address = item.querySelector('.ip-address');
+    const location = item.querySelector('.ip-location');
+    const style = getComputedStyle(location);
+    const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.5;
+    return address.scrollWidth > address.clientWidth + 1 || location.getBoundingClientRect().height > lineHeight * 3 + 1;
+  }).length);
+  expect(unreadable, `IP addresses and country/city labels must stay readable at ${width}px`).toBe(0);
   report.checks.push(`No panel overflow at ${width}px`);
 }
 try {
@@ -192,6 +202,13 @@ try {
     await expect(page.locator('.region-row')).toHaveCount(7);
     await expect(page.locator('.region-row').first()).toContainText('19,000');
     await expect(page.locator('.region-ranking')).toContainText('新加坡');
+    await expect(page.locator('.region-ranking')).toContainText('中国 · 重庆市');
+    await expect(page.locator('.region-ranking')).toContainText('中国 · 浙江省 · 杭州市');
+    await expect(page.locator('.region-ranking')).toContainText('美国 · Florida · Miami');
+    await expect(page.locator('.region-ranking')).toContainText('英国 · 城市未知');
+    await expect(page.locator('.ip-location').first()).toContainText('重庆市');
+    await expect(page.locator('.ip-location').last()).toContainText('美国 · Florida · Miami');
+    expect(report.requests.filter((r) => r.path === 'analysis/wafanalysisdaycountryrange').every((r) => r.params.group_by === 'city')).toBe(true);
   }
   await page.getByRole('button', { name: '仅拦截', exact: true }).click();
   await expect(page.locator('.ranking-caption')).toContainText('拦截次数');
@@ -216,7 +233,13 @@ try {
   await loaded();
   report.checks.push('Presets and custom date range reach statistics APIs');
 
-  for (const width of [1440, 1024, 768, 390]) await noOverflow(width);
+  for (const theme of ['light', 'dark']) {
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+    for (const width of [1440, 1024, 768, 390]) {
+      await noOverflow(width);
+      await shot(`overview-locations-${theme}-${width}.png`);
+    }
+  }
   await shot(live ? 'overview-live-mobile.png' : 'overview-mobile.png');
   await page.setViewportSize({ width: 1920, height: 1200 });
 

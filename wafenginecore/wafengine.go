@@ -629,14 +629,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					if handleBlock(waf.CheckRule) {
 						return
 					}
-				}
-				//AI智能检测（全局开关开启且站点开启，规则抓确定的，AI 抓漏网的）
-				if requestSettings(r).GCONFIG_AI_ENABLE == 1 && hostDefense.DEFENSE_AI == 1 && !ruleSkip("AI") {
-					if handleBlock(waf.CheckAI) {
-						return
-					}
-				}
-				//检测敏感词
+				}				//检测敏感词
 				if hostDefense.DEFENSE_SENSITIVE == 1 && !ruleSkip("SENSITIVE") {
 					if handleBlock(waf.CheckSensitive) {
 						return

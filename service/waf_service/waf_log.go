@@ -167,6 +167,8 @@ func (receiver *WafLogService) GetDetailApi(req request.WafAttackLogDetailReq) (
 	}
 	// 报文单独存在 event_payload 里，按主键点查补回来；没有报文行的（正常请求未采样）保持窄字段
 	FillShardPayloads(shardName, []*innerbean.WebLog{&weblog})
+	weblog.Diagnostics = requestDiagnostics(&weblog)
+	weblog.NormalizePipelineVisitorIdentity()
 	return weblog, nil
 }
 
@@ -209,7 +211,7 @@ func (receiver *WafLogService) DeleteHistory(securityDay, accessDay string) {
 	}
 }
 
-// sampleRetentionDays 采样负样本池的保留天数（D2）。比 access_log 独立：它喂的是 AI 训练。
+// sampleRetentionDays 采样请求报文的保留天数，与访问窄行独立，用于请求回溯。
 const sampleRetentionDays = 30
 
 // watchPayloadRetentionDays 观察名单全量留痕报文的保留天数（D9）。窄行仍随 access_log 保留期。

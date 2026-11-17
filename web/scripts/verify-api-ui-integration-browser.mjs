@@ -62,8 +62,7 @@ let ipItems = [],
   failFile = false,
   emptyFiles = false,
   failRevoke = false,
-  failRecommend = false,
-  failAI = false;
+  failRecommend = false;
 let sessions = [15000, 15001].flatMap((port) =>
   ['owner', 'guest'].map((username, i) => ({
     id: port + '-' + username,
@@ -265,12 +264,6 @@ await context.route('**/api/**', async (route) => {
     return ok({
       rule_content: `rule R${input.rule_code.replaceAll('-', '')} "" salience 10 { when MF.URL == "/private" then RF.Deny(); }`,
     });
-  if (endpoint === 'gpt/config') return ok({ has_token: true, gpt_url: 'https://ai.example', gpt_model: 'fixture' });
-  if (endpoint === 'wafhost/rule/aigen')
-    return failAI
-      ? fail('模拟 AI 服务失败')
-      : ok({ rule_content: 'rule RAI "" salience 1 { when MF.URL == "/private" then RF.Deny(); }', valid: true });
-  if (endpoint === 'wafhost/rule/aiprompt') return ok('生成安全规则，不自动保存。');
   if (endpoint === 'pipeline/explain') {
     write();
     return ok({ req_id: 'dry-run', verdict: { action: 'allow', reason: 'preview' }, trace: [], hits: [] });
@@ -456,7 +449,7 @@ try {
   );
   await goto('/waf-host/wafrule?host_code=pipeline-15000');
   await page.getByRole('button', { name: '管理自定义规则' }).click();
-  await page.getByRole('button', { name: '构建 / AI 生成规则' }).click();
+  await page.getByRole('button', { name: '构建自定义规则' }).click();
   await page.getByRole('textbox', { name: '匹配内容 1' }).fill('/private');
   await page.getByRole('button', { name: '生成规则预览' }).click();
   await expect(page.getByRole('textbox', { name: '生成规则源码' })).toHaveValue(/RF.Deny/);
@@ -468,20 +461,10 @@ try {
   await expect.poll(() => configs[0].policy.ruleset.scripts?.length).toBe(1);
   await page.reload();
   await expect(page.locator('.rule-collection')).toContainText(configs[0].policy.ruleset.scripts[0].id);
-  await page.getByRole('button', { name: '构建 / AI 生成规则' }).click();
-  await page.getByRole('radio', { name: 'AI 生成', exact: true }).press('Space');
-  await page.getByRole('textbox', { name: '防护需求' }).fill('观察私有路径');
-  failAI = true;
-  await page.getByRole('button', { name: '生成规则', exact: true }).click();
-  await expect(dialog()).toContainText('模拟 AI 服务失败');
-  await expect(page.getByRole('textbox', { name: '防护需求' })).toHaveValue('观察私有路径');
-  failAI = false;
-  await page.getByRole('button', { name: '生成规则', exact: true }).click();
-  await page.getByRole('button', { name: '查看生成提示词' }).click();
-  await expect(page.getByRole('textbox', { name: '规则生成提示词' })).toHaveValue('生成安全规则，不自动保存。');
-  report.checks.push(
-    'Discoverable rule builder, compiled preview, draft/save/reopen; AI failure keeps intent; no automatic save',
-  );
+  await page.getByRole('button', { name: '构建自定义规则' }).click();
+  await expect(page.getByRole('radio', { name: 'AI 生成', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '取消', exact: true }).last().click();
+  report.checks.push('Rule builder retains compiled preview, draft/save/reopen; retired AI controls are absent');
   expect(report.errors).toEqual([]);
   expect(configs[1]).toEqual(untouched);
   fs.writeFileSync(path.join(output, 'browser-results.json'), JSON.stringify(report, null, 2));

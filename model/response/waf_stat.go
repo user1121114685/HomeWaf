@@ -68,8 +68,11 @@ type WafIPStats struct {
 数据分析：返回国家和对应的访问数量 或者攻击数量
 */
 type WafAnalysisDayStats struct {
-	Name  string `json:"name"  form:"name"`
-	Value int64  `json:"value"  form:"value"`
+	Name     string `json:"name"  form:"name"`
+	Value    int64  `json:"value"  form:"value"`
+	Country  string `json:"country,omitempty"`
+	Province string `json:"province,omitempty"`
+	City     string `json:"city,omitempty"`
 }
 
 /*

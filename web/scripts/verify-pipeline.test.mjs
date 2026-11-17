@@ -23,9 +23,9 @@ test('observation startup retains access controls and never activates disabled d
   assert.equal(next.policy.hit_policy.enabled,false);assert.equal(next.policy.hit_policy.lockdown.enabled,false);assert.equal(next.policy.honeypot.enabled,false);
   assert.equal(original.policy.ruleset.rules[0].mode,'block');assert.equal(original.policy.hit_policy.enabled,true);
 });
-test('observation startup includes migrated scripts URL rules and local AI',()=>{
-  const config=newPort(template());config.policy.ruleset.ai='block';config.policy.ruleset.plugins={mode:'block',ids:['filter']};config.policy.ruleset.scripts=[{mode:'block'},{mode:'off'}];config.policy.ruleset.urls=[{mode:'block'}];
-  const next=observationConfig(config);assert.equal(next.policy.ruleset.ai,'observe');assert.deepEqual(next.policy.ruleset.scripts.map(rule=>rule.mode),['observe','off']);assert.equal(next.policy.ruleset.urls[0].mode,'observe');assert.equal(config.policy.ruleset.ai,'block');
+test('observation startup includes migrated scripts URL rules and plugins',()=>{
+  const config=newPort(template());config.policy.ruleset.plugins={mode:'block',ids:['filter']};config.policy.ruleset.scripts=[{mode:'block'},{mode:'off'}];config.policy.ruleset.urls=[{mode:'block'}];
+  const next=observationConfig(config);assert.deepEqual(next.policy.ruleset.scripts.map(rule=>rule.mode),['observe','off']);assert.equal(next.policy.ruleset.urls[0].mode,'observe');
   assert.equal(next.policy.ruleset.plugins.mode,'observe');assert.equal(config.policy.ruleset.plugins.mode,'block');
 });
 test('template projection excludes manual identities without mutating port config',()=>{

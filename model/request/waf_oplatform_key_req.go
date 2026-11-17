@@ -5,6 +5,7 @@ package request
 import "HomeWaf/model/common/request"
 
 type WafOPlatformKeyAddReq struct {
+	MCPAccess   string `json:"mcp_access" binding:"omitempty,oneof=read write"`
 	KeyName     string `json:"key_name"`     //Key 名称
 	Remark      string `json:"remark"`       //备注
 	RateLimit   int64  `json:"rate_limit"`   //每分钟限流次数，0不限

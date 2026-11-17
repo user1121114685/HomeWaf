@@ -12,6 +12,10 @@ When dependencies or embedded assets change, update this inventory and the corre
 
 | Module | Version | License |
 |---|---|---|
+| github.com/google/jsonschema-go | v0.4.3 | MIT |
+| github.com/modelcontextprotocol/go-sdk | v1.8.0 | Apache-2.0 / MIT (licensing transition; see bundled LICENSE) |
+| github.com/segmentio/asm | v1.1.3 | MIT |
+| github.com/segmentio/encoding | v0.5.4 | MIT |
 | filippo.io/edwards25519 | v1.2.0 | BSD-3-Clause |
 | github.com/alibabacloud-go/alibabacloud-gateway-spi | v0.0.5 | Apache-2.0 |
 | github.com/alibabacloud-go/darabonba-openapi/v2 | v2.2.5 | Apache-2.0 |
@@ -33,7 +37,6 @@ When dependencies or embedded assets change, update this inventory and the corre
 | github.com/corazawaf/libinjection-go | v0.3.5 | BSD-3-Clause |
 | github.com/coreos/go-semver | v0.3.1 | Apache-2.0 |
 | github.com/denisbrodbeck/machineid | v1.0.1 | MIT |
-| github.com/dmitryikh/leaves | v0.0.0-20230708180554-25d19a787328 | MIT |
 | github.com/dsnet/compress | v0.0.1 | BSD-3-Clause |
 | github.com/dustin/go-humanize | v1.1.0 | MIT |
 | github.com/ebitengine/purego | v0.11.3 | Apache-2.0 |

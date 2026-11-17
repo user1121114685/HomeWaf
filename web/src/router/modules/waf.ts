@@ -467,12 +467,6 @@ export default [
         meta: { title: 'menu.system.owasp_title' },
       },
       {
-        path: 'AIModelManage',
-        name: 'AIModelManage',
-        component: () => import('@/pages/waf/ai/index.vue'),
-        meta: { title: 'menu.system.ai_title' },
-      },
-      {
         path: 'RumtimeSysteminfo',
         name: 'RumtimeSysteminfo',
         component: () => import('@/pages/waf/sysruntime/index.vue'),
@@ -544,6 +538,12 @@ export default [
         name: 'OPlatformKey',
         component: () => import('@/pages/waf/oplatform/index.vue'),
         meta: { title: 'menu.oplatform.key_title' },
+      },
+      {
+        path: 'mcp',
+        name: 'OPlatformMCP',
+        component: () => import('@/pages/waf/oplatform/mcp.vue'),
+        meta: { title: 'MCP 接入', roleCode: 'OPlatformKey' },
       },
       {
         path: 'log',

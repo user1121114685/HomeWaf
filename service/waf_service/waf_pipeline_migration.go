@@ -264,13 +264,6 @@ func (s *WafPipelineService) previewLegacyPort(port uint16, policyHost string) (
 		}
 	}
 	defense := model.ParseHostsDefense(selected.DEFENSE_JSON)
-	c.Policy.RuleSet.AI = wafpipeline.ModeOff
-	if defense.DEFENSE_AI == 1 && selected.GUARD_STATUS == 1 && global.CurrentSettings().GCONFIG_AI_ENABLE == 1 {
-		c.Policy.RuleSet.AI = wafpipeline.ModeObserve
-		if global.CurrentSettings().GCONFIG_AI_MODE == "block" && selected.LogOnlyMode != 1 {
-			c.Policy.RuleSet.AI = wafpipeline.ModeBlock
-		}
-	}
 	flags := map[string]int{"scanner": defense.DEFENSE_SCAN, "sqli": defense.DEFENSE_SQLI, "xss": defense.DEFENSE_XSS, "rce": defense.DEFENSE_RCE, "lfi": defense.DEFENSE_DIR_TRAVERSAL}
 	for i := range c.Policy.RuleSet.Rules {
 		r := &c.Policy.RuleSet.Rules[i]

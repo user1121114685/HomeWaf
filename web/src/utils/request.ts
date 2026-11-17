@@ -134,7 +134,7 @@ let lastBackendUnavailableAt = 0;
 const instance = axios.create({
   baseURL: API_HOST,
   // 不在此写死超时：改到请求拦截器里按 localStorage 动态取（getRequestTimeout），
-  // 这样"系统配置页-前端请求超时"改完立即生效，无需刷新；单条请求也可自带更长超时（如 AI 生成）。
+  // 这样"系统配置页-前端请求超时"改完立即生效，无需刷新；单条请求也可自带更长超时。
   timeout: 0,
   withCredentials: true,
   transformRequest: [
@@ -188,7 +188,7 @@ instance.interceptors.request.use(
     config.headers['X-Request-Time'] = Math.floor(Date.now() / 1000).toString()
     config.headers['X-Request-Id'] = uuidv4()
     // 未显式指定超时的请求，按当前 localStorage 配置动态套用（0/未设都视为未指定）；
-    // 单条请求自带的超时（如 AI 生成的长超时）保持不变。
+    // 单条请求自带的超时保持不变。
     if (!config.timeout) {
       config.timeout = getRequestTimeout()
     }

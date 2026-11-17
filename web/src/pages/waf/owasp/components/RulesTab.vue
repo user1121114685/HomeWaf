@@ -232,23 +232,10 @@
           </hw-form-item>
           <hw-form-item style="float: right">
             <hw-button variant="outline" @click="dialogVisible = false">{{ $t('common.close') }}</hw-button>
-            <hw-button variant="outline" theme="default" @click="onAiAnalyze">{{ $t('page.owasp.rules.ai_analyze') }}</hw-button>
             <hw-button v-if="editMode === 'edit'" theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
           </hw-form-item>
         </hw-form>
       </div></template>
-    </hw-dialog>
-
-    <!-- AI 分析预览确认对话框 -->
-    <hw-dialog
-      :header="$t('page.owasp.rules.ai_analyze')"
-      v-model:visible="aiDialogVisible"
-      width="680px"
-      :onConfirm="confirmSendAi"
-      :onClose="() => { aiDialogVisible = false }"
-    >
-      <hw-alert theme="info" :message="$t('page.owasp.rules.ai_analyze_tip')" style="margin-bottom:10px" />
-      <hw-textarea v-model="aiPrompt" :autosize="{ minRows: 8, maxRows: 18 }" />
     </hw-dialog>
   </div>
 </template>
@@ -308,8 +295,6 @@ export default defineComponent({
       dialogVisible: false,
       dialogTitle: '',
       editMode: 'view', // view | edit
-      aiDialogVisible: false,
-      aiPrompt: '',
       editForm: {
         id: 0,
         source_file: '',
@@ -492,37 +477,6 @@ export default defineComponent({
         }
         this.fillForm(res.data.rule, res.data.override, 'edit');
       });
-    },
-    onAiAnalyze() {
-      const f = this.editForm as any;
-      const phaseText = f.phase ? `Phase ${f.phase} - ${this.phaseName(f.phase)}` : '-';
-      const plText = f.paranoia ? `PL${f.paranoia}` : '未指定（任意 PL 都启用）';
-      const tagsText = (f.tags && f.tags.length) ? f.tags.join(', ') : '-';
-      // 构建结构化提示词，告知 AI 这是一条 OWASP CRS 规则
-      this.aiPrompt = [
-        '以下是一条来自 OWASP 核心规则集（CRS, Core Rule Set）的 WAF 规则，请用中文解释：',
-        '1. 该规则的防护意图是什么？',
-        '2. 它在什么场景/条件下会被触发？',
-        '3. 可能导致哪些误报场景，管理员应如何调优？',
-        '',
-        `规则 ID：${f.id}`,
-        `指令类型：${f.directive || 'SecRule'}`,
-        `执行阶段：${phaseText}`,
-        `严重级别：${f.severity || '-'}`,
-        `偏执级别：${plText}`,
-        `描述（msg）：${f.message || '-'}`,
-        `标签：${tagsText}`,
-        `所属文件：${f.source_file || '-'}`,
-        '',
-        '规则原文：',
-        f.content || '-',
-      ].join('\n');
-      this.aiDialogVisible = true;
-    },
-    confirmSendAi() {
-      // 规则解读走 OWASP 规则提示词，不套风险评分格式
-      this.$bus.$emit('sendAi', { q: this.aiPrompt, scene: 'owasp_rule' });
-      this.aiDialogVisible = false;
     },
     goToTuningVar(varName: string) {
       // 关闭当前弹窗，切换到调参 tab（父组件通过 $parent 或 event bus 处理）

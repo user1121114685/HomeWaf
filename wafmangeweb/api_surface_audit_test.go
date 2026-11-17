@@ -82,6 +82,9 @@ func TestAllBackendRouteAuthenticationBoundaries(t *testing.T) {
 			if strings.Contains(name, ".TokenOnlyAuth.") {
 				item.Auth = "session-only"
 			}
+			if strings.Contains(name, ".MCPAuth.") {
+				item.Auth = "mcp-key"
+			}
 			if strings.Contains(name, ".RequireRole.") {
 				item.RoleGuard = true
 			}
@@ -146,6 +149,12 @@ func TestAllBackendRouteAuthenticationBoundaries(t *testing.T) {
 				}
 				recorder := httptest.NewRecorder()
 				actual.ServeHTTP(recorder, request)
+				if route.Auth == "mcp-key" {
+					if recorder.Code != 401 || recorder.Header().Get("WWW-Authenticate") == "" {
+						t.Fatalf("MCP accepted a missing or console credential: HTTP %d", recorder.Code)
+					}
+					return
+				}
 				var result struct {
 					Code int `json:"code"`
 				}

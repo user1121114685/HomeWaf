@@ -1305,7 +1305,6 @@ import {defineComponent} from 'vue';
           { key: 'sensitive', src: 'defense', label: this.$t('page.host.sensitive_detection'), tips: this.$t('page.host.sensitive_detection_tips') },
           { key: 'traversal', src: 'defense', label: this.$t('page.host.dir_traversal_detection'), tips: this.$t('page.host.dir_traversal_detection_tips') },
           { key: 'owaspset', src: 'defense', label: this.$t('page.host.owaspset_detection'), tips: this.$t('page.host.owaspset_detection_tips'), action: { type: 'route', name: 'OwaspManage', text: this.$t('page.host.owasp_manage_link') } },
-          { key: 'ai', src: 'defense', label: this.$t('page.host.ai_detection'), tips: this.$t('page.host.ai_detection_tips'), action: { type: 'route', name: 'AIModelManage', text: this.$t('page.host.ai_manage_link') } },
           { key: 'cookie', src: 'cookie', label: this.$t('page.host.tab_cookie_security'), tips: this.$t('page.host.cookie_security.intro'), action: { type: 'tab', tab: 16 } },
           { key: 'csrf', src: 'csrf', label: this.$t('page.host.tab_csrf'), tips: this.$t('page.host.csrf.intro'), action: { type: 'tab', tab: 17 } },
           { key: 'tamper', src: 'tamper', label: this.$t('page.host.tab_tamper'), tips: this.$t('page.host.tamper.intro'), action: { type: 'tab', tab: 18 } },

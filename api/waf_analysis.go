@@ -16,7 +16,11 @@ func (w *WafAnalysisApi) StatAnalysisDayCountryRangeApi(c *gin.Context) {
 	var req request.WafStatsAnalysisDayRangeCountryReq
 	err := c.ShouldBind(&req)
 	if err == nil {
-		wafStat := wafAnalysisService.StatAnalysisDayCountryRangeApi(req)
+		wafStat, err := wafAnalysisService.StatAnalysisDayCountryRangeApi(req)
+		if err != nil {
+			response.FailWithMessage("地区统计读取失败，请重试", c)
+			return
+		}
 		response.OkWithDetailed(wafStat, "获取成功", c)
 	} else {
 

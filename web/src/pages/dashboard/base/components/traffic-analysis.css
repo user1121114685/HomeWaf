@@ -379,11 +379,10 @@
 }
 .region-row span {
   color: var(--traffic-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .region-row strong {
+  flex-shrink: 0;
   color: var(--traffic-text);
   font-variant-numeric: tabular-nums;
 }
@@ -556,9 +555,7 @@
 .ip-location {
   color: var(--traffic-subtle);
   font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .ip-row > strong {
   font-size: 13px;
@@ -628,6 +625,9 @@
   .traffic-analysis {
     padding: 16px;
   }
+  .traffic-breakdowns {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .traffic-main-grid {
     grid-template-columns: minmax(0, 1fr) 260px;
     gap: 12px;
@@ -655,7 +655,7 @@
     border: 0;
   }
   .distribution-body {
-    flex-direction: column;
+    flex-direction: row;
   }
   .distribution-list {
     width: 100%;
@@ -694,6 +694,9 @@
     border: 1px solid var(--hw-line);
     display: flex;
     gap: 0;
+  }
+  .secondary-metrics {
+    grid-template-columns: minmax(0, 1fr);
   }
   .secondary-metrics .traffic-metric + .traffic-metric {
     border-left: 1px solid var(--traffic-border);

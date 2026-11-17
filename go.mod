@@ -13,7 +13,6 @@ require (
 	github.com/corazawaf/coraza/v3 v3.8.1
 	github.com/corazawaf/libinjection-go v0.3.5
 	github.com/denisbrodbeck/machineid v1.0.1
-	github.com/dmitryikh/leaves v0.0.0-20230708180554-25d19a787328
 	github.com/dsnet/compress v0.0.1
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/gin-contrib/gzip v1.2.10
@@ -22,12 +21,14 @@ require (
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/go-co-op/gocron/v2 v2.23.0
 	github.com/go-mysql-org/go-mysql v1.16.0
+	github.com/google/jsonschema-go v0.4.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/ipipdotnet/ipdb-go v1.3.3
 	github.com/kardianos/service v1.3.0
 	github.com/klauspost/compress v1.20.3
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20261028042204-6a276cc7c4f9
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/oschwald/geoip2-golang/v2 v2.5.0
 	github.com/oschwald/maxminddb-golang/v2 v2.9.0
 	github.com/pelletier/go-toml/v2 v2.4.3
@@ -247,6 +248,8 @@ require (
 	github.com/sacloud/packages-go v0.0.12 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.36 // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/selectel/domains-go v1.1.0 // indirect
 	github.com/selectel/go-selvpcclient/v4 v4.2.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect

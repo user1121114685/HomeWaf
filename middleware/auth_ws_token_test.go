@@ -100,7 +100,7 @@ func TestFingerprintExemptWithQueryString(t *testing.T) {
 		{"ws 无查询串", "/api/v1/ws", nil, true},
 		{"下载带查询串", "/api/v1/waflog/attack/download?X-Token=t", nil, true},
 		{"Upgrade 头", "/whatever", map[string]string{"Upgrade": "websocket"}, true},
-		{"SSE", "/api/v1/gpt/chat", map[string]string{"Accept": "text/event-stream"}, true},
+		{"SSE", "/api/v1/events", map[string]string{"Accept": "text/event-stream"}, true},
 		{"普通接口", "/api/v1/hosts/list?page=1", nil, false},
 	}
 	for _, tc := range cases {

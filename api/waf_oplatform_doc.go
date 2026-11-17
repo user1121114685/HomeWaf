@@ -504,7 +504,6 @@ var routeModuleMap = map[string]string{
 	"/api/v1/license":              "License管理",
 	"/api/v1/batchtask":            "批量任务",
 	"/api/v1/task":                 "任务管理",
-	"/api/v1/gpt":                  "AI助手",
 	"/api/v1/analysis":             "流量分析",
 	"/api/v1/privateinfo":          "隐私信息",
 	"/api/v1/privategroup":         "隐私分组",

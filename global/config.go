@@ -96,10 +96,6 @@ type RuntimeSettings struct {
 	GCONFIG_RECORD_ENABLE_OWASP int64
 	// OWASP 检测引擎工作模式: On(拦截) / DetectionOnly(观察/仅记录) / Off(关闭)
 	GCONFIG_OWASP_MODE string
-	// AI智能检测总开关 1启用 0关闭（需先在AI模型管理上传模型包）
-	GCONFIG_AI_ENABLE int64
-	// AI检测工作模式: observe(仅记录/观察) / block(达到拦截阈值则拦截)
-	GCONFIG_AI_MODE string
 	// 请求体深度检测模式（D3/S1 新增的 formValue/JSON 逐值 XSS/SQLi/RCE 检测）：
 	// observe(默认,命中只在日志标记不拦截) / block(命中即拦) / off(不做请求体深检)。
 	// 默认 observe：请求体逐值检测对正常 JSON/表单流量误报较高(libinjection 本为单值设计)，
@@ -198,12 +194,6 @@ type RuntimeSettings struct {
 	GCONFIG_RECORD_DEBUG_PWD string
 	// CORS 跨域来源白名单(逗号分隔,大小写不敏感)，默认空=不允许任何跨域(同源管理界面不受影响)
 	GCONFIG_CORS_ALLOW_ORIGINS string
-	// GPT远程地址 DeepSeek ChatGpt 以及使用one-api封装好的接口
-	GCONFIG_RECORD_GPT_URL string
-	// GPT远程授权密钥
-	GCONFIG_RECORD_GPT_TOKEN string
-	// GPT 模型名称
-	GCONFIG_RECORD_GPT_MODEL string
 	// IP失败封禁相关配置
 	// 失败状态码配置，支持多个用|分隔，也支持正则表达式
 	GCONFIG_IP_FAILURE_STATUS_CODES string
@@ -330,7 +320,7 @@ type RuntimeSettings struct {
 	// 1024M 进行分库
 	GDATA_SHARE_DB_FILE_SIZE int64
 	// GDATA_ACCESS_LOG_MODE 访问日志窄行档位：off=只留安全事件，db=全量入库，sample=事件+采样。
-	// off 会失去：CC 阈值推荐、AI 训练负样本、异常 IP 的正常行为回溯（全都要正常请求的全量/样本）。
+	// off 会失去：CC 阈值推荐、异常 IP 的正常行为回溯（全都要正常请求的全量/样本）。
 	GDATA_ACCESS_LOG_MODE string
 	// GDATA_ACCESS_LOG_RETENTION_DAYS access_log 保留天数。它直接决定 CC 阈值推荐能回看多少天。
 	GDATA_ACCESS_LOG_RETENTION_DAYS int64
@@ -407,8 +397,6 @@ var runtimeSettings = func() *atomic.Pointer[runtimeSettingsSnapshot] {
 		GCONFIG_ALLOW_CONTAINER_SELFUPDATE:       0,
 		GCONFIG_RECORD_ENABLE_OWASP:              0,
 		GCONFIG_OWASP_MODE:                       "DetectionOnly",
-		GCONFIG_AI_ENABLE:                        0,
-		GCONFIG_AI_MODE:                          "observe",
 		GCONFIG_BODY_DETECT_MODE:                 "observe",
 		GCONFIG_BODY_DETECT_FIELD_EXCLUDE:        "",
 		GCONFIG_RULE_CHAIN_MODE:                  0,
@@ -449,9 +437,6 @@ var runtimeSettings = func() *atomic.Pointer[runtimeSettingsSnapshot] {
 		GCONFIG_RECORD_DEBUG_ENABLE:              0,
 		GCONFIG_RECORD_DEBUG_PWD:                 "",
 		GCONFIG_CORS_ALLOW_ORIGINS:               "",
-		GCONFIG_RECORD_GPT_URL:                   "https://api.deepseek.com",
-		GCONFIG_RECORD_GPT_TOKEN:                 "HomeWaf提示请输入密钥",
-		GCONFIG_RECORD_GPT_MODEL:                 "deepseek-chat",
 		GCONFIG_IP_FAILURE_STATUS_CODES:          "401|403|404|444|429|503",
 		GCONFIG_IP_FAILURE_BAN_ENABLED:           0,
 		GCONFIG_IP_FAILURE_BAN_LOCK_TIME:         10,

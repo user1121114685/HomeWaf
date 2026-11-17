@@ -51,6 +51,8 @@ func TestLogRequestOutcomeFiltersObserveAndResponseFailures(t *testing.T) {
 	}{
 		{"放行", "", 0, 200}, {"阻止", "ip_block", 0, 403},
 		{"放行", "ssrf", 1, 200}, {"放行", "", 0, 500}, {"放行", "", 0, 404},
+		{"放行", "csrf", 1, 200}, {"放行", "csrf", 1, 500},
+		{"阻止", "sqli", 1, 403}, {"放行", "sqli", 0, 200}, {"", "", 1, 200},
 	}
 	for i, c := range cases {
 		row := model.LogNarrow{ReqUUID: fmt.Sprint(i), TenantId: global.GWAF_TENANT_ID, UserCode: global.GWAF_USER_CODE, HostCode: "pipeline-15000", ACTION: c.action, RULE: c.rule, LogOnlyMode: c.observe, STATUS_CODE: c.status, UNIX_ADD_TIME: at}
@@ -63,11 +65,18 @@ func TestLogRequestOutcomeFiltersObserveAndResponseFailures(t *testing.T) {
 	for _, c := range []struct {
 		value string
 		total int64
-	}{{"", 5}, {"normal", 1}, {"abnormal", 4}} {
+	}{{"", 10}, {"normal", 1}, {"observed", 2}, {"abnormal", 7}} {
 		req.RequestOutcome = c.value
 		rows, count, _, err := WafLogServiceApp.GetListApiWithMeta(req)
 		if err != nil || count != c.total || int64(len(rows)) != c.total {
 			t.Fatalf("%q: rows=%d total=%d err=%v", c.value, len(rows), count, err)
+		}
+		if c.value == "observed" {
+			for _, row := range rows {
+				if row.ACTION != "放行" || row.LogOnlyMode != 1 || row.STATUS_CODE >= 400 || !row.IsSecurityEvent() {
+					t.Fatalf("observation lost its outcome or security audit record: %+v", row)
+				}
+			}
 		}
 	}
 	normal, abnormal := req, req
@@ -78,5 +87,37 @@ func TestLogRequestOutcomeFiltersObserveAndResponseFailures(t *testing.T) {
 	req.RequestOutcome = "' or 1=1"
 	if _, _, _, err := WafLogServiceApp.GetListApiWithMeta(req); err == nil {
 		t.Fatal("invalid outcome accepted")
+	}
+}
+
+func TestLogPipelineVisitorIdentityReadsHistoricalRecordsWithoutRewriting(t *testing.T) {
+	_, live, _ := setupLogLookupTest(t)
+	at := time.Now().UnixMilli()
+	for _, tc := range []struct{ id, host, identity, want string }{
+		{"blocked", "pipeline-15000", "正常访客", "未识别访客"},
+		{"known", "pipeline-15000", "已验证爬虫", "已验证爬虫"},
+		{"legacy", "legacy-site", "正常访客", "正常访客"},
+	} {
+		row := model.LogNarrow{ReqUUID: tc.id, TenantId: global.GWAF_TENANT_ID, UserCode: global.GWAF_USER_CODE, HostCode: tc.host, ACTION: "阻止", RULE: "host_not_allowed", STATUS_CODE: 403, GUEST_IDENTIFICATION: tc.identity, UNIX_ADD_TIME: at}
+		if err := live.Create(&model.AccessLog{LogNarrow: row}).Error; err != nil {
+			t.Fatal(err)
+		}
+		detail, err := WafLogServiceApp.GetDetailApi(request.WafAttackLogDetailReq{REQ_UUID: tc.id, CurrrentDbName: wafdb.LiveLogName()})
+		if err != nil || detail.GUEST_IDENTIFICATION != tc.want || detail.ACTION != "阻止" || detail.RULE != "host_not_allowed" {
+			t.Fatalf("detail=%+v err=%v", detail, err)
+		}
+		var stored model.AccessLog
+		if err := live.Table(model.AccessLogTableName).Where("req_uuid = ?", tc.id).First(&stored).Error; err != nil {
+			t.Fatal(err)
+		}
+		if stored.GUEST_IDENTIFICATION != tc.identity {
+			t.Fatal("read rewrote historical identity")
+		}
+	}
+	req := request.WafAttackLogSearch{CurrrentDbName: wafdb.LiveLogName(), UnixAddTimeBegin: "0", UnixAddTimeEnd: fmt.Sprint(at + 1), FilterBy: "guest_identification", FilterValue: "未识别访客", SortBy: "unix_add_time", SortDescending: "desc"}
+	req.PageIndex, req.PageSize = 1, 20
+	rows, count, _, err := WafLogServiceApp.GetListApiWithMeta(req)
+	if err != nil || count != 1 || len(rows) != 1 || rows[0].REQ_UUID != "blocked" || rows[0].GUEST_IDENTIFICATION != "未识别访客" {
+		t.Fatalf("rows=%+v count=%d err=%v", rows, count, err)
 	}
 }

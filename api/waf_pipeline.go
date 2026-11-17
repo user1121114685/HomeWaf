@@ -538,6 +538,12 @@ func (w *WafPipelineApi) SavePort(c *gin.Context) {
 	if !pipelineBind(c, &req) {
 		return
 	}
+	if c.GetBool("mcp_dispatch") {
+		if err := validateMCPServiceWrite(req); err != nil {
+			response.FailWithMessage(err.Error(), c)
+			return
+		}
+	}
 	req.Operator = pipelineOperator(c)
 	data, err := waf_service.WafPipelineServiceApp.Save(req)
 	if err != nil {

@@ -208,9 +208,6 @@ func markRuleSkips(c *RequestContext, modules []string) {
 }
 func (r *Runtime) withExtensions(s *Snapshot, steps []Step) []Step {
 	steps = append(steps, antiLeechStep(s)...)
-	if mode := s.Config.Policy.RuleSet.AI; mode != "" && mode != ModeOff {
-		steps = append(steps, r.aiStep(s))
-	}
 	var additions []Step
 	additions = append(additions, callbackStep(s)...)
 	additions = append(additions, pluginStep(s)...)

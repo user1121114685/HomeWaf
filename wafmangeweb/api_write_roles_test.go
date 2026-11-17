@@ -19,7 +19,6 @@ var auditedWriteRoles = []struct{ method, path, role string }{
 	{"POST", "/api/v1/firewall/ipblock/edit", enums.ROLE_SECURITY_ADMIN},
 	{"POST", "/api/v1/firewall/ipblock/enable", enums.ROLE_SECURITY_ADMIN},
 	{"POST", "/api/v1/firewall/ipblock/sync", enums.ROLE_SECURITY_ADMIN},
-	{"POST", "/api/v1/gpt/config/save", enums.ROLE_SYSTEM_ADMIN},
 	{"POST", "/api/v1/hostconn/block", enums.ROLE_SECURITY_ADMIN},
 	{"POST", "/api/v1/hostguard/ban/manual", enums.ROLE_SECURITY_ADMIN},
 	{"POST", "/api/v1/hostguard/ban/permanent", enums.ROLE_SECURITY_ADMIN},

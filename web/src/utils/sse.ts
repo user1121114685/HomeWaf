@@ -1,6 +1,6 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
-// A single, abortable SSE request. No implicit retry of POSTs or AI requests.
+// A single, abortable SSE request. No implicit retry of POST requests.
 export async function fetchEventSource(url:string,options:any){
   const {onopen,onmessage,onclose,onerror,openWhenHidden,...init}=options;
   try{

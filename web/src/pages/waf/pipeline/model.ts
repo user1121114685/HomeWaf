@@ -47,7 +47,6 @@ export function observationConfig(config: PortConfig): PortConfig {
   if (next.policy.defense) next.policy.defense.enabled = false;
   next.policy.honeypot.enabled = false; next.policy.ruleset.qps.mode = 'observe'; next.policy.ruleset.cc.mode = 'observe'; next.policy.ruleset.bot = 'observe';
   if (next.policy.ruleset.owasp !== 'off') next.policy.ruleset.owasp = 'observe';
-  if (next.policy.ruleset.ai && next.policy.ruleset.ai !== 'off') next.policy.ruleset.ai = 'observe';
   for (const option of [next.policy.ruleset.anti_leech, next.policy.ruleset.challenge, next.policy.ruleset.sensitive, next.policy.ruleset.plugins]) if (option?.mode && option.mode !== 'off') option.mode = 'observe';
   if(next.policy.ruleset.callback?.mode && next.policy.ruleset.callback.mode!=='off')next.policy.ruleset.callback.mode='observe';
   for (const rule of [...(next.policy.ruleset.scripts || []), ...(next.policy.ruleset.urls || [])]) if (rule.mode !== 'off') rule.mode = 'observe';
@@ -87,8 +86,6 @@ export const fields: Record<string, Field[]> = {
     { path: 'feed_enabled', label: '使用签名威胁订阅', kind: 'bool', help: '必须先配置 HTTPS 签名源及有效授权；默认不联网。trusted/受保护地址不因订阅命中自动封禁。' },
   ],
   ruleset: [
-    { path: 'ai', label: '本地AI异常评分', kind: 'select', options: [['', '关闭'], ['off', '关闭'], ['observe', '仅观察'], ['block', '拦截']], help: '复用本地模型，无联网请求；登录与常规攻击检测后执行。模型未加载或预算不足时放行并记录。' },
-    { path: 'ai_scope', label: '本地AI适用范围', kind: 'json', help: 'hosts、paths、methods及exclude_paths；用于排除易误报业务。正文只检查前32KiB。' },
     { path: 'qps.mode', label: 'QPS 硬上限', kind: 'select', options: modes, help: '控制每 IP / 每端口 / 路径的突发请求；观察模式只记录。' },
     { path: 'qps.per_ip', label: '每 IP 每秒请求', kind: 'number', min: 1, max: 100000, help: '普通页面会并发加载多份资源，家庭 NAS 建议先使用模板默认值。' },
     { path: 'qps.per_port', label: '整个端口每秒请求', kind: 'number', min: 1, max: 1000000, help: '端口间分别计数。' },

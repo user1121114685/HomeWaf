@@ -262,9 +262,10 @@ func (receiver *WafStatService) StatHomeSumDayTopIPRangeApi(req request.WafStats
 
 		statMore := model.StatsIPCountMore{
 			IP:       AttackCountOfRange[i].IP,
-			IPBelong: region[0],
-			IPTag:    ipTags,
-			Count:    AttackCountOfRange[i].Count,
+			IPBelong: utils.FormatIPLocation(AttackCountOfRange[i].IP),
+			Country:  region[0], Province: region[2], City: region[3],
+			IPTag: ipTags,
+			Count: AttackCountOfRange[i].Count,
 		}
 		AttackCountOfRangeMore = append(AttackCountOfRangeMore, statMore)
 	}
@@ -282,7 +283,6 @@ func (receiver *WafStatService) StatHomeSumDayTopIPRangeApi(req request.WafStats
 	var NormalCountOfRangeMore []model.StatsIPCountMore
 	for i := range NormalCountOfRange {
 		region := utils.GetCountry(NormalCountOfRange[i].IP)
-		NormalCountOfRange[i].IPBelong = region[0]
 
 		//查询IP标签
 		var ipTags []model.IPTag
@@ -291,9 +291,10 @@ func (receiver *WafStatService) StatHomeSumDayTopIPRangeApi(req request.WafStats
 
 		statMore := model.StatsIPCountMore{
 			IP:       NormalCountOfRange[i].IP,
-			IPBelong: region[0],
-			IPTag:    ipTags,
-			Count:    NormalCountOfRange[i].Count,
+			IPBelong: utils.FormatIPLocation(NormalCountOfRange[i].IP),
+			Country:  region[0], Province: region[2], City: region[3],
+			IPTag: ipTags,
+			Count: NormalCountOfRange[i].Count,
 		}
 		NormalCountOfRangeMore = append(NormalCountOfRangeMore, statMore)
 	}

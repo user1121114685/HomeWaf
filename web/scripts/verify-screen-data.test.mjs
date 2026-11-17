@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { trafficLocation, trafficRegions } from '../src/pages/dashboard/base/components/trafficLocation.ts';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import {
   aggregateRegions,
@@ -17,6 +18,23 @@ import {
   validatePayload,
   validateSnapshot,
 } from '../src/pages/dashboard/screen/data.ts';
+test('dashboard locations preserve country and city without merging distinct cities', () => {
+  assert.equal(trafficLocation({ country: '中国', province: '重庆市', city: '重庆市' }), '中国 · 重庆市');
+  assert.equal(trafficLocation({ country: 'United States', province: 'Florida', city: 'Miami' }), '美国 · Florida · Miami');
+  assert.equal(trafficLocation({ country: '中国', province: '浙江省', city: '0' }), '中国 · 浙江省 · 城市未知');
+  const regions = trafficRegions([
+    { name: '中国', city: '重庆市', value: 10 },
+    { name: 'China', city: '重庆市', value: 2 },
+    { name: '中国', city: '杭州市', value: 4 },
+    { name: 'United States', city: 'Miami', value: 3 },
+    { name: '内网', city: '', value: 100 },
+  ]);
+  assert.deepEqual(regions, [
+    { name: '中国 · 重庆市', value: 12 },
+    { name: '中国 · 杭州市', value: 4 },
+    { name: '美国 · Miami', value: 3 },
+  ]);
+});
 test('missing metrics stay unknown while valid zero stays zero', () => {
   for (const value of [undefined, null, '', '0', NaN, Infinity, -1]) assert.equal(formatCount(value), '—');
   assert.equal(formatCount(0), '0');

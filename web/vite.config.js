@@ -18,7 +18,10 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '127.0.0.1',
       port: 3001,
-      proxy: { '/api': { target: process.env.HOMEWAF_BACKEND || env.HOMEWAF_BACKEND || 'http://127.0.0.1:26666', changeOrigin: true, ws: true } },
+      proxy: {
+        '/api': { target: process.env.HOMEWAF_BACKEND || env.HOMEWAF_BACKEND || 'http://127.0.0.1:26666', changeOrigin: true, ws: true },
+        '/mcp': { target: process.env.HOMEWAF_BACKEND || env.HOMEWAF_BACKEND || 'http://127.0.0.1:26666', changeOrigin: false },
+      },
     },
   };
 });

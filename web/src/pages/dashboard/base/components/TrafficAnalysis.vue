@@ -126,7 +126,7 @@
         </div>
         <div class="region-ranking">
           <div class="ranking-caption">
-            <span>{{ text('国家 / 地区', 'Country / region') }}</span>
+            <span>{{ text('国家 / 城市', 'Country / city') }}</span>
             <span>{{ blockedOnly ? text('拦截次数', 'Blocked') : text('请求次数', 'Requests') }}</span>
           </div>
           <div v-for="row in regions.slice(0, 7)" :key="row.name" class="region-row">
@@ -147,8 +147,8 @@
         <p class="source-regions-note">
           {{
             text(
-              '按所选时间的请求次数降序展示前 7 个来源地区，内网流量不计入统计。',
-              'Top 7 source regions by request count in the selected period. Internal traffic is excluded.',
+              '按所选时间的请求次数展示前 7 个来源地区，包含国家和城市；城市缺失时标明未知。内网流量不计入统计。',
+              'Top 7 source locations by request count, including country and city. Missing cities are marked unknown. Internal traffic is excluded.',
             )
           }}
         </p>
@@ -249,7 +249,7 @@
             <span class="rank-index">{{ String(index + 1).padStart(2, '0') }}</span>
             <div class="ip-description">
               <button class="ip-address" type="button" @click="lookupDialog?.open(row.ip)">{{ row.ip }}</button
-              ><span class="ip-location">{{ row.ip_belong || text('归属地未知', 'Unknown location') }}</span>
+              ><span class="ip-location" :title="trafficLocation(row, locale)">{{ trafficLocation(row, locale) }}</span>
             </div>
             <ip-tag-cell
               v-if="row.ip_tags?.length || rank.key === 'normal'"
@@ -300,7 +300,7 @@ import { RefreshIcon } from '@/ui/icons';
 import TrafficChart from './TrafficChart.vue';
 import IpTagCell from './IpTagCell.vue';
 import { useTrafficData } from './useTrafficData';
-import countryLocations from '../../screen/country-locations.json';
+import { trafficLocation, trafficRegions } from './trafficLocation';
 
 const router = useRouter();
 const dark = computed(() => store.getters['setting/mode'] === 'dark');
@@ -334,6 +334,7 @@ const palette = computed(() =>
       },
 );
 const english = computed(() => store.state.language.currentLanguage === 'en_US');
+const locale = computed(() => (english.value ? 'en_US' : 'zh_CN'));
 const text = (zh: string, en: string) => (english.value ? en : zh);
 const today = dayjs().format('YYYY-MM-DD');
 const preset = ref('7d'),
@@ -504,17 +505,7 @@ const secondaryMetrics = computed(() => [
 const regionUnavailable = computed(() => (blockedOnly.value ? data.blockedRegions === null : data.regions === null));
 const regions = computed(() => {
   const source = (blockedOnly.value ? data.blockedRegions : data.regions) || [];
-  const aliases: Record<string, string> = countryLocations.aliases;
-  const countries: Record<string, { name: string }> = countryLocations.countries;
-  const totals = new Map<string, number>();
-  // Normalize country aliases, but keep sources even when no map geometry exists.
-  for (const row of source) {
-    const rawName = row.name.trim();
-    if (!rawName || rawName === '0' || rawName === '内网' || row.value <= 0) continue;
-    const name = countries[aliases[rawName.toLowerCase()]]?.name || rawName;
-    totals.set(name, (totals.get(name) || 0) + row.value);
-  }
-  return [...totals].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  return trafficRegions(source, locale.value);
 });
 const trendCharts = computed(() => [
   {

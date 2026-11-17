@@ -11,6 +11,8 @@ func InitPipelineRouter(group *gin.RouterGroup) {
 	r := group.Group("/api/v1/pipeline", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN))
 	a := &api.WafPipelineApi{}
 	r.GET("/ports", a.ListPorts)
+	r.GET("/ports/index", api.MCPServiceIndex)
+	r.GET("/ports/detail", api.MCPServiceDetail)
 	r.GET("/migration/legacy", a.LegacyPipelinePorts)
 	r.POST("/migration/preview", a.PreviewLegacyPipelinePort)
 	r.POST("/migration/import", a.ImportLegacyPipelinePort)
@@ -29,6 +31,7 @@ func InitPipelineRouter(group *gin.RouterGroup) {
 	r.GET("/cc/hits", a.PipelineCCHits)
 	r.POST("/cc/recommend", a.RecommendPipelineCC)
 	r.POST("/ports/save", a.SavePort)
+	r.POST("/ports/draft", api.NewServiceDraft)
 	r.POST("/ports/check", a.CheckPipelinePort)
 	r.POST("/tls/options", a.PipelineTLSOptions)
 	r.POST("/tls/check", a.CheckPipelineTLS)

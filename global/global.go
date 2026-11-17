@@ -9,7 +9,6 @@ import (
 	"HomeWaf/iplocation"
 	"HomeWaf/model"
 	"HomeWaf/model/spec"
-	"HomeWaf/wafai"
 	"HomeWaf/wafnotify"
 	"HomeWaf/wafowasp"
 	"sync/atomic"
@@ -107,7 +106,6 @@ var (
 	GWAF_APP_OP_PASSWORD         string                                    //应用操作密码（高危操作二次确认，自动生成存 config.yml）
 	GWAF_DLP                     dlpheader.EngineAPI                       // 脱敏引擎
 	GWAF_DLP_CONFIG              string                                    // 脱敏引擎配置数据
-	GWAF_AI_DETECTOR             *wafai.Detector                           // AI智能检测器（持有当前模型，失败安全）
 
 	GWAF_OWASP         *wafowasp.WafOWASP     //owasp引擎（兼容保留：由 GWAF_OWASP_MANAGER.Current() 更新；请勿直接赋值新实例，否则热重载会失效）
 	GWAF_OWASP_MANAGER *wafowasp.OwaspManager //owasp 管理器（支持热重载）
@@ -187,7 +185,7 @@ var (
 
 	GDATA_CURRENT_CHANGE bool = false //当前是否正在切换
 	// GDATA_ACCESS_LOG_MODE 访问日志窄行档位：off=只留安全事件，db=全量入库，sample=事件+采样。
-	// off 会失去：CC 阈值推荐、AI 训练负样本、异常 IP 的正常行为回溯（全都要正常请求的全量/样本）。
+	// off 会失去：CC 阈值推荐、异常 IP 的正常行为回溯（全都要正常请求的全量/样本）。
 
 	// GDATA_ACCESS_LOG_RETENTION_DAYS access_log 保留天数。它直接决定 CC 阈值推荐能回看多少天。
 

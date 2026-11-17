@@ -27,11 +27,17 @@ export interface TrafficIP {
   ip: string;
   count: number;
   ip_belong?: string;
+  country?: string;
+  province?: string;
+  city?: string;
   ip_tags?: any[];
 }
 export interface TrafficRegion {
   name: string;
   value: number;
+  country?: string;
+  province?: string;
+  city?: string;
 }
 export interface TrafficTrend {
   AttackCountOfRange: Record<string, number>;
@@ -98,7 +104,7 @@ export function useTrafficData(getRange: () => [string, string]) {
           params: {
             ...params,
             ...(key === 'regions' || key === 'blockedRegions'
-              ? { attack_type: key === 'blockedRegions' ? '阻止' : '' }
+              ? { attack_type: key === 'blockedRegions' ? '阻止' : '', group_by: 'city' }
               : {}),
           },
           background: true,
@@ -113,6 +119,9 @@ export function useTrafficData(getRange: () => [string, string]) {
             value: (result.data || []).map((r: TrafficRegion) => ({
               name: String(r.name || ''),
               value: Number(r.value) || 0,
+              country: String(r.country || r.name || ''),
+              province: String(r.province || ''),
+              city: String(r.city || ''),
             })),
           };
         }

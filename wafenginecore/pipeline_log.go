@@ -40,7 +40,7 @@ func (waf *WafEngine) RecordPipelineWebLog(s *wafpipeline.Snapshot, c *wafpipeli
 		CREATE_TIME: started.Format("2006-01-02 15:04:05"), UNIX_ADD_TIME: started.UnixMilli(), Day: day,
 		CONTENT_LENGTH: r.ContentLength, TimeSpent: time.Since(started).Milliseconds(),
 		ACTION: "放行", STATUS: "正常访问", STATUS_CODE: result.Verdict.Status,
-		GUEST_IDENTIFICATION: "正常访客", TASK_FLAG: -1, WebLogVersion: global.GWEBLOG_VERSION,
+		GUEST_IDENTIFICATION: "未识别访客", TASK_FLAG: -1, WebLogVersion: global.GWEBLOG_VERSION,
 	}
 	if lg.HOST_CODE == "" {
 		lg.HOST_CODE = "pipeline-" + strconv.Itoa(int(s.Config.Port))
@@ -86,6 +86,7 @@ func (waf *WafEngine) RecordPipelineWebLog(s *wafpipeline.Snapshot, c *wafpipeli
 	lg.COUNTRY, lg.PROVINCE, lg.CITY, lg.GeoUnresolved = region[0], region[2], region[3], !resolved
 	if verified, _ := c.Values["bot_verified"].(bool); verified {
 		lg.IsBot, lg.BotVerifyStrong = 1, 1
+		lg.GUEST_IDENTIFICATION = "已验证爬虫"
 	}
 	var headers strings.Builder
 	_ = r.Header.Write(&headers)

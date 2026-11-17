@@ -95,8 +95,6 @@ type RuleSetConfig struct {
 	CSRFOptions       *model.CsrfConfig           `json:"csrf_options,omitempty"`
 	AntiLeech         *AntiLeechPolicy            `json:"anti_leech,omitempty"`
 	Challenge         ChallengePolicy             `json:"challenge"`
-	AI                Mode                        `json:"ai,omitempty"`
-	AIScope           Scope                       `json:"ai_scope"`
 	Scripts           []ScriptRule                `json:"scripts,omitempty"`
 	URLs              []URLRule                   `json:"urls,omitempty"`
 	Rules             []Rule                      `json:"rules"`
@@ -676,15 +674,6 @@ func ValidatePolicy(p Policy) error {
 		}
 	}
 	r := p.RuleSet
-	if r.AI != "" && !ValidMode(r.AI) {
-		return fmt.Errorf("invalid AI rule mode")
-	}
-	if err := ValidateScope(r.AIScope); err != nil {
-		return err
-	}
-	if len(r.AIScope.ExcludeFields) > 0 {
-		return fmt.Errorf("AI field exclusions are unsupported; use path/method scope")
-	}
 	if err := validateExtensions(r); err != nil {
 		return err
 	}

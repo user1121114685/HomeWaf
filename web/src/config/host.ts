@@ -11,7 +11,7 @@ declare global {
  * 1. 优先读 window.__SAMWAF_SECURITY_PATH__（后端 release 模式注入到 index.html）
  * 2. 其次读 localStorage（开发模式或跨 session 持久化，由 vpconfig 页面保存时写入）
  */
-const securityPath: string = (() => {
+export const securityPath: string = (() => {
   if (typeof window === 'undefined') return '';
   if (window.__SAMWAF_SECURITY_PATH__) return window.__SAMWAF_SECURITY_PATH__;
   try {

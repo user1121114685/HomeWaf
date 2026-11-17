@@ -19,7 +19,6 @@ type Runtime struct {
 	PluginPrepare        func(*Snapshot) error
 	PluginStats          func() map[string]uint64
 	CertificateChallenge func(*Snapshot, *RequestContext) (string, bool)
-	AI                   AIPredictor
 	Admission            *Admission
 	Geo                  *GeoCache
 	Feed                 FeedReader

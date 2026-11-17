@@ -69,7 +69,7 @@ run([
   "^Test(SignedLicenseImportBoundToSession|HomeWafUpdateSourceResponses)$",
   "-count=1",
 ]);
-run(["test", "./wafupdate", "./wafupgradenotice", "./wafai", "-count=1"]);
+run(["test", "./wafupdate", "./wafupgradenotice", "-count=1"]);
 run(["test", "./wafnet", "./supervisor", "-count=1"]);
 run(["test", "./waftask", "-run", "^TestEveryCleanupTableHasSeededPolicy$", "-count=1"]);
 run(["test", "./waftask", "-run", "^TestSSLOrderScheduledRenewal", "-count=1"]);
@@ -80,7 +80,7 @@ run(["test", "./internal/dnsproviders", "./utils/ssl", "./service/waf_service", 
 run(["test", "./wafenginecore", "-run", "^TestNativeACME", "-count=1"]);
 run(["test", "./utils", "-run", "^TestOutboundRequestError", "-count=1"]);
 // Full handler/router boundary regressions use isolated fixtures only.
-run(["test", "./api", "./router", "./middleware", "./wafmangeweb", "./enums", "-count=1"]);
+run(["test", "./api", "./router", "./middleware", "./wafmangeweb", "./wafmcp", "./enums", "-count=1"]);
 run(["test", "./service/waf_service", "./wafenginecore", "-run", "^Test(CertificateLifecycle|SSLOrder|SensitiveConfig|SystemConfigRejects)", "-count=1"]);
 run(["test", "./wafpipeline", "-short", "-count=1"]);
 run(["test", "./service/waf_service", "./firewall", "-run", "^Test(NewServiceRequiresEnabledDefense|Defense|FlowDrop)", "-count=1"]);

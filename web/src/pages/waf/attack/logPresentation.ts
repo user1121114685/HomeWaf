@@ -8,7 +8,10 @@ export function requestOutcome(row: Record<string, any>) {
   const unknown = row.action !== '放行' && !blocked;
   const matched = !!row.rule || Number(row.log_only_mode) === 1;
   const failed = Number(row.status_code) >= 400;
-  return { abnormal: blocked || matched || failed || unknown, blocked, matched, failed, unknown };
+  const observeOnly = row.action === '放行' && Number(row.log_only_mode) === 1;
+  const observed = observeOnly && !failed;
+  const abnormal = blocked || (matched && !observeOnly) || failed || unknown;
+  return { abnormal, observed, observeOnly, blocked, matched, failed, unknown };
 }
 
 export function normalizeLogColumns(columns: unknown, available: string[]) {
@@ -80,7 +83,5 @@ export function logColumns(text: (zh: string, en: string) => string) {
     },
     { colKey: 'log_only_mode', title: text('仅记录模式', 'Observe mode'), width: 150 },
     { colKey: 'risk_level', title: text('风险等级', 'Risk level'), width: 110 },
-    { colKey: 'ai_score', title: text('AI 得分', 'AI score'), width: 110, sorter: true },
-    { colKey: 'ai_mark_action', title: text('AI 训练标记', 'AI training label'), width: 140 },
   ];
 }

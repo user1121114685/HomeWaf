@@ -10,8 +10,8 @@ func TestRuntimeSettingsAreCoherentAndRequestPinned(t *testing.T) {
 	old := CurrentSettings()
 	defer UpdateSettings(func(cfg *RuntimeSettings) { *cfg = old })
 	UpdateSettings(func(cfg *RuntimeSettings) {
-		cfg.GCONFIG_AI_ENABLE = 0
-		cfg.GCONFIG_AI_MODE = "observe"
+		cfg.GCONFIG_RECORD_ENABLE_OWASP = 0
+		cfg.GCONFIG_OWASP_MODE = "DetectionOnly"
 		cfg.GCONFIG_BODY_DETECT_FIELD_EXCLUDE = "notes"
 	})
 	pinned := WithSettings(context.Background())
@@ -21,11 +21,11 @@ func TestRuntimeSettingsAreCoherentAndRequestPinned(t *testing.T) {
 		defer group.Done()
 		for i := 0; i < 500; i++ {
 			UpdateSettings(func(cfg *RuntimeSettings) {
-				cfg.GCONFIG_AI_ENABLE = int64(i % 2)
+				cfg.GCONFIG_RECORD_ENABLE_OWASP = int64(i % 2)
 				if i%2 == 0 {
-					cfg.GCONFIG_AI_MODE = "observe"
+					cfg.GCONFIG_OWASP_MODE = "DetectionOnly"
 				} else {
-					cfg.GCONFIG_AI_MODE = "block"
+					cfg.GCONFIG_OWASP_MODE = "On"
 				}
 				cfg.GCONFIG_BODY_DETECT_FIELD_EXCLUDE = "content"
 			})
@@ -35,12 +35,12 @@ func TestRuntimeSettingsAreCoherentAndRequestPinned(t *testing.T) {
 		defer group.Done()
 		for i := 0; i < 1000; i++ {
 			cfg := CurrentSettings()
-			if (cfg.GCONFIG_AI_ENABLE == 0) != (cfg.GCONFIG_AI_MODE == "observe") {
+			if (cfg.GCONFIG_RECORD_ENABLE_OWASP == 0) != (cfg.GCONFIG_OWASP_MODE == "DetectionOnly") {
 				t.Error("reader saw partial publication")
 				return
 			}
 			request := SettingsForContext(pinned)
-			if request.GCONFIG_AI_ENABLE != 0 || request.GCONFIG_AI_MODE != "observe" || !BodyFieldExcluded(pinned, "Notes") || BodyFieldExcluded(pinned, "content") {
+			if request.GCONFIG_RECORD_ENABLE_OWASP != 0 || request.GCONFIG_OWASP_MODE != "DetectionOnly" || !BodyFieldExcluded(pinned, "Notes") || BodyFieldExcluded(pinned, "content") {
 				t.Error("request snapshot changed during reload")
 				return
 			}
@@ -48,11 +48,11 @@ func TestRuntimeSettingsAreCoherentAndRequestPinned(t *testing.T) {
 	}()
 	group.Wait()
 	var retained *RuntimeSettings
-	UpdateSettings(func(cfg *RuntimeSettings) { retained = cfg; cfg.GCONFIG_AI_MODE = "observe" })
-	retained.GCONFIG_AI_MODE = "mutated"
+	UpdateSettings(func(cfg *RuntimeSettings) { retained = cfg; cfg.GCONFIG_OWASP_MODE = "DetectionOnly" })
+	retained.GCONFIG_OWASP_MODE = "mutated"
 	copy := CurrentSettings()
-	copy.GCONFIG_AI_MODE = "other"
-	if CurrentSettings().GCONFIG_AI_MODE != "observe" {
+	copy.GCONFIG_OWASP_MODE = "other"
+	if CurrentSettings().GCONFIG_OWASP_MODE != "DetectionOnly" {
 		t.Fatal("caller mutated published settings")
 	}
 	before := CurrentSettings()

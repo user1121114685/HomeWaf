@@ -134,7 +134,7 @@ func InitializeCoreSchema(db *gorm.DB) error {
 	for _, change := range []struct {
 		model any
 		field string
-	}{{&model.HttpAuthBase{}, "PasswordHashed"}, {&model.HttpAuthSession{}, "Port"}, {&model.GateRuntime{}, "Owner"}} {
+	}{{&model.HttpAuthBase{}, "PasswordHashed"}, {&model.HttpAuthSession{}, "Port"}, {&model.GateRuntime{}, "Owner"}, {&model.OPlatformKey{}, "MCPAccess"}} {
 		if !db.Migrator().HasColumn(change.model, change.field) {
 			if err := db.Migrator().AddColumn(change.model, change.field); err != nil {
 				return err

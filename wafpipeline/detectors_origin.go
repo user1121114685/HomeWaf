@@ -22,6 +22,13 @@ func (ssrfDetector) Inspect(v *NormalizedView) []Match {
 		if v.excluded(f.Name) {
 			continue
 		}
+		// Browser origin/referrer URLs describe request context, not a server-side
+		// fetch target. LAN services legitimately receive private URLs here.
+		// Keep these fields in the shared view for CSRF and other detectors, and
+		// continue inspecting URL parameters, cookies and custom headers.
+		if f.Source == "header" && (strings.EqualFold(f.Name, "Origin") || strings.EqualFold(f.Name, "Referer")) {
+			continue
+		}
 		if ssrfURL(f.Value) || f.RawValue != f.Value && ssrfURL(f.RawValue) {
 			return []Match{{"ssrf", f.Source, "internal_url"}}
 		}

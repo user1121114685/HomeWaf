@@ -30,7 +30,6 @@
         </div>
       </div>
       <setting />
-      <ai-assistant />
     </template>
   </div>
 </template>
@@ -43,10 +42,9 @@ import InsecureBanner from './components/InsecureBanner.vue';
 import CommonHeader from './components/Header.vue';
 import CommonContent from './components/Content.vue';
 import SideNav from './components/SideNav.vue';
-import AiAssistant from './components/AiAssistant.vue';
 import Setting from './setting.vue';
 export default defineComponent({
-  components: { InsecureBanner, CommonHeader, CommonContent, SideNav, AiAssistant, Setting },
+  components: { InsecureBanner, CommonHeader, CommonContent, SideNav, Setting },
   data: () => ({ mobile: window.matchMedia('(max-width: 760px)').matches, media: null as MediaQueryList | null }),
   computed: {
     ...mapGetters({ menuRouters: 'permission/routers' }),

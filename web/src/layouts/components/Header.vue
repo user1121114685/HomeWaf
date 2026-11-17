@@ -239,9 +239,6 @@ Windows PowerShell:
               <hw-dropdown-item @click="navToHelper"
                 ><help-circle-icon />{{ $t('topNav.help_document') }}</hw-dropdown-item
               >
-              <hw-dropdown-item @click="$bus.$emit('openAi')"
-                ><Icon name="chat" />{{ $t('page.gpt.assistant') }}</hw-dropdown-item
-              >
               <hw-dropdown-item
                 v-for="item in langOptions"
                 :key="`account-${item.value}`"

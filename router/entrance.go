@@ -43,7 +43,6 @@ type ApiGroup struct {
 	WafHttpAuthSessionRouter
 	WafTaskRouter
 	WafBlockingPageRouter
-	WafGPTRouter
 	WafOtpRouter
 	AnalysisRouter
 	WafPrivateInfoRouter
@@ -75,7 +74,6 @@ type ApiGroup struct {
 	WafOwaspRouter
 	WafHostPathRuleRouter
 	WafAppRouter
-	WafAIRouter
 	WafUIPreferenceRouter
 	UpgradeNoticeRouter
 }

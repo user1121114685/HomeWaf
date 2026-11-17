@@ -164,7 +164,7 @@ type logQuery struct {
 
 // buildLogQuery 在指定分区上组装查询条件。ignoreTime=true 时不带时间范围（识别码直查用）。
 func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime bool) (*logQuery, error) {
-	if req.RequestOutcome != "" && req.RequestOutcome != "normal" && req.RequestOutcome != "abnormal" {
+	if req.RequestOutcome != "" && req.RequestOutcome != "normal" && req.RequestOutcome != "observed" && req.RequestOutcome != "abnormal" {
 		return nil, errors.New("访问情况筛选无效")
 	}
 	splitFilterBys := strings.Split(req.FilterBy, "|")
@@ -265,7 +265,8 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 					whereField = whereField + " and "
 				}
 				if by == "guest_identification" {
-					by = "guest_id_entification"
+					// Match the same read-side identity shown for historical pipeline logs.
+					by = "(case when host_code like 'pipeline-%' and coalesce(guest_id_entification,'') in ('','正常访客') then '未识别访客' else guest_id_entification end)"
 				}
 				if by == "header" && !isLegacyTable {
 					// header 随报文搬进 event_payload：访问日志视图没有这一列，
@@ -283,16 +284,20 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 			}
 		}
 	}
-	// Observe-only security matches and failed responses both need attention.
+	// Keep successful observe-only requests distinct from both normal traffic and
+	// abnormal outcomes. Retention in security_event is independent of this filter.
 	if req.RequestOutcome != "" {
 		if whereField != "" {
 			whereField += " and "
 		}
-		abnormal := "(coalesce(action,'') <> '放行' or coalesce(rule,'') <> '' or coalesce(log_only_mode,0) = 1 or coalesce(status_code,0) >= 400)"
-		if req.RequestOutcome == "normal" {
-			whereField += "not "
+		switch req.RequestOutcome {
+		case "normal":
+			whereField += "(coalesce(action,'') = '放行' and coalesce(rule,'') = '' and coalesce(log_only_mode,0) <> 1 and coalesce(status_code,0) < 400)"
+		case "observed":
+			whereField += "(coalesce(action,'') = '放行' and coalesce(log_only_mode,0) = 1 and coalesce(status_code,0) < 400)"
+		case "abnormal":
+			whereField += "(coalesce(action,'') <> '放行' or coalesce(status_code,0) >= 400 or (coalesce(rule,'') <> '' and coalesce(log_only_mode,0) <> 1))"
 		}
-		whereField += abnormal
 	}
 	//强制索引
 	forceIndex := logTable
@@ -433,6 +438,7 @@ func (q *logQuery) find(ctx context.Context, offset, limit int, orderOverride st
 	// 标上来源分区：跨分区时界面要能说明这行从哪来，详情链接也能据此直达
 	for i := range rows {
 		rows[i].ShardName = q.shardName
+		rows[i].NormalizePipelineVisitorIdentity()
 	}
 	// 安全事件视图每页补一回报文（事件必有报文）：「请求」列与详情都靠它
 	if q.isEventView && len(rows) > 0 {

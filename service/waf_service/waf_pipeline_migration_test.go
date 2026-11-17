@@ -465,21 +465,16 @@ func TestLegacyEditorCannotClaimNativePortsOrEditHandedOffSource(t *testing.T) {
 	}
 }
 
-func TestMigrationSnapshotsLocalAIModeAndDetectsGlobalSourceChanges(t *testing.T) {
-	s, db := legacyMigrationFixture(t)
-	oldEnable, oldMode := global.CurrentSettings().GCONFIG_AI_ENABLE, global.CurrentSettings().GCONFIG_AI_MODE
-	defer func() {
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_AI_ENABLE, cfg.GCONFIG_AI_MODE = oldEnable, oldMode })
-	}()
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_AI_ENABLE, cfg.GCONFIG_AI_MODE = 1, "block" })
-	if err := db.Model(&model.Hosts{}).Where("code = ?", "camera").Update("defense_json", `{"ai":1}`).Error; err != nil {
+func TestMigrationDetectsGlobalSourceChanges(t *testing.T) {
+	s, _ := legacyMigrationFixture(t)
+	oldHops := global.CurrentSettings().GCONFIG_RECORD_PROXY_LOOP_MAX_HOP
+	defer global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP = oldHops })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP = 10 })
+	p, err := s.PreviewLegacyPort(5300, "camera")
+	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.PreviewLegacyPort(5300, "camera")
-	if err != nil || p.Config.Policy.RuleSet.AI != wafpipeline.ModeBlock {
-		t.Fatal("AI policy not copied", err)
-	}
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_AI_MODE = "observe" })
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP = 23 })
 	if _, err = s.ImportLegacyPort(LegacyPortImportRequest{Port: 5300, PolicyHost: "camera", PreviewToken: p.PreviewToken, AcceptChanges: true}, "tester"); err == nil {
 		t.Fatal("global source policy changed without invalidating preview")
 	}

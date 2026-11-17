@@ -8,4 +8,5 @@ type WafStatsAnalysisDayRangeCountryReq struct {
 	StartDay   string `json:"start_day"  form:"start_day"`
 	EndDay     string `json:"end_day"  form:"end_day"`
 	AttackType string `json:"attack_type"  form:"attack_type"`
+	GroupBy    string `json:"group_by" form:"group_by" binding:"omitempty,oneof=country city"`
 }

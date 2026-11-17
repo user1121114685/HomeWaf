@@ -50,7 +50,6 @@ func initializePortPipeline() {
 	ctx, cancel := context.WithCancel(context.Background())
 	stopPortPipeline = cancel
 	wafpipeline.Live.Admission = wafpipeline.NewAdmission(256)
-	wafpipeline.Live.AI = global.GWAF_AI_DETECTOR
 	wafpipeline.Live.CertificateChallenge = wafenginecore.PipelineCertificateChallenge
 	pluginLimit := 32
 	if raw := os.Getenv("HOMEWAF_PIPELINE_PLUGIN_PROCESSES"); raw != "" {

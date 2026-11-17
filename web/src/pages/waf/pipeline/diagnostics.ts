@@ -78,7 +78,6 @@ export function diagnosticModes(policy: Record<string, any>) {
   const modes = [
     rules.bot,
     rules.owasp,
-    rules.ai,
     rules.qps?.mode,
     rules.cc?.mode,
     ...['anti_leech', 'challenge', 'sensitive', 'plugins', 'callback'].map((key) => rules[key]?.mode),

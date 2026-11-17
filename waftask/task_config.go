@@ -152,9 +152,6 @@ func applyConfigIntValue(cfg *global.RuntimeSettings, effects *[]func(), name st
 	case "enable_owasp":
 		cfg.GCONFIG_RECORD_ENABLE_OWASP = value
 		break
-	case "ai_enable":
-		cfg.GCONFIG_AI_ENABLE = value
-		break
 	case "rule_chain_mode":
 		if value != 1 {
 			value = 0
@@ -426,15 +423,6 @@ func applyConfigStringValue(cfg *global.RuntimeSettings, effects *[]func(), name
 		// 同步到 wafowasp 热路径，使 DetectionOnly "本该拦截" 的 INFO 日志能按当前模式生效
 		*effects = append(*effects, func() { wafowasp.SetEngineMode(cfg.GCONFIG_OWASP_MODE) })
 		break
-	case "ai_mode":
-		switch value {
-		case "observe", "block":
-			cfg.GCONFIG_AI_MODE = value
-		default:
-			zlog.Warn("invalid ai_mode value, fallback to observe", value)
-			cfg.GCONFIG_AI_MODE = "observe"
-		}
-		break
 	case "body_detect_mode":
 		switch value {
 		case "observe", "block", "off":
@@ -456,15 +444,6 @@ func applyConfigStringValue(cfg *global.RuntimeSettings, effects *[]func(), name
 		break
 	case "debug_pwd":
 		cfg.GCONFIG_RECORD_DEBUG_PWD = value
-		break
-	case "gpt_url":
-		cfg.GCONFIG_RECORD_GPT_URL = value
-		break
-	case "gpt_token":
-		cfg.GCONFIG_RECORD_GPT_TOKEN = value
-		break
-	case "gpt_model":
-		cfg.GCONFIG_RECORD_GPT_MODEL = value
 		break
 	case "ssl_min_version":
 		cfg.GCONFIG_RECORD_SSLMinVerson = value
@@ -798,7 +777,7 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "dns_timeout", cfg.GWAF_RUNTIME_DNS_TIMEOUT, "DNS 查询超时时间 单位毫秒", "int", "", configMap)
 
 	updateConfigStringItem(&cfg, &effects, initLoad, "system", "record_log_type", cfg.GWAF_RUNTIME_RECORD_LOG_TYPE, "日志记录类型", "options", "all|全部,abnormal|非正常", configMap)
-	updateConfigStringItem(&cfg, &effects, initLoad, "system", "access_log_mode", cfg.GDATA_ACCESS_LOG_MODE, "访问日志窄行档位：db=全部请求入库(默认,保留期见下项)；sample=安全事件+采样入库；off=只留安全事件(高流量推荐，但会失去CC阈值推荐/AI训练负样本/异常IP的正常行为回溯)。db/sample 档均按站点每天采样 500 条正常请求报文供 AI 训练", "options", "db|全部入库,sample|采样入库,off|仅安全事件", configMap)
+	updateConfigStringItem(&cfg, &effects, initLoad, "system", "access_log_mode", cfg.GDATA_ACCESS_LOG_MODE, "访问日志窄行档位：db=全部请求入库(默认,保留期见下项)；sample=安全事件+采样入库；off=只留安全事件(高流量推荐，但会失去CC阈值推荐/异常IP的正常行为回溯)。db/sample 档均按站点每天采样 500 条正常请求报文用于请求回溯", "options", "db|全部入库,sample|采样入库,off|仅安全事件", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "access_log_retention_days", cfg.GDATA_ACCESS_LOG_RETENTION_DAYS, "访问日志窄行保留天数（默认30）。安全事件仍按「日志保留天数」走；本项直接决定CC阈值推荐能回看多少天", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "analysis_scan_path_threshold", cfg.GDATA_ANALYSIS_SCAN_PATH_THRESHOLD, "来源分析：一天摸过多少个不同路径模板判为「疑似扫目录」（默认20）。只影响界面提示与筛选，不改拦截行为", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "analysis_ua_threshold", cfg.GDATA_ANALYSIS_UA_THRESHOLD, "来源分析：一天用过多少种UA指纹判为「疑似换UA试探」（默认5）。只影响界面提示与筛选，不改拦截行为", "int", "", configMap)
@@ -817,8 +796,6 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "login_limit_mintutes", cfg.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES, "登录错误记录周期 单位分钟数，默认1分钟", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "enable_owasp", cfg.GCONFIG_RECORD_ENABLE_OWASP, "启动OWASP数据检测（1启动 0关闭）", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "ipprobe_enable", cfg.GCONFIG_IPPROBE_ENABLE, "真实IP来源探针（1开启 0关闭，默认关闭）。开启后记录各站点最近到达的请求头(脱敏,仅内存,每站每秒最多1条)，供站点「真实IP来源」处排查CDN送来的是哪个头；排查完建议关闭", "int", "", configMap)
-	updateConfigIntItem(&cfg, &effects, initLoad, "system", "ai_enable", cfg.GCONFIG_AI_ENABLE, "启动AI智能检测总开关（1启动 0关闭，需先在AI模型管理上传模型包并在站点开启）", "int", "", configMap)
-	updateConfigStringItem(&cfg, &effects, initLoad, "system", "ai_mode", cfg.GCONFIG_AI_MODE, "AI检测工作模式：observe(仅记录/观察) block(达拦截阈值则拦截)", "options", "observe|仅记录,block|拦截", configMap)
 	updateConfigStringItem(&cfg, &effects, initLoad, "system", "body_detect_mode", cfg.GCONFIG_BODY_DETECT_MODE, "请求体深度检测模式(formValue/JSON 逐值 XSS/SQLi/RCE)：observe 观察(命中只记录不拦,默认) block 拦截(命中即拦) off 关闭。默认 observe 避免误伤正常 JSON/表单流量，观察日志确认无误后再切 block；查询串检测不受影响始终拦截", "options", "observe|观察(只记录),block|拦截,off|关闭", configMap)
 	updateConfigStringItem(&cfg, &effects, initLoad, "system", "body_detect_field_exclude", cfg.GCONFIG_BODY_DETECT_FIELD_EXCLUDE, "请求体深检字段排除清单(逗号分隔字段名,不区分大小写)。这些字段名下的表单值/JSON值(匹配直接父键名)跳过 XSS/SQLi/RCE 深检，用于放行已知携带富文本/HTML/代码的合法字段(如 content,html,markdown)，压 block 模式误报。看观察日志里是哪些字段误报再填", "string", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "rule_chain_mode", cfg.GCONFIG_RULE_CHAIN_MODE, "自定义规则在检测链中的位置（0默认：排在CC之后；1规则优先：排在黑名单之后、Bot/SQLI/XSS等之前，此时规则的放行动作才能跳过这些检测）", "int", "", configMap)
@@ -857,9 +834,6 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigIntItem(&cfg, &effects, initLoad, "debug", "enable_debug", cfg.GCONFIG_RECORD_DEBUG_ENABLE, "调试开关 默认关闭", "int", "", configMap)
 	updateConfigStringItem(&cfg, &effects, initLoad, "debug", "debug_pwd", cfg.GCONFIG_RECORD_DEBUG_PWD, "调试密码 如果未空则不需要密码", "string", "", configMap)
 
-	updateConfigStringItem(&cfg, &effects, initLoad, "gpt", "gpt_url", cfg.GCONFIG_RECORD_GPT_URL, "GPT远程地址 默认：DeepSeek ，符合ChatGpt或者使用one-api封装好的接口都可以", "string", "", configMap)
-	updateConfigStringItem(&cfg, &effects, initLoad, "gpt", "gpt_token", cfg.GCONFIG_RECORD_GPT_TOKEN, "GPT远程授权密钥", "string", "", configMap)
-	updateConfigStringItem(&cfg, &effects, initLoad, "gpt", "gpt_model", cfg.GCONFIG_RECORD_GPT_MODEL, "GPT模型名称", "string", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "security", "hide_server_header", cfg.GCONFIG_RECORD_HIDE_SERVER_HEADER, "是否隐藏Server响应头(1隐藏 0不隐藏)", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "security", "force_bind_2fa", cfg.GCONFIG_RECORD_FORCE_BIND_2FA, "是否强制绑定双因素认证(1强制 0不强制)", "options", "0|不强制,1|强制", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "fake_spider_captcha", cfg.GCONFIG_RECORD_FAKE_SPIDER_CAPTCHA, "伪爬虫进行图形挑战开关 0 放过 1 显示图形验证码", "int", "", configMap)

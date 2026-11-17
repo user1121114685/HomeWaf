@@ -213,7 +213,6 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 		router.ApiGroupApp.InitWafHttpAuthSessionRouter(RouterGroup)
 		router.ApiGroupApp.InitWafTaskRouter(RouterGroup)
 		router.ApiGroupApp.InitWafBlockingPageRouter(RouterGroup)
-		router.ApiGroupApp.InitGPTRouter(RouterGroup)
 		router.ApiGroupApp.InitAnalysisRouter(RouterGroup)
 		router.ApiGroupApp.InitWafPrivateInfoRouter(RouterGroup)
 		router.ApiGroupApp.InitWafPrivateGroupRouter(RouterGroup)
@@ -299,7 +298,7 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 	}
 
 	// 仅允许后台 Token 登录访问，拒绝 API Key 访问（安全敏感接口）
-	// 整组归属「系统管理员域」：账户管理/OTP/开放平台Key/SQL查询/应用管理/AI模型均为系统级敏感操作
+	// 整组归属「系统管理员域」：账户管理/OTP/开放平台Key/SQL查询/应用管理均为系统级敏感操作
 	// superAdmin 兜底放行；空角色(历史账号)经 NormalizeRole 视为 superAdmin，向后兼容
 	TokenOnlyRouterGroup := r.Group("")
 	TokenOnlyRouterGroup.Use(middleware.TokenOnlyAuth(), middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), middleware.ReplayProtect(), middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.SecApi(), middleware.GinGlobalExceptionMiddleWare())
@@ -308,6 +307,7 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 		router.ApiGroupApp.InitOPlatformKeyRouter(TokenOnlyRouterGroup)
 		router.ApiGroupApp.InitOPlatformLogRouter(TokenOnlyRouterGroup)
 		router.ApiGroupApp.InitOPlatformDocRouter(TokenOnlyRouterGroup)
+		router.InitMCPRouter(r, TokenOnlyRouterGroup)
 		// 账号管理：防止通过 API Key 删除/修改管理员账号
 		router.ApiGroupApp.InitAccountRouter(TokenOnlyRouterGroup)
 		// OTP 双因素认证管理：安全配置类接口
@@ -316,8 +316,6 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 		router.ApiGroupApp.InitSqlQueryRouter(TokenOnlyRouterGroup)
 		// 应用管理：可执行任意命令，拒绝 API Key，功能默认关闭
 		router.ApiGroupApp.InitWafAppRouter(TokenOnlyRouterGroup)
-		// AI模型管理与训练数据导出：模型会被引擎加载、数据出库，拒绝 API Key
-		router.ApiGroupApp.InitWafAIRouter(TokenOnlyRouterGroup)
 		// 运行诊断：进程内部状态与性能采样数据导出，拒绝 API Key
 		router.ApiGroupApp.InitWafDiagnosticRouter(TokenOnlyRouterGroup)
 	}

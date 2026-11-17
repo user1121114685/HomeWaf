@@ -53,6 +53,7 @@ func TestPipelineWebLogKeepsIdentityVerdictAndRedactsSecrets(t *testing.T) {
 	}{
 		{"allowed", wafpipeline.Result{Verdict: wafpipeline.Verdict{Action: wafpipeline.Allow, Status: 201}}, false, 0},
 		{"blocked", wafpipeline.Result{Verdict: wafpipeline.Verdict{Action: wafpipeline.Deny, Status: 403, RuleID: "sqli"}}, true, 0},
+		{"host_rejected", wafpipeline.Result{Verdict: wafpipeline.Verdict{Action: wafpipeline.Deny, Status: 403, Reason: "host_not_allowed"}}, true, 0},
 		{"observed", wafpipeline.Result{Verdict: wafpipeline.Verdict{Action: wafpipeline.Allow, Status: 200}, Hits: []wafpipeline.HitEvent{{Category: "xss", RuleID: "xss", Severity: wafpipeline.High, Observe: true}}}, true, 1},
 		{"login_success", wafpipeline.Result{Verdict: wafpipeline.Verdict{Action: wafpipeline.Allow, Status: 302}, Hits: []wafpipeline.HitEvent{{Category: "auth_success", RuleID: "gate"}}}, false, 0},
 	}
@@ -70,6 +71,9 @@ func TestPipelineWebLogKeepsIdentityVerdictAndRedactsSecrets(t *testing.T) {
 			}
 			if lg.STATUS_CODE != tc.result.Verdict.Status || lg.IsSecurityEvent() != tc.event || lg.LogOnlyMode != tc.observe {
 				t.Fatalf("incorrect classification: status=%d event=%v observe=%d", lg.STATUS_CODE, lg.IsSecurityEvent(), lg.LogOnlyMode)
+			}
+			if lg.GUEST_IDENTIFICATION != "未识别访客" {
+				t.Fatalf("request outcome asserted visitor identity: %q", lg.GUEST_IDENTIFICATION)
 			}
 			raw, _ := json.Marshal(lg)
 			if strings.Contains(string(raw), "SECRET_") {

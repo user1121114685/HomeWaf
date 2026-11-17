@@ -87,8 +87,11 @@ type StatsIPCount struct {
 type StatsIPCountMore struct {
 	IP       string  `json:"ip"`        //ip
 	IPBelong string  `json:"ip_belong"` //归属地
-	IPTag    []IPTag `json:"ip_tags"`   //IP标签
-	Count    int64   `json:"count"`     //数量
+	Country  string  `json:"country"`
+	Province string  `json:"province"`
+	City     string  `json:"city"`
+	IPTag    []IPTag `json:"ip_tags"` //IP标签
+	Count    int64   `json:"count"`   //数量
 }
 
 /*

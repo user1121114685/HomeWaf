@@ -39,6 +39,7 @@
             >
               <hw-option value="" :label="text('全部访问', 'All requests')" />
               <hw-option value="normal" :label="text('正常', 'Normal')" />
+              <hw-option value="observed" :label="text('仅观察', 'Observed')" />
               <hw-option value="abnormal" :label="text('异常', 'Abnormal')" />
             </hw-select>
           </hw-form-item>
@@ -134,8 +135,8 @@
           <p>
             {{
               text(
-                '异常包含被拦截、命中防护规则或响应失败的访问。',
-                'Abnormal requests include blocks, security matches and failed responses.',
+                '仅观察表示记录了检测线索且请求已放行，不代表确认攻击。拦截、非观察规则命中或响应失败归为异常。',
+                'Observed requests were allowed with detection records; this does not confirm an attack. Blocks, enforced matches and failed responses are abnormal.',
               )
             }}
           </p>
@@ -279,16 +280,13 @@
               <template v-for="key in displayColumns.filter((key) => key !== 'op')" :key="key">
                 <dt>{{ columnLabel(key) }}</dt>
                 <dd v-if="key === 'outcome'">
-                  <hw-tag :theme="outcome(row).abnormal ? (outcome(row).blocked ? 'danger' : 'warning') : 'success'">{{
-                    outcome(row).abnormal ? text('异常', 'Abnormal') : text('正常', 'Normal')
+                  <hw-tag :theme="outcomeTheme(row)">{{
+                    outcomeLabel(row)
                   }}</hw-tag
-                  ><span v-if="outcome(row).abnormal" class="visit-compact-reason">{{ outcomeReason(row) }}</span>
+                  ><span v-if="outcome(row).abnormal || outcome(row).observed" class="visit-compact-reason">{{ outcomeReason(row) }}</span>
                 </dd>
                 <dd v-else-if="key === 'src_ip'">
                   <button type="button" class="ipl-link" @click="openIpLookup(row.src_ip)">{{ row.src_ip }}</button>
-                </dd>
-                <dd v-else-if="key === 'ai_mark_action'">
-                  <hw-button variant="text" @click="openAiMarkDialog(row)">{{ text('标记', 'Label') }}</hw-button>
                 </dd>
                 <dd v-else>{{ compactValue(row, key) }}</dd>
               </template>
@@ -319,10 +317,10 @@
           </template>
           <template #outcome="{ row }">
             <div class="visit-outcome">
-              <hw-tag :theme="outcome(row).abnormal ? (outcome(row).blocked ? 'danger' : 'warning') : 'success'">{{
-                outcome(row).abnormal ? text('异常', 'Abnormal') : text('正常', 'Normal')
+              <hw-tag :theme="outcomeTheme(row)">{{
+                outcomeLabel(row)
               }}</hw-tag>
-              <span v-if="outcome(row).abnormal">{{ outcomeReason(row) }}</span>
+              <span v-if="outcome(row).abnormal || outcome(row).observed">{{ outcomeReason(row) }}</span>
             </div>
           </template>
           <template #service="{ row }"
@@ -349,23 +347,13 @@
             <hw-tag v-if="row.rule !== ''" shape="round" theme="primary" variant="outline">{{ row.rule }}</hw-tag>
           </template>
           <template #log_only_mode="{ row }">
-            <hw-tag :theme="row.log_only_mode == '1' ? 'danger' : 'success'" variant="light-outline">
+            <hw-tag :theme="row.log_only_mode == '1' ? 'primary' : 'default'" variant="light-outline">
               {{
                 row.log_only_mode == '1'
                   ? $t('page.visit_log.log_only_mode_on')
                   : $t('page.visit_log.log_only_mode_off')
               }}
             </hw-tag>
-          </template>
-          <template #ai_score="{ row }">
-            <hw-tag
-              v-if="row.ai_score > 0"
-              :theme="row.ai_score >= 0.9 ? 'danger' : row.ai_score >= 0.6 ? 'warning' : 'primary'"
-              variant="light"
-            >
-              {{ Number(row.ai_score).toFixed(2) }}
-            </hw-tag>
-            <span v-else>-</span>
           </template>
           <template #host_nickname="{ row }">
             <span>{{ host_nickname_dic[row.host_code] || '-' }}</span>
@@ -379,11 +367,6 @@
             ><button type="button" class="t-button-link" @click="handleClickDetail(slotProps)">
               {{ $t('common.details') }}
             </button></template
-          >
-          <template #ai_mark_action="{ row }"
-            ><hw-button variant="text" @click="openAiMarkDialog(row)">{{
-              aiMarkMap[row.req_uuid]?.mark ? aiMarkText(aiMarkMap[row.req_uuid]) : $t('page.visit_log.ai_mark')
-            }}</hw-button></template
           >
         </hw-table>
       </div>
@@ -498,7 +481,7 @@
                   <hw-option value="off" label="仅安全事件" />
                 </hw-select>
                 <div v-if="logConfig.access_log_mode === 'off'" class="log-config-hint">
-                  「仅安全事件」会失去 CC 阈值推荐、AI 训练负样本与异常 IP 的正常行为回溯
+                  「仅安全事件」会失去 CC 阈值推荐与异常 IP 的正常行为回溯
                 </div>
               </hw-form-item>
             </hw-col>
@@ -611,42 +594,6 @@
         :prop_current_db="searchformData.current_db_name"
         :prop_req_uuid="visitDetailUid"
       ></visit-detail-page>
-    </hw-dialog>
-
-    <!-- AI 训练标记弹窗 -->
-    <hw-dialog
-      :header="$t('page.visit_log.ai_mark_dialog_title')"
-      v-model:visible="aiMarkDialogVisible"
-      width="460px"
-      :onClose="
-        () => {
-          this.aiMarkDialogVisible = false;
-        }
-      "
-    >
-      <hw-form labelAlign="top">
-        <hw-form-item :label="$t('page.visit_log.ai_mark_verdict')">
-          <hw-radio-group v-model="aiMarkForm.verdict">
-            <hw-radio-button value="normal">{{ $t('page.visit_log.ai_mark_normal') }}</hw-radio-button>
-            <hw-radio-button value="attack">{{ $t('page.visit_log.ai_mark_attack') }}</hw-radio-button>
-            <hw-radio-button value="ignore">{{ $t('page.visit_log.ai_mark_ignore') }}</hw-radio-button>
-          </hw-radio-group>
-        </hw-form-item>
-        <hw-form-item v-if="aiMarkForm.verdict === 'attack'" :label="$t('page.visit_log.ai_mark_category')">
-          <hw-select v-model="aiMarkForm.attackType" :options="aiCatSelectOptions" style="width: min(100%, 240px)" />
-        </hw-form-item>
-      </hw-form>
-      <template #footer>
-        <hw-button
-          v-if="aiMarkDialogRow && aiMarkMap[aiMarkDialogRow.req_uuid]"
-          theme="danger"
-          variant="outline"
-          @click="confirmAiUnmark"
-          >{{ $t('page.visit_log.ai_mark_unmark') }}</hw-button
-        >
-        <hw-button theme="default" @click="aiMarkDialogVisible = false">{{ $t('common.cancel') }}</hw-button>
-        <hw-button theme="primary" @click="confirmAiMark">{{ $t('common.confirm') }}</hw-button>
-      </template>
     </hw-dialog>
 
     <hw-dialog
@@ -846,7 +793,6 @@ import { prefix } from '@/config/global';
 import IpSourceProbeDialog from '@/pages/waf/host/components/IpSourceProbeDialog.vue';
 import { allsharedblist, delsharedb } from '@/apis/waflog/attacklog';
 import LogExportDialog from './components/LogExportDialog.vue';
-import { aiMarkLabelApi, aiUnmarkLabelApi, aiLabelByUuidsApi } from '@/apis/ai';
 import VisitDetailPage from './detail/index.vue';
 
 import { NowDate, ConvertStringToUnix, ConvertDateToString, ConvertUnixToDate } from '@/utils/date';
@@ -1021,10 +967,6 @@ export default defineComponent({
       columnOrderDraft: [],
       columnEditVersion: 0,
       data: [],
-      aiMarkMap: {}, // req_uuid -> { mark, attack_type }，AI训练标签人工修正状态
-      aiMarkDialogVisible: false,
-      aiMarkDialogRow: null,
-      aiMarkForm: { verdict: 'attack', attackType: '' },
       selectedRowKeys: [],
       value: 'first',
       customText: false,
@@ -1173,32 +1115,6 @@ export default defineComponent({
     accessViewLabel() {
       return this.attack_ip !== '' ? this.$t('page.visit_log.view_access_all') : this.$t('page.visit_log.view_access');
     },
-    // 确认攻击时的类别下拉选项（空=默认自动判定）
-    aiCatSelectOptions() {
-      return [
-        { label: this.$t('page.visit_log.ai_cat_auto'), value: '' },
-        { label: this.$t('page.visit_log.ai_cat_sqli'), value: 'sqli' },
-        { label: this.$t('page.visit_log.ai_cat_xss'), value: 'xss' },
-        { label: this.$t('page.visit_log.ai_cat_rce'), value: 'rce' },
-        { label: this.$t('page.visit_log.ai_cat_traversal'), value: 'traversal' },
-        { label: this.$t('page.visit_log.ai_cat_inject'), value: 'inject' },
-        { label: this.$t('page.visit_log.ai_cat_scan'), value: 'scan' },
-        { label: this.$t('page.visit_log.ai_cat_other'), value: 'other' },
-      ];
-    },
-    // 攻击类别 code -> 显示名
-    aiCatLabels() {
-      return {
-        sqli: this.$t('page.visit_log.ai_cat_sqli'),
-        xss: this.$t('page.visit_log.ai_cat_xss'),
-        rce: this.$t('page.visit_log.ai_cat_rce'),
-        traversal: this.$t('page.visit_log.ai_cat_traversal'),
-        inject: this.$t('page.visit_log.ai_cat_inject'),
-        scan: this.$t('page.visit_log.ai_cat_scan'),
-        owasp: 'OWASP',
-        other: this.$t('page.visit_log.ai_cat_other'),
-      };
-    },
     // 可用字段列表
     availableFields() {
       return this.columns.map((column) => ({ value: column.colKey, label: column.title }));
@@ -1342,10 +1258,22 @@ export default defineComponent({
       return this.$i18n.locale === 'en_US' ? en : zh;
     },
     outcome: requestOutcome,
+    outcomeLabel(row) {
+      const state = requestOutcome(row);
+      if (state.observed) return this.text('仅观察', 'Observed');
+      return state.abnormal ? this.text('异常', 'Abnormal') : this.text('正常', 'Normal');
+    },
+    outcomeTheme(row) {
+      const state = requestOutcome(row);
+      if (state.observed) return 'primary';
+      return state.abnormal ? (state.blocked ? 'danger' : 'warning') : 'success';
+    },
     outcomeReason(row) {
       const state = requestOutcome(row);
       if (state.blocked) return this.text('已拦截', 'Blocked');
       if (state.unknown) return this.text('状态待确认', 'Unknown action');
+      if (state.failed) return this.text('响应失败', 'Failed response');
+      if (state.observed) return this.text('已放行，保留检测记录', 'Allowed; detection recorded');
       if (state.matched) return this.text('命中规则，未拦截', 'Matched, not blocked');
       return this.text('响应失败', 'Failed response');
     },
@@ -1898,7 +1826,6 @@ export default defineComponent({
           issues: res.data.issues || [],
         };
         if (res.data.sort_forced_time) this.sorts = { sortBy: 'unix_add_time', descending: this.sorts.descending };
-        this.loadAiMarks();
       } catch (error) {
         if (sequence !== this.querySequence) return;
         this.data = [];
@@ -1917,98 +1844,6 @@ export default defineComponent({
       } finally {
         if (sequence === this.querySequence) this.dataLoading = false;
       }
-    },
-    // 加载当前页日志的 AI 训练标签修正状态
-    loadAiMarks() {
-      const sequence = this.querySequence;
-      const uuids = (this.data || []).map((r) => r.req_uuid).filter((u) => !!u);
-      if (uuids.length === 0) {
-        this.aiMarkMap = {};
-        return;
-      }
-      aiLabelByUuidsApi({ req_uuids: uuids })
-        .then((res) => {
-          if (res.code === 0 && sequence === this.querySequence) {
-            this.aiMarkMap = res.data || {};
-          }
-        })
-        .catch(() => {});
-    },
-    // info: { mark, attack_type }
-    aiMarkText(info) {
-      if (!info || !info.mark) return '';
-      if (info.mark === 'normal') return this.$t('page.visit_log.ai_mark_normal');
-      if (info.mark === 'ignore') return this.$t('page.visit_log.ai_mark_ignore');
-      if (info.mark === 'attack') {
-        const cat = info.attack_type ? this.aiCatLabels[info.attack_type] || info.attack_type : '';
-        return cat ? `${this.$t('page.visit_log.ai_mark_attack')}:${cat}` : this.$t('page.visit_log.ai_mark_attack');
-      }
-      return '';
-    },
-    // 打开标记弹窗，预填已有标记
-    openAiMarkDialog(row) {
-      this.aiMarkDialogRow = row;
-      const existing = this.aiMarkMap[row.req_uuid];
-      this.aiMarkForm = {
-        verdict: existing && existing.mark ? existing.mark : 'attack',
-        attackType: existing && existing.attack_type ? existing.attack_type : '',
-      };
-      this.aiMarkDialogVisible = true;
-    },
-    // 弹窗确定：按判定提交标记
-    confirmAiMark() {
-      if (!this.aiMarkDialogRow) return;
-      const v = this.aiMarkForm.verdict;
-      const value = v === 'attack' ? `attack|${this.aiMarkForm.attackType || ''}` : v;
-      this.handleAiMark(this.aiMarkDialogRow, value);
-      this.aiMarkDialogVisible = false;
-    },
-    // 弹窗取消标记
-    confirmAiUnmark() {
-      if (!this.aiMarkDialogRow) return;
-      this.handleAiMark(this.aiMarkDialogRow, 'unmark');
-      this.aiMarkDialogVisible = false;
-    },
-    // 标记/取消标记某条日志的训练标签；value 形如 normal/ignore/unmark 或 attack|<type>
-    handleAiMark(row, value) {
-      if (value === 'unmark') {
-        aiUnmarkLabelApi({ req_uuid: row.req_uuid })
-          .then((res) => {
-            if (res.code === 0) {
-              delete this.aiMarkMap[row.req_uuid];
-              this.aiMarkMap = { ...this.aiMarkMap };
-              this.$message.success(this.$t('page.visit_log.ai_mark_unmarked'));
-            } else {
-              this.$message.error(res.msg);
-            }
-          })
-          .catch(() => {});
-        return;
-      }
-      let mark = value;
-      let attackType = '';
-      if (value.indexOf('attack') === 0) {
-        mark = 'attack';
-        attackType = value.split('|')[1] || '';
-      }
-      aiMarkLabelApi({
-        req_uuid: row.req_uuid,
-        host_code: row.host_code,
-        mark,
-        attack_type: attackType,
-        rule: row.rule,
-        src_ip: row.src_ip,
-        url: row.url,
-      })
-        .then((res) => {
-          if (res.code === 0) {
-            this.$set(this.aiMarkMap, row.req_uuid, { mark, attack_type: attackType });
-            this.$message.success(this.$t('page.visit_log.ai_mark_success'));
-          } else {
-            this.$message.error(res.msg);
-          }
-        })
-        .catch(() => {});
     },
     getContainer() {
       return document.querySelector('.tdesign-starter-layout');
