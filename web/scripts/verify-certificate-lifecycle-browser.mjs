@@ -83,6 +83,7 @@ let failCredential = true,
   policyWrites = 0,
   renewWrites = 0,
   requestWrites = 0,
+  targetState = 'normal',
   monitorWrites = 0;
 let monitors = [
   {
@@ -99,6 +100,7 @@ let monitors = [
   },
 ];
 const report = { checks: [], views: [], errors: [] };
+const requestPayloads = [];
 const server = http.createServer((req, res) => {
   const file = path.resolve(
     dist,
@@ -245,6 +247,8 @@ await context.route('**/api/**', async (route) => {
       entries: [{ id: 1, time: '2026-11-17 12:00:00', level: 'error', message: 'DNS 查询超时' }],
       limit: 500,
     });
+  if (endpoint === 'wafhost/sslorder/targets' && targetState === 'error') return fail('服务列表读取失败');
+  if (endpoint === 'wafhost/sslorder/targets' && targetState === 'empty') return ok([]);
   if (endpoint === 'wafhost/sslorder/targets')
     return ok([
       {
@@ -287,7 +291,8 @@ await context.route('**/api/**', async (route) => {
     return ok({ configured: false, has_access_key: false, has_eab_kid: false, has_eab_hmac_key: false });
   if (endpoint === 'wafhost/sslorder/add') {
     requestWrites++;
-    return ok({ id: 'new-one', apply_status: 'submitted' }, '申请已受理');
+    requestPayloads.push(structuredClone(data));
+    return ok({ id: 'new-' + requestWrites, apply_status: 'submitted' }, '申请已受理');
   }
   if (endpoint === 'wafhost/sslexpire/list')
     return failMonitor ? fail('监测列表读取失败') : ok({ list: monitors, total: monitors.length });
@@ -376,11 +381,24 @@ try {
     .locator('input')
     .first();
   await email.fill('owner@example.test');
+  const domainField = page
+    .locator('.certificate-request-form .el-form-item')
+    .filter({ hasText: '申请域名' })
+    .locator('textarea');
+  await domainField.fill('independent.example.test');
+  const serviceSelect = page
+    .getByRole('combobox', { name: '关联服务', exact: true })
+    .locator('xpath=ancestor::div[contains(@class,"el-select__wrapper")][1]');
+  await serviceSelect.hover();
+  await serviceSelect.locator('.el-select__clear').click();
+  await expect(domainField).toHaveValue('independent.example.test');
   await page.getByRole('button', { name: '取消申请', exact: true }).click();
   await page.getByRole('button', { name: '继续填写', exact: true }).click();
   await expect(email).toHaveValue('owner@example.test');
   await page.getByRole('button', { name: '取消申请', exact: true }).click();
   await page.getByRole('button', { name: '放弃申请', exact: true }).click();
+  await expect(page).toHaveURL(/#\/waf-host\/wafsslconfiglist$/);
+  await expect(page.locator('.certificate-request-form')).toHaveCount(0);
   check('application is a separate task page with DNS default and draft recovery');
   await go('/waf-host/wafsslconfiglist/request?host_code=pipeline-80');
   await page
@@ -398,8 +416,37 @@ try {
   await page.getByRole('button', { name: '提交申请', exact: true }).click();
   await expect(page.getByRole('dialog', { name: '申请与续期任务详情' })).toBeVisible();
   expect(requestWrites).toBe(1);
+  expect(requestPayloads.at(-1).host_code).toBe('pipeline-80');
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   check('new application submits once and lands on its returned task');
+  for (const state of ['empty', 'error']) {
+    targetState = state;
+    await go('/waf-host/wafsslconfiglist/request');
+    await expect(
+      page.getByText(state === 'empty' ? /暂无服务也可以申请/ : /不关联服务仍可使用 DNS 验证申请/),
+    ).toBeVisible();
+    await domainField.fill('independent.example.test');
+    await email.fill('owner@example.test');
+    const provider = page.getByRole('combobox', { name: 'DNS 服务商', exact: true });
+    await provider.focus();
+    await provider.press('ArrowDown');
+    await page.getByRole('option', { name: /Hurricane Electric DNS/ }).click();
+    const group = page.getByRole('combobox', { name: '密钥分组', exact: true });
+    await group.focus();
+    await group.press('ArrowDown');
+    await page.getByRole('option', { name: 'household', exact: true }).click();
+    await page.getByRole('button', { name: '提交申请', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: '申请与续期任务详情' })).toBeVisible();
+    expect(requestPayloads.at(-1).host_code).toBe('');
+    expect(requestPayloads.at(-1).apply_domain).toBe('independent.example.test');
+    expect(requestPayloads.at(-1).apply_method).toBe('dns01');
+    await page.getByRole('button', { name: '关闭', exact: true }).click();
+  }
+  targetState = 'normal';
+  expect(requestWrites).toBe(3);
+  check(
+    'clearing optional service preserves domains; empty or failed service lists do not block independent DNS issuance',
+  );
   await go('/waf-host/wafsslconfiglist/settings?provider=hurricane&group=household');
   await page.getByRole('button', { name: '配置 HURRICANE_TOKENS', exact: true }).click();
   const credentialDialog = page.getByRole('dialog', { name: '编辑', exact: true });

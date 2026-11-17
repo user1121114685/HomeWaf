@@ -108,6 +108,13 @@ func GetSSLCertificateTarget(code string) (SSLCertificateTarget, error) {
 }
 
 func ValidateSSLCertificateTarget(code, method, domains string) error {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		if method == "dns01" {
+			return nil
+		}
+		return fmt.Errorf("独立申请请使用 DNS 验证；HTTP 文件验证需要提供挑战响应的 HTTP 80 端口服务")
+	}
 	target, err := GetSSLCertificateTarget(code)
 	if err != nil {
 		return err

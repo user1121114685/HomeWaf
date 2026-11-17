@@ -79,7 +79,6 @@
               :revision="draft.revision"
               :hosts="draft.host_names"
               :secrets="secrets"
-              @busy="certificateBusy = $event"
             /> </EditorSection
           ><EditorSection title="关闭业务访问时"
             ><Fields
@@ -701,8 +700,7 @@ function locateInvalid() {
     ['controls', 'attacks'],
   );
 }
-const certificateBusy = ref(false);
-watch([busy, certificateBusy], ([saving, editing]) => emit('busy', saving || editing), { flush: 'sync' });
+watch(busy, (value) => emit('busy', value), { flush: 'sync' });
 const secrets = reactive({
   initial_username: '',
   initial_password: '',

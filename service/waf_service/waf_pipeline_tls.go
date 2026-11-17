@@ -31,7 +31,6 @@ type PipelineTLSCertificate struct {
 }
 
 type PipelineTLSOptions struct {
-	CanCreate    bool                     `json:"can_create"`
 	Certificates []PipelineTLSCertificate `json:"certificates"`
 	Current      *PipelineTLSCertificate  `json:"current,omitempty"`
 }

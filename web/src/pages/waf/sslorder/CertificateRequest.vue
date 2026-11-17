@@ -29,7 +29,7 @@
     <section v-if="mode === 'request'" class="certificate-request-page">
       <hw-form
         class="certificate-request-form"
-        :disabled="addSubmitting || hostListLoading"
+        :disabled="addSubmitting"
         :data="formData"
         ref="form"
         :rules="rules"
@@ -37,15 +37,14 @@
         :labelWidth="240"
         ><fieldset class="form-section">
           <legend>申请对象</legend>
-          <hw-form-item label="关联服务" name="host_code">
+          <hw-form-item label="关联服务（可选）" name="host_code">
             <hw-select
               v-model="formData.host_code"
               filterable
               clearable
               :loading="hostListLoading"
-              :disabled="hostListLoading || !!hostListError || host_options.length === 0"
               aria-label="关联服务"
-              placeholder="选择服务接入中的服务"
+              placeholder="不选择，独立申请并保存证书"
               :style="{ width: 'min(100%, 480px)' }"
               @change="changeHostCode"
             >
@@ -53,19 +52,15 @@
             </hw-select>
             <p v-if="hostListLoading" role="status" class="form-item-tips">正在加载服务列表…</p>
             <p v-else-if="hostListError" role="alert" class="form-item-tips">
-              {{ hostListError }} <hw-button variant="text" @click="loadHostList">重试加载服务</hw-button>
+              {{ hostListError }}；不关联服务仍可使用 DNS 验证申请。<hw-button variant="text" @click="loadHostList"
+                >重试加载服务</hw-button
+              >
             </p>
             <p v-else-if="host_options.length === 0" class="form-item-tips">
-              暂无可关联服务。请先在新标签页添加服务，返回后刷新列表继续申请。<router-link
-                :to="{ path: '/waf-pipeline/ports', query: { returnTo: $route.fullPath } }"
-                target="_blank"
-                rel="noopener noreferrer"
-                >去添加服务</router-link
-              >
-              <hw-button variant="text" @click="loadHostList">刷新服务列表</hw-button>
+              暂无服务也可以申请：填写域名并使用 DNS 验证，签发后保存到证书管理。
             </p>
             <div v-else class="form-item-tips">
-              <span>使用服务接入中的现有服务；DNS 验证不要求开放 80/443。</span>
+              <span>留空则只保存证书。选择服务后，签发成功会绑定并替换该服务的 HTTPS 证书。</span>
               <hw-button variant="text" @click="loadHostList">刷新服务列表</hw-button>
             </div>
             <p
@@ -120,11 +115,15 @@
               </hw-option>
             </hw-select>
             <div
-              v-if="formData.apply_method === 'http01' && formData.host_code && !addHost80Ok"
+              v-if="formData.apply_method === 'http01' && !addHost80Ok"
               class="form-item-tips"
               style="color: #e34d59"
             >
-              {{ $t('page.sslorder.http01_no_80_tips') }}
+              {{
+                formData.host_code
+                  ? $t('page.sslorder.http01_no_80_tips')
+                  : '独立申请请使用 DNS 验证；HTTP 文件验证需要可提供挑战响应的 HTTP 80 端口服务。'
+              }}
             </div>
           </hw-form-item>
           <DnsProviderConfig
@@ -540,13 +539,6 @@ export default defineComponent({
         ...INITIAL_DATA,
       },
       rules: {
-        host_code: [
-          {
-            required: true,
-            message: '请选择关联服务',
-            type: 'error',
-          },
-        ],
         apply_email: [
           {
             required: true,
@@ -1134,8 +1126,15 @@ export default defineComponent({
       return Promise.resolve(this.selectedHostInfo(hostCode)?.http01_ready ?? false);
     },
     canSubmitForHost(code: string) {
+      if (!code) {
+        if (this.formData.apply_method === 'http01') {
+          this.$message.warning('独立申请请使用 DNS 验证；HTTP 文件验证需要 HTTP 80 端口服务。');
+          return false;
+        }
+        return true;
+      }
       if (this.hostListLoading || this.hostListError || !this.selectedHostInfo(code)) {
-        this.$message.warning(this.hostListError || '请选择有效的关联服务；列表为空时请先添加服务。');
+        this.$message.warning(this.hostListError || '所选服务不可用，请重新选择或清除关联后独立申请。');
         return false;
       }
       return true;
@@ -1174,7 +1173,7 @@ export default defineComponent({
     },
     changeHostCode(hostCode) {
       const target = this.selectedHostInfo(hostCode);
-      this.formData.apply_domain = target?.domains.join(',') || '';
+      if (target && !this.formData.apply_domain.trim()) this.formData.apply_domain = target.domains.join(',');
       this.checkAddHost80();
     },
     async loadHostList() {
@@ -1187,6 +1186,11 @@ export default defineComponent({
         if (response.code !== 0 || !Array.isArray(response.data)) throw new Error('服务列表不可用');
         this.host_options = response.data;
         this.host_dic = Object.fromEntries(this.host_options.map((item) => [item.value, item.label]));
+        if (this.formData.host_code && !this.formData.apply_domain.trim()) {
+          const pristine = JSON.stringify(this.formData) === this.draftBaseline;
+          this.changeHostCode(this.formData.host_code);
+          if (pristine) this.draftBaseline = JSON.stringify(this.formData);
+        }
       } catch {
         if (request !== this.hostListRequest) return;
         this.host_options = [];
@@ -1214,8 +1218,7 @@ export default defineComponent({
       this.addSubmission = { payload: '', id: '' };
       this.addFormVisible = true;
       this.formData = { ...INITIAL_DATA };
-      await this.loadHostList();
-      console.log('mounted sslorder,srchostCode', this.srcHostCode);
+      void this.loadHostList();
       if (this.srcHostCode != '') {
         this.formData.host_code = this.srcHostCode;
         this.changeHostCode(this.srcHostCode);

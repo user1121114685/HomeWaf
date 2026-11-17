@@ -60,7 +60,7 @@
       <section v-else-if="step === 1" class="setup-section">
         <h2>连接现有服务</h2>
         <p class="setup-lead">
-          先确认原服务地址，再设置访客访问 HomeWaf 的入口。HTTPS 证书可从证书管理选择，也可在这里新增。
+          先确认原服务地址，再设置访客访问 HomeWaf 的入口。HTTPS 证书在证书管理中维护，接入时选择绑定。
         </p>
         <label class="setup-field service-name"
           ><span>服务名称 <em>可选</em></span>
@@ -140,7 +140,6 @@
           :revision="0"
           :hosts="parseLines(hostNames.replaceAll('，', ','))"
           :secrets="secrets"
-          @busy="certificateBusy = $event"
         />
         <div class="connection-preview" aria-label="请求转发路径">
           <span>访客</span><ArrowRight aria-hidden="true" /><span
@@ -356,8 +355,7 @@ const step = ref(0),
   created = ref(false),
   error = ref(''),
   progress = ref('');
-const certificateBusy = ref(false);
-watch([busy, certificateBusy], ([saving, editing]) => emit('busy', saving || editing), { flush: 'sync' });
+watch(busy, (value) => emit('busy', value), { flush: 'sync' });
 const stepContent = ref<HTMLElement>();
 watch(step, async () => {
   await nextTick();

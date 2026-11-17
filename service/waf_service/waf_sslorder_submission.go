@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	ErrSSLOrderActive          = errors.New("此服务已有等待中或申请中的证书订单，请等待完成后再提交")
+	ErrSSLOrderActive          = errors.New("此服务或域名已有等待中或申请中的证书订单，请等待完成后再提交")
 	ErrSSLOrderRequestConflict = errors.New("本次提交标识已用于另一份申请，请重新打开表单后提交")
 )
 
@@ -50,12 +50,29 @@ func canonicalSSLDomainSet(domains string) string {
 	return strings.Join(parts, ",")
 }
 
+// Bound requests retain their service lock. Independent requests lock only the
+// canonical domain set, so unrelated certificates do not all share an empty host.
+func sslOrderActiveKey(user, tenant, host, domains string) string {
+	if host != "" {
+		return sslSubmissionHash([]string{user, tenant, host})
+	}
+	return sslSubmissionHash([]string{user, tenant, "certificate-domains", canonicalSSLDomainSet(domains)})
+}
+
+func sslOrderPendingScope(db *gorm.DB, user, tenant, host, domains string) *gorm.DB {
+	key := sslOrderActiveKey(user, tenant, host, domains)
+	if host != "" {
+		return db.Where("(active_key = ? OR host_code = ?)", key, host)
+	}
+	return db.Where("active_key = ?", key)
+}
+
 // Submit persists the operation before notifying workers. Unique database keys,
 // rather than a process-local mutex, protect retries across overlapping workers.
 func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom string) (model.SslOrder, bool, error) {
 	var order model.SslOrder
 	req.HostCode, req.ApplyEmail = strings.TrimSpace(req.HostCode), strings.TrimSpace(req.ApplyEmail)
-	if req.HostCode == "" || len(req.HostCode) > 64 || len(req.RequestID) > 128 {
+	if len(req.HostCode) > 64 || len(req.RequestID) > 128 {
 		return order, false, errors.New("关联服务或提交标识无效")
 	}
 	email, err := mail.ParseAddress(req.ApplyEmail)
@@ -69,6 +86,9 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 		return order, false, errors.New("申请方式无效")
 	}
 	if req.ApplyMethod == "http01" {
+		if req.HostCode == "" {
+			return order, false, errors.New("独立申请请使用 DNS 验证；HTTP 文件验证需要 HTTP 80 端口服务")
+		}
 		req.ApplyDns, req.PrivateGroupName, req.SkipDNSVerify = "", "", 0
 	}
 	if canonicalSSLDomainSet(req.ApplyDomain) == "" {
@@ -93,7 +113,7 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 	fingerprintInput.RequestID = ""
 	fingerprintInput.ApplyDomain = canonicalSSLDomainSet(req.ApplyDomain)
 	fingerprint := sslSubmissionHash([]any{fingerprintInput, renewFrom})
-	activeKey := sslSubmissionHash([]string{global.GWAF_USER_CODE, global.GWAF_TENANT_ID, req.HostCode})
+	activeKey := sslOrderActiveKey(global.GWAF_USER_CODE, global.GWAF_TENANT_ID, req.HostCode, req.ApplyDomain)
 	var requestKey *string
 	if req.RequestID != "" {
 		key := sslSubmissionHash([]string{global.GWAF_USER_CODE, global.GWAF_TENANT_ID, req.RequestID})
@@ -102,6 +122,7 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 	var prepared model.SslOrder
 	if renewFrom == "" {
 		prepared.HostCode = req.HostCode
+		prepared.ApplyMethod = req.ApplyMethod
 		if err := PrepareInitialCertificateOrder(&prepared); err != nil {
 			return order, false, err
 		}
@@ -127,7 +148,7 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 		}
 		// Include pre-migration pending orders; never delete the user's duplicates.
 		var active model.SslOrder
-		err := tx.Where("host_code = ? AND apply_status IN ?", req.HostCode, []string{"submitted", "applying"}).Order("create_time asc").First(&active).Error
+		err := sslOrderPendingScope(tx, global.GWAF_USER_CODE, global.GWAF_TENANT_ID, req.HostCode, req.ApplyDomain).Where("apply_status IN ?", []string{"submitted", "applying"}).Order("create_time asc").First(&active).Error
 		if err == nil {
 			if active.SubmissionHash != fingerprint {
 				return ErrSSLOrderActive
@@ -303,7 +324,7 @@ func (s *WafSSLOrderService) Claim(id string) (model.SslOrder, bool, error) {
 				}
 			}
 		}
-		activeKey := sslSubmissionHash([]string{global.GWAF_USER_CODE, global.GWAF_TENANT_ID, order.HostCode})
+		activeKey := sslOrderActiveKey(global.GWAF_USER_CODE, global.GWAF_TENANT_ID, order.HostCode, order.ApplyDomain)
 		var active model.SslOrder
 		err := tx.Where("active_key = ? AND id <> ? AND apply_status IN ?", activeKey, id, []string{"submitted", "applying"}).First(&active).Error
 		if err == nil {

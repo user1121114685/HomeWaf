@@ -70,7 +70,7 @@ func RequestCertificateRenewal(id, requestID string, automatic bool, now time.Ti
 		}
 	}
 	resume := last.ApplyStatus == "fail" && (last.Stage == "deploy" || last.Stage == "export") && len(last.ResultCertificate) > 0
-	if resume && last.Operation == "issuance" {
+	if p.HostCode != "" && resume && last.Operation == "issuance" {
 		target, err := certificateTargetBinding(p.HostCode)
 		if err != nil {
 			return order, false, err
@@ -78,7 +78,7 @@ func RequestCertificateRenewal(id, requestID string, automatic bool, now time.Ti
 		if target.ID != p.TargetID {
 			return order, false, errors.New("原服务已删除或重建")
 		}
-	} else {
+	} else if p.HostCode != "" {
 		if certificateTargetID(bindings, p.HostCode) != p.TargetID {
 			return order, false, errors.New("原服务已经删除、重建或解除绑定，请重新确认使用范围")
 		}
@@ -115,7 +115,7 @@ func RequestCertificateRenewal(id, requestID string, automatic bool, now time.Ti
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		if err := tx.Where("(certificate_id = ? OR host_code = ?) AND apply_status IN ?", id, p.HostCode, []string{"submitted", "applying"}).First(&order).Error; err == nil {
+		if err := sslOrderPendingScope(tx, p.USER_CODE, p.Tenant_ID, p.HostCode, p.ApplyDomain).Where("apply_status IN ?", []string{"submitted", "applying"}).First(&order).Error; err == nil {
 			if order.CertificateID == id {
 				return nil
 			}
@@ -135,7 +135,7 @@ func RequestCertificateRenewal(id, requestID string, automatic bool, now time.Ti
 		}
 		candidate := certificatePolicyOrder(p)
 		candidate.BaseOrm = baseorm.BaseOrm{Id: uuid.GenUUID(), USER_CODE: p.USER_CODE, Tenant_ID: p.Tenant_ID, CREATE_TIME: customtype.JsonTime(now), UPDATE_TIME: customtype.JsonTime(now)}
-		active := sslSubmissionHash([]string{p.USER_CODE, p.Tenant_ID, p.HostCode})
+		active := sslOrderActiveKey(p.USER_CODE, p.Tenant_ID, p.HostCode, p.ApplyDomain)
 		candidate.RequestID, candidate.SubmissionHash, candidate.ActiveKey = &requestKey, fingerprint, &active
 		candidate.ApplyStatus, candidate.Stage, candidate.Progress = "submitted", "issue", "等待证书任务处理"
 		candidate.Operation = "renewal"
@@ -418,6 +418,14 @@ func PrepareInitialCertificateOrder(o *model.SslOrder) error {
 		}
 		return errors.New("旧续期任务的来源尚未确认，请在证书管理核对后重试")
 	}
+	if o.HostCode == "" {
+		if o.ApplyMethod != "dns01" {
+			return errors.New("独立申请请使用 DNS 验证")
+		}
+		o.BindingSnapshot, o.OriginalFingerprint = certificateSnapshot([]CertificateBinding{}), ""
+		o.Stage, o.Trigger, o.Operation = "issue", "initial", "issuance"
+		return nil
+	}
 	b, err := certificateTargetBinding(o.HostCode)
 	if err != nil {
 		return err
@@ -460,7 +468,7 @@ func ValidateClaimedCertificateOrder(o model.SslOrder) error {
 	return nil
 }
 func RecordIssuedCertificate(o *model.SslOrder) error {
-	o.Stage, o.Progress, o.UPDATE_TIME = "deploy", "证书已签发，正在保存与更新服务", customtype.JsonTime(time.Now())
+	o.Stage, o.Progress, o.UPDATE_TIME = "deploy", "证书已签发，正在保存证书并处理关联服务", customtype.JsonTime(time.Now())
 	result := global.GWAF_LOCAL_DB.Model(&model.SslOrder{}).Where("id = ? AND apply_status = ?", o.Id, "applying").Select("Stage", "ApplyKey", "ResultDomain", "ResultCertURL", "ResultCertStableURL", "ResultCertificate", "ResultPrivateKey", "ResultIssuerCertificate", "ResultCSR", "ResultValidTo", "Progress", "UPDATE_TIME").Updates(o)
 	if result.Error != nil {
 		return result.Error
@@ -474,7 +482,7 @@ func RecordIssuedCertificate(o *model.SslOrder) error {
 func CompleteCertificateOrder(o model.SslOrder, now time.Time) error {
 	return global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&model.SslOrder{}).Where("id = ? AND apply_status = ?", o.Id, "applying").Updates(map[string]any{
-			"apply_status": "success", "active_key": nil, "stage": "complete", "result_error": "", "failure_kind": "", "progress": "证书已保存并完成绑定更新",
+			"apply_status": "success", "active_key": nil, "stage": "complete", "result_error": "", "failure_kind": "", "progress": "证书已保存到证书管理",
 			"deployment_result": o.DeploymentResult, "update_time": customtype.JsonTime(now)})
 		if result.Error != nil {
 			return result.Error
@@ -522,7 +530,7 @@ func certificateEventID(order model.SslOrder, kind string) string {
 func RetryIssuedCertificate(source model.SslOrder, requestID string) (model.SslOrder, bool, error) {
 	var order model.SslOrder
 	key := sslSubmissionHash([]string{source.USER_CODE, source.Tenant_ID, "issued-retry", source.Id, requestID})
-	active := sslSubmissionHash([]string{source.USER_CODE, source.Tenant_ID, source.HostCode})
+	active := sslOrderActiveKey(source.USER_CODE, source.Tenant_ID, source.HostCode, source.ApplyDomain)
 	created := false
 	err := global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.SslOrder{}).Where("id = ?", source.Id).Update("update_time", source.UPDATE_TIME).Error; err != nil {
@@ -534,7 +542,7 @@ func RetryIssuedCertificate(source model.SslOrder, requestID string) (model.SslO
 			return err
 		}
 		var count int64
-		if err := tx.Model(&model.SslOrder{}).Where("host_code = ? AND apply_status IN ?", source.HostCode, []string{"submitted", "applying"}).Count(&count).Error; err != nil {
+		if err := sslOrderPendingScope(tx.Model(&model.SslOrder{}), source.USER_CODE, source.Tenant_ID, source.HostCode, source.ApplyDomain).Where("apply_status IN ?", []string{"submitted", "applying"}).Count(&count).Error; err != nil {
 			return err
 		}
 		if count > 0 {

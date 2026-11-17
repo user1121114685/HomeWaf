@@ -1,7 +1,6 @@
 package api
 
 import (
-	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/model/common/response"
 	"HomeWaf/service/waf_service"
@@ -42,8 +41,6 @@ func (w *WafPipelineApi) PipelineTLSOptions(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	role := c.GetString("userRole")
-	result.CanCreate = role == enums.ROLE_SUPER_ADMIN || role == enums.ROLE_SYSTEM_ADMIN
 	response.OkWithDetailed(result, "", c)
 }
 

@@ -33,12 +33,21 @@ func DeployCertificateOrder(o *model.SslOrder) error {
 	}
 	db := global.GWAF_LOCAL_DB
 	first := o.Operation == "issuance"
+	if o.HostCode != "" && len(snapshot) == 0 {
+		return errors.New("关联服务的证书绑定快照缺失")
+	}
 	newFingerprint := CertificateFingerprint(string(o.ResultCertificate))
 	if newFingerprint == "" {
 		return errors.New("签发结果不是有效 PEM 证书")
 	}
 	// Validate the original target before persisting the issued resource.
-	if first {
+	if first && o.HostCode == "" && len(snapshot) != 0 {
+		return errors.New("独立申请不能包含未选择的服务绑定")
+	}
+	if first && o.HostCode != "" {
+		if len(snapshot) != 1 || snapshot[0].Code != o.HostCode {
+			return errors.New("证书绑定快照缺失或与所选服务不一致")
+		}
 		current, err := certificateTargetBinding(o.HostCode)
 		if err != nil {
 			return err
@@ -70,7 +79,11 @@ func DeployCertificateOrder(o *model.SslOrder) error {
 			if err := tx.Create(&c).Error; err != nil {
 				return err
 			}
-			p := newCertificatePolicy(c, *o, snapshot[0].ID)
+			targetID := ""
+			if o.HostCode != "" {
+				targetID = snapshot[0].ID
+			}
+			p := newCertificatePolicy(c, *o, targetID)
 			p.Status, p.LastSuccessID, p.LastSuccessAt = "deploying", "", customtype.JsonTime{}
 			if err := tx.Create(&p).Error; err != nil {
 				return err
@@ -106,9 +119,12 @@ func DeployCertificateOrder(o *model.SslOrder) error {
 	}
 	results := []CertificateDeployment{}
 	var failures []error
-	currentBindings, err := CertificateBindings(db, c.Id)
-	if err != nil {
-		return err
+	var currentBindings []CertificateBinding
+	if !first {
+		currentBindings, err = CertificateBindings(db, c.Id)
+		if err != nil {
+			return err
+		}
 	}
 	for _, b := range snapshot {
 		item := CertificateDeployment{Name: b.Name, Kind: b.Kind, Status: "updated"}

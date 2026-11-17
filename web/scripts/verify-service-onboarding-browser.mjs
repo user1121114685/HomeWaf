@@ -30,15 +30,15 @@ let templates = clone(source),
   failCertificates = false,
   emptyCertificates = false,
   certificateCreated = false,
-  failCertificateSave = true,
-  canCreateCertificate = true;
+  failCertificateSave = true;
 const report = { checks: [], errors: [], writes: [] };
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const context = await browser.newContext({ viewport: { width: 1600, height: 1100 }, colorScheme: 'light' });
-await context.addInitScript(() => {
+await context.addInitScript((appOrigin) => {
+  if (location.origin !== appOrigin) return;
   localStorage.setItem('access_token', 'isolated-pipeline-ui-test');
   localStorage.setItem('lang', 'zh_CN');
-});
+}, origin);
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 function resultFor(config) {
   const blocked = !config.policy.access.enabled || config.policy.ip_group.unlisted_action === 'deny';
@@ -84,6 +84,22 @@ await context.route('**/api/**', async (route) => {
   if (endpoint === 'iplocation/status')
     return ok({ ipv4_file_size: 11122714, ipv6_file_size: 37283761, ipv4_builtin: true, ipv6_builtin: true });
   if (endpoint === 'wafhost/ipgroup/options') return ok([]);
+  if (endpoint === 'wafhost/sslorder/targets') return ok([]);
+  if (endpoint === 'certificates/list')
+    return ok({
+      list: certificateCreated
+        ? [
+            {
+              id: 'new-cert',
+              domains: 'nas.example.test, new.example.test',
+              validity: 'valid',
+              update_method: 'manual',
+              bindings: [],
+            },
+          ]
+        : [],
+      total: certificateCreated ? 1 : 0,
+    });
   if (endpoint === 'sslconfig/add') {
     if (failCertificateSave)
       return route.fulfill({
@@ -151,13 +167,14 @@ await context.route('**/api/**', async (route) => {
       reason: valid ? '' : '证书未覆盖域名或 IP：' + input.host_names.join(', '),
     };
     return ok({
-      can_create: canCreateCertificate,
       certificates: emptyCertificates
         ? []
         : [
             certificate,
             { ...certificate, id: 'expired-cert', valid: false, reason: '证书已过期，请更新证书' },
-            ...(certificateCreated ? [{ ...certificate, id: 'new-cert' }] : []),
+            ...(certificateCreated
+              ? [{ ...certificate, id: 'new-cert', domains: ['nas.example.test', 'new.example.test'] }]
+              : []),
           ],
       current: certificateBindings.has(p) ? certificate : undefined,
     });
@@ -477,7 +494,7 @@ try {
   await guide.getByRole('combobox', { name: '监听协议', exact: true }).press('ArrowDown');
   await page.getByRole('option', { name: 'HTTPS（需要证书）', exact: true }).click();
   await guide.getByRole('button', { name: '继续设置异常处置' }).click();
-  await expect(guide.getByText('请从证书管理选择匹配域名或 IP 的证书，或新增证书。')).toBeVisible();
+  await expect(guide.getByText('请选择证书；没有可用证书时，请先前往证书管理。')).toBeVisible();
   await guide.getByRole('combobox', { name: '监听协议', exact: true }).focus();
   await guide.getByRole('combobox', { name: '监听协议', exact: true }).press('ArrowDown');
   await page.getByRole('option', { name: 'HTTP', exact: true }).click();
@@ -515,10 +532,10 @@ try {
   await expect(editor.getByText('读取证书列表失败，请重试')).toBeVisible();
   failCertificates = false;
   emptyCertificates = true;
-  await editor.getByRole('button', { name: '重新读取证书', exact: true }).first().click();
+  await editor.getByRole('button', { name: '刷新证书列表', exact: true }).click();
   await expect(editor.getByText(/还没有已保存的证书/)).toBeVisible();
   emptyCertificates = false;
-  await editor.getByRole('button', { name: '重新读取证书', exact: true }).click();
+  await editor.getByRole('button', { name: '刷新证书列表', exact: true }).click();
   await expect(editor.locator('.service-tls .el-select')).toContainText('nas.example.test');
   await expect(editor.getByText(/已匹配：nas.example.test/)).toBeVisible();
   for (const [width, height] of [
@@ -593,23 +610,43 @@ try {
   await page.getByRole('option', { name: 'HTTPS（需要证书）', exact: true }).click();
   await expect(guide.getByText(/已匹配：nas.example.test/)).toBeVisible();
   await expect(guide.getByLabel('服务名称', { exact: true })).toBeVisible();
-  await guide.getByRole('button', { name: '新增证书', exact: true }).click();
-  const certificateEditor = page.getByTestId('certificate-editor');
+  const managementLink = guide.getByRole('link', { name: '前往证书管理', exact: true });
+  await expect(managementLink).toHaveAttribute('href', /#\/waf-host\/wafsslconfiglist$/);
+  await expect(managementLink).toHaveAttribute('target', '_blank');
+  await expect(managementLink).toHaveAttribute('rel', /noopener/);
+  const managementPagePromise = context.waitForEvent('page');
+  await managementLink.click();
+  const managementPage = await managementPagePromise;
+  managementPage.on('pageerror', (error) => report.errors.push(error.message));
+  await managementPage.waitForURL(/#\/waf-host\/wafsslconfiglist$/);
+  expect(await managementPage.evaluate(() => window.opener === null)).toBe(true);
+  await expect(page.getByTestId('certificate-editor')).toHaveCount(0);
+  await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toHaveValue('18480');
+  await managementPage.getByRole('button', { name: '导入证书', exact: true }).click();
+  const certificateEditor = managementPage.getByTestId('certificate-editor');
   await expect(certificateEditor).toBeVisible();
   await certificateEditor.getByRole('button', { name: '取消', exact: true }).click();
   await expect(certificateEditor).toBeHidden();
   await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toHaveValue('18480');
-  await guide.getByRole('button', { name: '新增证书', exact: true }).click();
+  await managementPage.getByRole('button', { name: '导入证书', exact: true }).click();
   const certificatePEM = '-----BEGIN CERTIFICATE-----\nZmFrZS1jZXJ0\n-----END CERTIFICATE-----';
   const privatePEM = '-----BEGIN PRIVATE KEY-----\nprivate-key-fixture\n-----END PRIVATE KEY-----';
   await certificateEditor.locator('#certificate-cert_content').fill(certificatePEM);
   await certificateEditor.locator('#certificate-key_content').fill(privatePEM);
-  for (const [width, height] of [[1440, 1000], [390, 844]]) {
-    await page.setViewportSize({ width, height });
+  for (const [width, height] of [
+    [1440, 1000],
+    [390, 844],
+  ]) {
+    await managementPage.setViewportSize({ width, height });
     await certificateEditor.locator('#certificate-key_content').scrollIntoViewIfNeeded();
     await expect(certificateEditor.locator('#certificate-key_content')).toBeInViewport();
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(2);
-    await page.screenshot({ animations: 'disabled', path: path.join(artifact, `inline-certificate-${width}.png`) });
+    await expect
+      .poll(() => managementPage.evaluate(() => document.documentElement.scrollWidth - innerWidth))
+      .toBeLessThanOrEqual(2);
+    await managementPage.screenshot({
+      animations: 'disabled',
+      path: path.join(artifact, `managed-certificate-${width}.png`),
+    });
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await certificateEditor.locator('button[type="submit"]').click();
@@ -618,7 +655,16 @@ try {
   failCertificateSave = false;
   await certificateEditor.locator('button[type="submit"]').click();
   await expect(certificateEditor).toBeHidden();
-  await expect(guide.getByText('证书已保存到证书管理，服务草稿已保留。')).toBeVisible();
+  await expect(managementPage.getByText('nas.example.test, new.example.test', { exact: true }).first()).toBeVisible();
+  await managementPage.close();
+  await page.bringToFront();
+  await expect(guide.getByLabel('HomeWaf 监听端口', { exact: true })).toHaveValue('18480');
+  await expect(guide.getByLabel('允许的主机名（域名或 IP）', { exact: true })).toHaveValue('nas.example.test');
+  await guide.getByRole('button', { name: '刷新证书列表', exact: true }).click();
+  await expect(guide.locator('.service-tls')).toHaveAttribute('aria-busy', 'false');
+  await guide.getByRole('combobox', { name: '域名证书', exact: true }).focus();
+  await guide.getByRole('combobox', { name: '域名证书', exact: true }).press('ArrowDown');
+  await page.getByRole('option', { name: /new.example.test/ }).click();
   await guide.getByRole('button', { name: '继续设置异常处置' }).click();
   await guide.getByRole('radio', { name: '无提示拒绝', exact: true }).check();
   await guide.getByRole('button', { name: '检查配置并继续' }).click();
@@ -643,7 +689,7 @@ try {
     'private-key-fixture',
   );
   report.checks.push(
-    'new HTTPS service uses an explicit port, keeps input through port conflict and invalid PEM, preserves certificate selection on Back, and saves a managed binding without leaking manual keys',
+    'certificate management opens in an isolated new tab; creation, cancellation and retry stay on that page; returning preserves the service draft and refresh selects the new certificate',
   );
   expect(report.errors).toEqual([]);
   fs.writeFileSync(path.join(artifact, 'onboarding-report.json'), JSON.stringify(report, null, 2));

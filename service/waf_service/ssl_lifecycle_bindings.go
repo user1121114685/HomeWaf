@@ -129,7 +129,7 @@ func certificateSnapshot(bindings []CertificateBinding) string {
 }
 func parseCertificateSnapshot(raw string) ([]CertificateBinding, error) {
 	var result []CertificateBinding
-	if err := json.Unmarshal([]byte(raw), &result); err != nil || len(result) == 0 {
+	if err := json.Unmarshal([]byte(raw), &result); err != nil || result == nil {
 		return nil, errors.New("证书绑定快照缺失，请重新确认使用范围")
 	}
 	return result, nil

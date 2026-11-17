@@ -53,6 +53,9 @@ func (waf *WafEngine) applyLifecycleCertificate(order model.SslOrder) {
 				kid, hmac = settings.GCONFIG_ZEROSSL_EAB_KID, settings.GCONFIG_ZEROSSL_EAB_HMAC_KEY
 			}
 			path := filepath.Join(utils.GetCurrentDir(), "data", "vhost", order.HostCode)
+			if order.HostCode == "" {
+				path = filepath.Join(utils.GetCurrentDir(), "data", "ssl", "orders", order.Id)
+			}
 			if err := utils.CheckPathAndCreate(path); err != nil {
 				return err
 			}

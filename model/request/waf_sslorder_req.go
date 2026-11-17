@@ -7,7 +7,7 @@ import "HomeWaf/model/common/request"
 type WafSslorderaddReq struct {
 	AutoRenew        *bool  `json:"auto_renew,omitempty"`
 	RequestID        string `json:"request_id" binding:"omitempty,max=128"`
-	HostCode         string `json:"host_code" binding:"required,max=64"`            //网站唯一码（主要键）
+	HostCode         string `json:"host_code" binding:"omitempty,max=64"`           //可选：签发后绑定的服务
 	ApplyPlatform    string `json:"apply_platform" binding:"omitempty,max=100"`     //申请平台，取CA服务器名称（ca_server_name），默认 letsencrypt
 	ApplyMethod      string `json:"apply_method" enums:"http01,dns01"`              //申请方式：http01(HTTP 文件验证) 或 dns01(DNS 验证)
 	SkipDNSVerify    int64  `json:"skip_dns_verify"`                                //dns01是否跳过本地DNS传播校验 0否 1是
@@ -20,7 +20,7 @@ type WafSslordereditReq struct {
 	AutoRenew        *bool  `json:"auto_renew,omitempty"`
 	RequestID        string `json:"request_id" binding:"omitempty,max=128"`
 	Id               string `json:"id" binding:"required,max=64"`
-	HostCode         string `json:"host_code" binding:"required,max=64"`            //网站唯一码（主要键）
+	HostCode         string `json:"host_code" binding:"omitempty,max=64"`           //可选：原签发关联的服务
 	ApplyPlatform    string `json:"apply_platform" binding:"omitempty,max=100"`     //申请平台，取CA服务器名称（ca_server_name），默认 letsencrypt
 	ApplyMethod      string `json:"apply_method" enums:"http01,dns01"`              //申请方式：http01(HTTP 文件验证) 或 dns01(DNS 验证)
 	SkipDNSVerify    int64  `json:"skip_dns_verify"`                                //dns01是否跳过本地DNS传播校验 0否 1是

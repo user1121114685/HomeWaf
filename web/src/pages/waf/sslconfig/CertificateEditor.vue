@@ -180,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -220,7 +220,6 @@ interface CertificateRecord extends CertificateDraft {
 const { t } = useI18n();
 const emit = defineEmits<{
   saved: [result: { id?: string; message: string; exportFailed: boolean }];
-  'visibility-change': [visible: boolean];
 }>();
 const emptyDraft = (): CertificateDraft => ({
   cert_content: '',
@@ -238,7 +237,6 @@ const visible = ref(false),
   reading = ref(false);
 const snapshot = ref(''),
   originalContent = ref('');
-watch(visible, (value) => emit('visibility-change', value), { flush: 'sync' });
 const saveError = ref(''),
   readNotice = ref('');
 const fieldErrors = ref<Partial<Record<PemField, string>>>({});
