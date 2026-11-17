@@ -20,6 +20,7 @@ import (
 
 	"HomeWaf/global"
 	"HomeWaf/utils"
+	"HomeWaf/wafconfig"
 )
 
 const hostAPI = "/api/v1/wafhost/host/"
@@ -30,6 +31,7 @@ type apiClient struct {
 	key     string
 	http    *http.Client
 	wait    time.Duration
+	host    string
 }
 
 func newLocalClient(wait time.Duration) (*apiClient, error) {
@@ -59,7 +61,11 @@ func newLocalClient(wait time.Duration) (*apiClient, error) {
 			base += "/" + url.PathEscape(entry)
 		}
 	}
-	return newAPIClient(base, key, wait), nil
+	client := newAPIClient(base, key, wait)
+	if domain := wafconfig.GetManagementDomain(); domain != "" {
+		client.host = net.JoinHostPort(domain, fmt.Sprint(global.GWAF_LOCAL_SERVER_PORT))
+	}
+	return client, nil
 }
 
 func newAPIClient(base, key string, wait time.Duration) *apiClient {
@@ -96,6 +102,9 @@ func (a *apiClient) call(ctx context.Context, method, path string, body any, out
 			return fail(ExitUsage, errors.New("管理端地址格式错误"))
 		}
 		req.Header.Set("X-API-Key", a.key)
+		if a.host != "" {
+			req.Host = a.host
+		}
 		if body != nil {
 			req.Header.Set("Content-Type", "application/json")
 		}

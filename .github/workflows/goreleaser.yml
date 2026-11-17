@@ -176,7 +176,7 @@ jobs:
           trap 'docker rm -f homewaf || true' EXIT
           bash install_homewaf.sh --docker --version "$version" --archive "$archive" --checksums "$checksums"
           before=$(docker exec homewaf sha256sum /app/.homewaf-keys/data_key)
-          pwsh -NoProfile -File install_homewaf.ps1 -Docker -Directory /tmp/homewaf-unused -Version "$version" -ArchivePath "$archive" -ChecksumsPath "$checksums"
+          pwsh -NoProfile -File install_homewaf.ps1 -Action upgrade -Docker -Directory /tmp/homewaf-unused -Version "$version" -ArchivePath "$archive" -ChecksumsPath "$checksums"
           after=$(docker exec homewaf sha256sum /app/.homewaf-keys/data_key)
           test "$before" = "$after"
           docker exec homewaf test -s /app/data/initial_password.txt
@@ -184,6 +184,15 @@ jobs:
           key=$(docker exec homewaf cat /app/data/.keys/cli_api_key)
           docker exec homewaf wget -qO- --header "X-API-Key: $key" http://127.0.0.1:26666/api/v1/sysinfo/checkversion > container-version.json
           node -e 'const v=JSON.parse(require("fs").readFileSync("container-version.json")); if(v.code!==0 || !v.data.container || v.data.self_update_allowed!==false) throw new Error("Docker update notification policy failed");'
+          bash install_homewaf.sh uninstall --docker
+          docker volume inspect homewaf-data > /dev/null
+          docker volume inspect homewaf-keys > /dev/null
+          pwsh -NoProfile -File install_homewaf.ps1 -Docker -Directory /tmp/homewaf-unused -Version "$version" -ArchivePath "$archive" -ChecksumsPath "$checksums"
+          restored=$(docker exec homewaf sha256sum /app/.homewaf-keys/data_key)
+          test "$before" = "$restored"
+          pwsh -NoProfile -File install_homewaf.ps1 -Action uninstall -Docker -Directory /tmp/homewaf-unused -PurgeData -Yes
+          if docker volume inspect homewaf-data > /dev/null 2>&1; then echo 'Explicit purge left the test data volume' >&2; exit 1; fi
+          if docker volume inspect homewaf-keys > /dev/null 2>&1; then echo 'Explicit purge left the test key volume' >&2; exit 1; fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: HomeWaf-container-${{ matrix.arch }}

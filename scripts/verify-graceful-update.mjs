@@ -1,4 +1,4 @@
-// Optional end-to-end check: pass two HomeWaf binaries with increasing versions.
+// Release-gated end-to-end check: pass two HomeWaf binaries with increasing versions.
 // Everything runs in a fresh .cache directory with loopback ports and synthetic data.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,9 +13,11 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const [oldInput, newInput, nextVersion = 'v2.0.1-graceful-test'] = process.argv.slice(2);
 const githubRelease = process.argv.includes('--github');
+const viaInstaller = process.argv.includes('--via-installer');
 if (!oldInput || !newInput) throw new Error('Usage: node scripts/verify-graceful-update.mjs old-binary new-binary next-version');
 const dir = fs.mkdtempSync(path.join(root, '.cache', 'graceful-smoke-'));
-const exe = path.join(dir, process.platform === 'win32' ? 'HomeWaf.exe' : 'HomeWaf');
+const nativeName = process.platform === 'win32' ? 'HomeWaf64.exe' : `HomeWaf${process.platform === 'darwin' ? 'Darwin' : 'Linux'}${process.arch === 'arm64' ? 'Arm64' : '64'}`;
+const exe = path.join(dir, nativeName);
 fs.copyFileSync(path.resolve(oldInput), exe);
 fs.mkdirSync(path.join(dir, 'conf'));
 const report = { requests: 0, failures: [], failureSamples: {}, versions: [], checks: [], directory: dir };
@@ -44,14 +46,61 @@ const origin = http.createServer((req, res) => {
   if (req.url === '/slow') { res.write('begin\n'); setTimeout(() => res.end('end\n'), 6500); }
   else res.end('origin-ok');
 });
-origin.on('upgrade', (_req, socket) => {
-  socket.write('HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: test-echo\r\n\r\n');
-  socket.on('data', (data) => socket.write(data));
+origin.on('upgrade', (req, socket) => {
+  // Exercise the supported WebSocket protocol. Arbitrary HTTP upgrades are
+  // intentionally rejected by HomeWaf's protocol guard.
+  const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64');
+  socket.write(`HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
+  let pending = Buffer.alloc(0);
+  socket.on('data', data => {
+    pending = Buffer.concat([pending, data]);
+    if (pending.length < 2) return;
+    const length = pending[1] & 0x7f;
+    if (pending[0] !== 0x81 || !(pending[1] & 0x80) || length >= 126) { socket.destroy(); return; }
+    if (pending.length < length + 6) return;
+    const message = Buffer.from(pending.subarray(6, 6 + length));
+    for (let i = 0; i < message.length; i++) message[i] ^= pending[2 + i % 4];
+    socket.write(Buffer.concat([Buffer.from([0x81, message.length]), message]));
+    pending = pending.subarray(6 + length);
+  });
 });
 const originPort = await listen(origin), managerPort = await freePort(), proxyPort = await freePort();
 fs.writeFileSync(path.join(dir, 'conf', 'config.yml'), `local_port: ${managerPort}\ndrain_time_out: 15\ndebug_worker_header: true\nupdate_restart_timeout: 90\nnotice:\n  isenable: false\n`);
 const env = { ...process.env, HOMEWAF_DEV: '1', HOMEWAF_UPDATE_URL: githubRelease ? '' : `http://127.0.0.1:${publisherPort}/`, HOMEWAF_RELEASE_URL: 'https://api.github.com/repos/user1121114685/HomeWaf/releases/latest' };
 const log = fs.openSync(path.join(dir, 'process.log'), 'a');
+const helperProcesses = new Set();
+const runProcess = (command, args, stdio = ['ignore', log, log]) => new Promise((resolve, reject) => {
+  const processChild = spawn(command, args, { cwd: dir, env, windowsHide: true, stdio });
+  helperProcesses.add(processChild);
+  processChild.once('error', reject);
+  processChild.once('exit', code => { helperProcesses.delete(processChild); code === 0 ? resolve() : reject(new Error(`${command} exited ${code}`)); });
+});
+const installerCommand = process.platform === 'win32' ? 'powershell.exe' : 'bash';
+const installerArgs = (action, extras = []) => process.platform === 'win32'
+  ? ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root, 'install_homewaf.ps1'), '-Action', action, '-Directory', dir, '-NoService', ...extras]
+  : [path.join(root, 'install_homewaf.sh'), action, '--dir', dir, '--no-service', ...extras];
+async function prepareInstaller() {
+  const stage = path.join(dir, 'installer-stage');
+  fs.mkdirSync(stage);
+  fs.copyFileSync(path.resolve(newInput), path.join(stage, nativeName));
+  for (const name of ['LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'LICENSES']) fs.cpSync(path.join(root, name), path.join(stage, name), { recursive: true });
+  const platform = `${process.platform === 'win32' ? 'Windows' : process.platform === 'darwin' ? 'Darwin' : 'Linux'}_${process.arch === 'arm64' ? 'arm64' : 'x86_64'}`;
+  const asset = `HomeWaf_${platform}_${nextVersion.slice(1)}${process.platform === 'win32' ? '.zip' : '.tar.gz'}`;
+  const archivePath = path.join(dir, asset);
+  if (process.platform === 'win32') {
+    const packer = path.join(dir, 'pack-fixture.ps1');
+    fs.writeFileSync(packer, "param([string]$Source,[string]$Destination)\n$ErrorActionPreference='Stop'\n$files=@(Get-ChildItem -LiteralPath $Source | ForEach-Object { $_.FullName })\nCompress-Archive -LiteralPath $files -DestinationPath $Destination\n");
+    await runProcess('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', packer, stage, archivePath]);
+  } else await runProcess('tar', ['-czf', archivePath, '-C', stage, '.']);
+  const digest = createHash('sha256');
+  for await (const data of fs.createReadStream(archivePath)) digest.update(data);
+  const checksumsPath = path.join(dir, 'fixture-checksums.txt');
+  fs.writeFileSync(checksumsPath, `${digest.digest('hex')}  ${asset}\n`);
+  fs.writeFileSync(path.join(dir, '.homewaf-installer'), 'HomeWaf');
+  return process.platform === 'win32'
+    ? ['-Version', nextVersion, '-ArchivePath', archivePath, '-ChecksumsPath', checksumsPath]
+    : ['--version', nextVersion, '--archive', archivePath, '--checksums', checksumsPath];
+}
 const child = spawn(exe, [], { cwd: dir, env, windowsHide: true, stdio: ['ignore', log, log] });
 let key, upgraded, stopped = false;
 let monitor = [];
@@ -104,6 +153,7 @@ try {
   const before = readState(); report.oldWorker = before.active_pid;
   const available = await api('checkversion');
   if (!available.need_update || available.version_new !== nextVersion) throw new Error('Update was not detected');
+  const upgradeArgs = viaInstaller ? await prepareInstaller() : null;
   monitor = Array.from({ length: 4 }, async () => {
     while (!stopped) {
       try { const r = await proxyRequest(); if (r.status !== 200 || r.body !== 'origin-ok') { report.failures.push(`HTTP ${r.status}: ${r.body.slice(0, 80)}`); report.failureSamples[r.worker || 'unknown'] ||= { request: report.requests, status: r.status, body: r.body.slice(0, 8000) }; } }
@@ -114,30 +164,55 @@ try {
   let began;
   const slowStarted = new Promise((r) => { began = r; });
   const slow = proxyRequest('/slow', began);
+  // A later assertion can fail before this request is awaited; keep cleanup from
+  // turning its aborted socket into an unhandled rejection that hides the cause.
+  slow.catch(() => {});
   await slowStarted;
   upgraded = net.createConnection({ host: '127.0.0.1', port: proxyPort });
   upgraded.setTimeout(20000, () => upgraded.destroy(new Error('upgrade socket timed out')));
   await new Promise((resolve, reject) => {
     upgraded.once('error', reject);
-    upgraded.once('connect', () => upgraded.write(`GET /upgrade HTTP/1.1\r\nHost: graceful.test:${proxyPort}\r\nConnection: upgrade\r\nUpgrade: test-echo\r\n\r\n`));
-    upgraded.once('data', (data) => String(data).includes('101') ? resolve() : reject(new Error('Upgrade rejected')));
+    upgraded.once('connect', () => upgraded.write(`GET /upgrade HTTP/1.1\r\nHost: graceful.test:${proxyPort}\r\nConnection: upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n`));
+    upgraded.once('data', (data) => String(data).includes('101') ? resolve() : reject(new Error('Upgrade rejected: ' + String(data).slice(0, 500))));
   });
-  await api('update');
-  const after = await waitFor(() => { const s = readState(); return s.active_pid && s.active_pid !== before.active_pid ? s : false; });
+  const updateCompletion = viaInstaller ? runProcess(installerCommand, installerArgs('upgrade', upgradeArgs)) : api('update');
+  updateCompletion.catch(() => {});
+  if (!viaInstaller) await updateCompletion;
+  // A script waits for the upgrade to finish. Observe takeover and release long
+  // connections concurrently, rather than keeping them open until drain timeout.
+  const after = await Promise.race([
+    waitFor(() => { const s = readState(); return s.active_pid && s.active_pid !== before.active_pid ? s : false; }),
+    updateCompletion.then(() => new Promise(() => {})),
+  ]);
   report.newWorker = after.active_pid;
   if (!after.pids.includes(before.active_pid)) throw new Error('Old worker exited before the long connection was released');
-  const echo = new Promise((resolve, reject) => { upgraded.once('data', (data) => resolve(String(data))); upgraded.once('error', reject); });
-  upgraded.write('alive-after-takeover\n');
+  const echo = new Promise((resolve, reject) => {
+    let received = Buffer.alloc(0);
+    const onData = data => {
+      received = Buffer.concat([received, data]);
+      if (received.length >= 2 && received.length >= 2 + (received[1] & 0x7f)) {
+        upgraded.off('data', onData);
+        resolve(received.subarray(2, 2 + (received[1] & 0x7f)).toString());
+      }
+    };
+    upgraded.on('data', onData);
+    upgraded.once('error', reject);
+  });
+  const message = Buffer.from('alive-after-takeover\n'), mask = Buffer.from([1, 2, 3, 4]);
+  const masked = Buffer.from(message);
+  for (let i = 0; i < masked.length; i++) masked[i] ^= mask[i % 4];
+  upgraded.write(Buffer.concat([Buffer.from([0x81, 0x80 | masked.length]), mask, masked]));
   if (await echo !== 'alive-after-takeover\n') throw new Error('Long connection did not survive takeover');
   upgraded.end();
   const result = await slow;
   if (result.status !== 200 || result.body !== 'begin\nend\n') throw new Error('Slow request was interrupted');
   await waitFor(() => !readState().pids.includes(before.active_pid));
+  await updateCompletion;
   report.versions.push((await api('version')).version);
   if (report.versions[1] !== nextVersion) throw new Error('New binary did not take over');
   stopped = true; await Promise.all(monitor);
   if (report.failures.length) throw new Error(`${report.failures.length} proxy requests failed`);
-  report.checks.push('Real update API downloaded, SHA256-verified and replaced the executable', 'New worker accepted traffic before old worker exited', 'Slow response and upgraded connection survived takeover', 'All continuous proxy requests succeeded');
+  report.checks.push('Real update API downloaded, SHA256-verified and replaced the executable', 'New worker accepted traffic before old worker exited', 'Slow response and WebSocket connection survived takeover', 'All continuous proxy requests succeeded');
   fs.writeFileSync(path.join(root, 'artifacts', 'graceful-update-verification.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
@@ -149,6 +224,7 @@ try {
   upgraded?.destroy();
   proxyAgent.destroy();
   await Promise.allSettled(monitor);
+  for (const helperProcess of helperProcesses) { try { helperProcess.kill(); } catch {} }
   if (child.pid && child.exitCode === null && child.signalCode === null) {
     await new Promise(resolve => {
       const timeout = setTimeout(() => child.kill('SIGKILL'), 10000);
@@ -161,4 +237,23 @@ try {
   publisher.closeAllConnections(); publisher.close();
   origin.closeAllConnections(); origin.close();
   fs.closeSync(log);
+}
+if (viaInstaller) {
+  const retained = ['conf/config.yml', 'data/.keys/cli_api_key', '.homewaf-keys/data_key'];
+  const snapshots = retained.map(name => fs.readFileSync(path.join(dir, name)));
+  await runProcess(installerCommand, installerArgs('uninstall'), 'inherit');
+  if (fs.existsSync(exe)) throw new Error('Uninstall left the executable in place');
+  retained.forEach((name, index) => {
+    if (!fs.readFileSync(path.join(dir, name)).equals(snapshots[index])) throw new Error(`Uninstall changed retained instance data: ${name}`);
+  });
+  fs.copyFileSync(path.resolve(newInput), exe);
+  fs.chmodSync(exe, 0o755);
+  fs.writeFileSync(path.join(dir, 'owner-note.txt'), 'preserve unrelated files');
+  const purge = process.platform === 'win32' ? ['-PurgeData', '-Yes'] : ['--purge-data', '--yes'];
+  await runProcess(installerCommand, installerArgs('uninstall', purge), 'inherit');
+  for (const name of ['conf', 'data', '.homewaf-keys', 'logs', 'ssl']) if (fs.existsSync(path.join(dir, name))) throw new Error(`Explicit purge left ${name}`);
+  if (!fs.existsSync(path.join(dir, 'owner-note.txt'))) throw new Error('Purge removed unrelated files');
+  report.checks.push('Installer upgrade works without WebUI', 'Default uninstall retains configuration, data and keys', 'Explicit purge removes only named instance data directories');
+  fs.writeFileSync(path.join(root, 'artifacts/graceful-update-installer-verification.json'), JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({ checks: report.checks, requests: report.requests, failures: report.failures }, null, 2));
 }

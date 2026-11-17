@@ -1,19 +1,23 @@
 # HomeWaf online installer. Supports Windows PowerShell 5.1 and PowerShell 7.
 [CmdletBinding()]
 param(
-    [ValidateSet('install', 'uninstall')][string]$Action = 'install',
+    [ValidateSet('install', 'upgrade', 'update', 'uninstall')][string]$Action = 'install',
     [string]$Version = 'latest',
     [string]$Directory = (Join-Path $env:ProgramData 'HomeWaf'),
     [switch]$NoService,
     [switch]$Docker,
     [string]$ArchivePath,
-    [string]$ChecksumsPath
+    [string]$ChecksumsPath,
+    [switch]$PurgeData,
+    [switch]$Yes
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $repo = 'https://github.com/user1121114685/HomeWaf'
 $Directory = [IO.Path]::GetFullPath($Directory)
+if ($Action -eq 'update') { $Action = 'upgrade' }
+if ($PurgeData -and ($Action -ne 'uninstall' -or -not $Yes)) { throw '-PurgeData requires -Action uninstall -Yes.' }
 if ($Directory -eq [IO.Path]::GetPathRoot($Directory)) { throw 'Use an application directory, not a drive root.' }
 $architecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 if ($Docker) {
@@ -30,18 +34,87 @@ function Invoke-HomeWaf([string]$Command) {
     & $binary $Command
     if ($LASTEXITCODE -ne 0) { throw "HomeWaf $Command failed (exit $LASTEXITCODE)." }
 }
+function Test-CommandExit([string]$Executable, [string[]]$CommandArgs) {
+    # PowerShell 5.1 can turn redirected native stderr into a terminating error.
+    # Read-only capability/readiness probes must inspect the exit code instead.
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Executable @CommandArgs *> $null
+        return $LASTEXITCODE -eq 0
+    } finally { $ErrorActionPreference = $previousPreference }
+}
 if ($Action -eq 'uninstall') {
-    if ($Docker) { throw 'Remove the container with: docker rm -f homewaf (named data volumes are retained).' }
-    if (-not (Test-Path -LiteralPath $binary)) { throw "HomeWaf is not installed in $Directory" }
-    $existing = Get-Service -Name HomeWafService -ErrorAction SilentlyContinue
-    if ($existing) {
-        if ($existing.Status -ne 'Stopped') { Invoke-HomeWaf 'stop' }
-        Invoke-HomeWaf 'uninstall'
+    if ($Docker) {
+        $metadata = (& docker container inspect homewaf | ConvertFrom-Json)[0]
+        if ($LASTEXITCODE -ne 0 -or $metadata.Config.Labels.'io.homewaf.installer' -ne 'release') { throw 'Refusing to remove a container not owned by this installer.' }
+        & docker stop --time 120 homewaf
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot stop the HomeWaf container gracefully.' }
+        & docker rm homewaf
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot remove the stopped container.' }
+        if ($PurgeData) {
+            foreach ($volume in @('homewaf-conf','homewaf-data','homewaf-keys','homewaf-logs','homewaf-ssl')) {
+                if (Test-CommandExit 'docker' @('volume','inspect',$volume)) { & docker volume rm $volume; if ($LASTEXITCODE -ne 0) { throw "Cannot remove data volume $volume." } }
+            }
+        }
+        Write-Host 'HomeWaf container removed. Named data volumes are retained unless -PurgeData -Yes was specified.'
+        return
     }
-    Write-Host "Service removed. Application, configuration, data and keys remain in $Directory."
+    if (-not (Test-Path -LiteralPath $binary)) { throw "HomeWaf is not installed in $Directory" }
+    $dataTargets = @()
+    if ($PurgeData) {
+        $marker = Join-Path $Directory '.homewaf-installer'
+        if (-not (Test-Path -LiteralPath $marker) -or ((Get-Item -LiteralPath $marker -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Get-Content -LiteralPath $marker -Raw).Trim() -ne 'HomeWaf') { throw 'Data removal requires an installer-owned application directory.' }
+        $reserved = @($env:USERPROFILE, $env:ProgramData, $env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:SystemRoot, (Join-Path $env:SystemDrive 'Users')) | Where-Object { $_ }
+        if ($reserved -contains $Directory.TrimEnd('\')) { throw 'Refusing data removal from a shared system directory.' }
+        if ((Get-Item -LiteralPath $Directory -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Refusing data removal through a directory link.' }
+        foreach ($name in @('conf','data','.homewaf-keys','logs','ssl')) {
+            $target = [IO.Path]::GetFullPath((Join-Path $Directory $name))
+            if (-not $target.StartsWith($Directory.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid data removal target.' }
+            if (Test-Path -LiteralPath $target) {
+                if ((Get-Item -LiteralPath $target -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Refusing to purge linked data: $target" }
+                $dataTargets += $target
+            }
+        }
+    }
+    $existing = Get-Service -Name HomeWafService -ErrorAction SilentlyContinue
+    if ($existing -and $NoService) {
+        $serviceInfo = Get-CimInstance Win32_Service -Filter "Name='HomeWafService'"
+        if ($serviceInfo.PathName.Trim('"') -eq $binary) { throw 'This directory belongs to the installed service; uninstall without -NoService from an elevated shell.' }
+        $existing = $null # Never control another installation when removing a foreground copy.
+    }
+    if ($existing) {
+        $serviceInfo = Get-CimInstance Win32_Service -Filter "Name='HomeWafService'"
+        if ($serviceInfo.PathName.Trim('"') -ne $binary) { throw 'Existing service uses another directory; use its original -Directory.' }
+        if ($NoService) { throw 'This directory belongs to the installed service; uninstall without -NoService from an elevated shell.' }
+        if ($existing.Status -ne 'Stopped') { Invoke-HomeWaf 'stop'; $existing.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(120)) }
+        Invoke-HomeWaf 'uninstall'
+    } else {
+        if (Test-CommandExit $binary @('console-info','--wait','1s')) { throw 'Stop the foreground instance before uninstalling.' }
+    }
+    Remove-Item -LiteralPath $binary -Force
+    foreach ($target in $dataTargets) { Remove-Item -LiteralPath $target -Recurse -Force }
+    Write-Host "HomeWaf program removed. Configuration, data and keys remain in $Directory unless -PurgeData -Yes was specified."
     return
 }
+if ($Action -eq 'upgrade' -and -not $Docker) {
+    if (-not (Test-Path -LiteralPath $binary)) { throw "HomeWaf is not installed in $Directory" }
+    if ((Test-CommandExit $binary @('update','--help')) -and -not $ArchivePath -and -not $ChecksumsPath) {
+        Push-Location -LiteralPath $Directory
+        try {
+            & $binary apikey init
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot initialize the local update credential.' }
+            & $binary update --version $Version --wait 15m
+            if ($LASTEXITCODE -ne 0) { throw 'Update did not complete; inspect update --status before retrying.' }
+        } finally { Pop-Location }
+        return
+    }
+}
+if ($Action -eq 'upgrade' -and $Docker) {
+    if (-not (Test-CommandExit 'docker' @('container','inspect','homewaf'))) { throw 'No existing HomeWaf container; use install first.' }
+}
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('homewaf-install-' + [Guid]::NewGuid().ToString('N'))
+$helper = $null
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
     if ($Version -eq 'latest') {
@@ -84,7 +157,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Cannot load the Docker release image.' }
         & docker image tag "homewaf:$Version" homewaf:latest
         if ($LASTEXITCODE -ne 0) { throw 'Cannot tag the Docker release image.' }
-        if ($oldImage) { & docker stop homewaf; if ($LASTEXITCODE -ne 0) { throw 'Cannot stop the existing container.' }; & docker rm homewaf; if ($LASTEXITCODE -ne 0) { throw 'Cannot remove the stopped container.' } }
+        if ($oldImage) { & docker stop --time 120 homewaf; if ($LASTEXITCODE -ne 0) { throw 'Cannot stop the existing container.' }; & docker rm homewaf; if ($LASTEXITCODE -ne 0) { throw 'Cannot remove the stopped container.' } }
         $runArgs = @('-d','--name','homewaf','--label','io.homewaf.installer=release','--restart','unless-stopped',
             '-p','127.0.0.1:26666:26666','-p','80:80','-p','443:443','-p','443:443/udp',
             '-v','homewaf-conf:/app/conf','-v','homewaf-data:/app/data','-v','homewaf-keys:/app/.homewaf-keys',
@@ -106,7 +179,7 @@ try {
         Write-Host 'Initial credentials (valid only until the password is changed):'
         & docker exec homewaf sh -c 'if [ -f /app/data/initial_password.txt ]; then cat /app/data/initial_password.txt; else echo "Existing instance: use your current password."; fi'
         if ($LASTEXITCODE -ne 0) { throw 'Could not read initial credentials from the container.' }
-        Write-Host 'Run this command again to update; named data volumes are preserved.'
+        Write-Host 'Use -Action upgrade -Docker to update. Named data volumes are preserved; single-container recreation has a brief interruption.'
         return
     }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -121,6 +194,21 @@ try {
     foreach ($required in @('HomeWaf64.exe','LICENSE','NOTICE','THIRD_PARTY_NOTICES.md','LICENSES')) {
         if (-not (Test-Path -LiteralPath (Join-Path $unpacked $required))) { throw "Missing $required" }
     }
+    if ($Action -eq 'upgrade') {
+        # A verified new CLI can upgrade an older instance even when its WebUI
+        # is broken. The running server owns download validation and restart.
+        $helper = Join-Path $Directory ('.homewaf-upgrade-' + [Guid]::NewGuid().ToString('N') + '.exe')
+        Copy-Item -LiteralPath (Join-Path $unpacked 'HomeWaf64.exe') -Destination $helper
+        if (-not (Test-CommandExit $helper @('update','--help'))) { throw 'This release has no command-line update client; choose a newer release.' }
+        Push-Location -LiteralPath $Directory
+        try {
+            & $binary apikey init
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot initialize the local update credential.' }
+            & $helper update --version $Version --wait 15m
+            if ($LASTEXITCODE -ne 0) { throw 'Update did not complete; inspect update --status before retrying.' }
+        } finally { Pop-Location }
+        return
+    }
     $existing = Get-Service -Name HomeWafService -ErrorAction SilentlyContinue
     if ($existing -and -not $NoService) {
         $serviceInfo = Get-CimInstance Win32_Service -Filter "Name='HomeWafService'"
@@ -128,6 +216,9 @@ try {
         if ($existing.Status -ne 'Stopped') { Invoke-HomeWaf 'stop'; $existing.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(60)) }
     }
     New-Item -ItemType Directory -Force -Path $Directory | Out-Null
+    $marker = Join-Path $Directory '.homewaf-installer'
+    if ((Test-Path -LiteralPath $marker) -and ((Get-Item -LiteralPath $marker -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Invalid installer ownership marker.' }
+    [IO.File]::WriteAllText($marker, 'HomeWaf')
     Copy-Item -LiteralPath (Join-Path $unpacked 'HomeWaf64.exe') -Destination "$binary.new"
     Move-Item -LiteralPath "$binary.new" -Destination $binary -Force
     foreach ($name in @('LICENSE','NOTICE','THIRD_PARTY_NOTICES.md','LICENSES','docs')) {
@@ -138,8 +229,7 @@ try {
         if (-not $existing) { Invoke-HomeWaf 'install' }
         Invoke-HomeWaf 'start'
         (Get-Service HomeWafService).WaitForStatus('Running', [TimeSpan]::FromSeconds(60))
-        & $binary console-info --help *> $null
-        if ($LASTEXITCODE -eq 0) {
+        if (Test-CommandExit $binary @('console-info','--help')) {
             & $binary console-info --wait 90s --show-initial-password
             if ($LASTEXITCODE -ne 0) { throw 'HomeWaf console is not ready; check the service and logs.' }
         } else {
@@ -166,4 +256,10 @@ try {
     } else { Write-Host "Installed. Start with: & '$binary'" }
     Write-Host "Account: admin. Initial credentials are also saved in $Directory\data\initial_password.txt."
     Write-Host "Keep $Directory\.homewaf-keys together with your backups."
-} finally { Remove-Item -LiteralPath $temporary -Recurse -Force }
+} finally {
+    if ($helper -and (Test-Path -LiteralPath $helper)) { Remove-Item -LiteralPath $helper -Force }
+    $temporaryFull = [IO.Path]::GetFullPath($temporary)
+    $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]@('\','/')) + [IO.Path]::DirectorySeparatorChar
+    if (-not $temporaryFull.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid temporary cleanup target.' }
+    Remove-Item -LiteralPath $temporaryFull -Recurse -Force
+}

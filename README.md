@@ -153,7 +153,7 @@ docker restart homewaf
 
 下载脚本到本机后，可以指定 `--version v2.0.1 --dir /opt/homewaf --no-service`（Shell），或 `-Version v2.0.1 -Directory C:\HomeWaf -NoService`（PowerShell）。不加 `--no-service`/`-NoService` 时自动安装并启动服务。
 
-卸载服务：Shell 使用 `sudo bash install_homewaf.sh uninstall`；管理员 PowerShell 使用 `./install_homewaf.ps1 -Action uninstall`。自定义目录需同时指定。卸载服务保留配置、数据库、证书和密钥。
+卸载服务和程序：Shell 使用 `sudo bash install_homewaf.sh uninstall`；管理员 PowerShell 使用 `./install_homewaf.ps1 -Action uninstall`。自定义目录需同时指定。默认保留配置、数据库、证书和密钥；确认已备份且需要删除实例数据时，额外传入 `--purge-data --yes` 或 `-PurgeData -Yes`。数据清理仅用于安装脚本管理的目录，不删除其中的其他文件。前台运行的实例需先停止，再使用 `--no-service` / `-NoService` 卸载。
 
 ## 在线更新
 
@@ -161,7 +161,11 @@ docker restart homewaf
 
 Windows/Linux/macOS 原生安装可在提示中确认升级。程序下载当前系统和架构的安装包，核对 GitHub 提供的 SHA256 后替换二进制，再由 Supervisor 启动新 Worker 并排空旧 Worker。更新失败、网络错误或下载校验失败会明确报错。更新渠道只指向 `user1121114685/HomeWaf`，不访问原项目的软件更新地址。
 
-Docker 内保留版本检查和更新提示；升级时再次执行上面的 Docker 一键安装命令，下载并校验新镜像后重新创建容器。原生部署使用后台在线升级，Docker 部署使用镜像更新。
+WebUI 不可用时，下载最新安装脚本执行 `sudo bash install_homewaf.sh upgrade --dir /opt/homewaf`，或在管理员 PowerShell 执行 `./install_homewaf.ps1 -Action upgrade -Directory C:\ProgramData\HomeWaf`。原生升级通过本机认证 API 完成，并自动平滑重启；脚本会为缺少命令行升级入口的旧版本加载经过 SHA256 校验的新客户端。升级前保持实例运行。`--version` / `-Version` 可限定期望版本；不匹配时不提交升级。
+
+新版二进制也支持 `homewaf apikey init` 后执行 `homewaf update --check`、`homewaf update --wait 15m`、`homewaf update --status`（Windows 使用 `HomeWaf64.exe`，其他平台使用对应文件名）。请求结果不确定时先查状态，避免重复提交。
+
+Docker 内保留版本检查和更新提示；使用 `bash install_homewaf.sh upgrade --docker` 或 `./install_homewaf.ps1 -Action upgrade -Docker` 下载、校验镜像并优雅停止后重建容器。单容器重建存在短暂中断，不等同于原生进程平滑切换。卸载使用 `uninstall --docker` 或 `-Action uninstall -Docker`，默认保留命名卷；只有显式附加数据清理和确认参数才删除对应实例卷。
 
 备份时保留 `conf/`、`data/`、`ssl/` 和 **`.homewaf-keys/`**；数据密钥与数据库必须配套，不能删除密钥后生成新密钥来读取原有密文。容器命名卷默认会在重建时保留，不要执行 `down -v`。
 

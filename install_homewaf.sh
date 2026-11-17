@@ -9,8 +9,12 @@ service=1
 docker_mode=0
 archive=
 checksums=
+purge_data=0
+yes=0
+helper=
 die() { printf 'HomeWaf: %s\n' "$*" >&2; exit 1; }
-if [[ ${1:-} == install || ${1:-} == uninstall ]]; then action=$1; shift; fi
+if [[ ${1:-} == install || ${1:-} == uninstall || ${1:-} == upgrade || ${1:-} == update ]]; then action=$1; shift; fi
+[[ $action != update ]] || action=upgrade
 while (($#)); do
   case "$1" in
     --version) version=${2:?Missing version}; shift 2 ;;
@@ -19,11 +23,14 @@ while (($#)); do
     --docker) docker_mode=1; service=0; shift ;;
     --archive) archive=${2:?Missing archive}; shift 2 ;;
     --checksums) checksums=${2:?Missing checksums file}; shift 2 ;;
-    --help|-h) echo 'Usage: bash install_homewaf.sh [install|uninstall] [--version v2.0.1] [--dir /opt/homewaf] [--no-service|--docker]'; exit 0 ;;
+    --purge-data) purge_data=1; shift ;;
+    --yes) yes=1; shift ;;
+    --help|-h) echo 'Usage: bash install_homewaf.sh [install|upgrade|uninstall] [--version latest|vX.Y.Z] [--dir /opt/homewaf] [--no-service|--docker] [--purge-data --yes]'; echo 'Native upgrade uses the authenticated local API and automatic smooth restart. Uninstall preserves data unless --purge-data --yes is explicit. Single-container Docker upgrades stop gracefully and recreate the container.'; exit 0 ;;
     *) die "Unknown option: $1" ;;
   esac
 done
 [[ $destination == /* && $destination != / ]] || die 'Use an absolute application directory, not /.'
+((purge_data == 0)) || [[ $action == uninstall && $yes == 1 ]] || die '--purge-data requires uninstall --yes.'
 if ((docker_mode)); then
   command -v docker >/dev/null || die 'Install Docker first.'
   [[ $(docker info --format '{{.OSType}}') == linux ]] || die 'Select Linux containers in Docker.'
@@ -45,17 +52,62 @@ esac
 binary=HomeWaf${os}${suffix}
 if ((service)) && ((EUID != 0)); then die 'Service installation requires root; run this script with sudo.'; fi
 if [[ $action == uninstall ]]; then
-  ((docker_mode == 0)) || die 'To remove the container, run: docker rm -f homewaf (named data volumes are retained).'
+  if ((docker_mode)); then
+    [[ $(docker inspect --format '{{index .Config.Labels "io.homewaf.installer"}}' homewaf) == release ]] || die 'Refusing to remove a container not owned by this installer.'
+    docker stop --time 120 homewaf
+    docker rm homewaf
+    if ((purge_data)); then
+      for volume in homewaf-conf homewaf-data homewaf-keys homewaf-logs homewaf-ssl; do
+        if docker volume inspect "$volume" >/dev/null 2>&1; then docker volume rm "$volume"; fi
+      done
+    fi
+    echo 'HomeWaf container removed. Named data volumes are retained unless --purge-data --yes was specified.'
+    exit 0
+  fi
   [[ -x $destination/$binary ]] || die "HomeWaf is not installed in $destination"
-  "$destination/$binary" stop
-  "$destination/$binary" uninstall
-  echo "Service removed. Your application, configuration, data and keys remain in $destination."
+  destination=$(cd -- "$destination" && pwd -P)
+  [[ $destination != / ]] || die 'Refusing to uninstall from the filesystem root.'
+  if ((purge_data)); then
+    [[ -f $destination/.homewaf-installer && ! -L $destination/.homewaf-installer && $(cat "$destination/.homewaf-installer") == HomeWaf ]] || die 'Data removal requires an installer-owned application directory.'
+    [[ $destination != "${HOME:-/}" && $destination != /opt && $destination != /usr && $destination != /usr/local && $destination != /usr/local/bin && $destination != /etc && $destination != /var ]] || die 'Refusing data removal from a shared system directory.'
+    for name in conf data .homewaf-keys logs ssl; do [[ ! -L $destination/$name ]] || die "Refusing to purge linked data directory: $name"; done
+  fi
+  if ((service)); then
+    unit=/etc/systemd/system/HomeWafService.service
+    [[ $os != Darwin ]] || unit=/Library/LaunchDaemons/HomeWafService.plist
+    if [[ -f $unit ]]; then
+      grep -Fq -- "$destination/$binary" "$unit" || die 'Existing service uses another directory; use its original --dir.'
+      if [[ $os == Linux ]] && command -v systemctl >/dev/null; then
+        if systemctl is-active --quiet HomeWafService; then "$destination/$binary" stop; fi
+      elif [[ $os == Darwin ]] && command -v launchctl >/dev/null; then
+        if launchctl print system/HomeWafService >/dev/null 2>&1; then "$destination/$binary" stop; fi
+      else
+        "$destination/$binary" stop
+      fi
+      "$destination/$binary" uninstall
+    elif "$destination/$binary" console-info --wait 1s >/dev/null 2>&1; then
+      die 'The instance is running without a recognized service definition; stop it before uninstalling.'
+    fi
+  elif "$destination/$binary" console-info --wait 1s >/dev/null 2>&1; then
+    die 'Stop the foreground instance before uninstalling with --no-service.'
+  fi
+  rm -f -- "$destination/$binary"
+  if ((purge_data)); then for name in conf data .homewaf-keys logs ssl; do rm -rf -- "$destination/$name"; done; fi
+  echo "HomeWaf program removed. Configuration, data and keys remain in $destination unless --purge-data --yes was specified."
   exit 0
 fi
+if [[ $action == upgrade && $docker_mode == 0 ]]; then
+  [[ -x $destination/$binary ]] || die "HomeWaf is not installed in $destination"
+  if [[ -z $archive && -z $checksums ]] && "$destination/$binary" update --help >/dev/null 2>&1; then
+    (cd -- "$destination"; "./$binary" apikey init; "./$binary" update --version "$version" --wait 15m)
+    exit 0
+  fi
+fi
+if [[ $action == upgrade && $docker_mode == 1 ]]; then docker container inspect homewaf >/dev/null 2>&1 || die 'No existing HomeWaf container; use install first.'; fi
 for command in curl tar install; do command -v "$command" >/dev/null || die "Required command not found: $command"; done
 download() { curl --fail --silent --show-error --location --retry 3 --connect-timeout 20 --max-time 600 --proto '=https' --proto-redir '=https' "$1" -o "$2"; }
 temporary=$(mktemp -d)
-trap 'rm -rf -- "$temporary"' EXIT
+trap '[[ -z $helper ]] || rm -f -- "$helper"; rm -rf -- "$temporary"' EXIT
 if [[ $version == latest ]]; then
   effective=$(curl --fail --silent --show-error --location --retry 3 --connect-timeout 20 --max-time 60 --proto '=https' --proto-redir '=https' -o /dev/null -w '%{url_effective}' "$repo/releases/latest")
   version=${effective##*/}
@@ -83,7 +135,7 @@ if ((docker_mode)); then
   fi
   docker load --input "$temporary/$asset"
   docker image tag "homewaf:$version" homewaf:latest
-  if [[ -n $old_image ]]; then docker stop homewaf; docker rm homewaf; fi
+  if [[ -n $old_image ]]; then docker stop --time 120 homewaf; docker rm homewaf; fi
   run_args=(-d --name homewaf --label io.homewaf.installer=release --restart unless-stopped
     -p 127.0.0.1:26666:26666 -p 80:80 -p 443:443 -p 443:443/udp
     -v homewaf-conf:/app/conf -v homewaf-data:/app/data -v homewaf-keys:/app/.homewaf-keys
@@ -103,7 +155,7 @@ if ((docker_mode)); then
   echo 'HomeWaf Docker console (on the Docker host): http://127.0.0.1:26666'
   echo 'Initial credentials (valid only until the password is changed):'
   docker exec homewaf sh -c 'if [ -f /app/data/initial_password.txt ]; then cat /app/data/initial_password.txt; else echo "Existing instance: use your current password."; fi'
-  echo 'Run this installation command again to update; named data volumes are preserved.'
+  echo 'Use upgrade --docker to update. Named data volumes are preserved; single-container recreation has a brief interruption.'
   exit 0
 fi
 tar -tzf "$temporary/$asset" > "$temporary/entries"
@@ -115,6 +167,16 @@ tar --no-same-owner --no-same-permissions -xzf "$temporary/$asset" -C "$temporar
 for required in "$binary" LICENSE NOTICE THIRD_PARTY_NOTICES.md LICENSES; do
   [[ -e $temporary/unpacked/$required ]] || die "Missing $required"
 done
+if [[ $action == upgrade ]]; then
+  # Old releases may lack the CLI update command. Run the verified new client
+  # from the installation directory so it reads that instance's config and key.
+  # The running server still owns download, SHA256 validation and smooth restart.
+  helper="$destination/.homewaf-upgrade-$(basename "$temporary")"
+  install -m 0755 "$temporary/unpacked/$binary" "$helper"
+  "$helper" update --help >/dev/null 2>&1 || die 'This release has no command-line update client; choose a newer release.'
+  (cd -- "$destination"; "./$binary" apikey init; "$helper" update --version "$version" --wait 15m)
+  exit 0
+fi
 installed=0
 if ((service)); then
   if [[ -f /etc/systemd/system/HomeWafService.service || -f /Library/LaunchDaemons/HomeWafService.plist ]]; then
@@ -124,6 +186,8 @@ if ((service)); then
   fi
 fi
 install -d -m 0750 "$destination"
+[[ ! -L $destination/.homewaf-installer ]] || die 'Invalid installer ownership marker.'
+printf 'HomeWaf\n' > "$destination/.homewaf-installer"
 install -m 0755 "$temporary/unpacked/$binary" "$destination/$binary.new"
 mv -f -- "$destination/$binary.new" "$destination/$binary"
 for required in LICENSE NOTICE THIRD_PARTY_NOTICES.md LICENSES docs; do
