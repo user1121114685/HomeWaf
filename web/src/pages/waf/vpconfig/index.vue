@@ -256,7 +256,7 @@
       </hw-card>
 
       <!-- 域名白名单卡片 -->
-      <hw-card id="vp-sec-domain" class="list-card-container resource-panel" :style="sectionStyle">
+      <hw-card v-if="!managementDomain" id="vp-sec-domain" class="list-card-container resource-panel" :style="sectionStyle">
         <template #header>
           <hw-row justify="space-between">
             <div class="card-header-title">
@@ -318,6 +318,8 @@
         </template>
 
         <hw-loading :loading="sslLoading">
+          <ManagementAddress @changed="onManagementAddressChanged" />
+          <hw-alert v-if="managementDomain" theme="info" :message="`当前只允许 ${managementDomain} 的 HTTPS 管理请求。更换域名或恢复 IP 模式，请使用上方管理地址表单。`" />
           <!-- 本次访问：常驻不可关闭。顶部横幅可按会话收起，这条不行——
                收起横幅不该等于信息消失，这里是它唯一"不消失"的落点。回环访问同样显示。 -->
           <hw-alert :theme="transportUpstreamTls ? 'warning' : 'info'" class="access-now">
@@ -834,6 +836,7 @@
 
   <script lang="ts">
 import {defineComponent} from 'vue';
+import ManagementAddress from './ManagementAddress.vue';
 
 
   import { prefix } from '@/config/global';
@@ -861,9 +864,11 @@ import {defineComponent} from 'vue';
 
   export default defineComponent({
     name: 'VpConfig',
+    components: { ManagementAddress },
     data() {
       return {
         prefix,
+        managementDomain: '',
         dataLoading: false,
         confirmDialogVisible: false,
         domainLoading: false,
@@ -1109,7 +1114,7 @@ import {defineComponent} from 'vue';
           { id: 'vp-sec-ip', label: this.$t('page.vpconfig.ip_whitelist'), show: true, dirty: false },
           { id: 'vp-sec-proxy', label: this.$t('page.vpconfig.trusted_proxies_title'), show: true, dirty: false },
           { id: 'vp-sec-cors', label: this.$t('page.vpconfig.cors_title'), show: true, dirty: false },
-          { id: 'vp-sec-domain', label: this.$t('page.vpconfig.domain_whitelist_title'), show: true, dirty: false },
+          { id: 'vp-sec-domain', label: this.$t('page.vpconfig.domain_whitelist_title'), show: !this.managementDomain, dirty: false },
           { id: 'vp-sec-access', label: this.$t('page.vpconfig.access_cert_title'), show: true, dirty: this.accessDirty || this.restartPending },
           { id: 'vp-sec-entry', label: this.$t('page.vpconfig.security_entry_title'), show: true, dirty: false },
           { id: 'vp-sec-title', label: this.$t('page.vpconfig.admin_titles_title'), show: true, dirty: false },
@@ -1300,6 +1305,18 @@ import {defineComponent} from 'vue';
       },
     },
     methods: {
+      onManagementAddressChanged(state) {
+        this.managementDomain = state.domain || '';
+        this.sslFormData.ssl_enable = !!state.https_enabled;
+        this.sslForceHttpsFormData.force_https = !!state.force_https;
+        this.pickedAccessMode = !state.https_enabled ? 'http' : state.force_https ? 'only' : 'https';
+        if (state.cert) {
+          this.sslFormData.has_cert = true;
+          this.sslFormData.cert_expire_at = state.cert.not_after;
+          this.sslFormData.cert_domain = [...(state.cert.dns_names || []), ...(state.cert.ips || [])].join(', ');
+          Object.assign(this.localCert, state);
+        }
+      },
       // ===== 锚点定位与滚动高亮 =====
       // 这页不自建滚动容器：真正滚动的是布局的 .{prefix}-layout。
       // 监听 window 是没用的（它根本不滚），所以先把那个容器找出来。
@@ -2059,7 +2076,7 @@ ${this.$t('page.vpconfig.access_save_tail_common')}`,
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'samwaf-local-ca.crt';
+        a.download = 'homewaf-local-ca.crt';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

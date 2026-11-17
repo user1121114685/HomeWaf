@@ -179,7 +179,7 @@ func TestTrafficE2E_SSEStreaming(t *testing.T) {
 func TestTrafficE2E_BlockedResponseCounted(t *testing.T) {
 	global.DrainTraffic()
 
-	page := []byte("<html><body>403 blocked by SamWaf</body></html>")
+	page := []byte("<html><body>403 blocked by HomeWaf</body></html>")
 	srv, done := tmServe("blocked", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(403)
 		w.Write(page)

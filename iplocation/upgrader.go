@@ -21,8 +21,8 @@ import (
 // IP 库在线下载。
 //
 // 背景：GeoLite2 受 MaxMind 再分发授权限制已去内嵌，IPv6 改用 ip2region_v6.xdb；
-// 但该文件约 35MB，塞进二进制会毁掉 SamWaf 的轻量定位，所以做成按需下载。
-// ip2region 是 Apache-2.0，SamWaf 可以合法转发分发。
+// 但该文件约 35MB，塞进二进制会毁掉 HomeWaf 的轻量定位，所以做成按需下载。
+// ip2region 是 Apache-2.0，HomeWaf 可以合法转发分发。
 //
 // 用户也可以完全不走这里，自己从 Gitee/GitHub 下载 xdb 放进 data/ 目录，程序照常加载：
 //   https://gitee.com/lionsoul/ip2region/tree/master/data
@@ -41,7 +41,7 @@ type DatabaseFile struct {
 	Desc         string `json:"desc"`         // 界面展示名
 	IPType       string `json:"ip_type"`      // ipv4 / ipv6 / both
 	Source       string `json:"source"`       // ip2region / geolite2 / ipdb
-	Downloadable bool   `json:"downloadable"` // SamWaf 能否合法转发分发（许可证决定，不是技术决定）
+	Downloadable bool   `json:"downloadable"` // HomeWaf 能否合法转发分发（许可证决定，不是技术决定）
 	UploadType   string `json:"upload_type"`  // 上传接口的 type 参数
 	Accept       string `json:"accept"`       // 允许的文件后缀
 	License      string `json:"license"`      // 展示用
@@ -50,7 +50,7 @@ type DatabaseFile struct {
 
 // KnownDatabases 所有已知的数据文件槽位。
 //
-// Downloadable 只看许可证：ip2region 系列是 Apache-2.0，SamWaf 可以转发分发；
+// Downloadable 只看许可证：ip2region 系列是 Apache-2.0，HomeWaf 可以转发分发；
 // GeoLite2 受 MaxMind 商业再分发授权限制、ipdb 是 ipip.net 的免费库，都只能由用户自行获取后上传。
 var KnownDatabases = []DatabaseFile{
 	{

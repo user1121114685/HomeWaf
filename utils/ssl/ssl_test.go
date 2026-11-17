@@ -26,5 +26,5 @@ func TestRegistrationSSL(t *testing.T) {
 		ResultCSR:               nil,
 		Remarks:                 "",
 	}
-	RegistrationSSL(order, "C:\\huawei\\goproject\\SamWaf\\data\\vhost\\ssl#samwaf#com", "https://acme-v02.api.letsencrypt.org/directory", "letsencrypt", "", "")
+	RegistrationSSL(order, "C:\\huawei\\goproject\\HomeWaf\\data\\vhost\\ssl#samwaf#com", "https://acme-v02.api.letsencrypt.org/directory", "letsencrypt", "", "")
 }

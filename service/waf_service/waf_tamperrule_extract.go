@@ -41,7 +41,7 @@ type DiscoveredURL struct {
 }
 
 // ExtractUrlsApi 抓取「当前站点后端」的一个页面，解析出同站静态资源引用供批量添加。
-// 安全边界：只抓该站点已配置的后端（Remote_host:Remote_port，SamWaf 本就代理的目标），
+// 安全边界：只抓该站点已配置的后端（Remote_host:Remote_port，HomeWaf 本就代理的目标），
 // 不接受任意外部地址；用户填的 page_url 只取其 path，强制走本站后端，无新增对外请求出口、无 SSRF。
 func (receiver *WafTamperRuleService) ExtractUrlsApi(req request.WafTamperRuleExtractReq) ([]DiscoveredURL, error) {
 	if strings.TrimSpace(req.HostCode) == "" {
@@ -79,7 +79,7 @@ func (receiver *WafTamperRuleService) ExtractUrlsApi(req request.WafTamperRuleEx
 		return nil, err
 	}
 	httpReq.Host = domain // 让后端按选定站点域名路由
-	httpReq.Header.Set("User-Agent", "SamWaf-TamperExtractor")
+	httpReq.Header.Set("User-Agent", "HomeWaf-TamperExtractor")
 
 	resp, err := buildBackendClient(host).Do(httpReq)
 	if err != nil {
@@ -336,7 +336,7 @@ func fetchAndCaptureBaseline(host model.Hosts, rule model.TamperRule, cfg model.
 		return
 	}
 	httpReq.Host = host.Host
-	httpReq.Header.Set("User-Agent", "SamWaf-TamperRelearn")
+	httpReq.Header.Set("User-Agent", "HomeWaf-TamperRelearn")
 
 	resp, err := buildBackendClient(host).Do(httpReq)
 	if err != nil {

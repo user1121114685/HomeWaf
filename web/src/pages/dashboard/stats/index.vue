@@ -1031,7 +1031,7 @@ export default {
         String(now.getMinutes()).padStart(2, '0') +
         String(now.getSeconds()).padStart(2, '0');
 
-      link.setAttribute('download', `samwaf_stats_${timestamp}.csv`);
+      link.setAttribute('download', `homewaf_stats_${timestamp}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();

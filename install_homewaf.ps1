@@ -102,8 +102,10 @@ try {
             if ($oldImage) { & docker run @runArgs $oldImage }
             throw 'Container startup failed. The previous image was restarted if present.'
         }
-        Write-Host 'HomeWaf is running at http://127.0.0.1:26666'
-        Write-Host 'Initial password: docker exec homewaf cat /app/data/initial_password.txt'
+        Write-Host 'HomeWaf Docker console (on the Docker host): http://127.0.0.1:26666'
+        Write-Host 'Initial credentials (valid only until the password is changed):'
+        & docker exec homewaf sh -c 'if [ -f /app/data/initial_password.txt ]; then cat /app/data/initial_password.txt; else echo "Existing instance: use your current password."; fi'
+        if ($LASTEXITCODE -ne 0) { throw 'Could not read initial credentials from the container.' }
         Write-Host 'Run this command again to update; named data volumes are preserved.'
         return
     }
@@ -136,8 +138,32 @@ try {
         if (-not $existing) { Invoke-HomeWaf 'install' }
         Invoke-HomeWaf 'start'
         (Get-Service HomeWafService).WaitForStatus('Running', [TimeSpan]::FromSeconds(60))
-        Write-Host 'HomeWaf service started. Open http://127.0.0.1:26666'
+        & $binary console-info --help *> $null
+        if ($LASTEXITCODE -eq 0) {
+            & $binary console-info --wait 90s --show-initial-password
+            if ($LASTEXITCODE -ne 0) { throw 'HomeWaf console is not ready; check the service and logs.' }
+        } else {
+            Write-Host 'HomeWaf service started. Open a server IP reachable from your device:'
+            $addresses = [Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
+                Where-Object { $_.OperationalStatus -eq 'Up' -and $_.NetworkInterfaceType -ne 'Loopback' } |
+                ForEach-Object { $_.GetIPProperties().UnicastAddresses } |
+                Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' } |
+                ForEach-Object { $_.Address.IPAddressToString } | Select-Object -Unique
+            foreach ($address in $addresses) { Write-Host "  http://${address}:26666/" }
+            if (-not $addresses) { Write-Host '  http://<server-ip>:26666/ (replace <server-ip> with this server address)' }
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 90; $attempt++) {
+                try { if ((Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:26666/ -TimeoutSec 2).StatusCode -eq 200) { $ready = $true; break } } catch {}
+                Start-Sleep -Seconds 1
+            }
+            if (-not $ready) { throw 'Management console did not become ready. Check the HomeWaf service and logs.' }
+            $initialPassword = Join-Path $Directory 'data/initial_password.txt'
+            if (Test-Path -LiteralPath $initialPassword -PathType Leaf) {
+                Write-Host 'Initial credentials (valid only until the password is changed):'
+                Get-Content -LiteralPath $initialPassword -Encoding UTF8
+            } else { Write-Host 'Existing instance: use your current password.' }
+        }
     } else { Write-Host "Installed. Start with: & '$binary'" }
-    Write-Host "Account: admin. Initial password: $Directory\data\initial_password.txt (created on first start)."
+    Write-Host "Account: admin. Initial credentials are also saved in $Directory\data\initial_password.txt."
     Write-Host "Keep $Directory\.homewaf-keys together with your backups."
 } finally { Remove-Item -LiteralPath $temporary -Recurse -Force }

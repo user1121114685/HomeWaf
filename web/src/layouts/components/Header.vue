@@ -471,7 +471,7 @@ export default defineComponent({
       this.$router.push(url);
     },
     navToHelper() {
-      window.open(this.samwafglobalconfig.getOnlineUrl(), '_blank', 'noopener,noreferrer');
+      window.open(this.homewafglobalconfig.getOnlineUrl(), '_blank', 'noopener,noreferrer');
     },
     resetServer() {
       let that = this;

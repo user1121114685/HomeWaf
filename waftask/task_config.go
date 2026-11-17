@@ -811,7 +811,7 @@ func TaskLoadSetting(initLoad bool) {
 
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "redirect_https_code", cfg.GCONFIG_RECORD_REDIRECT_HTTPS_CODE, "80重定向https时候跳转代码", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "enable_https_redirect", cfg.GCONFIG_ENABLE_HTTPS_REDIRECT, "是否启用HTTPS重定向服务器（0关闭 1开启）", "int", "", configMap)
-	updateConfigIntItem(&cfg, &effects, initLoad, "system", "proxy_loop_max_hop", cfg.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP, "反向代理最大跳数，请求经过SamWaf转发累计超过此值判定为环路并拦截（防后端回指WAF造成死循环），默认10，设为0关闭检测", "int", "", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "system", "proxy_loop_max_hop", cfg.GCONFIG_RECORD_PROXY_LOOP_MAX_HOP, "反向代理最大跳数，请求经过HomeWaf转发累计超过此值判定为环路并拦截（防后端回指WAF造成死循环），默认10，设为0关闭检测", "int", "", configMap)
 
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "login_max_error_time", cfg.GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME, "登录周期里错误最大次数 请大于0 ", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "login_limit_mintutes", cfg.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES, "登录错误记录周期 单位分钟数，默认1分钟", "int", "", configMap)
@@ -886,7 +886,7 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigIntItem(&cfg, &effects, initLoad, "security", "rule_ban_mode", cfg.GCONFIG_RULE_BAN_MODE, "规则封禁执行动作（0返回拦截页 1直接断开连接）", "options", "0|拦截页,1|直接断开", configMap)
 
 	// 主机远程登录爆破防护(SSH/RDP)。封禁时长不在这里配，由「封禁阶梯」表接管(5分→15分→60分→1天→永久)
-	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_enabled", cfg.GCONFIG_HOST_GUARD_ENABLED, "主机远程登录爆破防护总开关（保护SamWaf所在机器自身的SSH/RDP。启用前请先确认白名单已包含你的管理IP，否则可能把自己锁在门外）", "options", "0|禁用,1|启用", configMap)
+	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_enabled", cfg.GCONFIG_HOST_GUARD_ENABLED, "主机远程登录爆破防护总开关（保护HomeWaf所在机器自身的SSH/RDP。启用前请先确认白名单已包含你的管理IP，否则可能把自己锁在门外）", "options", "0|禁用,1|启用", configMap)
 	updateConfigStringItem(&cfg, &effects, initLoad, "hostguard", "host_guard_mode", cfg.GCONFIG_HOST_GUARD_MODE, "工作模式：observe=只记录不封禁（建议先跑一周确认无误封），block=达到阈值即调用系统防火墙封禁", "options", "observe|观察模式,block|封禁模式", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_find_time", cfg.GCONFIG_HOST_GUARD_FIND_TIME, "失败统计窗口（单位：分钟，默认10分钟）", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "hostguard", "host_guard_max_retry", cfg.GCONFIG_HOST_GUARD_MAX_RETRY, "统计窗口内失败次数达到该值即触发处置（默认8次）", "int", "", configMap)

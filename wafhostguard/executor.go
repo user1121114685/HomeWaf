@@ -216,7 +216,7 @@ func (e *BanExecutor) Apply(add, del []string) error {
 func (e *BanExecutor) applyByRules(add, del []string) error {
 	var firstErr error
 	for _, ip := range add {
-		if err := e.fw.BlockIP(ip, "SamWaf主机防爆破"); err != nil && firstErr == nil {
+		if err := e.fw.BlockIP(ip, "HomeWaf主机防爆破"); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

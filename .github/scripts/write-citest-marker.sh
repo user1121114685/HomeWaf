@@ -17,7 +17,7 @@ MARKER="$OUT_DIR/README-CITEST.txt"
 
 cat > "$MARKER" <<EOF
 ==================================================
- SamWaf CI 测试构建 (CI TEST BUILD — NOT A RELEASE)
+ HomeWaf CI 测试构建 (CI TEST BUILD — NOT A RELEASE)
 ==================================================
 本包由 GitHub Actions 工作流 "${GITHUB_WORKFLOW:-unknown}" 自动构建，仅用于单独测试，
 请勿用于生产环境。

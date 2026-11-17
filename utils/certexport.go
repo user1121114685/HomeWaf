@@ -15,14 +15,14 @@ import (
 
 // 证书导出（落盘）相关的路径校验与原子写入。
 //
-// 场景：SamWaf 申请/续期或手工更新证书后，把证书和私钥同步写成实体文件，
-// 供 nginx 等 SamWaf 之外的程序使用（issue #929）。
+// 场景：HomeWaf 申请/续期或手工更新证书后，把证书和私钥同步写成实体文件，
+// 供 nginx 等 HomeWaf 之外的程序使用（issue #929）。
 //
 // 这里只做「纯粹的路径判断」和「安全的文件写入」两件事，不碰数据库、不打日志，
 // 方便单测覆盖；编排逻辑在 service 层。设计原则是宁可不导出也不能写坏东西：
 // 任何一条校验不过就返回错误，由调用方记录后继续走原有证书流程。
 
-// certExportBaseDir 取 SamWaf 程序所在目录，单测里可替换。
+// certExportBaseDir 取 HomeWaf 程序所在目录，单测里可替换。
 var certExportBaseDir = GetCurrentDir
 
 // CertExportKind 区分导出的是证书还是私钥，决定文件名扩展白名单。
@@ -33,7 +33,7 @@ const (
 	CertExportKey                        // 私钥文件，允许 .key/.pem
 )
 
-// certExportDefaultSubDir 内置默认导出目录（相对程序目录），恒允许，SamWaf 自管可自建。
+// certExportDefaultSubDir 内置默认导出目录（相对程序目录），恒允许，HomeWaf 自管可自建。
 const certExportDefaultSubDir = "data/ssl_export"
 
 // 文件名扩展白名单（小写）。刻意保持很短：够 nginx 等常见用法即可，不给攻击面留花样。

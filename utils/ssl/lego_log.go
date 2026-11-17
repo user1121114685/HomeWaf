@@ -11,7 +11,7 @@ import (
 	legolog "github.com/go-acme/lego/v4/log"
 )
 
-// lego 自己有一套日志，默认写 stderr。SamWaf 以服务/后台方式运行时没人收 stderr，
+// lego 自己有一套日志，默认写 stderr。HomeWaf 以服务/后台方式运行时没人收 stderr，
 // 等于整个 ACME 交互过程（拿授权、选校验方式、CA 校验结果、失败原文）全部丢掉了，
 // 排查时只剩最后一句笼统的错误。这里把它接到 zlog，让每一步都落进日志文件：
 //

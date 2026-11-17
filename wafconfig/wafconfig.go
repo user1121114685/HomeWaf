@@ -64,6 +64,8 @@ func LoadAndInitConfig() {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			fmt.Printf("%s\tWARN\t找不到配置文件..\n", currentTime)
 			config.Set("local_port", global.GWAF_LOCAL_SERVER_PORT)
+			config.Set("security.ssl_enable", true)
+			config.Set("security.ssl_auto_local", true)
 			err = config.SafeWriteConfig()
 			configChanged = true
 		} else {
@@ -339,6 +341,7 @@ func LoadAndInitConfig() {
 	}
 
 	//配置和提取域名白名单
+	managementDomain.Store(strings.ToLower(strings.TrimSpace(config.GetString("security.management_domain"))))
 	if config.IsSet("security.domain_whitelist") {
 		global.GWAF_DOMAIN_WHITELIST = config.GetString("security.domain_whitelist")
 	} else {
@@ -484,8 +487,7 @@ func LoadAndInitConfig() {
 		configChanged = false
 	}
 
-	fmt.Printf("%s\tINFO\tuser_code:%s ,soft_id:%s\n",
-		currentTime, global.GWAF_USER_CODE, global.GWAF_TENANT_ID)
+	fmt.Printf("%s\tINFO\tHomeWaf configuration loaded\n", currentTime)
 
 	// ── 数据库 driver 配置 ──────────────────────────────────────────────
 	if config.IsSet("database.driver") {
@@ -612,6 +614,8 @@ func LoadAndInitConfig() {
 
 // UpdateIpWhitelist 更新IP白名单配置
 func UpdateIpWhitelist(ipWhitelist string) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
 	// 格式化当前时间为指定格式
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
@@ -665,6 +669,8 @@ func UpdateIpWhitelist(ipWhitelist string) error {
 // UpdateManageTrustedProxies 更新管理端可信代理网段配置（写入 conf/config.yml 并立即生效）。
 // 与 IP 白名单一样存 config.yml：既可前端编辑，也可在被白名单挡住时改文件+重启自救。
 func UpdateManageTrustedProxies(trustedProxies string) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
 	configDir := utils.GetCurrentDir() + "/conf/"
@@ -708,6 +714,8 @@ func UpdateManageTrustedProxies(trustedProxies string) error {
 // UpdateManageCDNProvider 更新管理端引用的 CDN 厂商码（写入 conf/config.yml 并立即生效）。
 // 设置后 GetManageClientIP 额外信任该厂商中心库最新回源段；留空=不引用任何 CDN。
 func UpdateManageCDNProvider(provider string) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
 	configDir := utils.GetCurrentDir() + "/conf/"
@@ -751,6 +759,8 @@ func UpdateManageCDNProvider(provider string) error {
 // UpdateCorsAllowOrigins 更新 CORS 跨域来源白名单（写入 conf/config.yml 并立即生效）。
 // 同 IP 白名单/可信代理存 config.yml：既可前端编辑，也可在(异地部署)跨域配错连不上时改文件+重启自救。
 func UpdateCorsAllowOrigins(origins string) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
 	configDir := utils.GetCurrentDir() + "/conf/"
@@ -793,6 +803,11 @@ func UpdateCorsAllowOrigins(origins string) error {
 
 // UpdateDomainWhitelist 更新域名白名单配置
 func UpdateDomainWhitelist(domainWhitelist string) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
+	if domain := GetManagementDomain(); domain != "" && domainWhitelist != domain {
+		return fmt.Errorf("已启用指定管理域名，请在管理地址设置中修改或恢复 IP 模式")
+	}
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
 	configDir := utils.GetCurrentDir() + "/conf/"
@@ -835,6 +850,11 @@ func UpdateDomainWhitelist(domainWhitelist string) error {
 
 // UpdateSslEnable 更新SSL启用状态配置
 func UpdateSslEnable(sslEnable bool) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
+	if GetManagementDomain() != "" && !sslEnable {
+		return fmt.Errorf("指定管理域名模式必须启用 HTTPS")
+	}
 	// 格式化当前时间为指定格式
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
@@ -887,6 +907,11 @@ func UpdateSslEnable(sslEnable bool) error {
 
 // UpdateSslForceHttps 更新管理端仅允许HTTPS开关（需重启管理端生效）
 func UpdateSslForceHttps(forceHttps bool) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
+	if GetManagementDomain() != "" && !forceHttps {
+		return fmt.Errorf("指定管理域名模式仅允许 HTTPS")
+	}
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
 	configDir := utils.GetCurrentDir() + "/conf/"
@@ -931,6 +956,8 @@ func UpdateSslForceHttps(forceHttps bool) error {
 
 // UpdateSslBindCertId 更新管理端证书绑定的证书夹ID（空字符串表示解绑）
 func UpdateSslBindCertId(bindCertId string) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
 	configDir := utils.GetCurrentDir() + "/conf/"
@@ -977,6 +1004,8 @@ func UpdateSslBindCertId(bindCertId string) error {
 // entryEnable: 是否启用安全路径
 // entryPath: 安全路径码，传空字符串时若 entryEnable=true 则自动生成18位随机码
 func UpdateSecurityEntry(entryEnable bool, entryPath string) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
 	configDir := utils.GetCurrentDir() + "/conf/"
@@ -1031,6 +1060,8 @@ func UpdateSecurityEntry(entryEnable bool, entryPath string) error {
 
 // UpdateNoticeTitle 更新通知消息标题前缀配置（立即生效）
 func UpdateNoticeTitle(title string) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
 
 	configDir := utils.GetCurrentDir() + "/conf/"

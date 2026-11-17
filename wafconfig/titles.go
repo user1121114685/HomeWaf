@@ -39,6 +39,8 @@ func UpdateAdminTitles(titles AdminTitles) error {
 }
 
 func updateAdminTitles(configDir string, titles AdminTitles) error {
+	configWriteMu.Lock()
+	defer configWriteMu.Unlock()
 	adminTitlesState.Lock()
 	defer adminTitlesState.Unlock()
 

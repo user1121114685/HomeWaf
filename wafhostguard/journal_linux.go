@@ -82,7 +82,7 @@ func (s *journalSource) runOnce(ctx context.Context, out chan<- LoginFailEvent) 
 		return err
 	}
 
-	// ctx 取消时杀掉子进程，否则 SamWaf 退出后会留下孤儿 journalctl 一直跑着
+	// ctx 取消时杀掉子进程，否则 HomeWaf 退出后会留下孤儿 journalctl 一直跑着
 	done := make(chan struct{})
 	go func() {
 		select {

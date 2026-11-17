@@ -247,7 +247,7 @@ type RuntimeSettings struct {
 	// 是否压缩历史文件 (0关闭 1开启)
 	GCONFIG_LOG_FILE_WRITE_COMPRESS int64
 	// 主机远程登录爆破防护(SSH/RDP)
-	// 保护的是 SamWaf 所在这台机器自身，与 WAF 引擎(保护 Web 站点)是两件事。
+	// 保护的是 HomeWaf 所在这台机器自身，与 WAF 引擎(保护 Web 站点)是两件事。
 	// 默认关闭且默认观察模式 —— 这类功能一旦误封就是"自己 SSH 进不去"，不能开箱即封。
 	// 主机防爆破总开关 1启用 0禁用
 	GCONFIG_HOST_GUARD_ENABLED int64
@@ -450,7 +450,7 @@ var runtimeSettings = func() *atomic.Pointer[runtimeSettingsSnapshot] {
 		GCONFIG_RECORD_DEBUG_PWD:                 "",
 		GCONFIG_CORS_ALLOW_ORIGINS:               "",
 		GCONFIG_RECORD_GPT_URL:                   "https://api.deepseek.com",
-		GCONFIG_RECORD_GPT_TOKEN:                 "SamWaf提示请输入密钥",
+		GCONFIG_RECORD_GPT_TOKEN:                 "HomeWaf提示请输入密钥",
 		GCONFIG_RECORD_GPT_MODEL:                 "deepseek-chat",
 		GCONFIG_IP_FAILURE_STATUS_CODES:          "401|403|404|444|429|503",
 		GCONFIG_IP_FAILURE_BAN_ENABLED:           0,

@@ -273,6 +273,9 @@ function dialog(drawer = false) {
             size: p.width ?? attrs.size,
             direction: ({ left: 'ltr', right: 'rtl', top: 'ttb', bottom: 'btt' } as any)[p.placement] || 'rtl',
             destroyOnClose: p.destroyOnClose,
+            appendToBody: attrs.appendToBody ?? true,
+            showClose: attrs.showClose ?? (attrs.closeBtn !== false),
+            closeOnPressEscape: attrs.closeOnPressEscape ?? attrs.closeOnEscKeydown ?? true,
             closeOnClickModal: p.closeOnOverlayClick ?? false,
             'onUpdate:modelValue': (v: boolean) => {
               emit('update:visible', v);

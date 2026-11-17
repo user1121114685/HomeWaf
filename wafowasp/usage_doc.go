@@ -10,13 +10,13 @@ func UsageDocMarkdown() string {
 
 const usageDocMD = `# OWASP 规则在线管理使用指南
 
-本页面介绍如何在 SamWaf 后台管理 OWASP CRS 规则：禁用/改写单条规则、调优全局阈值、在线升级、沙盒验证。
+本页面介绍如何在 HomeWaf 后台管理 OWASP CRS 规则：禁用/改写单条规则、调优全局阈值、在线升级、沙盒验证。
 
 ## 一、工作原理速览
 
-- SamWaf 集成了 [Coraza WAF](https://github.com/corazawaf/coraza) + **OWASP ModSecurity Core Rule Set (CRS)**。
+- HomeWaf 集成了 [Coraza WAF](https://github.com/corazawaf/coraza) + **OWASP ModSecurity Core Rule Set (CRS)**。
 - CRS 采用**评分机制**：每条规则命中会按 severity 给 tx.anomaly_score 加分；累计达到阈值就拦截。
-- 默认 paranoia-level=1、threshold=7（SamWaf 在官方默认值 5 基础上放宽至 7，降低单条规则直接 block 的概率）。
+- 默认 paranoia-level=1、threshold=7（HomeWaf 在官方默认值 5 基础上放宽至 7，降低单条规则直接 block 的概率）。
 
 ## 二、目录结构与三层策略
 
@@ -25,7 +25,7 @@ const usageDocMD = `# OWASP 规则在线管理使用指南
     Layer 1（基线，CRS 上游，在线升级时整体替换）
       data/owasp/coreruleset/rules/*.conf
 
-    Layer 2（SamWaf 官方层，随 SamWaf 版本更新）
+    Layer 2（HomeWaf 官方层，随 HomeWaf 版本更新）
       data/owasp/samwaf/samwaf_base.json           ← Layer 2 配置持久化源
       data/owasp/samwaf/before/00-samwaf-base.conf ← 数值变量（paranoia/threshold，由 samwaf_base.json 生成）
       data/owasp/samwaf/before/*.conf              ← 字符串/列表变量
@@ -42,9 +42,9 @@ const usageDocMD = `# OWASP 规则在线管理使用指南
 | data/owasp/coraza.conf | — | Coraza 基础配置（请勿直接改） |
 | data/owasp/coreruleset/ | **1** | 官方规则基线（CRS 在线升级时整体替换） |
 | samwaf/samwaf_base.json | **2** | Layer 2 配置源（由后台 API 写入） |
-| samwaf/before/00-samwaf-base.conf | **2** | SamWaf 产品默认 tx.* 数值变量（由 samwaf_base.json 生成） |
-| samwaf/before/*.conf | **2** | SamWaf 字符串/列表变量（allowed_methods 等） |
-| samwaf/after/*.conf | **2** | SamWaf 补充检测规则 |
+| samwaf/before/00-samwaf-base.conf | **2** | HomeWaf 产品默认 tx.* 数值变量（由 samwaf_base.json 生成） |
+| samwaf/before/*.conf | **2** | HomeWaf 字符串/列表变量（allowed_methods 等） |
+| samwaf/after/*.conf | **2** | HomeWaf 补充检测规则 |
 | overrides/05-user-vars.conf | **3** | 用户覆盖的 tx.* 变量（优先于 Layer 2） |
 | overrides/10-disabled-rules.conf | **3** | 按 ID 禁用的规则（SecRuleRemoveById） |
 | overrides/20-custom-rules.conf | **3** | 用户改写后的规则 |
@@ -66,7 +66,7 @@ tx.* 变量必须在 rules/*.conf 之前设置：CRS rule 901160 只在变量未
 
 ## 四、在线升级
 
-- 升级源：SamWaf 自有服务
+- 升级源：HomeWaf 自有服务
 - 流程：检查版本 → 下载 zip → 校验 sha256 → 合并（保留用户改动）→ 热重载
 - 用户在任意规则上的禁用或改写**升级时不会丢失**，原理是合并阶段会比对 override_registry.json。
 
@@ -80,7 +80,7 @@ tx.* 变量必须在 rules/*.conf 之前设置：CRS rule 901160 只在变量未
 
 ## 六、性能注意
 
-- 开启 debug 日志会让 SamWaf 额外采集 Coraza 全部变量，RSS 会升高。生产环境建议关闭。
+- 开启 debug 日志会让 HomeWaf 额外采集 Coraza 全部变量，RSS 会升高。生产环境建议关闭。
 - 大请求体（> 13MB）会被 SecRequestBodyLimit 截断后再检测，不会全量驻留。
 
 ## 七、常见问题

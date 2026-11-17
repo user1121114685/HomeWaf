@@ -15,6 +15,7 @@ type WafVpConfigRouter struct {
 
 func (receiver *WafVpConfigRouter) InitAdminTitlesPublicRouter(group *gin.RouterGroup) {
 	group.GET("/api/v1/public/uiconfig", api.APIGroupAPP.WafVpConfigApi.GetAdminTitlesApi)
+	group.GET("/api/v1/public/managementTls", api.APIGroupAPP.WafVpConfigApi.GetPublicManagementTLSApi)
 }
 
 func (receiver *WafVpConfigRouter) InitWafVpConfigRouter(group *gin.RouterGroup) {
@@ -33,11 +34,13 @@ func (receiver *WafVpConfigRouter) InitWafVpConfigRouter(group *gin.RouterGroup)
 	router.GET("/api/v1/vipconfig/getSslForceHttps", wafVpConfigApi.GetSslForceHttpsApi)
 	router.GET("/api/v1/vipconfig/getSslBindCert", wafVpConfigApi.GetSslBindCertApi)
 	router.GET("/api/v1/vipconfig/localCertStatus", wafVpConfigApi.GetLocalCertStatusApi)
+	router.GET("/api/v1/vipconfig/managementAddress", wafVpConfigApi.GetManagementAddressApi)
 
 	// N7：写接口仅系统管理员(或超管)可操作。这些是系统级访问控制/证书/重启等高危配置，
 	// 尤其含 P0-3 的 IP 白名单与可信代理网段——低权限角色(审计/安全)不得篡改。
 	writeRouter := group.Group("")
 	writeRouter.Use(middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN))
+	writeRouter.POST("/api/v1/vipconfig/managementAddress", wafVpConfigApi.ConfigureManagementAddressApi)
 	writeRouter.POST("/api/v1/vipconfig/updateIpWhitelist", wafVpConfigApi.UpdateIpWhitelistApi)
 	writeRouter.POST("/api/v1/vipconfig/updateManageTrustedProxies", wafVpConfigApi.UpdateManageTrustedProxiesApi)
 	// 只读诊断：仅回显本次请求自身的判定过程，不接受任何入参指定IP。

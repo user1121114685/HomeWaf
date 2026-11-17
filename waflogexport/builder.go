@@ -593,7 +593,7 @@ func (b *Builder) closePackage() error {
 	if err != nil {
 		return err
 	}
-	if _, err = io.WriteString(w, "SamWaf log export schema v1\n"+strings.Join(b.manifest.Notes, "\n")+"\nSee manifest.json for fields, counts and source status.\n"); err != nil {
+	if _, err = io.WriteString(w, "HomeWaf log export schema v1\n"+strings.Join(b.manifest.Notes, "\n")+"\nSee manifest.json for fields, counts and source status.\n"); err != nil {
 		return err
 	}
 	if err = b.zip.Close(); err != nil {

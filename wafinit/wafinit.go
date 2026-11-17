@@ -126,7 +126,7 @@ func compareVersions(version1, version2 string) int {
 	return 0
 }
 
-// releaseManifestName 记录「上一次由 SamWaf 写出的文件内容指纹」。
+// releaseManifestName 记录「上一次由 HomeWaf 写出的文件内容指纹」。
 // 有了它才能区分"用户改过"和"还是我们发的那份"——没有这份记录时无从判断，
 // 只能沿用旧行为（直接覆盖），保护从写下记录的那一次释放开始生效。
 const releaseManifestName = ".samwaf_release.json"

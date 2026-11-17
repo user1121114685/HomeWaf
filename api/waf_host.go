@@ -212,7 +212,7 @@ func (w *WafHostAPi) AddApi(c *gin.Context) {
 			//发送websocket 推送消息
 			global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.OpResultMessageInfo{
 				BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "提示信息", Server: global.GWAF_CUSTOM_SERVER_NAME},
-				Msg:             "端口被其他应用占用不能使用,如果使用的宝塔请在Samwaf系统管理-一键修改进行操作",
+				Msg:             "端口被其他应用占用不能使用,如果使用的宝塔请在HomeWaf系统管理-一键修改进行操作",
 				Success:         "true",
 			})
 			//return
@@ -527,7 +527,7 @@ func (w *WafHostAPi) ModifyHostApi(c *gin.Context) {
 			//发送websocket 推送消息
 			global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.OpResultMessageInfo{
 				BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "提示信息", Server: global.GWAF_CUSTOM_SERVER_NAME},
-				Msg:             "端口被其他应用占用不能使用,如果使用的宝塔请在Samwaf系统管理-一键修改进行操作",
+				Msg:             "端口被其他应用占用不能使用,如果使用的宝塔请在HomeWaf系统管理-一键修改进行操作",
 				Success:         "true",
 			})
 			req.START_STATUS = 1 //设置成不能启动
@@ -647,7 +647,7 @@ func (w *WafHostAPi) ModifyStartStatusApi(c *gin.Context) {
 			//发送websocket 推送消息
 			global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.OpResultMessageInfo{
 				BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "提示信息", Server: global.GWAF_CUSTOM_SERVER_NAME},
-				Msg:             "端口被其他应用占用不能使用,如果使用的宝塔请在Samwaf系统管理-一键修改进行操作",
+				Msg:             "端口被其他应用占用不能使用,如果使用的宝塔请在HomeWaf系统管理-一键修改进行操作",
 				Success:         "true",
 			})
 			response.FailWithMessage("端口被其他应用占用不能开启", c)

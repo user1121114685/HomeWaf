@@ -17,7 +17,7 @@ import (
 // Windows 语义前提：正在运行的 exe 允许被 rename(只改目录项)，但不允许被删除/覆盖
 // ——映像段仍挂着文件对象，DeleteFile 返回 ERROR_ACCESS_DENIED。
 //
-// SamWaf 是 Supervisor + Worker 双进程，且 Supervisor 按设计"永不为升级退出"，
+// HomeWaf 是 Supervisor + Worker 双进程，且 Supervisor 按设计"永不为升级退出"，
 // 于是升级后 Supervisor 的映像文件就是被换下来的那个 .old、永远删不掉。
 // 旧实现用固定名 ".SamWaf64.exe.old" 做 rename 目标：
 //
@@ -181,7 +181,7 @@ func sweepLeftovers(dir, exeName string, includeStaging bool) (removed, kept int
 	}
 	if kept > sweepKeepWarn {
 		zlog.Warn("[升级] " + dir + " 下有 " + fmt.Sprint(kept) +
-			" 个删不掉的旧二进制残留，建议在维护窗口重启一次 SamWaf 服务以释放并清理")
+			" 个删不掉的旧二进制残留，建议在维护窗口重启一次 HomeWaf 服务以释放并清理")
 	}
 	return removed, kept
 }

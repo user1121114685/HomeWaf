@@ -13,7 +13,7 @@ import (
 )
 
 // Content-Disposition 解析差异绕过危险扩展名拦截：
-// SamWaf 解析成 safe.txt 或空串，同一份字节后端却解析成 shell.php
+// HomeWaf 解析成 safe.txt 或空串，同一份字节后端却解析成 shell.php
 
 const uploadExtOnlyJSON = `{"is_enable":1,"check_ext":1,"ext_blacklist":"php,htaccess","check_content":0,"check_magic":0,"check_size":0,"max_size_kb":10240,"over_limit_action":"block"}`
 

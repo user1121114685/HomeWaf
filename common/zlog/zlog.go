@@ -107,7 +107,7 @@ func getFileLogWriter() (writeSyncer zapcore.WriteSyncer) {
 	} else {
 		exePath, err := os.Executable()
 		if err != nil {
-			fmt.Printf("Samwaf GetCurrent Exe Error: %v\n", err)
+			fmt.Printf("HomeWaf GetCurrent Exe Error: %v\n", err)
 			// 使用当前工作目录作为备选方案
 			if wd, wdErr := os.Getwd(); wdErr == nil {
 				exeDir = wd
@@ -122,13 +122,13 @@ func getFileLogWriter() (writeSyncer zapcore.WriteSyncer) {
 	// 确保logs目录存在
 	logDir := filepath.Join(exeDir, "logs")
 	if err := os.MkdirAll(logDir, 0755); err != nil {
-		fmt.Printf("Samwaf Log Create logs error: %v\n", err)
+		fmt.Printf("HomeWaf Log Create logs error: %v\n", err)
 		// 如果无法创建目录，使用临时目录
 		logDir = os.TempDir()
 	}
 
 	logFile := filepath.Join(logDir, FileName)
-	fmt.Printf("Samwaf Log Path: %s\n", logFile)
+	fmt.Printf("HomeWaf Log Path: %s\n", logFile)
 
 	// 使用 lumberjack 实现 log rotate
 	lumberJackLogger := &lumberjack.Logger{

@@ -2,7 +2,7 @@ package wafai
 
 import "strings"
 
-// 规则弱标签：把 SamWaf 日志里的规则命中转换为训练标签。
+// 规则弱标签：把 HomeWaf 日志里的规则命中转换为训练标签。
 // 与 SamWafAI samwafai/data/labeling.py 保持一致的判定逻辑。
 //
 // 只把"载荷型"攻击规则的命中当作正样本；CC/IP黑白名单/防盗链/验证码等

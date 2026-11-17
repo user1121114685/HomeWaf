@@ -24,7 +24,7 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 	} {
 		action := item.name
 		root.AddCommand(&cobra.Command{Use: action, Short: item.short, GroupID: "service", Args: cobra.NoArgs,
-			Example: "  samwaf " + action,
+			Example: "  homewaf " + action,
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if deps.ServiceControl == nil {
 					return fail(ExitFailed, errors.New("服务控制不可用"))
@@ -32,13 +32,13 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 				if err := deps.ServiceControl(action); err != nil {
 					return fail(ExitFailed, err)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "Samwaf has successfully executed the '%s' command.\n", action)
+				fmt.Fprintf(cmd.OutOrStdout(), "HomeWaf has successfully executed the '%s' command.\n", action)
 				return nil
 			},
 		})
 	}
 	root.AddCommand(&cobra.Command{Use: "rolling-restart", Short: "零停机滚动重启", GroupID: "service", Args: cobra.NoArgs,
-		Example: "  samwaf rolling-restart",
+		Example: "  homewaf rolling-restart",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Minute)
 			defer cancel()
@@ -60,7 +60,7 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 		},
 	})
 	root.AddCommand(&cobra.Command{Use: supervisor.HandoffRestartArg, Hidden: true, Args: cobra.NoArgs,
-		Example: "  samwaf " + supervisor.HandoffRestartArg,
+		Example: "  homewaf " + supervisor.HandoffRestartArg,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if deps.HandoffRestart == nil {
 				return fail(ExitFailed, errors.New("交接重启不可用"))
@@ -78,7 +78,7 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 	} {
 		run := item.run
 		root.AddCommand(&cobra.Command{Use: item.name, Short: item.short, GroupID: "maintain", Args: cobra.NoArgs,
-			Example: "  samwaf " + item.name,
+			Example: "  homewaf " + item.name,
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if err := initCoreDatabase(); err != nil {
 					return fail(ExitFailed, err)
@@ -89,14 +89,14 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 		})
 	}
 	root.AddCommand(&cobra.Command{Use: "repairdb", Short: "修复损坏的数据库（交互式）", GroupID: "maintain", Args: cobra.NoArgs,
-		Example: "  samwaf repairdb", RunE: func(cmd *cobra.Command, args []string) error {
+		Example: "  homewaf repairdb", RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), "\n数据库修复工具\n如果您遇到数据库损坏错误，可以使用此工具尝试修复。")
 			wafdb.RepairAllDatabases("")
 			return nil
 		},
 	})
 	root.AddCommand(&cobra.Command{Use: "execsql", Short: "执行 SQL 语句（交互式）", GroupID: "maintain", Args: cobra.NoArgs,
-		Example: "  samwaf execsql", RunE: func(cmd *cobra.Command, args []string) error {
+		Example: "  homewaf execsql", RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), "\nSQL 执行工具\n可以在指定数据库上执行 SQL 语句")
 			wafdb.ExecuteSQLCommand("")
 			return nil
@@ -104,7 +104,7 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 	})
 	opts := wafdb.MigrateOptions{}
 	migrate := &cobra.Command{Use: "migratedb", Short: "离线迁移数据库（未指定方向时交互式）", GroupID: "maintain", Args: cobra.NoArgs,
-		Example: "  samwaf migratedb\n  samwaf migratedb --from=sqlite --to=postgres --dry-run",
+		Example: "  homewaf migratedb\n  homewaf migratedb --from=sqlite --to=postgres --dry-run",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := wafdb.RunMigrateDB(opts); err != nil {
 				return fail(ExitFailed, fmt.Errorf("迁移失败: %w", err))
@@ -118,7 +118,7 @@ func addLegacyCommands(root *cobra.Command, deps Deps) {
 	migrate.Flags().BoolVar(&opts.Force, "force", false, "目标表已有数据时强制覆盖")
 	root.AddCommand(migrate)
 	root.AddCommand(&cobra.Command{Use: "rollback", Short: "回退到历史版本（交互式）", GroupID: "maintain", Args: cobra.NoArgs,
-		Example: "  samwaf rollback", RunE: runRollback,
+		Example: "  homewaf rollback", RunE: runRollback,
 	})
 }
 
@@ -138,7 +138,7 @@ func initCoreDatabase() (err error) {
 
 func runRollback(cmd *cobra.Command, args []string) error {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "================================================\n         SamWaf 版本回退工具\n================================================")
+	fmt.Fprintln(out, "================================================\n         HomeWaf 版本回退工具\n================================================")
 	fmt.Fprintf(out, "当前运行版本: %s\n\n", global.GWAF_RELEASE_VERSION)
 	list, err := wafupdate.ListBackups()
 	if err != nil {
@@ -189,6 +189,6 @@ func runRollback(cmd *cobra.Command, args []string) error {
 	if err := wafupdate.RollbackExecutable(target.Version); err != nil {
 		return fail(ExitFailed, fmt.Errorf("回退失败: %w", err))
 	}
-	fmt.Fprintln(out, "回退成功，请重启服务 (samwaf start 或 samwaf restart)")
+	fmt.Fprintln(out, "回退成功，请重启服务 (homewaf start 或 homewaf restart)")
 	return nil
 }

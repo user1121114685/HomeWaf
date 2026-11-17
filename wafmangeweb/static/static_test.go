@@ -44,7 +44,7 @@ func TestAdminTitlesNoRouteBootstrap(t *testing.T) {
 func TestInjectAdminTitles(t *testing.T) {
 	const marker = `<script id="samwaf-ui-config" type="application/json">`
 	for _, html := range []string{
-		`<html><head><title>SamWaf</title></head><body></body></html>`,
+		`<html><head><title>HomeWaf</title></head><body></body></html>`,
 		`<html><body>fallback</body></html>`,
 	} {
 		for _, titles := range []wafconfig.AdminTitles{

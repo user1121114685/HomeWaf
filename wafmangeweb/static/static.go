@@ -81,7 +81,7 @@ func initIndex() {
 		if indexFile != nil {
 			_ = indexFile.Close()
 		} else {
-			zlog.Error("index.html not exist, you may forget to put dist of frontend to public/dist .Download from https://github.com/samwafgo/SamWafWeb/releases")
+			zlog.Error("HomeWaf web assets are missing. Build them with node scripts/build.mjs --web-only.")
 		}
 	}()
 	index, err := io.ReadAll(indexFile)

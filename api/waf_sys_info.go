@@ -104,7 +104,7 @@ func (w *WafSysInfoApi) GetAnnouncementApi(c *gin.Context) {
 
 // SysVersionApi 获取系统版本信息
 // @Summary      获取系统版本信息
-// @Description  返回当前 SamWaf 的版本号、版本名称及发布状态
+// @Description  返回当前 HomeWaf 的版本号、版本名称及发布状态
 // @Tags         系统信息
 // @Produce      json
 // @Success      200  {object}  response.Response{data=model.VersionInfo}  "获取成功"

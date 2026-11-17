@@ -50,7 +50,7 @@ func SSLReload() {
 		}
 		zlog.Info(innerLogName, fmt.Sprintf("共 %d 个证书夹条目待检查路径自动加载", len(sslConfigReps)))
 		for _, rep := range sslConfigReps {
-			//该证书夹条目已关闭路径自动加载（例如由 SamWaf 自动申请管理），跳过，避免覆盖
+			//该证书夹条目已关闭路径自动加载（例如由 HomeWaf 自动申请管理），跳过，避免覆盖
 			if rep.AutoLoadPath == 0 {
 				zlog.Info(innerLogName, fmt.Sprintf("证书夹[%s] 已关闭路径自动加载，跳过", rep.Domains))
 				continue

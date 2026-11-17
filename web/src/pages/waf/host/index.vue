@@ -798,7 +798,7 @@ export default defineComponent({
 
       // 来源页面
       sourcePage: "",
-      hostAddUrl: `${this.samwafglobalconfig.getOnlineUrl()  }/guide/Host.html#_2-新增可被防火墙保护的网站`,
+      hostAddUrl: `${this.homewafglobalconfig.getOnlineUrl()  }/guide/Host.html#_2-新增可被防火墙保护的网站`,
       // 主机字典
       host_dic: {},
 

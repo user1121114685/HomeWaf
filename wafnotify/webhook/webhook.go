@@ -136,13 +136,13 @@ func (m Message) toVars() map[string]string {
 // sampleMessage 保存时干跑用的样例数据
 func sampleMessage() Message {
 	return Message{
-		Title:           "SamWaf 测试通知",
+		Title:           "HomeWaf 测试通知",
 		Content:         "这是一条用于校验模板的样例正文",
 		Time:            "2026-01-01 00:00:00",
 		MessageType:     "rule_trigger",
 		MessageTypeName: "规则触发",
 		Severity:        "warn",
-		ServerName:      "SamWaf",
+		ServerName:      "HomeWaf",
 	}
 }
 
@@ -417,7 +417,7 @@ func (w *WebhookNotifier) Send(msg Message) error {
 	if reader != nil {
 		req.Header.Set("Content-Type", w.Config.ContentType)
 	}
-	req.Header.Set("User-Agent", "SamWaf-Notify")
+	req.Header.Set("User-Agent", "HomeWaf-Notify")
 	// 用户自定义头放最后，允许覆盖上面两个默认头（Content-Type / User-Agent）
 	for _, h := range w.Config.Headers {
 		req.Header.Set(h.Key, h.Value)

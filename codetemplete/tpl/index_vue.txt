@@ -451,7 +451,7 @@
           .finally(() => {});
       },
       handleJumpOnlineUrl(){
-        window.open(this.samwafglobalconfig.getOnlineUrl()+"/guide/[[.EntityName]].html");
+        window.open(this.homewafglobalconfig.getOnlineUrl()+"/guide/[[.EntityName]].html");
       },
     },
   });

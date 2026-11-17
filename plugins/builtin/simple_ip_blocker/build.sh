@@ -35,7 +35,7 @@ if [ $? -eq 0 ]; then
         echo ""
         echo "下一步："
         echo "1. 配置插件（在 conf/plugins.yml 或通过API）"
-        echo "2. 启动 SamWaf"
+        echo "2. 启动 HomeWaf"
         echo "3. 插件将自动加载并运行"
     else
         echo "❌ 复制失败"

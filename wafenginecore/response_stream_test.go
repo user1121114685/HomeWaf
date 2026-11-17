@@ -12,7 +12,7 @@ import (
 
 // StreamProcessor 的字节级保真用例。
 //
-// 锁的是 issue #949 / #954：SamWaf 反代 text/event-stream 时，客户端收到首段内容后
+// 锁的是 issue #949 / #954：HomeWaf 反代 text/event-stream 时，客户端收到首段内容后
 // 连接在 response.completed 之前被断开，Codex 报
 // "stream disconnected before completion: stream closed before response.completed"。
 //

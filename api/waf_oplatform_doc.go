@@ -548,7 +548,7 @@ func getModuleByPath(path string) string {
 
 // buildCurlExample 生成 curl 调用示例，优先使用静态参数注册表中的真实参数
 func buildCurlExample(method, path string, paramExample string) string {
-	baseURL := "http://your-samwaf-host:26666"
+	baseURL := "http://your-homewaf-host:26666"
 	upper := strings.ToUpper(method)
 	switch upper {
 	case "GET":
@@ -649,7 +649,7 @@ func (w *WafOPlatformDocApi) GetDocApi(c *gin.Context) {
 			Description: "在请求头中传入 API Key 进行鉴权，通过管理端「开放平台 > Key管理」创建后使用",
 			Example:     "X-API-Key: sk-xxxxxxxxxxxx",
 		},
-		BaseURL:    "http://your-samwaf-host:26666",
+		BaseURL:    "http://your-homewaf-host:26666",
 		TotalCount: totalCount,
 		Modules:    modules,
 	}

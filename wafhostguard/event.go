@@ -1,6 +1,6 @@
 // Package wafhostguard 主机侧远程登录爆破防护。
 //
-// 保护的是 SamWaf 所在这台机器**自身**的 SSH / RDP，与 WAF 引擎(保护 Web 站点)
+// 保护的是 HomeWaf 所在这台机器**自身**的 SSH / RDP，与 WAF 引擎(保护 Web 站点)
 // 完全是两件事。工作方式与 fail2ban / IPBan 一致：
 //
 //	读系统日志 -> 归一化事件 -> 滑动窗口计数 -> 超阈值 -> 阶梯递进封禁 -> 到期解封

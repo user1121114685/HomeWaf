@@ -43,7 +43,7 @@ func TestUnmatchedHostServeHTTP(t *testing.T) {
 		if custom && !strings.Contains(w.Body.String(), "自定义") {
 			t.Fatal("global unmatched page was not used")
 		}
-		if !custom && (strings.Contains(w.Body.String(), r.Host) || strings.Contains(w.Body.String(), "SamWaf") || strings.Contains(w.Body.String(), "新建")) {
+		if !custom && (strings.Contains(w.Body.String(), r.Host) || strings.Contains(w.Body.String(), "HomeWaf") || strings.Contains(w.Body.String(), "新建")) {
 			t.Fatal("default response exposes routing or setup details")
 		}
 		entry, ok := global.GQEQUE_LOG_DB.Dequeue()

@@ -416,7 +416,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// 反向代理环路检测：SamWaf 每转发一跳就把 waf_req_hop 递增并带给后端；
+		// 反向代理环路检测：HomeWaf 每转发一跳就把 waf_req_hop 递增并带给后端；
 		maxHop := int(requestSettings(r).GCONFIG_RECORD_PROXY_LOOP_MAX_HOP)
 		if maxHop > 0 {
 			hop := 0
@@ -438,7 +438,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							Server:    serverName,
 						},
 						ErrorType: "反向代理环路",
-						ErrorMsg:  fmt.Sprintf("检测到反向代理环路，已拦截。Host:%s 访客IP:%s 跳数:%d(阈值:%d)，请检查该站点后端是否回指SamWaf自身", weblogbean.HOST, weblogbean.SRC_IP, hop, maxHop),
+						ErrorMsg:  fmt.Sprintf("检测到反向代理环路，已拦截。Host:%s 访客IP:%s 跳数:%d(阈值:%d)，请检查该站点后端是否回指HomeWaf自身", weblogbean.HOST, weblogbean.SRC_IP, hop, maxHop),
 						Time:      time.Now().Format("2006-01-02 15:04:05"),
 					})
 				}

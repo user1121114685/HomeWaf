@@ -107,7 +107,7 @@ func CheckUpgrade(m *OwaspManager) (*UpgradeInfo, error) {
 //  2. 下载 zip，sha256 校验
 //  3. 解压到 tmp/owasp-<ver>/
 //  4. 备份当前 coreruleset → coreruleset.bak，samwaf → samwaf.bak（若 ZIP 含 samwaf/）
-//  5. 替换 coreruleset（保留 overrides）；同步替换 samwaf（Layer 1 SamWaf 钩子）
+//  5. 替换 coreruleset（保留 overrides）；同步替换 samwaf（Layer 1 HomeWaf 钩子）
 //  6. 将 registry 里标记为 modified 的 ID 从新的 coreruleset 中移除（合并策略 "by_rule_id"）
 //  7. 更新 version 文件
 //  8. m.Reload()
@@ -206,8 +206,8 @@ func ApplyUpgrade(m *OwaspManager) error {
 		return fmt.Errorf("应用新 coreruleset 失败: %w", err)
 	}
 
-	// ── 备份 + 替换 samwaf（Layer 1 SamWaf 钩子，ZIP 含 samwaf/ 时才执行）──
-	// samwaf/ 由 SamWaf 开发团队维护，随版本发布整体替换；
+	// ── 备份 + 替换 samwaf（Layer 1 HomeWaf 钩子，ZIP 含 samwaf/ 时才执行）──
+	// samwaf/ 由 HomeWaf 开发团队维护，随版本发布整体替换；
 	// 用户自定义内容应放在 overrides/，不受此步影响。
 	// 用 filepath.Dir(srcCore) 而非 extractDir，兼容 zip 含顶层包装目录的情况。
 	samwafInExtract := filepath.Join(filepath.Dir(srcCore), "samwaf")

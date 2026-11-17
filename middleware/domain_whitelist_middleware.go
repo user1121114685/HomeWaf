@@ -27,7 +27,7 @@ func DomainWhitelist() gin.HandlerFunc {
 		}
 
 		for _, domain := range strings.Split(whitelist, ",") {
-			if strings.TrimSpace(domain) == hostname {
+			if strings.EqualFold(strings.TrimSpace(domain), hostname) {
 				c.Next()
 				return
 			}

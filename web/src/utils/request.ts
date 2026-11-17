@@ -29,6 +29,10 @@ declare module 'axios' {
 
 // 连接失败(网络/跨域)提示：每次页面加载最多提示一次，避免刷屏
 let netErrNotified = false;
+let managementTransitionPage = '';
+// Keep the successful address-change result available for root download and the new link.
+// Access is still rejected by the server; this only prevents the old origin's poll from replacing the page.
+export function preserveManagementTransition() { managementTransitionPage = window.location.href; }
 
 // 页面自动发起的请求（轮询、进页面就跑的检查）失败时不弹通知，只进小铃铛：
 // 无外网环境下这类请求会持续失败，弹出来就是一条条把右侧堆满。
@@ -366,6 +370,7 @@ instance.interceptors.response.use(
     }
     // 处理403错误，直接显示禁止访问页面
     if (err.response && err.response.status === 403) {
+      if (managementTransitionPage === window.location.href) return Promise.reject(err);
       const accessDeniedHtml = `
         <!DOCTYPE html>
         <html>

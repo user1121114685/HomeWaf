@@ -110,6 +110,7 @@ func TestAllBackendRouteAuthenticationBoundaries(t *testing.T) {
 		"POST /api/v1/public/login":               true,
 		"POST /api/v1/public/seckey":              true,
 		"GET /api/v1/public/uiconfig":             true,
+		"GET /api/v1/public/managementTls":        true, // TLS bootstrap: public root certificate only; no key or configuration writes.
 		"GET /api/v1/waflog/exports/:id/download": true,
 		"GET /audit-emergency":                    true,
 	}

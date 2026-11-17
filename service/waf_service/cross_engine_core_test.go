@@ -260,10 +260,10 @@ func runCoreCRUDCases(t *testing.T, db *gorm.DB) {
 
 	t.Run("Otp", func(t *testing.T) {
 		un := "otp_" + sfx()
-		fatalIf(t, WafOtpServiceApp.AddApi(request.WafOtpAddReq{UserName: un, Url: "otpauth://x", Secret: "S123", Issuer: "SamWaf", Remarks: "r"}))
+		fatalIf(t, WafOtpServiceApp.AddApi(request.WafOtpAddReq{UserName: un, Url: "otpauth://x", Secret: "S123", Issuer: "HomeWaf", Remarks: "r"}))
 		var bean model.Otp
 		firstBy(t, db, &bean, "user_name = ?", un)
-		fatalIf(t, WafOtpServiceApp.ModifyApi(request.WafOtpEditReq{Id: bean.Id, UserName: un, Url: "otpauth://y", Secret: "S456", Issuer: "SamWaf", Remarks: "r2"}))
+		fatalIf(t, WafOtpServiceApp.ModifyApi(request.WafOtpEditReq{Id: bean.Id, UserName: un, Url: "otpauth://y", Secret: "S456", Issuer: "HomeWaf", Remarks: "r2"}))
 		got := WafOtpServiceApp.GetDetailByIdApi(bean.Id)
 		if got.Secret != "S456" {
 			t.Fatalf("Otp 更新未落库: %+v", got)

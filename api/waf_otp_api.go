@@ -24,7 +24,7 @@ func (w *WafOtpApi) InitOtpApi(c *gin.Context) {
 		otpBean := wafOtpService.GetDetailByUserNameApi(tokenInfo.LoginAccount)
 		if otpBean.UserName == "" {
 			// 生成默认的 Issuer
-			defaultIssuer := "SamWaf-" + global.GWAF_CUSTOM_SERVER_NAME
+			defaultIssuer := "HomeWaf-" + global.GWAF_CUSTOM_SERVER_NAME
 			secret, url, err := utils.GenOtpSecret(tokenInfo.LoginAccount, defaultIssuer)
 			if err != nil {
 				response.FailWithMessage(err.Error(), c)
@@ -67,7 +67,7 @@ func (w *WafOtpApi) BindApi(c *gin.Context) {
 		}
 
 		// 如果用户修改了 Issuer，需要重新生成 URL
-		if req.Issuer != "" && req.Issuer != "SamWaf-"+global.GWAF_CUSTOM_SERVER_NAME {
+		if req.Issuer != "" && req.Issuer != "HomeWaf-"+global.GWAF_CUSTOM_SERVER_NAME {
 			// 重新生成带有新 Issuer 的 URL
 			_, newUrl, genErr := utils.GenOtpSecret(req.UserName, req.Issuer)
 			if genErr == nil {

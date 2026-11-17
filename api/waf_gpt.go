@@ -37,7 +37,7 @@ type WafGPTApi struct {
 //   - 复制给AI的完整提示词 = 知识主体 + 需求填空段
 
 // ruleAiKnowledgeZH 规则知识主体（结构/字段/函数/动作/约束/示例）
-const ruleAiKnowledgeZH = `你是 SamWaf（Go 编写的开源 WAF）自定义规则专家。请根据需求生成一条 SamWaf 规则脚本（GRL 语法）。只输出规则文本本身，不要解释、不要 markdown 代码块标记。
+const ruleAiKnowledgeZH = `你是 HomeWaf（Go 编写的开源 WAF）自定义规则专家。请根据需求生成一条 HomeWaf 规则脚本（GRL 语法）。只输出规则文本本身，不要解释、不要 markdown 代码块标记。
 
 # 规则结构
 rule R<唯一标识> "规则中文描述" salience <优先级数字> {
@@ -97,7 +97,7 @@ const ruleAiRequireZH = `
 - 优先级(可选)：<不填默认 10>`
 
 // ruleAiKnowledgeEN 规则知识主体（英文）
-const ruleAiKnowledgeEN = `You are an expert on SamWaf (an open-source WAF written in Go) custom rules. Based on the requirement, generate ONE SamWaf rule script (GRL syntax). Output ONLY the rule text, no explanation, no markdown code fences.
+const ruleAiKnowledgeEN = `You are an expert on HomeWaf (an open-source WAF written in Go) custom rules. Based on the requirement, generate ONE HomeWaf rule script (GRL syntax). Output ONLY the rule text, no explanation, no markdown code fences.
 
 # Rule structure
 rule R<uniqueId> "rule description" salience <priority> {
@@ -258,7 +258,7 @@ func normalizeGeneratedRule(s string) string {
 // IsGPTConfigured GPT 是否已配置密钥
 func IsGPTConfigured() bool {
 	tok := strings.TrimSpace(global.CurrentSettings().GCONFIG_RECORD_GPT_TOKEN)
-	return tok != "" && tok != "SamWaf提示请输入密钥"
+	return tok != "" && tok != "HomeWaf提示请输入密钥" && tok != "SamWaf提示请输入密钥"
 }
 
 // GetGptConfigApi 获取GPT参数（gpt_url/gpt_model/是否已配置密钥）

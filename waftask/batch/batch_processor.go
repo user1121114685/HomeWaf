@@ -362,7 +362,7 @@ func openSource(task model.BatchTask) (io.ReadCloser, int64, error) {
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to build request: %v", err)
 	}
-	req.Header.Set("User-Agent", "SamWaf-BatchTask")
+	req.Header.Set("User-Agent", "HomeWaf-BatchTask")
 	resp, err := utils.SafeOutboundHTTPClient(fetchTimeout).Do(req)
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to fetch remote data: %v", err)

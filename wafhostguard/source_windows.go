@@ -194,7 +194,7 @@ func (s *winEventSource) runWevtapi(ctx context.Context, out chan<- LoginFailEve
 		// 用 Error 而不是 Warn：采集完全不生效，是"功能开着但没在保护你"，
 		// 严重程度等同于没启用，必须让用户看见。
 		reason := "订阅 Windows 安全日志(Security 频道)失败：" + err.Error() +
-			"。请确认 SamWaf 以管理员身份运行，或已安装为系统服务(服务默认以 LocalSystem 运行)"
+			"。请确认 HomeWaf 以管理员身份运行，或已安装为系统服务(服务默认以 LocalSystem 运行)"
 		zlog.Error("[主机登录防护] " + reason)
 		noteSourceFailure(reason)
 	}

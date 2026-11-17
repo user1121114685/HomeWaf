@@ -12,7 +12,7 @@ import (
 func GenOtpSecret(userName string, issuer string) (string, string, error) {
 	// 如果没有提供 issuer，使用默认值
 	if issuer == "" {
-		issuer = "SamWaf-" + global.GWAF_CUSTOM_SERVER_NAME
+		issuer = "HomeWaf-" + global.GWAF_CUSTOM_SERVER_NAME
 	}
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      issuer,

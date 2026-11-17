@@ -369,6 +369,10 @@ func (m *wafSystenService) run() {
 	//初始化每实例静态数据加密密钥(DEK)：首启生成 .homewaf-keys/data_key(0600)，或用
 	//config.yml 的 security.data_key_file 指定自管路径。须在数据库初始化之前就绪，
 	//否则落库敏感字段(Access 密钥/CDN 凭证/2FA 密钥)无法按新格式加解密。
+	if err := wafconfig.EnsureInitialManagementTLS(utils.GetCurrentDir()); err != nil {
+		zlog.Error("HomeWaf management TLS initialization failed", "error", err)
+		os.Exit(1)
+	}
 	if err := wafsec.InitDataKey(utils.GetCurrentDir(), global.CurrentSettings().GCONFIG_DATA_KEY_FILE); err != nil {
 		zlog.Error("初始化数据加密密钥失败，程序退出，请检查 .homewaf-keys 目录权限或 security.data_key_file 配置", "error", err)
 		os.Exit(1)
@@ -633,12 +637,13 @@ func (m *wafSystenService) run() {
 		zlog.Info("regInfo", err)
 	}
 
-	if global.GWAF_SECURITY_ENTRY_ENABLE && global.GWAF_SECURITY_ENTRY_PATH != "" {
-		zlog.Info("HomeWaf has started successfully.")
-		zlog.Info("Security Entry Path Enabled! Your access code is: " + global.GWAF_SECURITY_ENTRY_PATH)
-		zlog.Info("Access URL: http://127.0.0.1:" + strconv.Itoa(global.GWAF_LOCAL_SERVER_PORT) + "/" + global.GWAF_SECURITY_ENTRY_PATH + "/")
-	} else {
-		zlog.Info("HomeWaf has started successfully.You can open http://127.0.0.1:" + strconv.Itoa(global.GWAF_LOCAL_SERVER_PORT) + " in your Browser")
+	entry := ""
+	if global.GWAF_SECURITY_ENTRY_ENABLE {
+		entry = global.GWAF_SECURITY_ENTRY_PATH
+	}
+	zlog.Info("HomeWaf has started successfully.")
+	for _, url := range utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, global.GWAF_SSL_ENABLE, entry) {
+		zlog.Info("Console address: " + url)
 	}
 	// 仅全新安装(本次启动创建了默认管理员)时提示随机初始口令位置；按系统语言环境选择中/英文(默认英文，见 utils.IsChineseEnv 跨平台实现)
 	if isFreshInstall {

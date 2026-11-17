@@ -51,7 +51,7 @@ func checkLogCapability() (bool, string, bool) {
 	}
 
 	msg := "未找到可读的系统认证日志：/var/log/secure、/var/log/auth.log 均不存在或无权读取，且系统里没有 journalctl。" +
-		"若 SamWaf 不是以 root 运行，请改为 root 后重试；若日志在非标准路径，请在【自定义日志路径】里指定"
+		"若 HomeWaf 不是以 root 运行，请改为 root 后重试；若日志在非标准路径，请在【自定义日志路径】里指定"
 	if inContainer {
 		msg += containerLogHint
 	}

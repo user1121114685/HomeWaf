@@ -77,7 +77,7 @@ func TestTokenCookieNamePerSite(t *testing.T) {
 // TestNormalizeHostCollapsesDefaultPorts 记录一条**有意为之但很危险**的性质：
 //
 // 浏览器访问 http://oa.x/ 与 https://oa.x/ 都只发 Host: oa.x，
-// 而 SamWaf 里 oa.x:80 与 oa.x:443 是两条独立的站点记录。
+// 而 HomeWaf 里 oa.x:80 与 oa.x:443 是两条独立的站点记录。
 // 归一化之后它们的 host 串必然相同——这不是 bug，是 host 串本身
 // 承载不了「是哪一条站点记录」这个信息。
 //

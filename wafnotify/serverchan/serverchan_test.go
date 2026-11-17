@@ -6,11 +6,11 @@ import (
 	"unicode/utf8"
 )
 
-// 复现渠道测试的标题：[<12位容器ID>] SamWAF 测试通知
+// 复现渠道测试的标题：[<12位容器ID>] HomeWaf 测试通知
 // 旧实现按字节截前 32 字节，"知" 只剩 E7，Server酱入库报 1366。
 func TestClampTitleKeepsWholeRunes(t *testing.T) {
 	cases := []string{
-		"[28c42919efe3] SamWAF 测试通知",
+		"[28c42919efe3] HomeWaf 测试通知",
 		"【测试】安全规则触发通知",
 		"[a-very-long-instance-name-here] 服务器入侵防火墙告警",
 		"纯中文标题用来验证截断边界是否落在字符边界上并且不会损坏编码",
@@ -38,7 +38,7 @@ func TestClampTitleKeepsWholeRunes(t *testing.T) {
 }
 
 func TestClampTitleShortInputUntouched(t *testing.T) {
-	in := "SamWAF 测试通知"
+	in := "HomeWaf 测试通知"
 	if got := clampTitle(in); got != in {
 		t.Fatalf("未超长时不应改动: got=%q want=%q", got, in)
 	}
@@ -75,7 +75,7 @@ func TestRegressionOldByteTruncationIsInvalid(t *testing.T) {
 		}
 		return title
 	}
-	in := "[28c42919efe3] SamWAF 测试通知"
+	in := "[28c42919efe3] HomeWaf 测试通知"
 	if utf8.ValidString(old(in)) {
 		t.Fatalf("用例已失去区分度：旧字节截断在本例未切碎字符，换更长的中文前缀")
 	}

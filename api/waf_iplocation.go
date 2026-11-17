@@ -431,7 +431,7 @@ func (w *WafIPLocationApi) ReloadIPDBApi(c *gin.Context) {
 
 // CheckIPDBUpgradeApi 检查可在线下载的 IP 数据库
 //
-// 只有 ip2region 系列（Apache-2.0）能由 SamWaf 转发分发；GeoLite2 与 ipdb 受各自授权限制，
+// 只有 ip2region 系列（Apache-2.0）能由 HomeWaf 转发分发；GeoLite2 与 ipdb 受各自授权限制，
 // 只能由用户自行获取后上传。
 func (w *WafIPLocationApi) CheckIPDBUpgradeApi(c *gin.Context) {
 	dataDir := filepath.Join(utils.GetCurrentDir(), "data")

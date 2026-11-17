@@ -16,7 +16,7 @@ import (
 // batchImportDefaultSubDir 内置默认导入目录（相对程序目录），恒允许。
 const batchImportDefaultSubDir = "data/import"
 
-// batchImportBaseDir 取 SamWaf 程序所在目录，单测里可替换。
+// batchImportBaseDir 取 HomeWaf 程序所在目录，单测里可替换。
 var batchImportBaseDir = GetCurrentDir
 
 // BatchImportDefaultDir 返回内置默认导入目录的绝对路径，供报错文案与前端提示使用。

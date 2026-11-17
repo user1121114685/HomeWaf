@@ -87,7 +87,7 @@ func ensurePostgresDatabase(dbName string) error {
 	hint := fmt.Sprintf(
 		"\n========================================================\n"+
 			"  数据库 %s 不存在，且当前账户无权自动创建。\n"+
-			"  请用 PostgreSQL 超级用户执行以下 SQL，然后重启 SamWaf：\n\n"+
+			"  请用 PostgreSQL 超级用户执行以下 SQL，然后重启 HomeWaf：\n\n"+
 			"    CREATE DATABASE %s ENCODING 'UTF8';\n"+
 			"    GRANT ALL PRIVILEGES ON DATABASE %s TO %s;\n"+
 			"========================================================",
@@ -98,7 +98,7 @@ func ensurePostgresDatabase(dbName string) error {
 	return fmt.Errorf("postgres: 数据库 %s 不存在且权限不足，请手动建库后重启（详见日志）", dbName)
 }
 
-// buildPGDSN builds the DSN for one of the SamWaf databases from global config.
+// buildPGDSN builds the DSN for one of the HomeWaf databases from global config.
 func buildPGDSN(dbName string) string {
 	return dialect.BuildPostgresDSN(
 		global.GWAF_PG_HOST, global.GWAF_PG_PORT,

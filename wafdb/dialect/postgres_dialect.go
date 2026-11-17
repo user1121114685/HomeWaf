@@ -27,7 +27,7 @@ func (d *PostgresDialect) ForceIndexClause(table, idx string) string {
 
 // FormatLocalTime renders a timestamptz column in the session time zone.
 //
-// Storage contract: SamWaf writes time.Time in LOCAL time. GORM maps
+// Storage contract: HomeWaf writes time.Time in LOCAL time. GORM maps
 // customtype.JsonTime to timestamptz, which stores the true instant; to_char then
 // renders it in whatever zone the session is set to. The session zone is pinned by
 // the TimeZone DSN parameter (see BuildPostgresDSN), so as long as that matches the
@@ -68,7 +68,6 @@ func (d *PostgresDialect) InsertIgnoreSQL(table, quotedCols, rowPlaceholders str
 func (d *PostgresDialect) UpsertExcludedRef(col string) string {
 	return "excluded." + col
 }
-
 
 func (d *PostgresDialect) RenameTable(db *gorm.DB, src, dst string) error {
 	return db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", pgQuote(src), pgQuote(dst))).Error
@@ -369,9 +368,9 @@ func BuildPostgresDSN(host string, port int, user, password, dbName, sslMode, ti
 }
 
 // BuildPostgresMaintenanceDSN connects to the maintenance database (usually "postgres")
-// rather than a SamWaf database. PostgreSQL has no "CREATE DATABASE IF NOT EXISTS" and
+// rather than a HomeWaf database. PostgreSQL has no "CREATE DATABASE IF NOT EXISTS" and
 // cannot create a database from within a connection to that database, so ensuring the
-// SamWaf databases exist requires connecting somewhere else first.
+// HomeWaf databases exist requires connecting somewhere else first.
 func BuildPostgresMaintenanceDSN(host string, port int, user, password, maintenanceDB, sslMode string) string {
 	if maintenanceDB == "" {
 		maintenanceDB = "postgres"

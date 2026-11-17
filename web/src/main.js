@@ -33,7 +33,7 @@ async function mountApp() {
     $bus: bus,
     $request: axiosInstance,
     $purifyHtml: purifyHtml,
-    samwafglobalconfig: globalconfig,
+    homewafglobalconfig: globalconfig,
     $set: (object, key, value) => {
       object[key] = value;
     },

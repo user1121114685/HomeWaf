@@ -418,6 +418,11 @@ func validateCertificate(certContent, keyContent string) error {
 	if err != nil {
 		return fmt.Errorf("解析证书失败: %v", err)
 	}
+	if domain := wafconfig.GetManagementDomain(); domain != "" {
+		if err := cert.VerifyHostname(domain); err != nil {
+			return fmt.Errorf("证书必须覆盖当前管理域名 %s: %w", domain, err)
+		}
+	}
 
 	// 检查证书是否过期
 	now := time.Now()
@@ -560,7 +565,7 @@ func (w *WafVpConfigApi) UpdateSecurityEntryApi(c *gin.Context) {
 
 // GetNoticeTitleApi 获取通知标题前缀
 // @Summary      获取通知标题前缀
-// @Description  获取当前通知消息的标题前缀，用于区分多个 SamWaf 实例
+// @Description  获取当前通知消息的标题前缀，用于区分多个 HomeWaf 实例
 // @Tags         管理端配置
 // @Accept       json
 // @Produce      json
@@ -576,7 +581,7 @@ func (w *WafVpConfigApi) GetNoticeTitleApi(c *gin.Context) {
 
 // UpdateNoticeTitleApi 更新通知标题前缀
 // @Summary      更新通知标题前缀
-// @Description  更新通知消息的标题前缀，立即生效无需重启，用于区分多个 SamWaf 实例
+// @Description  更新通知消息的标题前缀，立即生效无需重启，用于区分多个 HomeWaf 实例
 // @Tags         管理端配置
 // @Accept       json
 // @Produce      json

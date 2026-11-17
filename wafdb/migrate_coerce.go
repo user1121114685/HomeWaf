@@ -153,7 +153,7 @@ func coerceBool(v interface{}) interface{} {
 }
 
 // coerceNumeric guards the empty-string case. SQLite's dynamic typing happily stores
-// '' in a column declared INTEGER; PostgreSQL rejects it outright. NULL — not 0 — is
+// ” in a column declared INTEGER; PostgreSQL rejects it outright. NULL — not 0 — is
 // the right target: it preserves "no value" rather than inventing a zero.
 func coerceNumeric(v interface{}) interface{} {
 	switch x := v.(type) {
@@ -189,7 +189,7 @@ var pgTimeLayouts = []string{
 // pgTimeLayoutsLocal are zone-less layouts. They MUST be parsed with ParseInLocation
 // against time.Local: time.Parse would assume UTC and shift every such value by the
 // local offset, which is exactly the silent-8-hour-drift failure this code exists to
-// avoid (SamWaf's storage contract is local wall-clock, never UTC).
+// avoid (HomeWaf's storage contract is local wall-clock, never UTC).
 var pgTimeLayoutsLocal = []string{
 	"2006-01-02 15:04:05.999999999",
 	"2006-01-02 15:04:05",

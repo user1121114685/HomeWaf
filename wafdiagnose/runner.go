@@ -155,7 +155,7 @@ func Run(parent context.Context, target Target) (result Result) {
 		}
 	}
 	if request.Header.Get("User-Agent") == "" {
-		request.Header.Set("User-Agent", "SamWaf-Diagnostic")
+		request.Header.Set("User-Agent", "HomeWaf-Diagnostic")
 	}
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(httptrace.DNSStartInfo) { r.Lock(); r.dnsStart = time.Now(); r.result.Stage = "dns"; r.Unlock() },

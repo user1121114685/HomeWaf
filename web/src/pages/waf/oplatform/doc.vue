@@ -157,7 +157,7 @@ const filtered = computed(() => {
 const pageRows = computed(() => filtered.value.slice((page.value - 1) * pageSize, page.value * pageSize));
 const selected = computed(() => pageRows.value.find((item) => key(item) === selectedKey.value) || pageRows.value[0]);
 const curlExample = computed(() =>
-  (selected.value?.curl_example || '').replaceAll('http://your-samwaf-host:26666', origin),
+  (selected.value?.curl_example || '').replaceAll('http://your-homewaf-host:26666', origin),
 );
 function format(value: string) {
   try {

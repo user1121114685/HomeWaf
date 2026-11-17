@@ -91,7 +91,7 @@ func (r *WafThreatIPService) busyHint() string {
 }
 
 // safeGo 起一个带 panic 兜底的后台 goroutine。
-// 以前这里是裸 go func()：一次 panic 会直接崩掉整个 SamWaf 进程，且什么线索都不留。
+// 以前这里是裸 go func()：一次 panic 会直接崩掉整个 HomeWaf 进程，且什么线索都不留。
 func safeGo(name string, fn func()) {
 	go func() {
 		defer func() {

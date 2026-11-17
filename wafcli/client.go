@@ -37,16 +37,16 @@ func newLocalClient(wait time.Duration) (*apiClient, error) {
 	if key == "" {
 		keyPath := filepath.Join(utils.GetCurrentDir(), "data", ".keys", "cli_api_key")
 		if err := rejectKeySymlinks(keyPath); err != nil {
-			return nil, fail(ExitAuth, errors.New("Key文件路径不正确，请执行 samwaf apikey init"))
+			return nil, fail(ExitAuth, errors.New("Key文件路径不正确，请执行 homewaf apikey init"))
 		}
 		b, err := os.ReadFile(keyPath)
 		if err != nil {
-			return nil, fail(ExitAuth, errors.New("请先执行 samwaf apikey init"))
+			return nil, fail(ExitAuth, errors.New("请先执行 homewaf apikey init"))
 		}
 		key = strings.TrimSpace(string(b))
 	}
 	if key == "" || strings.ContainsAny(key, "\r\n") {
-		return nil, fail(ExitAuth, errors.New("API Key 为空或格式不正确，请执行 samwaf apikey init"))
+		return nil, fail(ExitAuth, errors.New("API Key 为空或格式不正确，请执行 homewaf apikey init"))
 	}
 	scheme := "http"
 	if global.GWAF_SSL_ENABLE && global.GWAF_SSL_FORCE_HTTPS {
@@ -117,7 +117,7 @@ func (a *apiClient) call(ctx context.Context, method, path string, body any, out
 				}
 				continue
 			}
-			return fail(ExitUnavailable, fmt.Errorf("无法连接 SamWaf 管理端，请检查服务、端口与HTTPS配置；可使用 --wait 60s 等待启动"))
+			return fail(ExitUnavailable, fmt.Errorf("无法连接 HomeWaf 管理端，请检查服务、端口与HTTPS配置；可使用 --wait 60s 等待启动"))
 		}
 		b, e := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 		resp.Body.Close()

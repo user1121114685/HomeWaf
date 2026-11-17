@@ -96,9 +96,9 @@ func (v mysqlServerInfo) label() string {
 //  2. If step 1 fails (permission denied, or server refuses the collation for any
 //     reason), try connecting directly to the target database.
 //     • Direct connection OK  → database already exists; user just lacks CREATE
-//       privilege — proceed normally.
+//     privilege — proceed normally.
 //     • Direct connection fails → database does not exist and cannot be created;
-//       log a clear hint with the exact SQL the user must run manually.
+//     log a clear hint with the exact SQL the user must run manually.
 func ensureMySQLDatabase(dbName string) error {
 	rootDSN := dialect.BuildMySQLRootDSN(
 		global.GWAF_MYSQL_HOST, global.GWAF_MYSQL_PORT,
@@ -159,7 +159,7 @@ func ensureMySQLDatabase(dbName string) error {
 	hint := fmt.Sprintf(
 		"\n========================================================\n"+
 			"  数据库 `%s` 不存在，且当前账户无权自动创建。\n"+
-			"  请用 MySQL root 账户执行以下 SQL，然后重启 SamWaf：\n\n"+
+			"  请用 MySQL root 账户执行以下 SQL，然后重启 HomeWaf：\n\n"+
 			"    %s;\n"+
 			"    GRANT ALL PRIVILEGES ON `%s`.* TO '%s'@'%%';\n"+
 			"    FLUSH PRIVILEGES;\n"+

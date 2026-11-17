@@ -100,8 +100,9 @@ if ((docker_mode)); then
     if [[ -n $old_image ]]; then docker run "${run_args[@]}" "$old_image"; fi
     die 'Container startup failed; check port availability and Docker logs. The previous image was restarted if present.'
   fi
-  echo 'HomeWaf is running at http://127.0.0.1:26666'
-  echo 'Initial password: docker exec homewaf cat /app/data/initial_password.txt'
+  echo 'HomeWaf Docker console (on the Docker host): http://127.0.0.1:26666'
+  echo 'Initial credentials (valid only until the password is changed):'
+  docker exec homewaf sh -c 'if [ -f /app/data/initial_password.txt ]; then cat /app/data/initial_password.txt; else echo "Existing instance: use your current password."; fi'
   echo 'Run this installation command again to update; named data volumes are preserved.'
   exit 0
 fi
@@ -131,9 +132,36 @@ done
 if ((service)); then
   if ((installed == 0)); then "$destination/$binary" install; fi
   "$destination/$binary" start
-  echo 'HomeWaf service started. Open http://127.0.0.1:26666'
+  if "$destination/$binary" console-info --help >/dev/null 2>&1; then
+    "$destination/$binary" console-info --wait 90s --show-initial-password
+  else
+    # Older releases do not have console-info; retain --version compatibility.
+    server_ips=$(hostname -I 2>/dev/null || true)
+    if [[ -z $server_ips ]] && command -v ipconfig >/dev/null; then
+      server_ips=$(ipconfig getifaddr en0 2>/dev/null || true)
+    fi
+    echo 'HomeWaf service started. Open a server IP reachable from your device:'
+    for server_ip in $server_ips; do
+      [[ $server_ip != 127.* && $server_ip != ::1 ]] || continue
+      if [[ $server_ip == *:* ]]; then server_ip="[$server_ip]"; fi
+      printf '  http://%s:26666/\n' "$server_ip"
+    done
+    [[ -n $server_ips ]] || echo '  http://<server-ip>:26666/ (replace <server-ip> with this server address)'
+    for ((attempt=0;attempt<90;attempt++)); do
+      if curl -fsS --max-time 2 http://127.0.0.1:26666/ -o /dev/null 2>/dev/null; then break; fi
+      sleep 1
+    done
+    ((attempt < 90)) || die 'Management console did not become ready. Check the HomeWaf service and logs.'
+    if [[ -f $destination/data/initial_password.txt && ! -L $destination/data/initial_password.txt ]]; then
+      echo 'Initial credentials (valid only until the password is changed):'
+      cat -- "$destination/data/initial_password.txt"
+    else
+      echo 'Existing instance: use your current password.'
+    fi
+  fi
 else
   echo "Installed. Start with: $destination/$binary"
+  echo "After startup, show the server address and initial password: $destination/$binary console-info --show-initial-password"
 fi
-echo "Account: admin. Initial password: $destination/data/initial_password.txt (created on first start)."
+echo "Account: admin. Initial credentials are also saved in $destination/data/initial_password.txt."
 echo "Keep $destination/.homewaf-keys together with your backups."

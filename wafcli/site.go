@@ -19,7 +19,7 @@ var siteClientFactory = newLocalClient
 
 func newSiteCommand() *cobra.Command {
 	var wait time.Duration
-	cmd := &cobra.Command{Use: "site <command>", Short: "通过本机管理端管理站点", GroupID: "auto", Example: "  samwaf site apply -f site.json --wait 60s"}
+	cmd := &cobra.Command{Use: "site <command>", Short: "通过本机管理端管理站点", GroupID: "auto", Example: "  homewaf site apply -f site.json --wait 60s"}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			return fail(ExitUsage, fmt.Errorf("unknown command %s", args[0]))
@@ -44,10 +44,10 @@ func newSiteCommand() *cobra.Command {
 			return fn(c, a, args)
 		}
 	}
-	list := &cobra.Command{Use: "list", Short: "列出全部站点", Args: cobra.NoArgs, Example: "  samwaf site list -o json", RunE: run(runSiteList)}
-	get := &cobra.Command{Use: "get <code|host:port>", Short: "导出站点配置（省略密钥与自定义请求头）", Args: cobra.ExactArgs(1), Example: "  samwaf site get www.example.com:8080 > site.json", RunE: run(runSiteGet)}
+	list := &cobra.Command{Use: "list", Short: "列出全部站点", Args: cobra.NoArgs, Example: "  homewaf site list -o json", RunE: run(runSiteList)}
+	get := &cobra.Command{Use: "get <code|host:port>", Short: "导出站点配置（省略密钥与自定义请求头）", Args: cobra.ExactArgs(1), Example: "  homewaf site get www.example.com:8080 > site.json", RunE: run(runSiteGet)}
 	var file string
-	apply := &cobra.Command{Use: "apply -f <file|->", Short: "创建或合并修改站点，相同配置跳过", Args: cobra.NoArgs, Example: "  samwaf site apply -f site.json --wait 60s\n  samwaf site apply -f - -o json", RunE: run(func(c *cobra.Command, a *apiClient, args []string) error {
+	apply := &cobra.Command{Use: "apply -f <file|->", Short: "创建或合并修改站点，相同配置跳过", Args: cobra.NoArgs, Example: "  homewaf site apply -f site.json --wait 60s\n  homewaf site apply -f - -o json", RunE: run(func(c *cobra.Command, a *apiClient, args []string) error {
 		items, err := readSiteInput(file, c.InOrStdin())
 		if err != nil {
 			return err
@@ -59,7 +59,7 @@ func newSiteCommand() *cobra.Command {
 	cmd.AddCommand(list, get, apply)
 	for _, action := range []string{"delete", "start", "stop"} {
 		action := action
-		cmd.AddCommand(&cobra.Command{Use: action + " <code|host:port>", Short: map[string]string{"delete": "删除站点", "start": "启动站点", "stop": "停止站点"}[action], Args: cobra.ExactArgs(1), Example: "  samwaf site " + action + " www.example.com:8080", RunE: run(func(c *cobra.Command, a *apiClient, args []string) error { return runSiteAction(c, a, action, args[0]) })})
+		cmd.AddCommand(&cobra.Command{Use: action + " <code|host:port>", Short: map[string]string{"delete": "删除站点", "start": "启动站点", "stop": "停止站点"}[action], Args: cobra.ExactArgs(1), Example: "  homewaf site " + action + " www.example.com:8080", RunE: run(func(c *cobra.Command, a *apiClient, args []string) error { return runSiteAction(c, a, action, args[0]) })})
 	}
 	return cmd
 }

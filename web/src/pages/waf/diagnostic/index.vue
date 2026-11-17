@@ -360,7 +360,7 @@ export default defineComponent({
           }
           const now = new Date();
           const pad = (n) => String(n).padStart(2, '0');
-          const fileName = `samwaf_diag_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.zip`;
+          const fileName = `homewaf_diag_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.zip`;
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;

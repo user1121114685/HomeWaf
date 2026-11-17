@@ -129,7 +129,7 @@ type DBDialect interface {
 	// FormatLocalTime returns a SQL expression that renders a DATETIME column as
 	// 'YYYY-MM-DD HH:MM:SS' in local time, matching customtype.JsonTime.MarshalJSON.
 	//
-	// Storage contract: SamWaf writes time.Time in LOCAL time, never UTC.
+	// Storage contract: HomeWaf writes time.Time in LOCAL time, never UTC.
 	//   MySQL:  DSN carries loc=Local, so the DATETIME column holds the local
 	//           wall clock with no zone info — format it as-is, no CONVERT_TZ.
 	//   SQLite: HomeWaf SQLite binds time.Time as '2006-01-02 15:04:05.999999999-07:00',

@@ -619,7 +619,7 @@ func ExecuteSQLCommand(currentDir string) {
 	}
 
 	fmt.Println("================================================")
-	fmt.Println("         SamWaf SQL 执行工具")
+	fmt.Println("         HomeWaf SQL 执行工具")
 	fmt.Println("================================================")
 	fmt.Println("\n可以在以下数据库上执行 SQL 语句：")
 	fmt.Println("1. 核心数据库 (local.db) - 存储配置、规则等")
@@ -982,7 +982,7 @@ func RepairAllDatabases(currentDir string) {
 	}
 
 	fmt.Println("\n================================================")
-	fmt.Println("         SamWaf 数据库修复工具")
+	fmt.Println("         HomeWaf 数据库修复工具")
 	fmt.Println("================================================")
 	fmt.Println("\n将检查并修复以下数据库：")
 	for i, db := range databases {

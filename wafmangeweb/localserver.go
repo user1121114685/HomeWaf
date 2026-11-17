@@ -11,6 +11,7 @@ import (
 	"HomeWaf/router"
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
+	"HomeWaf/wafconfig"
 	"HomeWaf/wafmangeweb/static"
 	"HomeWaf/wafnet"
 	"bytes"
@@ -118,6 +119,26 @@ type httpsRedirectHandler struct {
 }
 
 func (h *httpsRedirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if domain := wafconfig.GetManagementDomain(); domain != "" {
+		host := r.Host
+		if name, _, err := net.SplitHostPort(host); err == nil {
+			host = name
+		}
+		if !strings.EqualFold(host, domain) {
+			http.Error(w, "This HomeWaf console only accepts its configured management domain.", http.StatusForbidden)
+			return
+		}
+		hc, hybrid := r.Context().Value(hybridConnContextKey{}).(*hybridConn)
+		secure := r.TLS != nil || (hybrid && hc != nil && hc.isTLS)
+		if !secure {
+			if hybrid && hc != nil {
+				http.Redirect(w, r, "https://"+r.Host+r.RequestURI, http.StatusTemporaryRedirect)
+			} else {
+				http.Error(w, "HTTPS is required for this management domain.", http.StatusServiceUnavailable)
+			}
+			return
+		}
+	}
 	if global.GWAF_SSL_FORCE_HTTPS {
 		if hc, ok := r.Context().Value(hybridConnContextKey{}).(*hybridConn); ok && hc != nil && !hc.isTLS {
 			target := "https://" + r.Host + r.RequestURI
@@ -516,7 +537,7 @@ func httpsRequiredNotice(reason string) string {
 	return "管理端已开启「仅允许HTTPS」，但当前无法提供 HTTPS 服务。\n" +
 		"原因：" + reason + "\n\n" +
 		"为避免管理端以明文提供服务，已拒绝全部 HTTP 请求。\n" +
-		"恢复方式（任选其一，改完需重启 SamWaf）：\n" +
+		"恢复方式（任选其一，改完需重启 HomeWaf）：\n" +
 		"  1. 修复管理端证书（data/ssl/manager/domain.crt 与 domain.key）\n" +
 		"  2. conf/config.yml 设 security.ssl_force_https: false —— 保留 HTTPS，同时允许 HTTP 访问\n" +
 		"  3. conf/config.yml 设 security.ssl_enable: false —— 关闭 HTTPS，回到纯 HTTP\n"

@@ -225,7 +225,7 @@ type NotifyTemplateVar struct {
 
 var notifyCommonVars = []NotifyTemplateVar{
 	{Name: "Time", Desc: "事件时间", Example: "2026-08-05 10:00:00"},
-	{Name: "ServerName", Desc: "本机名称", Example: "SamWaf"},
+	{Name: "ServerName", Desc: "本机名称", Example: "HomeWaf"},
 	{Name: "MessageTypeName", Desc: "消息类型名称", Example: "攻击信息"},
 	{Name: "Severity", Desc: "严重级别", Example: "critical"},
 }
@@ -374,5 +374,5 @@ func buildSampleDefaultMessage(messageType string, vars map[string]string) (stri
 		return title, fmt.Sprintf("**事件:** %s\n\n**账号:** %s\n\n**来源IP:** %s\n\n**归属地:** %s\n\n**访问域名:** %s\n\n**时间:** %s",
 			vars["EventName"], vars["AccountName"], vars["Ip"], vars["Location"], vars["Host"], vars["Time"])
 	}
-	return GetMessageTypeName(messageType), "这是一条来自 SamWaf 的测试通知"
+	return GetMessageTypeName(messageType), "这是一条来自 HomeWaf 的测试通知"
 }

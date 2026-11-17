@@ -54,7 +54,7 @@ func fetchUnsignedWithStat(url string) ([]byte, FetchStat, error) {
 		stat.Elapsed = time.Since(start)
 		return nil, stat, fmt.Errorf("构造请求失败(url=%s): %v", safeURL, err)
 	}
-	req.Header.Set("User-Agent", "SamWaf-ThreatIP")
+	req.Header.Set("User-Agent", "HomeWaf-ThreatIP")
 
 	resp, err := utils.SafeOutboundHTTPClient(fetchTimeout).Do(req)
 	if err != nil {

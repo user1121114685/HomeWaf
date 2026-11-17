@@ -75,7 +75,7 @@ func (w *WafDiagnosticApi) GetCpuProfileStatusApi(c *gin.Context) {
 // @Security     ApiKeyAuth
 // @Router       /diagnostic/package [get]
 func (w *WafDiagnosticApi) DownloadPackageApi(c *gin.Context) {
-	fileName := "samwaf_diag_" + time.Now().Format("20060102_150405") + ".zip"
+	fileName := "homewaf_diag_" + time.Now().Format("20060102_150405") + ".zip"
 	// 先在内存组装完再发送：失败时能返回真实错误响应，而不是 200 + 截断的 zip
 	data, err := wafDiagnosticService.BuildDiagnosticPackage()
 

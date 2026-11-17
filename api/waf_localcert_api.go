@@ -8,6 +8,7 @@ import (
 	"HomeWaf/model/common/response"
 	"HomeWaf/utils"
 	"HomeWaf/utils/localca"
+	"HomeWaf/wafconfig"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +39,10 @@ func (w *WafVpConfigApi) GenerateLocalCertApi(c *gin.Context) {
 	}
 
 	items := splitSANInput(req.SANs)
+	if domain := wafconfig.GetManagementDomain(); domain != "" && (len(items) != 1 || !strings.EqualFold(items[0], domain)) {
+		response.FailWithMessage("指定管理域名模式请在管理地址表单中重新签发，证书必须匹配当前管理域名", c)
+		return
+	}
 	if len(items) == 0 {
 		response.FailWithMessage("请至少填写一个访问地址（域名或IP）", c)
 		return

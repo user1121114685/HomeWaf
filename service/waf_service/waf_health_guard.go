@@ -45,7 +45,7 @@ func newHealthDialGuard(runtime ...*wafenginmodel.SafeServerMap) (func(string) e
 			return errors.New("实际源站地址格式不正确")
 		}
 		if ports[port] && (ip.IsLoopback() || ip.IsUnspecified() || localIPs[ip.String()]) {
-			return errors.New("检测目标为本机SamWaf监听端口，请填写源站地址")
+			return errors.New("检测目标为本机HomeWaf监听端口，请填写源站地址")
 		}
 		return nil
 	}, nil

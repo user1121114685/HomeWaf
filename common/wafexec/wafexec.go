@@ -5,7 +5,7 @@
 // childStdin / writerDescriptor。某些精简版 Windows(如 LTSC 纯净版)裁掉或禁用了
 // Null 内核驱动，open NUL 直接失败，cmd.Start() 在创建进程前就报
 // "open NUL: The system cannot find the file specified." —— 所有子进程全起不来
-// (Supervisor 连首个 Worker 都拉不起来，SamWaf 完全无法启动)。
+// (Supervisor 连首个 Worker 都拉不起来，HomeWaf 完全无法启动)。
 //
 // 本包采用"探测降级"：
 //   - 空设备可用(绝大多数机器) → 原样返回，行为与改造前完全一致，零回归；

@@ -91,7 +91,7 @@ func TestValidateCertExportPath_清单外目录被拒(t *testing.T) {
 	base := filepath.Join(t.TempDir(), "samwaf")
 	setExportBase(t, base, "")
 
-	// 未在允许清单里的绝对目录（含 SamWaf 自身其它目录），一律拒绝
+	// 未在允许清单里的绝对目录（含 HomeWaf 自身其它目录），一律拒绝
 	for _, p := range []string{
 		filepath.Join(base, "data", "samwaf_core.db"), // 走后缀会先被扩展名拦，换个 .crt
 		filepath.Join(base, "conf", "a.crt"),

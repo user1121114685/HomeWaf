@@ -36,7 +36,8 @@
         <h1>{{ loginTitle }}</h1>
         <p class="login-description">使用此实例的管理员账号登录。</p>
         <Login />
-        <p class="login-support">首次使用的初始口令保存在实例的<br /><code>data/initial_password.txt</code> 中。</p>
+        <p class="login-support">初始口令会显示在安装完成提示中，也保存在实例的<br /><code>data/initial_password.txt</code> 中。</p>
+        <ManagementTLSNotice />
       </div>
       <footer class="login-footer">
         <span>HomeWaf · 非商业使用免费</span><RouterLink to="/help">使用与许可说明</RouterLink>
@@ -50,6 +51,7 @@ import { computed } from 'vue';
 import { ElButton } from 'element-plus';
 import { ArrowRight, CircleCheck, Setting } from '@element-plus/icons-vue';
 import Login from './components/components-login.vue';
+import ManagementTLSNotice from '@/components/ManagementTLSNotice.vue';
 import HomeWafSetting from '@/layouts/setting.vue';
 import Logo from '@/assets/homewaf-logo.svg';
 import { adminTitles } from '@/utils/adminTitles';

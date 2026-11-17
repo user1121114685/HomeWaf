@@ -361,7 +361,7 @@ func (receiver *WafAccessAccountService) OtpInitApi(id string) (secret string, u
 	if err != nil {
 		return "", "", err
 	}
-	return utils.GenOtpSecret(bean.AccountName, "SamWaf-Access")
+	return utils.GenOtpSecret(bean.AccountName, "HomeWaf-Access")
 }
 
 func (receiver *WafAccessAccountService) OtpBindApi(req request.WafAccessAccountOtpBindReq) error {

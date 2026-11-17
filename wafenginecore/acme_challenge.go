@@ -200,7 +200,7 @@ func handleACMEChallengeResponse(resp *http.Response, weblogfrist *innerbean.Web
 	//
 	// 老实现是"后端返回 404/301/302 才启用本地文件"，于是后端自带 certbot 目录、
 	// 有残留同名文件、或回源落到默认站点返回 200 时，本地文件直接作废。
-	// 本地文件只有 SamWaf 自己发起过申请时才存在，它天然比后端更权威。
+	// 本地文件只有 HomeWaf 自己发起过申请时才存在，它天然比后端更权威。
 	if content, ok := loadChallengeContent(weblogfrist.HOST_CODE, token); ok {
 		resp.StatusCode = http.StatusOK
 		resp.Status = http.StatusText(http.StatusOK)
@@ -224,7 +224,7 @@ func handleACMEChallengeResponse(resp *http.Response, weblogfrist *innerbean.Web
 	}
 
 	// 本地没有挑战文件：把后端响应原样交给 CA。
-	// 这对"用户自己在后端跑 certbot"是正确行为，对"SamWaf 自己申请"则一定失败，
+	// 这对"用户自己在后端跑 certbot"是正确行为，对"HomeWaf 自己申请"则一定失败，
 	// 所以要把两种情况的处置建议都写清楚。
 	if resp.StatusCode != 404 && resp.StatusCode != 301 && resp.StatusCode != 302 {
 		// 后端在该路径上抢答了一个"看起来正常"的响应。
@@ -235,13 +235,13 @@ func handleACMEChallengeResponse(resp *http.Response, weblogfrist *innerbean.Web
 		if requestSettings(resp.Request).GCONFIG_RECORD_SSLHTTP_CHECK == 1 {
 			warnACMEChallenge(weblogfrist.HOST, weblogfrist.HOST_CODE, weblogfrist.URL, token, filePath, resp.StatusCode,
 				"本地无挑战文件，且后端对该路径返回了非 404/301/302",
-				"若证书是在 SamWaf 里申请的：确认申请是否就在本站点(核对站点编码)；若后端自己跑 certbot：属正常，可在【证书文件验证设置】里关掉本告警")
+				"若证书是在 HomeWaf 里申请的：确认申请是否就在本站点(核对站点编码)；若后端自己跑 certbot：属正常，可在【证书文件验证设置】里关掉本告警")
 		}
 		return true
 	}
 
 	warnACMEChallenge(weblogfrist.HOST, weblogfrist.HOST_CODE, weblogfrist.URL, token, filePath, resp.StatusCode,
 		"本地挑战文件不存在或为空，已把后端响应原样返回给 CA",
-		"1)核对证书是否就在本站点(站点编码)发起 2)确认该域名80端口流量确实进了SamWaf(在网站日志搜这个token) 3)确认申请时该目录下已生成文件")
+		"1)核对证书是否就在本站点(站点编码)发起 2)确认该域名80端口流量确实进了HomeWaf(在网站日志搜这个token) 3)确认申请时该目录下已生成文件")
 	return true
 }

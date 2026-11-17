@@ -26,7 +26,7 @@ import (
 // 信任关系不用重新建立——这也是不用单张裸自签的原因。
 //
 // 为什么自己用标准库签而不是集成 mkcert 之类的工具：签证书本身 crypto/x509 就够了，
-// 而那类工具真正值钱的是"自动把根证书装进系统信任库"——SamWaf 跑在服务器上、管理员
+// 而那类工具真正值钱的是"自动把根证书装进系统信任库"——HomeWaf 跑在服务器上、管理员
 // 用自己的电脑访问，在服务器上装信任库对访问方毫无用处，那部分能力在这个部署形态下拿不到。
 //
 // 密钥落盘口径与 wafsec 的 DEK 一致：CA 私钥 0600、不进数据库、不经 API 回显。
@@ -69,7 +69,7 @@ type CertSummary struct {
 	IPs       []string  `json:"ips"`
 	// Fingerprint 是证书 DER 的 SHA-256，冒号分隔大写十六进制——与 Windows 证书管理器、
 	// macOS 钥匙串、Firefox 里显示的格式一致。换过 CA 之后信任库里会存在多张同名的
-	// "SamWaf Local CA"，只有指纹能区分该删哪张、留哪张，所以必须回显。
+	// "HomeWaf Local CA"，只有指纹能区分该删哪张、留哪张，所以必须回显。
 	Fingerprint string `json:"fingerprint"`
 	// Serial 十六进制序列号，Windows 证书管理器按它排序查找更快
 	Serial string `json:"serial"`
@@ -83,6 +83,14 @@ func EnsureCA(p Paths) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return nil, nil, err
+	}
+	// A partial root is a recovery problem, never permission to replace a trusted CA.
+	for _, path := range []string{p.CACert, p.CAKey} {
+		if _, statErr := os.Stat(path); statErr == nil {
+			return nil, nil, errors.New("本地 CA 文件不完整，请恢复原有根证书与私钥")
+		} else if !errors.Is(statErr, os.ErrNotExist) {
+			return nil, nil, statErr
+		}
 	}
 	return createCA(p)
 }
@@ -104,6 +112,9 @@ func loadCA(p Paths) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("解析本地CA私钥失败: %w", err)
 	}
+	if !cert.IsCA || !key.PublicKey.Equal(cert.PublicKey) || time.Now().After(cert.NotAfter) {
+		return nil, nil, errors.New("本地 CA 证书与私钥不匹配、不是 CA 或已过期，请修复原有根证书")
+	}
 	return cert, key, nil
 }
 
@@ -121,8 +132,8 @@ func createCA(p Paths) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 		SerialNumber: serial,
 		Subject: pkix.Name{
 			// 名字里带上"本地"字样，管理员在系统信任库里一眼能认出这是哪来的
-			CommonName:   "SamWaf Local CA",
-			Organization: []string{"SamWaf"},
+			CommonName:   "HomeWaf Local CA",
+			Organization: []string{"HomeWaf"},
 		},
 		NotBefore:             now.Add(-5 * time.Minute), // 容忍轻微时钟偏差
 		NotAfter:              now.AddDate(caValidYears, 0, 0),
@@ -181,7 +192,7 @@ func IssueServerCert(p Paths, sans []string, validDays int) (*CertSummary, error
 		return nil, err
 	}
 	// CommonName 只是给人看的：现代浏览器完全不看它，校验全靠 SAN
-	commonName := "SamWaf Manager"
+	commonName := "HomeWaf Manager"
 	if len(dnsNames) > 0 {
 		commonName = dnsNames[0]
 	} else if len(ips) > 0 {
@@ -190,7 +201,7 @@ func IssueServerCert(p Paths, sans []string, validDays int) (*CertSummary, error
 	now := time.Now()
 	tpl := &x509.Certificate{
 		SerialNumber:          serial,
-		Subject:               pkix.Name{CommonName: commonName, Organization: []string{"SamWaf"}},
+		Subject:               pkix.Name{CommonName: commonName, Organization: []string{"HomeWaf"}},
 		NotBefore:             now.Add(-5 * time.Minute),
 		NotAfter:              now.AddDate(0, 0, validDays),
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
@@ -285,7 +296,27 @@ func CASummary(p Paths) *CertSummary {
 
 // ReadCACert 读取 CA 根证书 PEM，供下载给管理员导入
 func ReadCACert(p Paths) ([]byte, error) {
-	return os.ReadFile(p.CACert)
+	data, err := os.ReadFile(p.CACert)
+	if err != nil {
+		return nil, err
+	}
+	cert, err := parseCertPEM(data)
+	if err != nil {
+		return nil, err
+	}
+	if !cert.IsCA {
+		return nil, errors.New("根证书文件不是 CA 证书")
+	}
+	return pemBlock("CERTIFICATE", cert.Raw), nil
+}
+
+func ServerCertCoversHost(p Paths, host string) bool {
+	data, err := os.ReadFile(p.SrvCert)
+	if err != nil {
+		return false
+	}
+	cert, err := parseCertPEM(data)
+	return err == nil && cert.VerifyHostname(host) == nil
 }
 
 // IsIssuedByLocalCA 判断当前管理端证书是不是本地 CA 签的——

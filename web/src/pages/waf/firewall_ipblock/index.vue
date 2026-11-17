@@ -892,7 +892,7 @@ export default defineComponent({
       return date.toLocaleString();
     },
     handleJumpOnlineUrl() {
-      window.open(this.samwafglobalconfig.getOnlineUrl() + "/guide/FirewallIPBlock.html", '_blank', 'noopener,noreferrer');
+      window.open(this.homewafglobalconfig.getOnlineUrl() + "/guide/FirewallIPBlock.html", '_blank', 'noopener,noreferrer');
     },
   },
 });

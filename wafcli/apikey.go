@@ -18,10 +18,10 @@ import (
 )
 
 func newAPIKeyCommand() *cobra.Command {
-	root := &cobra.Command{Use: "apikey", Short: "本机命令行 API Key", Example: "  samwaf apikey init"}
+	root := &cobra.Command{Use: "apikey", Short: "本机命令行 API Key", Example: "  homewaf apikey init"}
 	var rotate, show bool
 	initCmd := &cobra.Command{Use: "init", Short: "创建或复用本机命令行 Key", Args: cobra.NoArgs,
-		Example: "  samwaf apikey init\n  samwaf apikey init --rotate\n  samwaf apikey init --show",
+		Example: "  homewaf apikey init\n  homewaf apikey init --rotate\n  homewaf apikey init --show",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			keyPath := filepath.Clean(filepath.Join(utils.GetCurrentDir(), "data", ".keys", "cli_api_key"))
 			if err := prepareKeyDirectory(keyPath); err != nil {

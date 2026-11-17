@@ -250,14 +250,14 @@ func ScanAllRules(owaspRoot string) ([]*ParsedRuleFile, error) {
 		return nil, nil
 	}
 	var files []string
-	// overridesDir 下的文件是 SamWaf 自动生成的调参/禁用指令，不是 CRS WAF 规则，排除扫描。
+	// overridesDir 下的文件是 HomeWaf 自动生成的调参/禁用指令，不是 CRS WAF 规则，排除扫描。
 	overridesDir := filepath.Join(owaspRoot, "overrides")
 	err := filepath.Walk(owaspRoot, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
-			// 跳过 overrides 目录（包含 SamWaf 生成的调参/禁用指令，不是真正的 WAF 规则）
+			// 跳过 overrides 目录（包含 HomeWaf 生成的调参/禁用指令，不是真正的 WAF 规则）
 			if filepath.Clean(p) == filepath.Clean(overridesDir) {
 				return filepath.SkipDir
 			}

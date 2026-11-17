@@ -46,7 +46,7 @@ func IsAutomationCommand(args []string) bool {
 func newRootCommand(deps Deps) *cobra.Command {
 	outputFormat = "text"
 	root := &cobra.Command{
-		Use: "samwaf", Short: "SamWaf 服务管理与命令行工具", Example: "  samwaf --help\n  samwaf site list",
+		Use: "homewaf", Short: "HomeWaf 服务管理与命令行工具", Example: "  homewaf --help\n  homewaf site list",
 		SilenceUsage: true, SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if outputFormat != "text" && outputFormat != "json" {
@@ -69,6 +69,7 @@ func newRootCommand(deps Deps) *cobra.Command {
 		&cobra.Group{ID: "auto", Title: "自动化:"},
 	)
 	addLegacyCommands(root, deps)
+	root.AddCommand(newConsoleInfoCommand(deps))
 	apikey := newAPIKeyCommand()
 	site := newSiteCommand()
 	for _, cmd := range []*cobra.Command{apikey, site} {

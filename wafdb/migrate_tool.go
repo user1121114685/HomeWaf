@@ -174,7 +174,7 @@ type migPair struct {
 
 func (t *MigrateTool) run() error {
 	fmt.Println("================================================")
-	fmt.Println("            SamWaf 数据迁移工具")
+	fmt.Println("            HomeWaf 数据迁移工具")
 	fmt.Println("================================================")
 
 	// 1. 确定迁移方向（命令行 flag 优先，否则交互式菜单）
@@ -192,7 +192,7 @@ func (t *MigrateTool) run() error {
 	}
 
 	fmt.Println()
-	fmt.Println("  ⚠️  重要提示：迁移期间请确保 SamWaf 服务已停止运行！")
+	fmt.Println("  ⚠️  重要提示：迁移期间请确保 HomeWaf 服务已停止运行！")
 	fmt.Println("     运行中迁移可能导致数据不完整或丢失。")
 	fmt.Println("     建议步骤：停止服务 → 运行迁移 → 验证数据 → 切换驱动 → 重启服务")
 	fmt.Println()
@@ -1109,7 +1109,7 @@ func (t *MigrateTool) generateReport() string {
 	endTime := time.Now()
 	duration := endTime.Sub(t.startAt).Round(time.Second)
 
-	sb.WriteString("# SamWaf 数据迁移报告\n\n")
+	sb.WriteString("# HomeWaf 数据迁移报告\n\n")
 	sb.WriteString(fmt.Sprintf("- **迁移方向**: %s\n", routeLabel(t.srcKind, t.dstKind)))
 	sb.WriteString(fmt.Sprintf("- **开始时间**: %s\n", t.startAt.Format("2006-01-02 15:04:05")))
 	sb.WriteString(fmt.Sprintf("- **结束时间**: %s\n", endTime.Format("2006-01-02 15:04:05")))

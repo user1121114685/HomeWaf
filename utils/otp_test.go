@@ -6,7 +6,7 @@ import (
 )
 
 func TestGenOtpSecret(t *testing.T) {
-	secret, url, err := GenOtpSecret("admin", "SamWaf")
+	secret, url, err := GenOtpSecret("admin", "HomeWaf")
 	fmt.Println(secret, url, err)
 }
 func TestValidateOtpCode(t *testing.T) {

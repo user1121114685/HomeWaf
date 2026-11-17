@@ -42,7 +42,7 @@ type AccessConfig struct {
 
 	// —— 认证中心 ——
 	// 完整 origin（如 https://sso.example.com:8443），保存时必填：所有站点都先跳到它登录，
-	// 登录一次即可访问全部受保护站点。该域名必须已经是 SamWaf 里配置过的站点，
+	// 登录一次即可访问全部受保护站点。该域名必须已经是 HomeWaf 里配置过的站点，
 	// 否则请求根本进不到引擎（ServeHTTP 找不到 host 直接 403）。
 	// 为空只可能是「还没配过」或「认证中心站点被改了域名」，引擎此时放行并告警。
 	CenterOrigin string `gorm:"size:255" json:"center_origin"`

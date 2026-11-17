@@ -5,7 +5,7 @@ package model
 import "HomeWaf/model/baseorm"
 
 const (
-	// BlockingPageContentPrioritySamwaf 优先使用 SamWaf 自定义模版（默认，保持历史行为）：
+	// BlockingPageContentPrioritySamwaf 优先使用 HomeWaf 自定义模版（默认，保持历史行为）：
 	// 只要匹配上这条配置，无论后端有没有返回响应体，都用模版覆盖。
 	BlockingPageContentPrioritySamwaf = "samwaf"
 	// BlockingPageContentPriorityBackend 优先后端响应：

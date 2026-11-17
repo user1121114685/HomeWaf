@@ -15,7 +15,7 @@ import (
 
 // 证书导出（落盘）编排层。
 //
-// issue #929：SamWaf 申请/续期成功后，把证书同步成实体文件，供 nginx 等外部程序使用。
+// issue #929：HomeWaf 申请/续期成功后，把证书同步成实体文件，供 nginx 等外部程序使用。
 // 证书夹里的 CertPath/KeyPath 是「读进来」的方向，不能复用（复用会把用户的源文件反向
 // 覆盖掉），所以用独立的 ExportCertPath/ExportKeyPath。
 //
@@ -133,8 +133,8 @@ func (receiver *WafSslConfigService) PrepareExportPaths(selfId, loadCertPath, lo
 	}
 
 	// 不能导出到「加载路径」上：那是读入方向，写过去会形成自我覆盖，
-	// 用户放在那里的源文件会被 SamWaf 反向改掉。
-	// 加载路径是「读入」方向、走 SamWaf 自管的 ssl/<id>/ 或用户自填，不受导出允许目录约束；
+	// 用户放在那里的源文件会被 HomeWaf 反向改掉。
+	// 加载路径是「读入」方向、走 HomeWaf 自管的 ssl/<id>/ 或用户自填，不受导出允许目录约束；
 	// 这里只需判是否与导出目标撞车（IsSameFilePath 自带 Clean/大小写归一），不做导出策略校验。
 	for _, loadPath := range []string{loadCertPath, loadKeyPath} {
 		lp := strings.TrimSpace(loadPath)
