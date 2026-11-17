@@ -59,10 +59,8 @@ jobs:
       - name: Report upstream corpus coverage
         run: go test -trimpath ./wafpipeline -run '^TestCRSUpstreamAttackCorpus$' -count=1 -v
       - name: Fetch the current upstream attack corpus for continuous discovery
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.workflow == 'HomeWaf security checks')
         run: node scripts/fetch-waf-corpus.mjs --latest
       - name: Test the latest corpus without changing shipped rules
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.workflow == 'HomeWaf security checks')
         env:
           HOMEWAF_WAF_CORPUS: ${{ github.workspace }}/.cache/waf-corpus-latest
         run: go test -trimpath ./wafpipeline -run '^TestCRSUpstreamAttackCorpus$' -count=1 -v
