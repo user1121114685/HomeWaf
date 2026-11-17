@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import net from 'node:net';
-import { createHash } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import { createGzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import { spawn } from 'node:child_process';
@@ -21,10 +21,25 @@ const exe = path.join(dir, nativeName);
 fs.copyFileSync(path.resolve(oldInput), exe);
 fs.mkdirSync(path.join(dir, 'conf'));
 const report = { requests: 0, failures: [], failureSamples: {}, versions: [], checks: [], directory: dir };
-const listen = (server) => new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', () => resolve(server.address().port)); });
+const listen = async (server) => {
+  // Windows may assign port 0 an IRC port that fetch rejects as unsafe.
+  // Keep disposable listeners above the HTTP client's restricted port range.
+  for (let attempt = 0; attempt < 32; attempt++) {
+    try {
+      return await new Promise((resolve, reject) => {
+        const failed = (error) => { server.off('listening', ready); reject(error); };
+        const ready = () => { server.off('error', failed); resolve(server.address().port); };
+        server.once('error', failed);
+        server.once('listening', ready);
+        server.listen(randomInt(20000, 60000), '127.0.0.1');
+      });
+    } catch (error) { if (error.code !== 'EADDRINUSE') throw error; }
+  }
+  throw new Error('Could not allocate a loopback test port');
+};
 const freePort = async () => { const s = net.createServer(); const p = await listen(s); await new Promise((r) => s.close(r)); return p; };
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const waitFor = async (fn, timeout = 60000) => { const end = Date.now() + timeout; let last; while (Date.now() < end) { try { const value = await fn(); if (value) return value; } catch (err) { last = err; } await delay(100); } throw new Error('Timed out waiting for smoke check: ' + (last?.message || 'condition not satisfied')); };
+const waitFor = async (fn, timeout = 60000) => { const end = Date.now() + timeout; let last; while (Date.now() < end) { try { const value = await fn(); if (value) return value; } catch (err) { last = err; } await delay(100); } throw new Error('Timed out waiting for smoke check: ' + (last?.message || 'condition not satisfied') + (last?.cause?.message ? ` (${last.cause.message})` : '')); };
 const hash = createHash('sha256');
 for await (const chunk of fs.createReadStream(path.resolve(newInput))) hash.update(chunk);
 const checksum = hash.digest('base64');
@@ -250,7 +265,22 @@ if (viaInstaller) {
   fs.chmodSync(exe, 0o755);
   fs.writeFileSync(path.join(dir, 'owner-note.txt'), 'preserve unrelated files');
   const purge = process.platform === 'win32' ? ['-PurgeData', '-Yes'] : ['--purge-data', '--yes'];
+  const outside = fs.mkdtempSync(path.join(root, '.cache', 'purge-boundary-'));
+  const sentinel = path.join(outside, 'keep.txt');
+  fs.writeFileSync(sentinel, 'must remain outside the application');
+  const link = path.join(dir, 'data', 'external-link');
+  fs.symlinkSync(outside, link, process.platform === 'win32' ? 'junction' : 'dir');
+  if (process.platform === 'win32') {
+    let refused = false;
+    try { await runProcess(installerCommand, installerArgs('uninstall', purge), 'ignore'); }
+    catch { refused = true; }
+    if (!refused || !fs.existsSync(sentinel) || !fs.existsSync(exe)) throw new Error('Linked-data purge was not rejected before removal');
+    fs.unlinkSync(link);
+  }
   await runProcess(installerCommand, installerArgs('uninstall', purge), 'inherit');
+  if (!fs.existsSync(sentinel)) throw new Error('Purge followed a link outside the application');
+  fs.unlinkSync(sentinel);
+  fs.rmdirSync(outside);
   for (const name of ['conf', 'data', '.homewaf-keys', 'logs', 'ssl']) if (fs.existsSync(path.join(dir, name))) throw new Error(`Explicit purge left ${name}`);
   if (!fs.existsSync(path.join(dir, 'owner-note.txt'))) throw new Error('Purge removed unrelated files');
   report.checks.push('Installer upgrade works without WebUI', 'Default uninstall retains configuration, data and keys', 'Explicit purge removes only named instance data directories');

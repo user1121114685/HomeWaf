@@ -44,6 +44,18 @@ function Test-CommandExit([string]$Executable, [string[]]$CommandArgs) {
         return $LASTEXITCODE -eq 0
     } finally { $ErrorActionPreference = $previousPreference }
 }
+function Assert-UnlinkedDataTree([string]$RootPath) {
+    $pending = New-Object 'System.Collections.Generic.Stack[string]'
+    $pending.Push($RootPath)
+    while ($pending.Count -gt 0) {
+        $currentPath = $pending.Pop()
+        $item = Get-Item -LiteralPath $currentPath -Force
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Refusing to purge linked data: $currentPath" }
+        if ($item.PSIsContainer) {
+            foreach ($entry in Get-ChildItem -LiteralPath $currentPath -Force) { $pending.Push($entry.FullName) }
+        }
+    }
+}
 if ($Action -eq 'uninstall') {
     if ($Docker) {
         $metadata = (& docker container inspect homewaf | ConvertFrom-Json)[0]
@@ -72,7 +84,7 @@ if ($Action -eq 'uninstall') {
             $target = [IO.Path]::GetFullPath((Join-Path $Directory $name))
             if (-not $target.StartsWith($Directory.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid data removal target.' }
             if (Test-Path -LiteralPath $target) {
-                if ((Get-Item -LiteralPath $target -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Refusing to purge linked data: $target" }
+                Assert-UnlinkedDataTree $target
                 $dataTargets += $target
             }
         }
@@ -93,7 +105,7 @@ if ($Action -eq 'uninstall') {
         if (Test-CommandExit $binary @('console-info','--wait','1s')) { throw 'Stop the foreground instance before uninstalling.' }
     }
     Remove-Item -LiteralPath $binary -Force
-    foreach ($target in $dataTargets) { Remove-Item -LiteralPath $target -Recurse -Force }
+    foreach ($target in $dataTargets) { Assert-UnlinkedDataTree $target; Remove-Item -LiteralPath $target -Recurse -Force }
     Write-Host "HomeWaf program removed. Configuration, data and keys remain in $Directory unless -PurgeData -Yes was specified."
     return
 }
