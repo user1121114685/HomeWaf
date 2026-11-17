@@ -3,13 +3,45 @@ package waf_service
 import (
 	"HomeWaf/model/response"
 	"errors"
+	"path"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/shirou/gopsutil/v4/disk"
 )
 
 const diskMonitorRefresh = 30 * time.Second
 
 var errDiskMonitorPending = errors.New("磁盘采样仍在进行中")
+
+// Partition enumeration includes read-only package images such as Snap. These
+// are not independent capacity to monitor. Do not exclude every read-only disk
+// or loop device: data volumes can legitimately use either, and root is useful
+// even on an image-backed or overlay-based system.
+func monitorDiskPartition(partition disk.PartitionStat) bool {
+	if partition.Mountpoint == "" {
+		return false
+	}
+	mount := path.Clean(partition.Mountpoint)
+	if mount == "/" {
+		return true
+	}
+	for _, prefix := range []string{"/snap", "/var/lib/snapd/snap"} {
+		if mount == prefix || strings.HasPrefix(mount, prefix+"/") {
+			return false
+		}
+	}
+	switch strings.ToLower(partition.Fstype) {
+	case "squashfs", "iso9660", "fuse.squashfuse", "fuse.squashfuse_ll", "fuse.snapfuse",
+		"proc", "procfs", "sysfs", "devfs", "devtmpfs", "tmpfs", "ramfs",
+		"cgroup", "cgroup2", "debugfs", "securityfs", "configfs", "tracefs",
+		"pstore", "hugetlbfs", "mqueue", "autofs", "binfmt_misc", "nsfs",
+		"fusectl", "rpc_pipefs", "bpf", "efivarfs":
+		return false
+	}
+	return true
+}
 
 // Windows volume enumeration can block on a disconnected mapped drive beyond
 // the HTTP timeout. Keep at most one collector running and serve the last disk

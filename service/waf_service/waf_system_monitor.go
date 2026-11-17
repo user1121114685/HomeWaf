@@ -127,17 +127,22 @@ func (receiver *WafSystemMonitorService) getDiskInfo() ([]response.WafDiskInfo, 
 }
 
 func (receiver *WafSystemMonitorService) collectDiskInfo() ([]response.WafDiskInfo, error) {
-	var diskInfos []response.WafDiskInfo
-
 	// 获取磁盘分区信息
 	partitions, err := disk.Partitions(false)
 	if err != nil {
-		return diskInfos, err
+		return nil, err
 	}
+	return receiver.diskInfoForPartitions(partitions, disk.Usage), nil
+}
 
+func (receiver *WafSystemMonitorService) diskInfoForPartitions(partitions []disk.PartitionStat, readUsage func(string) (*disk.UsageStat, error)) []response.WafDiskInfo {
+	diskInfos := make([]response.WafDiskInfo, 0, len(partitions))
 	for _, partition := range partitions {
+		if !monitorDiskPartition(partition) {
+			continue
+		}
 		// 获取磁盘使用情况
-		usage, err := disk.Usage(partition.Mountpoint)
+		usage, err := readUsage(partition.Mountpoint)
 		if err != nil {
 			continue // 跳过无法访问的分区
 		}
@@ -154,7 +159,7 @@ func (receiver *WafSystemMonitorService) collectDiskInfo() ([]response.WafDiskIn
 		diskInfos = append(diskInfos, diskInfo)
 	}
 
-	return diskInfos, nil
+	return diskInfos
 }
 
 // roundToTwoDecimal 将浮点数四舍五入到两位小数
