@@ -172,6 +172,8 @@ await context.route('**/api/**', async (route) => {
   if (endpoint === 'application/app/feature_status') return ok({ enabled: true });
   if (endpoint === 'application/app/list') return ok({ list: [app], total: 1 });
   if (endpoint === 'application/app/detail') return ok(app);
+  if (endpoint === 'application/app/verifypwd')
+    return req.headers()['x-app-op-password'] === 'isolated-operation-password' ? ok({}) : fail('操作密码错误');
   if (endpoint === 'application/app/directory_preview')
     return ok({
       resolved_dir: 'D:/isolated/' + input.app_dir,
@@ -323,6 +325,7 @@ async function capture(name, scope = page) {
   await page.setViewportSize({ width: 1440, height: 1050 });
 }
 try {
+  if (!process.argv.includes('--application-only')) {
   await goto('/oplatform/doc', 'api-reference');
   // Exercise the app's shared dialog adapter separately from page-specific forms.
   for (const kind of ['confirm', 'alert', 'long-text', 'form']) {
@@ -438,12 +441,25 @@ try {
     'Native punishment confirmation, cancellation, failed action retention, service isolation and stale-read action lock',
   );
 
+  }
   await page.goto(origin + '/?verification=' + Date.now() + '#/application/AppList');
   await expect(page.locator('.el-table__row').filter({ hasText: '测试应用' })).toBeVisible();
   const row = () => page.locator('.el-table__row').filter({ hasText: '测试应用' });
   await row().getByRole('button', { name: '编辑', exact: true }).click();
+  await expect(dialog().locator('input[type=password]')).toBeVisible();
+  await dialog().locator('input[type=password]').fill('wrong-operation-password');
+  await dialog().getByRole('button', { name: '确认', exact: true }).click();
+  await expect(dialog().locator('input[type=password]')).toBeVisible();
+  await dialog().getByRole('button', { name: '取消', exact: true }).click();
+  await row().getByRole('button', { name: '编辑', exact: true }).click();
+  await expect(dialog().locator('input[type=password]')).toHaveValue('');
+  await capture('application-operation-password');
+  await dialog().locator('input[type=password]').fill('isolated-operation-password');
+  await dialog().getByRole('button', { name: '确认', exact: true }).click();
   const form = page.getByTestId('application-form');
   await expect(form).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('app_op_password'))).toBeNull();
+  expect(await page.evaluate(() => sessionStorage.getItem('app_op_password_ts'))).toBeNull();
   expect(await form.locator('fieldset legend').allTextContents()).toEqual([
     '应用与启动位置',
     '启动与异常恢复',
@@ -493,6 +509,12 @@ try {
   report.checks.push(
     'Application edit preserves fields and failed draft; restore has read recovery, cancellation, stop-before-rollback and password header',
   );
+  await page.reload();
+  await row().getByRole('button', { name: '编辑', exact: true }).click();
+  await expect(dialog().locator('input[type=password]')).toBeVisible();
+  await dialog().getByRole('button', { name: '取消', exact: true }).click();
+  report.checks.push('Operation passwords require verification, survive only in memory, and are requested again after reload');
+  if (!process.argv.includes('--application-only')) {
   await page.goto(origin + '/?verification=' + Date.now() + '#/tunnel/Tunnel');
   const tunnelRow = page.locator('.el-table__row').filter({ hasText: '测试隧道' });
   await expect(tunnelRow).toBeVisible();
@@ -570,6 +592,7 @@ try {
   await expect(page.getByRole('combobox', { name: '旧站点配置任务', exact: true })).toBeVisible();
   await dialog().getByRole('button', { name: '关闭', exact: true }).click();
   report.checks.push('Legacy editor retains all twenty pane identities under four task groups and compact selection');
+  }
   expect(report.errors).toEqual([]);
   console.log(JSON.stringify(report, null, 2));
   fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2));

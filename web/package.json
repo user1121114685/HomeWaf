@@ -13,7 +13,7 @@
     "typecheck": "node scripts/typecheck.mjs",
     "test": "node --test scripts/verify-navigation.test.mjs scripts/verify-log-presentation.test.mjs scripts/verify-diagnostics.test.mjs scripts/verify-onboarding.test.mjs scripts/verify-pipeline.test.mjs && node scripts/verify-app-flow.mjs",
     "test:screen": "node --test scripts/verify-screen-data.test.mjs",
-    "audit:security": "node --test scripts/dependency-security.test.mjs && node scripts/audit-dependencies.mjs",
+    "audit:security": "node --test scripts/dependency-security.test.mjs scripts/verify-operation-password.test.mjs && node scripts/audit-dependencies.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "postinstall": "node scripts/patch-dependencies.mjs"
   },

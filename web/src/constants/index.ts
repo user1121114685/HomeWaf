@@ -1,4 +1,5 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+import { clearAppOpPassword } from '@/utils/appOperationPassword';
 
 // localStorage 保留字段配置
 export const LOCALSTORAGE_PRESERVE_KEYS = [
@@ -14,6 +15,7 @@ export const LOCALSTORAGE_PRESERVE_KEYS = [
 
 // localStorage 清理工具函数
 export const clearLocalStorageExceptPreserved = () => {
+  clearAppOpPassword();
   Object.keys(localStorage).forEach(key => {
     if (!LOCALSTORAGE_PRESERVE_KEYS.includes(key)) {
       localStorage.removeItem(key);

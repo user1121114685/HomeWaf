@@ -315,7 +315,7 @@ export default defineComponent({
     ensureOpPassword(action: () => void) {
       const existing = getAppOpPassword();
       if (existing) {
-        // sessionStorage 未过期，同步到 prop 并重置 5 分钟计时器
+        // 内存缓存未过期，同步到 prop 并重置 5 分钟计时器
         this.currentOpPassword = existing;
         this._resetOpPwdTimer();
         action();
@@ -338,6 +338,7 @@ export default defineComponent({
         .then(res => {
           if (res && res.code === 0) {
             this.currentOpPassword = pwd;
+            this.opPasswordInput = '';
             this._resetOpPwdTimer();
             if (this.opPasswordRemember) {
               saveAppOpPassword(pwd);
@@ -359,6 +360,7 @@ export default defineComponent({
         });
     },
     onOpPasswordCancel() {
+      this.opPasswordInput = '';
       this.opPasswordDialogVisible = false;
       this.pendingAction = null;
     },

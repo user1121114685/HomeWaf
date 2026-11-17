@@ -1,12 +1,15 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+import { clearAppOpPassword } from '@/utils/appOperationPassword';
 
 const state = { token: localStorage.getItem('access_token') || '', userInfo: { name: '', roles: [] as string[] } };
 const mutations = {
   setToken(state: any, token: string) {
+    if (state.token !== token) clearAppOpPassword();
     state.token = token;
     localStorage.setItem('access_token', token);
   },
   removeToken(state: any) {
+    clearAppOpPassword();
     state.token = '';
     localStorage.removeItem('access_token');
     localStorage.removeItem('tdesign-starter');

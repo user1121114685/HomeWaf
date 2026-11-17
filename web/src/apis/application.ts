@@ -1,34 +1,10 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 import request from '@/utils/request'
+import { getAppOpPassword } from '@/utils/appOperationPassword';
+export { getAppOpPassword, saveAppOpPassword, clearAppOpPassword } from '@/utils/appOperationPassword';
 
-// --- 操作密码 session 管理（5 分钟滑动窗口） ---
-const OP_PWD_KEY    = 'app_op_password'
-const OP_PWD_TS_KEY = 'app_op_password_ts'
-const OP_PWD_TTL    = 5 * 60 * 1000  // 5 minutes
-
-export function getAppOpPassword(): string {
-  const pwd = sessionStorage.getItem(OP_PWD_KEY)
-  if (!pwd) return ''
-  const ts = parseInt(sessionStorage.getItem(OP_PWD_TS_KEY) || '0', 10)
-  if (Date.now() - ts > OP_PWD_TTL) {
-    clearAppOpPassword()
-    return ''
-  }
-  // 滑动窗口：读取即刷新时间戳
-  sessionStorage.setItem(OP_PWD_TS_KEY, Date.now().toString())
-  return pwd
-}
-export function saveAppOpPassword(pwd: string) {
-  sessionStorage.setItem(OP_PWD_KEY, pwd)
-  sessionStorage.setItem(OP_PWD_TS_KEY, Date.now().toString())
-}
-export function clearAppOpPassword() {
-  sessionStorage.removeItem(OP_PWD_KEY)
-  sessionStorage.removeItem(OP_PWD_TS_KEY)
-}
-
-// 高危请求：自动附加 X-App-Op-Password（从 sessionStorage 取）
+// 高危请求：自动附加 X-App-Op-Password（仅从短期内存缓存取）
 function dangerousReq(config: any) {
   const pwd = getAppOpPassword()
   if (pwd) {
@@ -95,7 +71,7 @@ export function wafAppRestartApi(params: any) {
   return dangerousReq({ url: '/application/app/restart', method: 'get', params })
 }
 // 返回带 op password header 的 request 配置，供 AppUpgrade/AppForm 直接 request()
-// opPwd 优先使用显式传入值，fallback 到 sessionStorage；onUploadProgress 可选（上传进度回调）
+// opPwd 优先使用显式传入值，fallback 到短期内存缓存；onUploadProgress 可选（上传进度回调）
 export function buildUploadConfig(url: string, data: any, timeout: number, opPwd?: string, onUploadProgress?: (percent: number) => void): any {
   const pwd = opPwd || getAppOpPassword()
   const headers: any = pwd ? { 'X-App-Op-Password': pwd } : {}
