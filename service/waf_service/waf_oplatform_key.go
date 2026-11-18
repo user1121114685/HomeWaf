@@ -111,8 +111,7 @@ func (receiver *WafOPlatformKeyService) ModifyApi(req request.WafOPlatformKeyEdi
 	if err := global.GWAF_LOCAL_DB.Select("mcp_access", "ip_whitelist").Where("id = ?", req.Id).Take(&stored).Error; err != nil {
 		return err
 	}
-	// A legacy unrestricted MCP key can still be disabled before assigning its source.
-	needsSource := stored.MCPAccess != "" && (req.Status != 0 || stored.IPWhitelist != "")
+	needsSource := stored.MCPAccess != ""
 	if err := validateKeyRestrictions(req.KeyName, req.RateLimit, req.IPWhitelist, req.ExpireTime, needsSource); err != nil {
 		return err
 	}

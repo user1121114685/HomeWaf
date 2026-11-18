@@ -276,7 +276,7 @@ func TestLocalOnlyKeyOrdinaryCompatibility(t *testing.T) {
 }
 
 func TestMCPKeyRequiresSourceRestriction(t *testing.T) {
-	newLocalAPIKeyTestDB(t)
+	db := newLocalAPIKeyTestDB(t)
 	svc := WafOPlatformKeyServiceApp
 	if _, _, err := svc.AddApi(request.WafOPlatformKeyAddReq{KeyName: "mcp-without-source", MCPAccess: "read"}); err == nil {
 		t.Fatal("MCP keys must reject an empty source restriction")
@@ -286,6 +286,12 @@ func TestMCPKeyRequiresSourceRestriction(t *testing.T) {
 	})
 	if err != nil || id == "" {
 		t.Fatalf("MCP key with a CIDR source should be accepted: %v", err)
+	}
+	if err := db.Model(&model.OPlatformKey{}).Where("id = ?", id).Update("ip_whitelist", "").Error; err != nil {
+		t.Fatalf("seed an unrestricted MCP row: %v", err)
+	}
+	if err := svc.ModifyApi(request.WafOPlatformKeyEditReq{Id: id, KeyName: "mcp-with-source", Status: 0}); err == nil {
+		t.Fatal("MCP edits must reject an empty source restriction")
 	}
 }
 
