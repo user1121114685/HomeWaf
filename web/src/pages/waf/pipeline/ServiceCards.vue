@@ -34,7 +34,9 @@
         </div>
         <p v-if="row.listener?.error" class="service-problem" role="alert">{{ row.listener.error }}</p>
         <p v-else-if="row.config.defense_state" class="service-problem">{{ defenseNames[row.config.defense_state.mode] }} · {{ new Date(row.config.defense_state.expires_at * 1000).toLocaleString('zh-CN') }} 恢复。<ElButton link @click="emit('honeypot', row.config)">查看与恢复</ElButton></p>
-        <p v-else-if="row.locked" class="service-problem">服务已临时锁定，请查看访问记录并处理。</p>
+        <p v-else-if="row.locked" class="service-problem">
+          服务已临时锁定。<ElButton link @click="emit('punishments', row)">查看当前处罚</ElButton>
+        </p>
         <p v-if="row.defense?.error" class="service-problem" role="alert">{{ row.defense.error }}</p>
         <p v-else-if="!row.config.listen_enabled" class="service-next">
           {{
@@ -50,15 +52,15 @@
         }}</span>
         <div class="service-card-actions">
           <ElButton @click="emit('edit', row.config)">配置服务</ElButton>
-          <ElButton @click="emit('inspect', row)">运行诊断</ElButton>
+          <ElButton @click="emit('punishments', row)">当前处罚</ElButton>
           <ElButton @click="emit('honeypot', row.config)">异常访问处置</ElButton>
           <ElButton v-if="!row.config.listen_enabled" type="primary" @click="emit('enable', row)">启用服务</ElButton>
-          <ElButton v-else type="primary" plain @click="emit('logs', row)">访问记录</ElButton>
           <ElDropdown trigger="click" @command="(command) => action(command, row)">
             <ElButton aria-label="更多服务操作"><MoreFilled class="more-icon" aria-hidden="true" /></ElButton>
             <template #dropdown
               ><ElDropdownMenu>
                 <ElDropdownItem command="logs">查看访问记录</ElDropdownItem>
+                <ElDropdownItem command="inspect">运行诊断</ElDropdownItem>
                 <ElDropdownItem command="copy">复制服务配置</ElDropdownItem>
                 <ElDropdownItem command="template">存为策略模板</ElDropdownItem>
                 <ElDropdownItem v-if="row.config.listen_enabled" command="stop" divided>停止服务</ElDropdownItem>
@@ -78,7 +80,18 @@ import type { PropType } from 'vue';
 import { serviceStatus } from './onboarding';
 import { accessSourceSummary } from './accessPolicy';
 defineProps({ rows: { type: Array as PropType<any[]>, required: true } });
-const emit = defineEmits(['edit', 'honeypot', 'enable', 'logs', 'inspect', 'copy', 'template', 'stop', 'remove']);
+const emit = defineEmits([
+  'edit',
+  'honeypot',
+  'enable',
+  'punishments',
+  'logs',
+  'inspect',
+  'copy',
+  'template',
+  'stop',
+  'remove',
+]);
 const defenseNames: Record<string, string> = { quiet: '无提示拒绝已生效', restrict: '仅历史成功网段可访问', close: '访问已自动关闭' };
 function action(command: string, row: any) {
   emit(command as any, ['copy', 'template'].includes(command) ? row.config : row);

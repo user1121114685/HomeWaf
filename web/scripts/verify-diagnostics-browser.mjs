@@ -218,10 +218,20 @@ await context.route('**/*', async (route) => {
 const page = await context.newPage();
 page.on('pageerror', (error) => report.errors.push(error.message));
 const diagnostics = page.getByTestId('service-diagnostics');
+const punishmentPage = page.getByTestId('service-punishments-page');
+const punishments = page.getByTestId('service-punishments');
 async function goto(port = 5000, tab = 'events') {
   await page.goto('about:blank');
   await page.goto(`${origin}/#/waf-pipeline/ports/${port}/diagnostics?tab=${tab}`);
   await expect(page.getByTestId('service-diagnostics')).toBeVisible();
+}
+async function gotoPunishments(port = 5000, returnTo = '/waf-pipeline/ports') {
+  await page.goto('about:blank');
+  await page.goto(
+    `${origin}/#/waf-pipeline/ports/${port}/punishments?returnTo=${encodeURIComponent(returnTo)}`,
+  );
+  await expect(punishmentPage).toBeVisible();
+  await expect(punishments).toBeVisible();
 }
 async function confirm(action) {
   const box = page.locator('.el-message-box');
@@ -243,20 +253,52 @@ try {
     await expect(page.locator('.workspace-nav').getByRole('link', { name: '工作台', exact: true })).toHaveCount(0);
     await expect(page.locator('.console-brand')).toHaveAttribute('href', '#/dashboard/base');
   });
-  await check('service list exposes diagnostics and preserves search plus table context', async () => {
+  await check('service list exposes current punishments and keeps logs and diagnostics in the more menu', async () => {
     await page.goto(origin + '/#/waf-pipeline/ports');
-    await expect(page.getByRole('button', { name: '运行诊断', exact: true })).toHaveCount(2);
+    await expect(page.getByRole('button', { name: '当前处罚', exact: true })).toHaveCount(2);
+    await expect(page.getByRole('button', { name: '运行诊断', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '访问记录', exact: true })).toHaveCount(0);
     await page.getByRole('textbox', { name: '搜索服务', exact: true }).fill('家庭');
-    await page.getByRole('button', { name: '表格与批量管理', exact: true }).click();
-    await page.getByRole('button', { name: '运行诊断', exact: true }).click();
+    const familyCard = page.locator('.service-card').filter({ hasText: '家庭相册' });
+    await familyCard.getByRole('button', { name: '更多服务操作' }).click();
+    await expect(page.getByRole('menuitem', { name: '查看访问记录', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: '运行诊断', exact: true })).toBeVisible();
+    await page.getByRole('menuitem', { name: '运行诊断', exact: true }).click();
     await expect(page).toHaveURL(/ports\/5000\/diagnostics/);
     await expect(page.getByRole('heading', { name: '家庭相册', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '返回我的服务', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: '搜索服务', exact: true })).toHaveValue('家庭');
+    await familyCard.getByRole('button', { name: '当前处罚', exact: true }).click();
+    await expect(page).toHaveURL(/ports\/5000\/punishments/);
+    await expect(punishmentPage.getByRole('heading', { name: '家庭相册 · 当前处罚', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '返回我的服务', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: '搜索服务', exact: true })).toHaveValue('家庭');
+    await page.getByRole('button', { name: '表格与批量管理', exact: true }).click();
+    const familyRow = page.getByTestId('ports-table').locator('.el-table__body-wrapper tbody tr').filter({ hasText: '5000' });
+    await expect(familyRow.getByRole('button', { name: '当前处罚', exact: true })).toBeVisible();
+    await expect(familyRow.getByRole('button', { name: '运行诊断', exact: true })).toHaveCount(0);
+    await expect(familyRow.getByRole('button', { name: '访问记录', exact: true })).toHaveCount(0);
+    await familyRow.getByRole('button', { name: '更多服务操作' }).click();
+    await expect(page.getByRole('menuitem', { name: '查看访问记录', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: '运行诊断', exact: true })).toBeVisible();
+    await page.getByRole('menuitem', { name: '查看访问记录', exact: true }).click();
+    await expect(page).toHaveURL(/host_code=pipeline-5000/);
+    await goto();
+    await page.goto(origin + '/#/waf-pipeline/ports?search=%E5%AE%B6%E5%BA%AD&view=table');
+    await page
+      .getByTestId('ports-table')
+      .locator('.el-table__body-wrapper tbody tr')
+      .filter({ hasText: '5000' })
+      .getByRole('button', { name: '更多服务操作' })
+      .click();
+    await page.getByRole('menuitem', { name: '运行诊断', exact: true }).click();
+    await expect(page).toHaveURL(/ports\/5000\/diagnostics/);
+    await page.getByRole('button', { name: '返回我的服务', exact: true }).click();
     await expect(page.getByTestId('ports-table')).toBeVisible();
     await expect(page.getByRole('textbox', { name: '搜索服务', exact: true })).toHaveValue('家庭');
-    await page.getByRole('button', { name: '运行诊断', exact: true }).click();
   });
   await check('event filters, readable trace and malformed detail recovery', async () => {
+    await goto();
     await expect(diagnostics.getByText('1,250', { exact: false }).first()).toBeVisible();
     await diagnostics.getByRole('textbox', { name: '查找来源或原因' }).fill('198.51.100.8');
     await expect(diagnostics.locator('.events-table .el-table__row')).toHaveCount(1);
@@ -290,9 +332,9 @@ try {
     await diagnostics.getByRole('button', { name: '刷新事件', exact: true }).click();
     await expect(diagnostics.getByRole('alert').filter({ hasText: '事件读取失败' })).toHaveCount(0);
   });
-  await check('punishment cancel, failure retry and exact scoped writes', async () => {
-    await page.getByRole('tab', { name: /当前处罚/ }).click();
-    const shared = diagnostics.getByRole('row').filter({ hasText: '198.51.100.8/32' });
+  await check('current punishments use a dedicated service page with exact scoped writes', async () => {
+    await gotoPunishments(5000, '/waf-pipeline/ports?search=家庭&view=table');
+    const shared = punishments.getByRole('row').filter({ hasText: '198.51.100.8/32' });
     await shared.getByRole('button', { name: '释放', exact: true }).click();
     await expect(page.locator('.el-message-box')).toContainText('修改或释放会同时影响其他服务');
     await confirm('取消');
@@ -300,10 +342,10 @@ try {
     failWrite = true;
     await shared.getByRole('button', { name: '释放', exact: true }).click();
     await confirm('确认操作');
-    await expect(diagnostics.getByRole('alert').filter({ hasText: '测试写入失败' })).toBeVisible();
+    await expect(punishments.getByRole('alert').filter({ hasText: '测试写入失败' })).toBeVisible();
     await expect(shared).toBeVisible();
     failWrite = false;
-    await diagnostics.getByRole('button', { name: '刷新处罚记录' }).click();
+    await punishments.getByRole('button', { name: '刷新处罚记录' }).click();
     await shared.getByRole('button', { name: '转为永久' }).click();
     await confirm('确认操作');
     await expect(shared).toContainText('永久');
@@ -316,15 +358,19 @@ try {
       { port: 5000, id: 'shared-ban', action: 'permanent' },
       { port: 5000, id: 'shared-ban', action: 'whitelist' },
     ]);
-    const local = diagnostics.getByRole('row').filter({ hasText: '192.0.2.44/32' });
+    const local = punishments.getByRole('row').filter({ hasText: '192.0.2.44/32' });
     await local.getByRole('button', { name: '释放', exact: true }).click();
     await confirm('确认操作');
     await expect(
-      diagnostics.locator('.punishment-table').getByText('当前服务没有处罚记录', { exact: true }),
+      punishments.locator('.punishment-table').getByText('当前服务没有处罚记录', { exact: true }),
     ).toBeVisible();
+    await page.goto(`${origin}/#/waf-pipeline/ports/5000/diagnostics?tab=state`);
+    await expect(punishmentPage).toBeVisible();
+    await expect(page).toHaveURL(/ports\/5000\/punishments/);
   });
   await check('service metrics and shared resources are separated, missing values stay unknown', async () => {
-    await page.getByRole('tab', { name: '运行指标', exact: true }).click();
+    await goto(5000, 'metrics');
+    await expect(diagnostics.getByRole('tab', { name: '运行指标', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(diagnostics.locator('[data-scope="service"]')).toHaveCount(2);
     await expect(diagnostics.locator('[data-scope="instance"]')).toContainText('多个服务共享');
     await expect(diagnostics.getByText('未提供', { exact: true }).first()).toBeVisible();
@@ -342,10 +388,10 @@ try {
         expires_at: Math.floor(Date.now() / 1000) + 10800,
       };
       state = [lock];
-      await page.getByRole('tab', { name: /当前处罚/ }).click();
-      await diagnostics.getByRole('button', { name: '刷新处罚记录' }).click();
+      await gotoPunishments();
+      await punishments.getByRole('button', { name: '刷新处罚记录' }).click();
       const writesBefore = report.writes.length;
-      const row = diagnostics.getByRole('row').filter({ hasText: '群晖登录锁定' });
+      const row = punishments.getByRole('row').filter({ hasText: '群晖登录锁定' });
       await expect(row).toContainText('所有 DSM 用户');
       await expect(row).toContainText('DSM 认证失败累计 10 次');
       await row.getByRole('button', { name: '解除锁定' }).click();
@@ -353,7 +399,7 @@ try {
       await confirm('取消');
       expect(report.writes.length).toBe(writesBefore);
       await page.setViewportSize({ width: 390, height: 844 });
-      const card = diagnostics.locator('.punishment-cards article').filter({ hasText: '所有 DSM 用户' });
+      const card = punishments.locator('.punishment-cards article').filter({ hasText: '所有 DSM 用户' });
       await expect(card).toContainText('到期时间');
       await card.getByRole('button', { name: '解除锁定' }).click();
       await confirm('确认操作');
@@ -374,17 +420,15 @@ try {
         expires_at: Math.floor(Date.now() / 1000) + 3600,
       },
     ];
-    await page.getByRole('tab', { name: /当前处罚/ }).click();
-    await diagnostics.getByRole('button', { name: '刷新处罚记录' }).click();
-    await expect(diagnostics.getByRole('row').filter({ hasText: '203.0.113.50/32' })).toBeVisible();
     for (const mode of ['light', 'dark']) {
-      await page.evaluate(
-        (mode) => window.vm.$store.dispatch('setting/changeTheme', { ...window.vm.$store.state.setting, mode }),
-        mode,
-      );
       for (const width of [1440, 768, 390]) {
         await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
-        for (const tab of ['请求与事件', '当前处罚', '运行指标']) {
+        await goto(5000);
+        await page.evaluate(
+          (mode) => window.vm.$store.dispatch('setting/changeTheme', { ...window.vm.$store.state.setting, mode }),
+          mode,
+        );
+        for (const tab of ['请求与事件', '运行指标']) {
           await page.getByRole('tab', { name: new RegExp('^' + tab) }).click();
           await expect
             .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
@@ -394,13 +438,6 @@ try {
             if ((await diagnostics.locator('.event-cards details').first().getAttribute('open')) === null)
               await diagnostics.locator('.event-cards summary').first().click();
             await expect(diagnostics.locator('.event-cards .mobile-trace').first()).toBeVisible();
-          }
-          if (width === 390 && tab === '当前处罚') {
-            const mobile = diagnostics.locator('.punishment-cards');
-            await expect(mobile.getByRole('button', { name: '释放', exact: true })).toBeVisible();
-            await mobile.getByRole('button', { name: '释放', exact: true }).click();
-            await expect(page.locator('.el-message-box')).toContainText('共享记录');
-            await confirm('取消');
           }
           await expect(page.locator('.el-message')).toHaveCount(0, { timeout: 10000 });
           await page.locator('#diagnostic-service-name').focus();
@@ -412,11 +449,36 @@ try {
           });
           report.layouts.push({ mode, width, tab });
         }
+        await gotoPunishments();
+        await page.evaluate(
+          (mode) => window.vm.$store.dispatch('setting/changeTheme', { ...window.vm.$store.state.setting, mode }),
+          mode,
+        );
+        await punishments.getByRole('button', { name: '刷新处罚记录' }).click();
+        if (width > 1000)
+          await expect(punishments.getByRole('row').filter({ hasText: '203.0.113.50/32' })).toBeVisible();
+        else await expect(punishments.locator('.punishment-cards article').filter({ hasText: '203.0.113.50/32' })).toBeVisible();
+        if (width === 390) {
+          const mobile = punishments.locator('.punishment-cards');
+          await expect(mobile.getByRole('button', { name: '释放', exact: true })).toBeVisible();
+          await mobile.getByRole('button', { name: '释放', exact: true }).click();
+          await expect(page.locator('.el-message-box')).toContainText('共享记录');
+          await confirm('取消');
+        }
+        await expect(page.locator('.el-message')).toHaveCount(0, { timeout: 10000 });
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({
+          path: path.join(output, `${mode}-${width}-当前处罚.png`),
+          fullPage: true,
+          animations: 'disabled',
+        });
+        report.layouts.push({ mode, width, tab: '当前处罚' });
       }
     }
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await check('configuration detour returns to the same service and tab after save', async () => {
+    await goto(5000, 'metrics');
     await page.getByRole('button', { name: '配置服务', exact: true }).click();
     const editor = page.getByTestId('port-editor');
     await expect(editor).toBeVisible();

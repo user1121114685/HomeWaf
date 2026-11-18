@@ -99,11 +99,13 @@ export function diagnosticTime(value?: number): string {
 }
 
 // Only in-console service destinations may be carried through an editing detour.
-export function serviceReturnPath(value: unknown, diagnostics = false): string {
+export function serviceReturnPath(value: unknown, allowServicePages = false): string {
   if (typeof value !== 'string' || value.includes('#') || value.includes('\\')) return '/waf-pipeline/ports';
   const path = value.split('?')[0];
-  if (path === '/waf-pipeline/ports' || (diagnostics && /^\/waf-pipeline\/ports\/\d+\/diagnostics$/.test(path)))
-    return value;
+  if (
+    path === '/waf-pipeline/ports' ||
+    (allowServicePages && /^\/waf-pipeline\/ports\/\d+\/(?:diagnostics|punishments)$/.test(path))
+  ) return value;
   return '/waf-pipeline/ports';
 }
 

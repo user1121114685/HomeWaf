@@ -82,6 +82,7 @@
         @edit="edit"
         @honeypot="editHoneypot"
         @enable="openEnable"
+        @punishments="openPunishments"
         @inspect="inspect"
         @logs="openAccessLogs"
         @copy="copy"
@@ -152,11 +153,17 @@
           <ElTableColumn label="操作" min-width="300" :fixed="isMobile ? false : 'right'"
             ><template #default="{ row }"
               ><ElButton link type="primary" @click="edit(row.config)">配置</ElButton
+              ><ElButton link @click="openPunishments(row)">当前处罚</ElButton
               ><ElButton link @click="editHoneypot(row.config)">异常访问处置</ElButton
-              ><ElButton link @click="openAccessLogs(row)">访问记录</ElButton
-              ><ElButton link @click="inspect(row)">运行诊断</ElButton
-              ><ElButton link @click="copy(row.config)">复制</ElButton
-              ><ElButton link @click="saveAsTemplate(row.config)">存为模板</ElButton
+              ><ElDropdown trigger="click" @command="(command) => tableAction(command, row)"
+                ><ElButton link aria-label="更多服务操作"><MoreFilled class="more-icon" aria-hidden="true" /></ElButton
+                ><template #dropdown
+                  ><ElDropdownMenu
+                    ><ElDropdownItem command="logs">查看访问记录</ElDropdownItem
+                    ><ElDropdownItem command="inspect">运行诊断</ElDropdownItem
+                    ><ElDropdownItem command="copy">复制服务配置</ElDropdownItem
+                    ><ElDropdownItem command="template">存为策略模板</ElDropdownItem></ElDropdownMenu
+                ></template></ElDropdown
               ><ElButton v-if="!row.config.listen_enabled" link type="success" @click="openEnable(row)">启用</ElButton
               ><ElButton v-else link type="warning" @click="stop(row)">停止</ElButton
               ><ElButton link type="danger" :disabled="row.config.listen_enabled" @click="remove(row)"
@@ -452,6 +459,9 @@ import {
   ElCheckbox,
   ElCheckboxGroup,
   ElDialog,
+  ElDropdown,
+  ElDropdownItem,
+  ElDropdownMenu,
   ElInput,
   ElInputNumber,
   ElMessage,
@@ -482,7 +492,7 @@ import Trace from './Trace.vue';
 import { serviceReturnPath } from './diagnostics';
 import LegacyMigration from './LegacyMigration.vue';
 import ServiceCards from './ServiceCards.vue';
-import { ArrowRight, Connection, Search } from '@element-plus/icons-vue';
+import { ArrowRight, Connection, MoreFilled, Search } from '@element-plus/icons-vue';
 import type { LegacyPortSummary } from './model';
 const legacyPorts = ref<LegacyPortSummary[]>([]),
   legacyError = ref('');
@@ -491,6 +501,22 @@ const route = useRoute(),
 const page = ref(route.name === 'WafPipelineTemplates' ? 'templates' : 'ports');
 function openAccessLogs(row: any) {
   router.push({ name: 'WafvisitLog', query: { host_code: row.config.host_code || 'pipeline-' + row.config.port } });
+}
+function serviceListReturnPath() {
+  return router.resolve({
+    name: 'WafPipeline',
+    query: {
+      ...(search.value ? { search: search.value } : {}),
+      ...(tableView.value ? { view: 'table' } : {}),
+    },
+  }).fullPath;
+}
+function openPunishments(row: any, replace = false) {
+  return router[replace ? 'replace' : 'push']({
+    name: 'WafPipelinePunishments',
+    params: { port: row.config.port },
+    query: { returnTo: serviceListReturnPath() },
+  });
 }
 const overview = reactive<any>({ ports: [], issues: {}, punishment: {}, log_queue: {} }),
   templates = ref<PolicyTemplate[]>([]),
@@ -721,19 +747,19 @@ async function confirmCopy() {
   });
 }
 async function inspect(row: any, replace = false) {
-  const returnTo = router.resolve({
-    name: 'WafPipeline',
-    query: {
-      ...(search.value ? { search: search.value } : {}),
-      ...(tableView.value ? { view: 'table' } : {}),
-    },
-  }).fullPath;
+  const returnTo = serviceListReturnPath();
   if (!replace && route.fullPath !== returnTo) await router.replace(returnTo);
   return router[replace ? 'replace' : 'push']({
     name: 'WafPipelineDiagnostics',
     params: { port: row.config.port },
     query: { returnTo },
   });
+}
+function tableAction(command: string, row: any) {
+  if (command === 'logs') return openAccessLogs(row);
+  if (command === 'inspect') return inspect(row);
+  if (command === 'copy') return copy(row.config);
+  if (command === 'template') return saveAsTemplate(row.config);
 }
 function download(value: unknown, name: string) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));

@@ -31,6 +31,10 @@ test('diagnostic editing detours only return to supported local service destinat
     serviceReturnPath('/waf-pipeline/ports/5000/diagnostics?tab=state', true),
     '/waf-pipeline/ports/5000/diagnostics?tab=state',
   );
+  assert.equal(
+    serviceReturnPath('/waf-pipeline/ports/5000/punishments?from=diagnostics', true),
+    '/waf-pipeline/ports/5000/punishments?from=diagnostics',
+  );
 });
 test('event filtering distinguishes state changes, observation and blocked requests', () => {
   const rows = [

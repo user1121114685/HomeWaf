@@ -48,6 +48,12 @@ export default [
         meta: { title: '运行诊断', hidden: true, keepAlive: false, roleCode: 'WafHost' },
       },
       {
+        path: 'ports/:port(\\d+)/punishments',
+        name: 'WafPipelinePunishments',
+        component: () => import('@/pages/waf/pipeline/ServicePunishmentsPage.vue'),
+        meta: { title: '当前处罚', hidden: true, keepAlive: false, roleCode: 'WafHost' },
+      },
+      {
         path: 'legacy-sources',
         name: 'LegacyWafHosts',
         component: () => import('@/pages/waf/host/index.vue'),

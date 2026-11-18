@@ -1,10 +1,10 @@
 <template>
   <div class="service-diagnostics" data-testid="service-diagnostics">
     <PageActions>
-      <ElButton :disabled="busy" @click="goBack"
+      <ElButton @click="goBack"
         ><ArrowLeft class="action-icon" aria-hidden="true" />返回我的服务</ElButton
       >
-      <ElButton :loading="refreshing" :disabled="busy || !validPort" @click="refreshAll"
+      <ElButton :loading="refreshing" :disabled="!validPort" @click="refreshAll"
         ><Refresh class="action-icon" aria-hidden="true" />刷新诊断</ElButton
       >
     </PageActions>
@@ -44,8 +44,8 @@
           </div>
         </div>
         <div class="service-actions">
-          <ElButton :disabled="busy" @click="openLogs">查看访问记录</ElButton>
-          <ElButton :disabled="busy || !!errors.overview" @click="configure">配置服务</ElButton>
+          <ElButton @click="openLogs">查看访问记录</ElButton>
+          <ElButton :disabled="!!errors.overview" @click="configure">配置服务</ElButton>
         </div>
         <dl class="service-facts">
           <div>
@@ -105,7 +105,7 @@
           type="warning"
           :closable="false"
           show-icon
-        />
+        ><template #default><ElButton link @click="openPunishments">查看当前处罚</ElButton></template></ElAlert>
         <div v-if="service.config.defense_state || service.defense?.error" class="defense-notice" role="status">
           <div>
             <strong>{{ service.defense?.error || defenseLabel }}</strong>
@@ -113,7 +113,7 @@
               恢复时间：{{ diagnosticTime(service.config.defense_state.expires_at * 1000) }}。该状态由异常访问处置管理。
             </p>
           </div>
-          <ElButton :disabled="busy || !!errors.overview" @click="configure('defense')">查看与恢复</ElButton>
+          <ElButton :disabled="!!errors.overview" @click="configure('defense')">查看与恢复</ElButton>
         </div>
       </div>
       <ElAlert
@@ -137,7 +137,7 @@
           updated.stats ? `指标更新于 ${diagnosticTime(updated.stats)}` : '指标尚未读取成功'
         }}。本页手动刷新。
       </p>
-      <ElTabs v-model="activeTab" class="diagnostic-tabs" :before-leave="allowTabChange">
+      <ElTabs v-model="activeTab" class="diagnostic-tabs">
         <ElTabPane label="请求与事件" name="events">
           <section aria-label="请求与状态事件" class="diagnostic-panel">
             <div class="section-heading">
@@ -262,25 +262,6 @@
             </div>
           </section>
         </ElTabPane>
-        <ElTabPane :label="punishmentCount === null ? '当前处罚' : `当前处罚 · ${punishmentCount}`" name="state">
-          <section class="diagnostic-panel" aria-label="当前处罚管理">
-            <div class="section-heading">
-              <div>
-                <h2>当前生效的处罚</h2>
-                <p>核对来源、触发原因和影响范围后再操作。释放立即生效，再次触发规则仍可能重新处罚。</p>
-              </div>
-            </div>
-            <ServicePunishments
-              :key="port"
-              ref="punishments"
-              :port="port"
-              :disabled="!!errors.overview"
-              @changed="punishmentChanged"
-              @busy-change="busy = $event"
-              @loaded="punishmentCount = $event"
-            />
-          </section>
-        </ElTabPane>
         <ElTabPane label="运行指标" name="metrics">
           <section class="diagnostic-panel" aria-label="运行指标">
             <div class="section-heading">
@@ -324,12 +305,11 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
-import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import {
   ElAlert,
   ElButton,
   ElInput,
-  ElMessage,
   ElOption,
   ElPagination,
   ElSelect,
@@ -342,7 +322,6 @@ import {
 import { ArrowLeft, Connection, Refresh } from '@element-plus/icons-vue';
 import { pipelineGet } from '@/apis/pipeline';
 import PageActions from '@/ui/PageActions.vue';
-import ServicePunishments from './ServicePunishments.vue';
 import DiagnosticEventDetail from './DiagnosticEventDetail.vue';
 import {
   diagnosticAction,
@@ -368,10 +347,7 @@ const loading = reactive({ overview: false, stats: false, logs: false });
 const errors = reactive({ overview: '', stats: '', logs: '' });
 const updated = reactive({ overview: 0, stats: 0, logs: 0 });
 const generations = { overview: 0, stats: 0, logs: 0 };
-const busy = ref(false),
-  punishments = ref<InstanceType<typeof ServicePunishments>>(),
-  punishmentCount = ref<number | null>(null),
-  serviceHeading = ref<HTMLElement>();
+const serviceHeading = ref<HTMLElement>();
 const refreshing = computed(() => Object.values(loading).some(Boolean));
 const eventQuery = ref(''),
   eventKind = ref(''),
@@ -380,10 +356,8 @@ const eventQuery = ref(''),
 const eventsTable = ref<any>(),
   expandedEvents = ref<string[]>([]);
 const activeTab = computed({
-  get: () => (['state', 'metrics'].includes(String(route.query.tab)) ? String(route.query.tab) : 'events'),
-  set: (tab: string) => {
-    if (!busy.value) void router.replace({ query: { ...route.query, tab } });
-  },
+  get: () => (route.query.tab === 'metrics' ? 'metrics' : 'events'),
+  set: (tab: string) => void router.replace({ query: { ...route.query, tab } }),
 });
 const dailyMetrics = [
   { key: 'today_requests', label: '今日请求' },
@@ -478,14 +452,11 @@ function loadLogs() {
   });
 }
 async function refreshAll() {
-  if (busy.value || refreshing.value || !validPort.value) return;
-  await Promise.allSettled([loadOverview(), loadStats(), loadLogs(), punishments.value?.refresh()]);
-}
-function punishmentChanged() {
-  void Promise.allSettled([loadOverview(), loadStats(), loadLogs()]);
+  if (refreshing.value || !validPort.value) return;
+  await Promise.allSettled([loadOverview(), loadStats(), loadLogs()]);
 }
 function goBack() {
-  if (!busy.value) void router.push(serviceReturnPath(route.query.returnTo));
+  void router.push(serviceReturnPath(route.query.returnTo));
 }
 async function rememberContext() {
   const path = router.resolve({
@@ -502,6 +473,14 @@ async function openLogs() {
     query: { host_code: service.value.config.host_code || `pipeline-${port.value}` },
   });
 }
+async function openPunishments() {
+  const returnTo = await rememberContext();
+  void router.push({
+    name: 'WafPipelinePunishments',
+    params: { port: port.value },
+    query: { returnTo },
+  });
+}
 async function configure(tab?: string) {
   const returnTo = await rememberContext();
   void router.push({
@@ -509,22 +488,22 @@ async function configure(tab?: string) {
     query: { edit: port.value, ...(tab === 'defense' ? { tab } : {}), returnTo },
   });
 }
-function allowTabChange() {
-  return !busy.value;
-}
-function allowNavigation() {
-  if (!busy.value) return true;
-  ElMessage.warning('处罚操作尚未完成，请先完成或取消确认。');
-  return false;
-}
-onBeforeRouteLeave(allowNavigation);
-onBeforeRouteUpdate((to, from) => to.params.port === from.params.port || allowNavigation());
 watch([eventQuery, eventKind], () => {
   eventPage.value = 1;
 });
 watch(
+  () => route.query.tab,
+  (tab) => {
+    if (tab !== 'state' && tab !== 'punishments') return;
+    const query = typeof route.query.returnTo === 'string' ? { returnTo: route.query.returnTo } : {};
+    void router.replace({ name: 'WafPipelinePunishments', params: { port: port.value }, query });
+  },
+  { immediate: true },
+);
+watch(
   port,
   async () => {
+    if (['state', 'punishments'].includes(String(route.query.tab))) return;
     for (const key of ['overview', 'stats', 'logs'] as const) {
       generations[key]++;
       loading[key] = false;
@@ -535,7 +514,6 @@ watch(
     stats.value = null;
     logs.value = null;
     issue.value = '';
-    punishmentCount.value = null;
     eventQuery.value = typeof route.query.q === 'string' ? route.query.q : '';
     eventKind.value = ['request', 'state'].includes(String(route.query.kind)) ? String(route.query.kind) : '';
     expandedEvents.value = [];
