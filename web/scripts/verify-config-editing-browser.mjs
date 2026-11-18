@@ -308,7 +308,8 @@ try {
   await openCommon();
   await editor().getByRole('tab', { name: '检测规则' }).click();
   const ssrfMode = page.getByRole('combobox', { name: 'SSRF URL 检测模式' });
-  const missingOrigin = page.getByRole('combobox', { name: '缺少 Origin / Referer' });
+  const csrfMode = page.getByRole('combobox', { name: 'CSRF 同源校验模式', exact: true });
+  const csrfRow = editor().getByRole('row').filter({ has: csrfMode });
   const dsm = editor()
     .getByRole('row')
     .filter({ has: page.getByRole('combobox', { name: '群晖 DSM 登录保护模式', exact: true }) });
@@ -317,9 +318,16 @@ try {
   await expect(page.getByRole('spinbutton', { name: '暂停新登录时长（秒）' })).toHaveValue('10800');
   await page.getByRole('button', { name: '返回配置', exact: true }).click();
   await expect(editor().locator('.el-select').filter({ has: ssrfMode })).toContainText('允许（关闭检测）');
-  await expect(editor().locator('.el-select').filter({ has: missingOrigin })).toContainText('允许');
+  await expect(csrfRow.locator('.rule-controls .el-select')).toHaveCount(1);
+  await expect(csrfRow.getByRole('combobox', { name: '缺少 Origin / Referer' })).toHaveCount(0);
+  await csrfRow.getByRole('button', { name: '配置范围' }).click();
+  const csrfScope = page.getByRole('dialog').last();
+  await expect(csrfScope.getByRole('combobox', { name: '缺少 Origin / Referer' })).toBeVisible();
+  await expect(csrfScope.locator('.el-select')).toContainText('允许');
+  const missingOrigin = csrfScope.getByRole('combobox', { name: '缺少 Origin / Referer' });
   await missingOrigin.press('ArrowDown');
   await page.getByRole('option', { name: '仅观察', exact: true }).click();
+  await page.getByRole('button', { name: '返回配置', exact: true }).click();
   await editor().getByRole('spinbutton', { name: '每 IP 每秒请求', exact: true }).fill('45');
   const scripts = editor().getByLabel('自定义GRL规则JSON', { exact: true });
   await scripts.fill('{}');

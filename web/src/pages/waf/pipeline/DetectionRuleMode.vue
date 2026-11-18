@@ -18,19 +18,6 @@
         :label="rule.category === 'ssrf' && value === 'off' ? '允许（关闭检测）' : label"
       />
     </ElSelect>
-    <template v-if="rule.category === 'csrf'">
-      <label :for="id + '-missing'">缺少 Origin / Referer</label>
-      <ElSelect
-        :id="id + '-missing'"
-        v-model="missingOrigin"
-        aria-label="缺少 Origin / Referer"
-        :disabled="disabled || importedOff || !!optionError || rule.mode === 'off'"
-      >
-        <ElOption value="allow" label="允许" />
-        <ElOption v-if="!imported" value="observe" label="仅观察" />
-        <ElOption value="block" label="跟随规则模式" />
-      </ElSelect>
-    </template>
     <small v-if="optionError">请先修正检测选项中的 JSON。</small>
     <small v-else-if="importedOff">迁入开关已关闭，当前跳过此项检测。</small>
   </div>
@@ -54,23 +41,13 @@ const imported = computed(() => detectorOptions(props.ruleset, props.rule.catego
 const importedOff = computed(() => imported.value != null && imported.value.is_enable !== 1);
 const optionError = computed(() => fieldDraftFor(props.ruleset).jsonErrors[optionKey.value]);
 
-function setImported(key: 'is_enable' | 'allow_empty_ref', value: number) {
+function setImported(key: 'is_enable', value: number) {
   if (!imported.value || optionError.value) return;
   imported.value[key] = value;
   // The advanced JSON editor shares this draft and must display this edit too.
   delete fieldDraftFor(props.ruleset).jsonDraft[optionKey.value];
 }
 
-const missingOrigin = computed<string>({
-  get() {
-    if (imported.value) return imported.value.allow_empty_ref === 1 ? 'allow' : 'block';
-    return props.ruleset.csrf_missing_origin;
-  },
-  set(value) {
-    if (imported.value) setImported('allow_empty_ref', value === 'allow' ? 1 : 0);
-    else props.ruleset.csrf_missing_origin = value;
-  },
-});
 </script>
 
 <style scoped>

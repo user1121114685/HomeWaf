@@ -267,6 +267,11 @@
         :model="scopeRule"
         :definitions="dsmThresholdFields"
       />
+      <CsrfMissingOrigin
+        v-if="scopeRule?.category === 'csrf'"
+        :ruleset="draft.policy.ruleset"
+        :disabled="busy || scopeRule.mode === 'off'"
+      />
       <Scope v-if="scopeRule" :model="scopeRule.scope" :category="scopeRule.category" /><Fields
         v-if="scopeRule?.category === 'scanner'"
         :model="scopeRule"
@@ -300,6 +305,7 @@ import {
 import { pipelinePost } from '@/apis/pipeline';
 import { actionModes, clone, dsmThresholdFields, fields, ruleDescription, ruleNames, type PortConfig } from './model';
 import DetectionRuleMode from './DetectionRuleMode.vue';
+import CsrfMissingOrigin from './CsrfMissingOrigin.vue';
 import Fields from './Fields.vue';
 import Scope from './Scope.vue';
 import AccessRestrictions from './AccessRestrictions.vue';

@@ -616,6 +616,11 @@
           v-if="activeRule.category === 'synology_login_failure'"
           :model="activeRule"
           :definitions="dsmThresholdFields" />
+        <CsrfMissingOrigin
+          v-if="activeRule.category === 'csrf'"
+          :ruleset="draft.policy.ruleset"
+          :disabled="busy || activeRule.mode === 'off'"
+        />
         <Scope :model="activeRule.scope" :category="activeRule.category" /><Fields
           v-if="activeRule.category === 'scanner'"
           :model="activeRule"
@@ -676,6 +681,7 @@ import AccessRestrictions from './AccessRestrictions.vue';
 import DefenseSettings from './DefenseSettings.vue';
 import Fields from './Fields.vue';
 import DetectionRuleMode from './DetectionRuleMode.vue';
+import CsrfMissingOrigin from './CsrfMissingOrigin.vue';
 import Scope from './Scope.vue';
 import Trace from './Trace.vue';
 import ServiceIdentityPanel from './ServiceIdentityPanel.vue';

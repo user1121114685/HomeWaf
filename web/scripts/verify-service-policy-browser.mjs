@@ -176,7 +176,13 @@ try {
     await page.getByRole('listbox', { name }).getByRole('option', { name: label, exact: true }).click();
   }
   const ssrf = 'SSRF URL 检测模式',
+    csrfMode = 'CSRF 同源校验模式',
     missingOrigin = '缺少 Origin / Referer';
+  const csrfRow = () => page.getByRole('row').filter({ has: combo(csrfMode) });
+  async function openCsrfScope() {
+    await csrfRow().getByRole('button', { name: '范围与例外' }).click();
+    return page.getByRole('dialog', { name: '范围与例外 · CSRF 同源校验' });
+  }
   const saveRules = page.getByRole('button', { name: '保存配置', exact: true });
   for (const rule of nas.policy.ruleset.rules) {
     const name = ruleNames[rule.category];
@@ -193,6 +199,12 @@ try {
     await expect(scope.getByRole('textbox', { name: '参数名例外' })).toHaveCount(
       ['malformed', 'scanner', 'csrf', 'synology_admin', 'synology_login_failure'].includes(rule.category) ? 0 : 1,
     );
+    if (rule.category === 'csrf') {
+      await expect(row.locator('.rule-controls .el-select')).toHaveCount(1);
+      await expect(row.getByRole('combobox', { name: missingOrigin })).toHaveCount(0);
+      await expect(scope.getByRole('combobox', { name: missingOrigin })).toBeVisible();
+      await expect(scope.locator('.el-select')).toContainText('允许');
+    }
     if (rule.category === 'synology_login_failure') {
       await expect(scope.getByRole('spinbutton', { name: '登录失败统计窗口（秒）' })).toHaveValue('300');
       await expect(scope.getByRole('spinbutton', { name: '触发登录锁定的失败次数' })).toHaveValue('10');
@@ -201,13 +213,14 @@ try {
     await scope.getByRole('button', { name: '返回规则' }).click();
   }
   await expect(saveRules).toBeDisabled();
-  await expect(selectedLabel(missingOrigin)).toContainText('允许');
   const adminMode = '群晖内置 admin 登录模式',
     dsmMode = '群晖 DSM 登录保护模式';
   await expect(selectedLabel(adminMode)).toContainText('拦截');
   await expect(selectedLabel(dsmMode)).toContainText('拦截');
   await choose(ssrf, '拦截');
+  const csrfScope = await openCsrfScope();
   await choose(missingOrigin, '跟随规则模式');
+  await csrfScope.getByRole('button', { name: '返回规则' }).click();
   failNextSave = true;
   await saveRules.click();
   await expect(page.getByRole('alert').filter({ hasText: '配置版本冲突' })).toBeVisible();
@@ -217,10 +230,14 @@ try {
   await expect.poll(() => configs[0].policy.ruleset.csrf_missing_origin).toBe('block');
   await page.reload();
   await expect(selectedLabel(ssrf)).toContainText('拦截');
-  await expect(selectedLabel(missingOrigin)).toContainText('跟随规则模式');
+  const reopenedCsrfScope = await openCsrfScope();
+  await expect(reopenedCsrfScope.locator('.el-select')).toContainText('跟随规则模式');
+  await reopenedCsrfScope.getByRole('button', { name: '返回规则' }).click();
   expect(configs[0].policy.ruleset.rules.find((r) => r.category === 'csrf').mode).toBe('observe');
   await choose(ssrf, '允许（关闭检测）');
+  const resetCsrfScope = await openCsrfScope();
   await choose(missingOrigin, '允许');
+  await resetCsrfScope.getByRole('button', { name: '返回规则' }).click();
   await saveRules.click();
   await expect.poll(() => configs[0].policy.ruleset.rules.find((r) => r.category === 'ssrf').mode).toBe('off');
   expect(configs[0].policy.ruleset.csrf_missing_origin).toBe('allow');
@@ -233,11 +250,21 @@ try {
     await page.setViewportSize({ width, height: 900 });
     for (const appearance of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: appearance });
-      await expect(selectedLabel(missingOrigin)).toContainText('允许');
+      await expect(csrfRow().locator('.rule-controls .el-select')).toHaveCount(1);
+      await expect(csrfRow().getByRole('combobox', { name: missingOrigin })).toHaveCount(0);
       await expect(page.locator('html')).toHaveAttribute('theme-mode', appearance);
       await selectedLabel(dsmMode).scrollIntoViewIfNeeded();
       await expect(selectedLabel(dsmMode)).toBeInViewport();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+      const csrfSettings = await openCsrfScope();
+      await expect(csrfSettings.getByRole('combobox', { name: missingOrigin })).toBeVisible();
+      const csrfBounds = await csrfSettings.boundingBox();
+      expect(csrfBounds.x).toBeGreaterThanOrEqual(0);
+      expect(csrfBounds.x + csrfBounds.width).toBeLessThanOrEqual(width + 1);
+      expect(await csrfSettings.evaluate((dialog) => dialog.scrollWidth <= dialog.clientWidth)).toBe(true);
+      if (width === 390 && appearance === 'dark')
+        await csrfSettings.screenshot({ path: path.join(output, 'csrf-missing-origin-390-dark.png') });
+      await csrfSettings.getByRole('button', { name: '返回规则' }).click();
       await page.screenshot({
         path: path.join(output, 'rules-' + width + '-' + appearance + '.png'),
         animations: 'disabled',
@@ -255,7 +282,6 @@ try {
   await dsmRow.getByRole('button', { name: '阈值与范围' }).click();
   await page.getByRole('spinbutton', { name: '触发登录锁定的失败次数' }).fill('12');
   await page.getByRole('button', { name: '返回规则' }).click();
-  await expect(selectedLabel(missingOrigin)).toContainText('允许');
   await expect(combo('文件上传模式')).toBeDisabled();
   await page
     .getByRole('row')
@@ -267,11 +293,15 @@ try {
   await page.getByText('检测引擎与协议参数', { exact: true }).click();
   const importedJSON = page.getByRole('textbox', { name: '迁入CSRF选项', exact: true });
   await importedJSON.fill('{');
-  await expect(combo(missingOrigin)).toBeDisabled();
   await expect(saveRules).toBeDisabled();
+  const invalidCsrfScope = await openCsrfScope();
+  await expect(invalidCsrfScope.getByRole('combobox', { name: missingOrigin })).toBeDisabled();
+  await invalidCsrfScope.getByRole('button', { name: '返回规则' }).click();
   await importedJSON.fill(JSON.stringify(migrated.csrf_options));
+  const migratedCsrfScope = await openCsrfScope();
   await choose(missingOrigin, '跟随规则模式');
   expect(JSON.parse(await importedJSON.inputValue()).allow_empty_ref).toBe(0);
+  await migratedCsrfScope.getByRole('button', { name: '返回规则' }).click();
   await expect(page.getByRole('spinbutton', { name: '上传文件头采样（字节）' })).toHaveValue('65536');
   await saveRules.click();
   await expect.poll(() => configs[1].policy.ruleset.csrf_options.allow_empty_ref).toBe(0);
@@ -290,7 +320,9 @@ try {
   });
   expect(configs[1].policy.ruleset.view.file_prefix_bytes).toBe(0);
   await page.reload();
-  await expect(selectedLabel(missingOrigin)).toContainText('跟随规则模式');
+  const savedCsrfScope = await openCsrfScope();
+  await expect(savedCsrfScope.locator('.el-select')).toContainText('跟随规则模式');
+  await savedCsrfScope.getByRole('button', { name: '返回规则' }).click();
   await expect(selectedLabel(adminMode)).toContainText('关闭');
   await expect(selectedLabel(dsmMode)).toContainText('仅观察');
   await expect(combo('文件上传模式')).toBeEnabled();
