@@ -160,58 +160,83 @@ Docker 内保留版本检查和更新提示。脚本会下载并校验镜像、�
 
 ### 安装脚本升级与卸载命令
 
-以下原生安装命令适用于默认目录：Linux/macOS 为 `/opt/homewaf`，Windows 为 `C:\ProgramData\HomeWaf`。自定义目录时替换对应路径。Shell 使用 `sudo`；Windows 请在管理员 PowerShell 中运行。Docker 命令沿用当前用户的 Docker context；只有该 context 要求时才使用 `sudo`。
+每条命令都可单独运行，会下载并执行当前正式版安装脚本。以下原生服务命令适用于默认目录：Linux/macOS 为 `/opt/homewaf`，Windows 为 `C:\ProgramData\HomeWaf`；自定义目录时替换对应路径。请在可写目录运行。原生 Shell 命令使用 `sudo`，Windows 请在管理员 PowerShell 中运行。Docker 命令沿用当前用户的 Docker context；只有该 context 要求时才使用 `sudo`。
 
 Linux/macOS 原生服务：
 
 ```sh
-curl -fsSL https://github.com/user1121114686/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh && sudo bash install_homewaf.sh upgrade --dir /opt/homewaf
+```
 
-# 升级并自动平滑重启
-sudo bash install_homewaf.sh upgrade --dir /opt/homewaf
+卸载程序和服务，保留配置、数据库、证书及密钥：
 
-# 卸载程序和服务，保留配置、数据库、证书及密钥
-sudo bash install_homewaf.sh uninstall --dir /opt/homewaf
+```sh
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh && sudo bash install_homewaf.sh uninstall --dir /opt/homewaf
+```
 
-# 已备份并确认删除该实例的数据后再执行
-sudo bash install_homewaf.sh uninstall --dir /opt/homewaf --purge-data --yes
+已备份并确认删除该实例数据时：
+
+```sh
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh && sudo bash install_homewaf.sh uninstall --dir /opt/homewaf --purge-data --yes
 ```
 
 Windows 原生服务：
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-WebRequest -Uri 'https://github.com/user1121114686/HomeWaf/releases/latest/download/install_homewaf.ps1' -OutFile '.\install_homewaf.ps1'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1'))) -Action upgrade -Directory 'C:\ProgramData\HomeWaf'
+```
 
-# 升级并自动平滑重启
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action upgrade -Directory 'C:\ProgramData\HomeWaf'
+卸载程序和服务，保留配置、数据库、证书及密钥：
 
-# 卸载程序和服务，保留配置、数据库、证书及密钥
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action uninstall -Directory 'C:\ProgramData\HomeWaf'
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1'))) -Action uninstall -Directory 'C:\ProgramData\HomeWaf'
+```
 
-# 已备份并确认删除该实例的数据后再执行
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action uninstall -Directory 'C:\ProgramData\HomeWaf' -PurgeData -Yes
+已备份并确认删除该实例数据时：
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1'))) -Action uninstall -Directory 'C:\ProgramData\HomeWaf' -PurgeData -Yes
 ```
 
 纯前台运行的原生实例请先停止进程，然后在卸载命令中增加 `--no-service` 或 `-NoService`。`--purge-data --yes` / `-PurgeData -Yes` 只删除该实例由安装脚本管理的数据目录；容器模式下只删除 HomeWaf 安装器创建的命名卷。清理前请备份 `conf/`、`data/`、`ssl/` 和 **`.homewaf-keys/`**；数据密钥与数据库必须配套。
 
 Docker 更新和卸载命令：
 
+Linux/macOS 升级容器：
+
 ```sh
 # Linux/macOS
-curl -fsSL https://github.com/user1121114686/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh
-bash install_homewaf.sh upgrade --docker
-bash install_homewaf.sh uninstall --docker
-bash install_homewaf.sh uninstall --docker --purge-data --yes
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh && bash install_homewaf.sh upgrade --docker
 ```
 
+Linux/macOS 卸载容器并保留数据卷：
+
+```sh
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh && bash install_homewaf.sh uninstall --docker
+```
+
+已备份并确认删除 Docker 数据卷时：
+
+```sh
+curl -fsSL https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh && bash install_homewaf.sh uninstall --docker --purge-data --yes
+```
+
+Windows PowerShell / Docker Desktop 升级容器：
+
 ```powershell
-# Windows PowerShell / Docker Desktop
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-WebRequest -Uri 'https://github.com/user1121114686/HomeWaf/releases/latest/download/install_homewaf.ps1' -OutFile '.\install_homewaf.ps1'
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action upgrade -Docker
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action uninstall -Docker
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action uninstall -Docker -PurgeData -Yes
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1'))) -Action upgrade -Docker
+```
+
+Windows PowerShell / Docker Desktop 卸载容器并保留数据卷：
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1'))) -Action uninstall -Docker
+```
+
+已备份并确认删除 Docker 数据卷时：
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1'))) -Action uninstall -Docker -PurgeData -Yes
 ```
 
 ### 只重启当前版本
