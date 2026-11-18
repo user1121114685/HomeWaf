@@ -275,6 +275,20 @@ func TestLocalOnlyKeyOrdinaryCompatibility(t *testing.T) {
 	}
 }
 
+func TestMCPKeyRequiresSourceRestriction(t *testing.T) {
+	newLocalAPIKeyTestDB(t)
+	svc := WafOPlatformKeyServiceApp
+	if _, _, err := svc.AddApi(request.WafOPlatformKeyAddReq{KeyName: "mcp-without-source", MCPAccess: "read"}); err == nil {
+		t.Fatal("MCP keys must reject an empty source restriction")
+	}
+	id, _, err := svc.AddApi(request.WafOPlatformKeyAddReq{
+		KeyName: "mcp-with-source", MCPAccess: "read", IPWhitelist: "192.0.2.0/24",
+	})
+	if err != nil || id == "" {
+		t.Fatalf("MCP key with a CIDR source should be accepted: %v", err)
+	}
+}
+
 func TestLocalOnlyKeyLegacyPlaintextUpgrade(t *testing.T) {
 	db := newLocalAPIKeyTestDB(t)
 	svc := WafOPlatformKeyServiceApp

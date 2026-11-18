@@ -33,7 +33,7 @@ func TestMCPUpgradeAddsPurposeWithoutGrantingExistingKeys(t *testing.T) {
 	if err != nil || key.Id != id || key.MCPAccess != "" {
 		t.Fatal("schema upgrade changed or granted an existing credential", err)
 	}
-	if _, _, err = openApiKeyService.AddApi(request.WafOPlatformKeyAddReq{KeyName: "new-mcp-key", MCPAccess: "write"}); err != nil {
+	if _, _, err = openApiKeyService.AddApi(request.WafOPlatformKeyAddReq{KeyName: "new-mcp-key", MCPAccess: "write", IPWhitelist: "192.0.2.0/24"}); err != nil {
 		t.Fatal("upgraded installation cannot create MCP keys", err)
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/request"
+	"HomeWaf/wafsec"
+	"errors"
 	"time"
 )
 
@@ -28,10 +30,17 @@ func (receiver *WafOPlatformLogService) AddLog(logEntry model.OPlatformLog) erro
 	return global.GWAF_LOCAL_LOG_DB.Create(&logEntry).Error
 }
 
-func (receiver *WafOPlatformLogService) GetDetailApi(req request.WafOPlatformLogDetailReq) model.OPlatformLog {
+func (receiver *WafOPlatformLogService) GetDetailApi(req request.WafOPlatformLogDetailReq) (model.OPlatformLog, error) {
 	var bean model.OPlatformLog
-	global.GWAF_LOCAL_LOG_DB.Where("id = ?", req.Id).Find(&bean)
-	return bean
+	if err := global.GWAF_LOCAL_LOG_DB.Where("id = ?", req.Id).Take(&bean).Error; err != nil {
+		return model.OPlatformLog{}, err
+	}
+	result, err := wafsec.DataDecrypt(bean.MCPResult, nil)
+	if err != nil {
+		return model.OPlatformLog{}, errors.New("无法解密已记录的 MCP 返回内容，请检查实例数据密钥")
+	}
+	bean.MCPResult = result
+	return bean, nil
 }
 
 func (receiver *WafOPlatformLogService) GetListApi(req request.WafOPlatformLogSearchReq) ([]model.OPlatformLog, int64, error) {
@@ -70,12 +79,13 @@ func (receiver *WafOPlatformLogService) GetListApi(req request.WafOPlatformLogSe
 		whereValues = append(whereValues, req.RequestMethod)
 	}
 
-	global.GWAF_LOCAL_LOG_DB.Model(&model.OPlatformLog{}).Where(whereField, whereValues...).
-		Order("create_time desc").
-		Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
-	global.GWAF_LOCAL_LOG_DB.Model(&model.OPlatformLog{}).Where(whereField, whereValues...).Count(&total)
-
-	return list, total, nil
+	query := global.GWAF_LOCAL_LOG_DB.Model(&model.OPlatformLog{}).Where(whereField, whereValues...)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := query.Omit("MCPResult").Order("create_time desc").
+		Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list).Error
+	return list, total, err
 }
 
 func (receiver *WafOPlatformLogService) DelApi(req request.WafOPlatformLogDelReq) error {

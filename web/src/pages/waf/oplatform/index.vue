@@ -3,18 +3,20 @@
 <template>
   <div>
     <hw-card class="list-card-container resource-panel">
-      <!-- 开放平台总开关。默认是关的，而"调不通"的头号原因就是这个开关没开——
-           以前它藏在「参数配置」里，用户在这页建完 Key 直接去调，然后来问为什么 401。
-           放在整页最上面靠右，进页面第一眼就能看到当前是开还是关 -->
       <div class="op-master">
-        <hw-tooltip :content="openPlatformEnabled ? $t('page.oplatform.master_on_tips') : $t('page.oplatform.master_off_tips')">
-          <div class="op-master__box">
-            <hw-switch v-model="openPlatformEnabled" :loading="masterLoading" @change="handleToggleMaster" />
-            <span class="op-master__t">{{ $t('page.oplatform.master_switch') }}</span>
-            <hw-tag v-if="openPlatformEnabled" theme="success" variant="light">{{ $t('page.oplatform.master_on') }}</hw-tag>
-            <hw-tag v-else theme="warning" variant="light">{{ $t('page.oplatform.master_off') }}</hw-tag>
-          </div>
-        </hw-tooltip>
+        <div class="op-master__box">
+          <hw-switch :model-value="openPlatformEnabled" :aria-label="$t('page.oplatform.master_switch')"
+            :loading="masterLoading" :disabled="masterLoading || !masterKnown" @change="handleToggleMaster" />
+          <span class="op-master__t">{{ $t('page.oplatform.master_switch') }}</span>
+          <hw-tag v-if="masterKnown" :theme="openPlatformEnabled ? 'success' : 'warning'">
+            {{ $t(openPlatformEnabled ? 'page.oplatform.master_on' : 'page.oplatform.master_off') }}
+          </hw-tag>
+          <span v-if="masterError" role="alert">{{ masterError }}</span>
+          <hw-button v-if="masterError" variant="text" @click="fetchMasterSwitch">{{ $t('page.oplatform.retry') }}</hw-button>
+          <span v-else class="op-master__hint">{{ openPlatformEnabled
+            ? $t('page.oplatform.master_until', { time: new Date(enabledUntil * 1000).toLocaleString() })
+            : $t('page.oplatform.master_window') }}</span>
+        </div>
       </div>
 
       <hw-row justify="space-between">
@@ -80,75 +82,8 @@
       </div>
     </hw-card>
 
-    <!-- 新增 Key 对话框 -->
-    <hw-dialog
-      :header="$t('page.oplatform.new_key')"
-      v-model:visible="addFormVisible"
-      :width="580"
-      :footer="false"
-    >
-      <template #body><div >
-        <hw-form :data="formData" ref="addForm" :rules="rules" @submit="onSubmitAdd" :labelWidth="120">
-          <hw-form-item :label="$t('page.oplatform.key_name')" name="key_name">
-            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formData.key_name" :placeholder="$t('page.oplatform.key_name_placeholder')" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.oplatform.rate_limit')" name="rate_limit">
-            <hw-input-number :style="{ width: 'min(100%, 380px)' }" v-model="formData.rate_limit" :min="0" :placeholder="$t('page.oplatform.rate_limit_tip')" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.oplatform.ip_whitelist')" name="ip_whitelist">
-            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formData.ip_whitelist" :placeholder="$t('page.oplatform.ip_whitelist_placeholder')" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.oplatform.expire_time')" name="expire_time">
-            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formData.expire_time" :placeholder="$t('page.oplatform.expire_time_placeholder')" />
-          </hw-form-item>
-          <hw-form-item :label="$t('common.remarks')" name="remark">
-            <hw-textarea :style="{ width: 'min(100%, 380px)' }" v-model="formData.remark" />
-          </hw-form-item>
-          <hw-form-item style="float:right">
-            <hw-button variant="outline" @click="addFormVisible = false">{{ $t('common.cancel') }}</hw-button>
-            <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
-          </hw-form-item>
-        </hw-form>
-      </div></template>
-    </hw-dialog>
-
-    <!-- 编辑 Key 对话框 -->
-    <hw-dialog
-      :header="$t('common.edit')"
-      v-model:visible="editFormVisible"
-      :width="580"
-      :footer="false"
-    >
-      <template #body><div >
-        <hw-form :data="formEditData" ref="editForm" :rules="rules" @submit="onSubmitEdit" :labelWidth="120">
-          <hw-form-item :label="$t('page.oplatform.key_name')" name="key_name">
-            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.key_name" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.oplatform.status')" name="status">
-            <hw-radio-group v-model="formEditData.status">
-              <hw-radio :value="1">{{ $t('page.oplatform.status_enabled') }}</hw-radio>
-              <hw-radio :value="0">{{ $t('page.oplatform.status_disabled') }}</hw-radio>
-            </hw-radio-group>
-          </hw-form-item>
-          <hw-form-item :label="$t('page.oplatform.rate_limit')" name="rate_limit">
-            <hw-input-number :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.rate_limit" :min="0" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.oplatform.ip_whitelist')" name="ip_whitelist">
-            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.ip_whitelist" :placeholder="$t('page.oplatform.ip_whitelist_placeholder')" />
-          </hw-form-item>
-          <hw-form-item :label="$t('page.oplatform.expire_time')" name="expire_time">
-            <hw-input :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.expire_time" :placeholder="$t('page.oplatform.expire_time_placeholder')" />
-          </hw-form-item>
-          <hw-form-item :label="$t('common.remarks')" name="remark">
-            <hw-textarea :style="{ width: 'min(100%, 380px)' }" v-model="formEditData.remark" />
-          </hw-form-item>
-          <hw-form-item style="float:right">
-            <hw-button variant="outline" @click="editFormVisible = false">{{ $t('common.cancel') }}</hw-button>
-            <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
-          </hw-form-item>
-        </hw-form>
-      </div></template>
-    </hw-dialog>
+    <KeyEditor v-if="editorVisible" :initial="editingKey" :suggested-source="suggestedSource"
+      @close="editorVisible = false" @saved="keySaved" />
 
     <!-- 新建/重置 Key 结果对话框 -->
     <hw-dialog
@@ -157,6 +92,7 @@
       :width="520"
       :cancel-btn="null"
       @confirm="secretDialogVisible = false"
+      @closed="newSecret = ''"
     >
       <template #body><div >
         <hw-alert theme="warning" :message="$t('page.oplatform.key_once_warning')" style="margin-bottom:16px" />
@@ -188,14 +124,15 @@
 <script>
 import {
   oplatform_key_list_api,
-  oplatform_key_add_api,
+  oplatform_doc_status_api,
   oplatform_key_edit_api,
   oplatform_key_del_api,
   oplatform_key_reset_secret_api,
   oplatform_key_detail_api
 } from '@/apis/oplatform'
-import { get_detail_by_item_api, edit_system_config_by_item_api } from '@/apis/systemconfig'
+import { edit_system_config_by_item_api } from '@/apis/systemconfig'
 import { MessagePlugin } from '@/ui'
+import KeyEditor from './KeyEditor.vue'
 
 // 开放平台总开关在「参数配置」里的键名。它是个普通的系统配置项，
 // 后端 editByItem 改完会立刻 TaskLoadSetting，不需要重启。
@@ -203,11 +140,18 @@ const MASTER_ITEM = 'open_platform_enabled'
 
 export default {
   name: 'OPlatformKey',
+  components: { KeyEditor },
   data() {
     return {
       dataLoading: false,
       openPlatformEnabled: false,
       masterLoading: false,
+      masterKnown: false,
+      masterError: '',
+      enabledUntil: 0,
+      expiryTimer: 0,
+      suggestedSource: '',
+      active: true,
       data: [],
       pagination: {
         current: 1,
@@ -229,32 +173,13 @@ export default {
         { colKey: 'expire_time', title: this.$t('page.oplatform.expire_time'), width: 150 },
         { colKey: 'op', title: this.$t('common.operation'), width: 260, fixed: 'right' }
       ],
-      addFormVisible: false,
-      editFormVisible: false,
+      editorVisible: false,
+      editingKey: undefined,
       secretDialogVisible: false,
       confirmVisible: false,
       confirmDeleteId: '',
       newSecret: '',
       secretDialogTitle: '',
-      formData: {
-        key_name: '',
-        remark: '',
-        rate_limit: 0,
-        ip_whitelist: '',
-        expire_time: ''
-      },
-      formEditData: {
-        id: '',
-        key_name: '',
-        status: 1,
-        remark: '',
-        rate_limit: 0,
-        ip_whitelist: '',
-        expire_time: ''
-      },
-      rules: {
-        key_name: [{ required: true, message: this.$t('page.oplatform.key_name_required'), type: 'error' }]
-      }
     }
   },
   computed: {
@@ -274,38 +199,46 @@ export default {
     this.getList()
     this.fetchMasterSwitch()
   },
+  beforeUnmount() {
+    this.active = false
+    clearTimeout(this.expiryTimer)
+  },
   methods: {
-    fetchMasterSwitch() {
-      get_detail_by_item_api({ item: MASTER_ITEM })
-        .then((res) => {
-          if (res.code === 0) {
-            this.openPlatformEnabled = String(res.data && res.data.value) === '1'
-          }
-        })
-        .catch((error) => {
-          // 取不到不影响建 Key，静默即可；开关维持关闭的保守显示
-          console.error('获取开放平台开关失败:', error)
-        })
-    },
-    handleToggleMaster(value) {
+    async fetchMasterSwitch() {
       this.masterLoading = true
-      edit_system_config_by_item_api({ item: MASTER_ITEM, value: value ? '1' : '0' })
-        .then((res) => {
-          if (res.code === 0) {
-            MessagePlugin.success(this.$t('common.tips.save_success'))
-          } else {
-            MessagePlugin.error(res.msg || this.$t('common.tips.save_failed'))
-            this.openPlatformEnabled = !value
-          }
-        })
-        .catch((error) => {
-          console.error('更新开放平台开关失败:', error)
-          MessagePlugin.error(this.$t('common.tips.save_failed'))
-          this.openPlatformEnabled = !value
-        })
-        .finally(() => {
-          this.masterLoading = false
-        })
+      this.masterError = ''
+      try {
+        const res = await oplatform_doc_status_api()
+        if (res.code !== 0 || ![0, 1].includes(res.data?.enabled)) throw new Error(res.msg || this.$t('page.oplatform.status_failed'))
+        if (!this.active) return
+        this.openPlatformEnabled = res.data.enabled === 1
+        this.masterKnown = true
+        this.suggestedSource = res.data.suggested_source || ''
+        this.enabledUntil = res.data.enabled_until
+        clearTimeout(this.expiryTimer)
+        if (this.openPlatformEnabled) {
+          this.expiryTimer = setTimeout(this.fetchMasterSwitch, Math.max(1000, this.enabledUntil * 1000 - Date.now()))
+        }
+      } catch (error) {
+        this.masterKnown = false
+        this.masterError = error.message || this.$t('page.oplatform.status_failed')
+      } finally {
+        this.masterLoading = false
+      }
+    },
+    async handleToggleMaster(value) {
+      if (this.masterLoading || !this.masterKnown) return
+      this.masterLoading = true
+      clearTimeout(this.expiryTimer)
+      try {
+        const res = await edit_system_config_by_item_api({ item: MASTER_ITEM, value: value ? '1' : '0' })
+        if (res.code !== 0) throw new Error(res.msg || this.$t('common.tips.save_failed'))
+        MessagePlugin.success(this.$t('common.tips.save_success'))
+      } catch (error) {
+        MessagePlugin.error(error.message || this.$t('common.tips.save_failed'))
+      } finally {
+        if (this.active) await this.fetchMasterSwitch()
+      }
     },
     getList() {
       this.dataLoading = true
@@ -322,52 +255,29 @@ export default {
       }).catch(() => { this.dataLoading = false })
     },
     handleAdd() {
-      this.formData = { key_name: '', remark: '', rate_limit: 0, ip_whitelist: '', expire_time: '' }
-      this.addFormVisible = true
+      this.editingKey = undefined
+      this.editorVisible = true
     },
-    onSubmitAdd({ validateResult }) {
-      if (validateResult !== true) return
-      oplatform_key_add_api(this.formData).then((res) => {
-        if (res && res.code === 0) {
-          this.addFormVisible = false
-          this.newSecret = res.data.api_key
-          this.secretDialogTitle = this.$t('page.oplatform.new_key_created')
-          this.secretDialogVisible = true
-          this.getList()
-        } else {
-          MessagePlugin.error(res ? res.msg : this.$t('page.oplatform.add_fail'))
-        }
-      })
+    async handleEdit({ row }) {
+      try {
+        const res = await oplatform_key_detail_api({ id: row.id })
+        if (res.code !== 0 || res.data?.id !== row.id) throw new Error(res.msg || this.$t('page.oplatform.edit_fail'))
+        this.editingKey = res.data
+        this.editorVisible = true
+      } catch (error) {
+        MessagePlugin.error(error.message || this.$t('page.oplatform.edit_fail'))
+      }
     },
-    handleEdit(slotProps) {
-      const row = slotProps.row
-      oplatform_key_detail_api({ id: row.id }).then((res) => {
-        if (res && res.code === 0) {
-          const d = res.data
-          this.formEditData = {
-            id: d.id,
-            key_name: d.key_name,
-            status: d.status,
-            remark: d.remark,
-            rate_limit: d.rate_limit,
-            ip_whitelist: d.ip_whitelist,
-            expire_time: d.expire_time
-          }
-          this.editFormVisible = true
-        }
-      })
-    },
-    onSubmitEdit({ validateResult }) {
-      if (validateResult !== true) return
-      oplatform_key_edit_api(this.formEditData).then((res) => {
-        if (res && res.code === 0) {
-          MessagePlugin.success(this.$t('page.oplatform.edit_success'))
-          this.editFormVisible = false
-          this.getList()
-        } else {
-          MessagePlugin.error(res ? res.msg : this.$t('page.oplatform.edit_fail'))
-        }
-      })
+    keySaved(secret) {
+      this.editorVisible = false
+      if (secret) {
+        this.newSecret = secret
+        this.secretDialogTitle = this.$t('page.oplatform.new_key_created')
+        this.secretDialogVisible = true
+      } else {
+        MessagePlugin.success(this.$t('page.oplatform.edit_success'))
+      }
+      this.getList()
     },
     handleToggleStatus(slotProps) {
       const row = slotProps.row
@@ -384,8 +294,10 @@ export default {
         if (res && res.code === 0) {
           MessagePlugin.success(newStatus === 1 ? this.$t('page.oplatform.enable_success') : this.$t('page.oplatform.disable_success'))
           this.getList()
+        } else {
+          MessagePlugin.error(res?.msg || this.$t('page.oplatform.edit_fail'))
         }
-      })
+      }).catch(() => MessagePlugin.error(this.$t('page.oplatform.edit_fail')))
     },
     handleResetSecret(slotProps) {
       oplatform_key_reset_secret_api({ id: slotProps.row.id }).then((res) => {
@@ -445,12 +357,14 @@ export default {
 .op-master__box {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 7px 14px;
   border: 1px solid var(--td-component-stroke, #e7e7e7);
   border-radius: var(--td-radius-medium, 3px);
   background: var(--td-bg-color-container-hover, #fafafa);
 }
+.op-master__hint { color: var(--hw-muted); font-size: 13px; }
 .op-master__t {
   font-weight: 500;
 }

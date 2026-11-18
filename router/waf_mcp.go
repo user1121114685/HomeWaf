@@ -5,6 +5,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/middleware"
 	"HomeWaf/model/common/response"
+	"HomeWaf/utils"
 	"HomeWaf/wafmcp"
 	"github.com/gin-gonic/gin"
 )
@@ -24,6 +25,8 @@ func InitMCPRouter(engine *gin.Engine, admin *gin.RouterGroup) {
 		for _, op := range operations {
 			tools = append(tools, gin.H{"name": op.Name, "group": op.Group, "description": op.Description, "read_only": op.ReadOnly, "requires_confirmation": op.Confirm})
 		}
-		response.OkWithData(gin.H{"endpoint": wafmcp.Endpoint, "transport": "Streamable HTTP", "enabled": global.CurrentSettings().GCONFIG_OPEN_PLATFORM_ENABLED == 1, "tools": tools}, c)
+		settings := global.CurrentSettings()
+		response.OkWithData(gin.H{"endpoint": wafmcp.Endpoint, "transport": "Streamable HTTP", "enabled": settings.OpenPlatformEnabled(),
+			"enabled_until": settings.OpenPlatformEnabledUntil, "suggested_source": utils.SuggestedMCPSource(c), "tools": tools}, c)
 	})
 }

@@ -11,6 +11,8 @@ export interface MCPStatus {
   endpoint: string;
   transport: string;
   enabled: boolean;
+  enabled_until?: number;
+  suggested_source?: string;
   tools: MCPTool[];
 }
 export function getMCPStatus() {

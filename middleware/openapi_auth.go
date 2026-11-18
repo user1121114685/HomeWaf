@@ -10,7 +10,6 @@ import (
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
 	"bytes"
-	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -76,7 +75,7 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 	// 1. 查询 Key，只有本机 Key 不受开放平台总开关约束。
 	keyBean, err := openApiKeyService.GetByApiKey(apiKey)
 	localOnly := err == nil && keyBean.LocalOnly == 1
-	if global.CurrentSettings().GCONFIG_OPEN_PLATFORM_ENABLED == 0 && !localOnly {
+	if !localOnly && !global.CurrentSettings().OpenPlatformEnabled() {
 		openAPIAuthFailure("开放平台已关闭", c)
 		return model.OPlatformKey{}, false
 	}
@@ -113,7 +112,7 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 
 	// 5. 检查 IP 白名单
 	if keyBean.IPWhitelist != "" {
-		clientIP := utils.GetManageClientIP(c)
+		clientIP := net.ParseIP(utils.GetManageClientIP(c))
 		allowedIPs := strings.Split(keyBean.IPWhitelist, ",")
 		ipAllowed := false
 		for _, allowedIP := range allowedIPs {
@@ -124,11 +123,11 @@ func ValidateOpenApiKey(c *gin.Context, apiKey string) (model.OPlatformKey, bool
 			// 支持 CIDR 格式
 			if strings.Contains(allowedIP, "/") {
 				_, ipNet, cidrErr := net.ParseCIDR(allowedIP)
-				if cidrErr == nil && ipNet.Contains(net.ParseIP(clientIP)) {
+				if cidrErr == nil && ipNet.Contains(clientIP) {
 					ipAllowed = true
 					break
 				}
-			} else if allowedIP == clientIP {
+			} else if clientIP != nil && clientIP.Equal(net.ParseIP(allowedIP)) {
 				ipAllowed = true
 				break
 			}
@@ -208,7 +207,8 @@ func isDirectLoopbackRequest(c *gin.Context) bool {
 func OpenApiLogMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		isOpenApi, exists := c.Get("is_openapi")
-		if !exists || isOpenApi != true {
+		// MCP records the final redacted tool result after dispatch.
+		if !exists || isOpenApi != true || c.GetBool("mcp_dispatch") {
 			c.Next()
 			return
 		}
@@ -229,7 +229,7 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 			strings.Contains(path, "/upload") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/diagnostic")
 
-		omitRequestBody := c.GetBool("openapi_local_only") || c.GetBool("mcp_dispatch") ||
+		omitRequestBody := c.GetBool("openapi_local_only") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/add") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/edit")
 		if !isFileRequest && !omitRequestBody && c.Request.Body != nil {
@@ -255,7 +255,7 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 		duration := time.Since(startTime).Milliseconds()
 
 		// 站点新增/编辑响应与站点详情/列表响应可能包含站点敏感字段，本机 Key 的全部响应也不落日志。
-		omitResponseBody := c.GetBool("openapi_local_only") || c.GetBool("mcp_dispatch") ||
+		omitResponseBody := c.GetBool("openapi_local_only") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/add") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/edit") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/detail") ||
@@ -271,16 +271,6 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 		}
 
 		// 异步记录日志
-		if c.GetBool("mcp_dispatch") {
-			requestBody = "MCP tool: " + c.GetString("mcp_tool")
-			var outcome struct {
-				Code int `json:"code"`
-			}
-			if json.Unmarshal(bw.body.Bytes(), &outcome) == nil {
-				encoded, _ := json.Marshal(outcome)
-				responseBody = string(encoded)
-			}
-		}
 		logEntry := model.OPlatformLog{
 			ApiKeyId:      keyId.(string),
 			KeyName:       keyName.(string),
@@ -292,13 +282,6 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 			StatusCode:    bw.statusCode,
 			Duration:      duration,
 			TimeStr:       startTime.Format("2006-01-02 15:04:05"),
-		}
-		if c.GetBool("mcp_dispatch") {
-			if err := openApiLogService.AddLog(logEntry); err != nil {
-				zlog.Error("MCP 调用审计写入失败", "tool", c.GetString("mcp_tool"), "error", err.Error())
-			}
-			openApiKeyService.IncrCallCount(keyId.(string))
-			return
 		}
 		openApiLogService.AddLogAsync(logEntry)
 

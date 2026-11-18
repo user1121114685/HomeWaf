@@ -17,7 +17,11 @@ func (w *WafOPlatformLogApi) GetDetailApi(c *gin.Context) {
 		response.FailWithMessage("解析失败:"+err.Error(), c)
 		return
 	}
-	bean := wafOPlatformLogService.GetDetailApi(req)
+	bean, err := wafOPlatformLogService.GetDetailApi(req)
+	if err != nil {
+		response.FailWithMessage("无法读取调用日志详情："+err.Error(), c)
+		return
+	}
 	response.OkWithData(bean, c)
 }
 

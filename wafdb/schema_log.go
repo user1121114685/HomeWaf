@@ -59,5 +59,11 @@ var logSchemaIndexes = []schemaIndex{
 
 // InitializeLogSchema creates the current tables and indexes without replaying historical upgrades.
 func InitializeLogSchema(db *gorm.DB) error {
-	return initializeSchema(db, logSchemaModels, logSchemaIndexes)
+	if err := initializeSchema(db, logSchemaModels, logSchemaIndexes); err != nil {
+		return err
+	}
+	if !db.Migrator().HasColumn(&model.OPlatformLog{}, "MCPResult") {
+		return db.Migrator().AddColumn(&model.OPlatformLog{}, "MCPResult")
+	}
+	return nil
 }

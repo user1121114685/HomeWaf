@@ -96,6 +96,10 @@
           <hw-form-item :label="$t('page.oplatform.log_response_body')">
             <hw-textarea :value="detailData.response_body" readonly :style="{ width: 'min(100%, 580px)' }" :autosize="{ minRows: 3, maxRows: 8 }" />
           </hw-form-item>
+          <hw-form-item v-if="isMcpLog" :label="$t('page.oplatform.log_mcp_result')">
+            <pre v-if="detailData.mcp_result" class="log-payload">{{ detailData.mcp_result }}</pre>
+            <span v-else>{{ $t('page.oplatform.log_mcp_result_unavailable') }}</span>
+          </hw-form-item>
         </hw-form>
       </div></template>
     </hw-dialog>
@@ -138,6 +142,11 @@ export default {
       confirmDeleteId: ''
     }
   },
+  computed: {
+    isMcpLog() {
+      return String(this.detailData.request_body || '').startsWith('MCP tool: ')
+    }
+  },
   mounted() {
     this.getList()
   },
@@ -163,8 +172,10 @@ export default {
         if (res && res.code === 0) {
           this.detailData = res.data
           this.detailDialogVisible = true
+        } else {
+          MessagePlugin.error(res?.msg || this.$t('common.tips.api_error'))
         }
-      })
+      }).catch(() => MessagePlugin.error(this.$t('common.tips.api_error')))
     },
     handleDelete(slotProps) {
       this.confirmDeleteId = slotProps.row.id
@@ -202,5 +213,17 @@ export default {
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: 16px;
+}
+.log-payload {
+  width: min(100%, 580px);
+  max-height: 360px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--td-component-stroke, #e7e7e7);
+  background: var(--td-bg-color-container-hover, #fafafa);
+  font: 12px/1.6 var(--font-mono, monospace);
 }
 </style>

@@ -7,6 +7,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/wafenginecore/clientip"
 	"net"
+	"net/netip"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -88,6 +89,20 @@ type ManageClientIPTrace struct {
 // 登录错误锁定 / 管理端 IP 白名单 / 令牌 IP 绑定。
 func GetManageClientIP(c *gin.Context) string {
 	return TraceManageClientIP(c).ClientIP
+}
+
+// SuggestedMCPSource uses the same trusted client identity as key enforcement.
+func SuggestedMCPSource(c *gin.Context) string {
+	ip, err := netip.ParseAddr(GetManageClientIP(c))
+	if err != nil {
+		return ""
+	}
+	ip = ip.Unmap()
+	bits := ip.BitLen()
+	if ip.Is4() {
+		bits = 24
+	}
+	return netip.PrefixFrom(ip, bits).Masked().String()
 }
 
 // TraceManageClientIP 与 GetManageClientIP 同一套判定，额外记录判定过程供诊断接口回显。

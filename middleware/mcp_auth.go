@@ -1,14 +1,19 @@
 package middleware
 
 import (
+	"HomeWaf/common/zlog"
 	"HomeWaf/model"
+	"HomeWaf/utils"
+	"HomeWaf/wafsec"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +24,7 @@ type mcpIdentity struct {
 	key        model.OPlatformKey
 	request    *http.Request
 	credential string
+	clientIP   string
 }
 type mcpGrant struct {
 	keyID, method, path, tool string
@@ -55,7 +61,7 @@ func MCPAuth() gin.HandlerFunc {
 		}
 		// Leave room for the JSON-RPC envelope around a valid 1 MiB service draft.
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<20)
-		identity := mcpIdentity{key: key, request: c.Request.Clone(c.Request.Context()), credential: parts[1]}
+		identity := mcpIdentity{key: key, request: c.Request.Clone(c.Request.Context()), credential: parts[1], clientIP: utils.GetManageClientIP(c)}
 		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), mcpIdentityKey{}, identity))
 		c.Next()
 	}
@@ -75,6 +81,40 @@ func allowMCPKey(c *gin.Context, key model.OPlatformKey) bool {
 func MCPAccess(ctx context.Context) string {
 	identity, _ := ctx.Value(mcpIdentityKey{}).(mcpIdentity)
 	return identity.key.MCPAccess
+}
+
+// RecordMCPResult receives the exact, already redacted text handed to the client.
+// Keep one audit row per tool call, including failures before internal dispatch.
+func RecordMCPResult(ctx context.Context, method, path, tool string, start time.Time, status int, result string, isError bool) {
+	identity, ok := ctx.Value(mcpIdentityKey{}).(mcpIdentity)
+	if !ok {
+		return
+	}
+	outcome := `{"isError":false}`
+	if isError {
+		outcome = `{"isError":true}`
+	}
+	entry := model.OPlatformLog{
+		ApiKeyId: identity.key.Id, KeyName: identity.key.KeyName, ClientIP: identity.clientIP,
+		RequestMethod: method, RequestPath: path, RequestBody: "MCP tool: " + tool,
+		StatusCode: status, Duration: time.Since(start).Milliseconds(), TimeStr: start.Format("2006-01-02 15:04:05"),
+		ResponseBody: outcome,
+	}
+	const maxMCPLogBytes = 47 * 1024
+	if len(result) > maxMCPLogBytes {
+		truncated := strings.ToValidUTF8(result[:maxMCPLogBytes], "")
+		encoded, _ := json.Marshal(map[string]any{"truncated": true, "result_prefix": truncated})
+		result = string(encoded)
+	}
+	var err error
+	entry.MCPResult, err = wafsec.DataEncrypt(result)
+	if err != nil {
+		zlog.Error("MCP 返回内容加密失败", "tool", tool, "error", err.Error())
+	}
+	if err := openApiLogService.AddLog(entry); err != nil {
+		zlog.Error("MCP 调用审计写入失败", "tool", tool, "error", err.Error())
+	}
+	openApiKeyService.IncrCallCount(identity.key.Id)
 }
 
 // NewMCPDispatchRequest grants one catalogued operation inside this process only.

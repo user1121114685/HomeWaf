@@ -30,7 +30,7 @@ type WafOPlatformKeyService struct{}
 
 var WafOPlatformKeyServiceApp = new(WafOPlatformKeyService)
 
-func validateKeyRestrictions(name string, limit int64, whitelist, expiry string) error {
+func validateKeyRestrictions(name string, limit int64, whitelist, expiry string, sourceRequired bool) error {
 	if strings.TrimSpace(name) == "" || len(name) > 255 || limit < 0 || limit > 60000 {
 		return errors.New("密钥名称或请求上限无效")
 	}
@@ -39,17 +39,22 @@ func validateKeyRestrictions(name string, limit int64, whitelist, expiry string)
 			return errors.New("有效期需为 UTC 时间 YYYY-MM-DD HH:mm:ss")
 		}
 	}
+	hasSource := false
 	for _, entry := range strings.Split(whitelist, ",") {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
 			continue
 		}
-		if _, err := netip.ParseAddr(entry); err == nil {
+		hasSource = true
+		if ip, err := netip.ParseAddr(entry); err == nil && ip.Zone() == "" {
 			continue
 		}
 		if _, err := netip.ParsePrefix(entry); err != nil {
 			return errors.New("来源限制必须是有效的 IP 或 CIDR")
 		}
+	}
+	if sourceRequired && !hasSource {
+		return errors.New("MCP 密钥必须填写来源 IP 或网段")
 	}
 	return nil
 }
@@ -63,7 +68,7 @@ func maskApiKey(key string) string {
 }
 
 func (receiver *WafOPlatformKeyService) AddApi(req request.WafOPlatformKeyAddReq) (string, string, error) {
-	if err := validateKeyRestrictions(req.KeyName, req.RateLimit, req.IPWhitelist, req.ExpireTime); err != nil {
+	if err := validateKeyRestrictions(req.KeyName, req.RateLimit, req.IPWhitelist, req.ExpireTime, req.MCPAccess != ""); err != nil {
 		return "", "", err
 	}
 	if req.MCPAccess != "" && req.MCPAccess != "read" && req.MCPAccess != "write" {
@@ -102,7 +107,13 @@ func (receiver *WafOPlatformKeyService) AddApi(req request.WafOPlatformKeyAddReq
 }
 
 func (receiver *WafOPlatformKeyService) ModifyApi(req request.WafOPlatformKeyEditReq) error {
-	if err := validateKeyRestrictions(req.KeyName, req.RateLimit, req.IPWhitelist, req.ExpireTime); err != nil {
+	var stored model.OPlatformKey
+	if err := global.GWAF_LOCAL_DB.Select("mcp_access", "ip_whitelist").Where("id = ?", req.Id).Take(&stored).Error; err != nil {
+		return err
+	}
+	// A legacy unrestricted MCP key can still be disabled before assigning its source.
+	needsSource := stored.MCPAccess != "" && (req.Status != 0 || stored.IPWhitelist != "")
+	if err := validateKeyRestrictions(req.KeyName, req.RateLimit, req.IPWhitelist, req.ExpireTime, needsSource); err != nil {
 		return err
 	}
 	editMap := map[string]interface{}{
@@ -114,7 +125,15 @@ func (receiver *WafOPlatformKeyService) ModifyApi(req request.WafOPlatformKeyEdi
 		"ExpireTime":  req.ExpireTime,
 		"UPDATE_TIME": customtype.JsonTime(time.Now()),
 	}
-	return global.GWAF_LOCAL_DB.Model(model.OPlatformKey{}).Where("id = ?", req.Id).Updates(editMap).Error
+	query := global.GWAF_LOCAL_DB.Model(model.OPlatformKey{}).Where("id = ?", req.Id)
+	if stored.MCPAccess != "" {
+		query = query.Where("COALESCE(ip_whitelist, '') = ?", stored.IPWhitelist)
+	}
+	result := query.Updates(editMap)
+	if result.Error == nil && result.RowsAffected == 0 {
+		return errors.New("密钥已变更，请刷新后重试")
+	}
+	return result.Error
 }
 
 func (receiver *WafOPlatformKeyService) DelApi(req request.WafOPlatformKeyDelReq) error {

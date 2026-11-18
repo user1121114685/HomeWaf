@@ -64,27 +64,18 @@
       </section>
     </template>
 
-    <ElDialog v-model="createVisible" title="创建 MCP 专用密钥" width="min(600px, 94vw)" :close-on-click-modal="false" :close-on-press-escape="!creating" :show-close="!creating" @closed="createError = ''">
-      <ElForm label-position="top" @submit.prevent="createKey">
-        <ElFormItem label="连接名称"><ElInput v-model="draft.key_name" :disabled="creating" maxlength="100" aria-label="连接名称" placeholder="例如：运维客户端" /></ElFormItem>
-        <ElFormItem label="允许操作"><ElRadioGroup v-model="draft.mcp_access" :disabled="creating" aria-label="允许操作"><ElRadio value="write">排障与配置</ElRadio><ElRadio value="read">只读排障</ElRadio></ElRadioGroup></ElFormItem>
-        <p class="mcp-hint">权限创建后不可扩展；需要不同权限时创建新密钥，再停用旧密钥。管理入口、管理员和凭据操作始终不可用。</p>
-        <ElFormItem label="有效期至（UTC，可选）"><ElInput v-model="draft.expire_time" :disabled="creating" placeholder="YYYY-MM-DD HH:mm:ss" aria-label="有效期至" /></ElFormItem>
-        <ElFormItem label="来源 IP / 网段（可选）"><ElInput v-model="draft.ip_whitelist" :disabled="creating" placeholder="多个地址或 CIDR 以逗号分隔" aria-label="来源 IP / 网段" /></ElFormItem>
-        <ElFormItem label="每分钟请求上限"><ElInputNumber v-model="draft.rate_limit" :min="1" :max="60000" :disabled="creating" aria-label="每分钟请求上限" /></ElFormItem>
-        <ElAlert v-if="createError" :title="createError" type="error" :closable="false" />
-      </ElForm>
-      <template #footer><ElButton :disabled="creating" @click="createVisible = false">取消</ElButton><ElButton type="primary" :loading="creating" @click="createKey">创建密钥</ElButton></template>
-    </ElDialog>
+    <KeyEditor v-if="createVisible" mcp-only :suggested-source="suggestedSource" :default-name="connectionName()"
+      @close="createVisible = false" @saved="mcpKeySaved" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
-import { ElAlert, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElInputNumber, ElMessage, ElMessageBox, ElRadio, ElRadioGroup, ElTable, ElTableColumn, ElTag } from 'element-plus';
+import { ElAlert, ElButton, ElInput, ElMessage, ElMessageBox, ElRadio, ElRadioGroup, ElTable, ElTableColumn, ElTag } from 'element-plus';
 import { getMCPStatus, mcpConnectionConfig, testMCPConnection, type MCPStatus } from '@/apis/mcp';
 import { oplatform_key_add_api } from '@/apis/oplatform';
+import KeyEditor from './KeyEditor.vue';
 import { edit_system_config_by_item_api } from '@/apis/systemconfig';
 import { securityPath } from '@/config/host';
 
@@ -92,8 +83,8 @@ const status = ref<MCPStatus>();
 const loading = ref(false), error = ref(''), enabling = ref(false);
 const endpoint = ref(new URL(`${securityPath}/mcp`, window.location.origin).href), token = ref(''), created = ref(false);
 const query = ref(''), testing = ref(false), testError = ref(''), testResult = ref('');
-const createVisible = ref(false), creating = ref(false), copying = ref(false), createError = ref('');
-const draft = reactive({ key_name: '', mcp_access: 'write', expire_time: '', ip_whitelist: '', rate_limit: 120, remark: 'MCP HTTP connection' });
+const createVisible = ref(false), creating = ref(false), copying = ref(false);
+const suggestedSource = ref('');
 let controller: AbortController | undefined;
 let active = true;
 const displayedConfig = computed(() => mcpConnectionConfig(endpoint.value, ''));
@@ -105,7 +96,10 @@ async function load() {
   try {
     const response = await getMCPStatus();
     if (response.code !== 0 || !Array.isArray(response.data?.tools)) throw new Error(response.msg || 'MCP 状态读取失败。');
-    if (active) status.value = response.data;
+    if (active) {
+      status.value = response.data;
+      suggestedSource.value = response.data.suggested_source || '';
+    }
   } catch (cause: any) { if (active) error.value = cause.message || '状态读取失败，请重试。'; }
   finally { loading.value = false; }
 }
@@ -123,8 +117,7 @@ async function toggleAccess() {
   finally { enabling.value = false; }
 }
 function openCreate() {
-  draft.key_name = connectionName(); draft.mcp_access = 'write'; draft.expire_time = ''; draft.ip_whitelist = ''; draft.rate_limit = 120;
-  createError.value = ''; createVisible.value = true;
+  createVisible.value = true;
 }
 function connectionName() {
   return `MCP 运维连接 ${new Date().toISOString().slice(0, 19).replace('T', ' ')} UTC`;
@@ -132,16 +125,15 @@ function connectionName() {
 async function generateKey() {
   if (!status.value || loading.value || creating.value || !active) return false;
   if (token.value.trim()) return true;
-  return issueKey({ key_name: connectionName(), mcp_access: 'write', expire_time: '', ip_whitelist: '', rate_limit: 120, remark: 'MCP HTTP connection' });
+  if (!suggestedSource.value) {
+    error.value = '无法识别本次请求来源 IP。请从密钥管理中手动输入 MCP 来源网段。';
+    return false;
+  }
+  return issueKey({ key_name: connectionName(), mcp_access: 'write', expire_time: '', ip_whitelist: suggestedSource.value, rate_limit: 120, remark: 'MCP HTTP connection' });
 }
-async function createKey() {
-  if (creating.value) return;
-  if (!draft.key_name.trim()) { createError.value = '请填写连接名称。'; return; }
-  await issueKey({ ...draft, key_name: draft.key_name.trim(), expire_time: draft.expire_time.trim(), ip_whitelist: draft.ip_whitelist.trim() }, true);
-}
-async function issueKey(values: typeof draft, fromDialog = false) {
+async function issueKey(values: { key_name: string; mcp_access: string; expire_time: string; ip_whitelist: string; rate_limit: number; remark: string }) {
   if (creating.value) return false;
-  creating.value = true; createError.value = ''; error.value = '';
+  creating.value = true; error.value = '';
   try {
     const response = await oplatform_key_add_api(values);
     if (response.code !== 0 || !response.data?.api_key) throw new Error(response.msg || '创建失败。');
@@ -150,12 +142,17 @@ async function issueKey(values: typeof draft, fromDialog = false) {
     return true;
   } catch (cause: any) {
     if (active) {
-      if (fromDialog) createError.value = cause.message || '创建失败，输入已保留。';
-      else error.value = cause.message || '自动生成失败，请重试。';
+      error.value = cause.message || '自动生成失败，请重试。';
     }
     return false;
   }
   finally { creating.value = false; }
+}
+function mcpKeySaved(secret?: string) {
+  createVisible.value = false;
+  if (!secret) return;
+  token.value = secret;
+  created.value = true;
 }
 function clearToken() { token.value = ''; created.value = false; }
 async function copyConfig() {

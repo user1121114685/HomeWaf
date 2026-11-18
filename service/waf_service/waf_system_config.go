@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type WafSystemConfigService struct{}
@@ -73,6 +75,9 @@ func decryptConfigBean(bean *model.SystemConfig) {
 		return
 	}
 	bean.Value = decConfigValue(bean.Item, bean.Value)
+	if bean.Item == model.OpenPlatformSwitch && bean.EnabledUntil <= time.Now().Unix() {
+		bean.Value = "0"
+	}
 }
 
 // MaskSensitiveConfig 对密钥类配置项抹空 Value 并置 HasValue，供页面列表/详情接口使用。
@@ -124,6 +129,15 @@ func (receiver *WafSystemConfigService) addConfig(wafSystemConfigAddReq request.
 		Remarks:   wafSystemConfigAddReq.Remarks,
 		HashInfo:  "",
 	}
+	if bean.Item == model.OpenPlatformSwitch {
+		switch bean.Value {
+		case "1":
+			bean.EnabledUntil = time.Now().Add(model.OpenPlatformWindow).Unix()
+		case "0":
+		default:
+			return errors.New("开放平台开关只接受 0 或 1")
+		}
+	}
 	return global.GWAF_LOCAL_DB.Create(bean).Error
 }
 
@@ -162,9 +176,7 @@ func (receiver *WafSystemConfigService) ModifyApi(req request.WafSystemConfigEdi
 		"UPDATE_TIME": customtype.JsonTime(time.Now()),
 	}
 
-	err := global.GWAF_LOCAL_DB.Model(model.SystemConfig{}).Where("id = ?", req.Id).Updates(editMap).Error
-
-	return err
+	return updateSystemConfig(global.GWAF_LOCAL_DB.Model(model.SystemConfig{}).Where("id = ?", req.Id), req.Item, editMap)
 }
 
 // ModifyByItemApi 通过 item 修改系统配置的 value
@@ -184,9 +196,29 @@ func (receiver *WafSystemConfigService) ModifyByItemApi(req request.WafSystemCon
 		"UPDATE_TIME": customtype.JsonTime(time.Now()),
 	}
 
-	err = global.GWAF_LOCAL_DB.Model(model.SystemConfig{}).Where("item = ?", req.Item).Updates(editMap).Error
+	return updateSystemConfig(global.GWAF_LOCAL_DB.Model(model.SystemConfig{}).Where("item = ?", req.Item), req.Item, editMap)
+}
 
-	return err
+func updateSystemConfig(query *gorm.DB, item string, updates map[string]interface{}) error {
+	if item == model.OpenPlatformSwitch {
+		switch updates["Value"] {
+		case "1":
+			now := time.Now()
+			// A repeated save or concurrent enable must not renew an active window.
+			updates["enabled_until"] = gorm.Expr("CASE WHEN enabled_until > ? THEN enabled_until ELSE ? END", now.Unix(), now.Add(model.OpenPlatformWindow).Unix())
+		case "0":
+			updates["enabled_until"] = 0
+		default:
+			return errors.New("开放平台开关只接受 0 或 1")
+		}
+	}
+	return query.Updates(updates).Error
+}
+
+func (receiver *WafSystemConfigService) CloseExpiredOpenPlatform(now time.Time) error {
+	return global.GWAF_LOCAL_DB.Model(&model.SystemConfig{}).
+		Where("item = ? AND value = ? AND enabled_until <= ?", model.OpenPlatformSwitch, "1", now.Unix()).
+		Updates(map[string]any{"value": "0", "enabled_until": 0, "update_time": customtype.JsonTime(now)}).Error
 }
 
 // SyncMetaByItemApi 只同步配置项的说明性字段（分类/类型/可选项/备注），不动 Value。

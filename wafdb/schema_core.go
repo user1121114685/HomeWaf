@@ -5,6 +5,7 @@ package wafdb
 import (
 	"HomeWaf/model"
 	"gorm.io/gorm"
+	"time"
 )
 
 var coreSchemaModels = []any{
@@ -134,12 +135,18 @@ func InitializeCoreSchema(db *gorm.DB) error {
 	for _, change := range []struct {
 		model any
 		field string
-	}{{&model.HttpAuthBase{}, "PasswordHashed"}, {&model.HttpAuthSession{}, "Port"}, {&model.GateRuntime{}, "Owner"}, {&model.OPlatformKey{}, "MCPAccess"}} {
+	}{{&model.HttpAuthBase{}, "PasswordHashed"}, {&model.HttpAuthSession{}, "Port"}, {&model.GateRuntime{}, "Owner"}, {&model.OPlatformKey{}, "MCPAccess"}, {&model.SystemConfig{}, "EnabledUntil"}} {
 		if !db.Migrator().HasColumn(change.model, change.field) {
 			if err := db.Migrator().AddColumn(change.model, change.field); err != nil {
 				return err
 			}
 		}
+	}
+	// Give an already-enabled installation one window on upgrade. Subsequent
+	// starts keep the original deadline, including one that has already passed.
+	if err := db.Model(&model.SystemConfig{}).Where("item = ? AND value = ? AND enabled_until = 0", model.OpenPlatformSwitch, "1").
+		UpdateColumn("enabled_until", time.Now().Add(model.OpenPlatformWindow).Unix()).Error; err != nil {
+		return err
 	}
 	for _, field := range []string{"SignatureURL", "FeedID", "SigningKeyID", "SigningPublicKey", "SignedSequence", "SignedDigest", "SignatureExpiresAt"} {
 		if !db.Migrator().HasColumn(&model.ThreatIPChannel{}, field) {

@@ -5,6 +5,7 @@ package api
 import (
 	"HomeWaf/global"
 	"HomeWaf/model/common/response"
+	"HomeWaf/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"sort"
@@ -659,8 +660,9 @@ func (w *WafOPlatformDocApi) GetDocApi(c *gin.Context) {
 // GetDocStatusApi 查询开放平台是否已启用（供管理界面 doc.vue 决定是否展示 Swagger UI）
 func (w *WafOPlatformDocApi) GetDocStatusApi(c *gin.Context) {
 	enabled := int64(0)
-	if global.CurrentSettings().GCONFIG_OPEN_PLATFORM_ENABLED == 1 {
+	settings := global.CurrentSettings()
+	if settings.OpenPlatformEnabled() {
 		enabled = 1
 	}
-	response.OkWithData(gin.H{"enabled": enabled}, c)
+	response.OkWithData(gin.H{"enabled": enabled, "enabled_until": settings.OpenPlatformEnabledUntil, "suggested_source": utils.SuggestedMCPSource(c)}, c)
 }

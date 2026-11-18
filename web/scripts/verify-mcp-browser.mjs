@@ -46,7 +46,7 @@ await context.route('**/api/**', async (route) => {
   let input = {};
   if (req.postData()) { try { input = JSON.parse(AesDecrypt(req.postData())); } catch { try { input = JSON.parse(req.postData()); } catch {} } }
   if (endpoint.includes('handshake') || endpoint === 'public/seckey' || endpoint === 'sysinfo/checkversion') return fail('Isolated fixture');
-  if (endpoint === 'oplatform/mcp') return failedRead ? fail('MCP 状态读取失败，请重试。') : ok({ endpoint: '/mcp', transport: 'Streamable HTTP', enabled, tools: toolList });
+  if (endpoint === 'oplatform/mcp') return failedRead ? fail('MCP 状态读取失败，请重试。') : ok({ endpoint: '/mcp', transport: 'Streamable HTTP', enabled, suggested_source: '127.0.0.0/24', tools: toolList });
   if (endpoint === 'oplatform/key/add') {
     requests.push(input);
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -86,6 +86,7 @@ try {
   expect(requests.filter((item) => item.key_name)).toHaveLength(1);
   expect(requests[0].key_name).toMatch(/^MCP 运维连接 .+ UTC$/);
   expect(requests[0].mcp_access).toBe('write');
+  expect(requests[0].ip_whitelist).toBe('127.0.0.0/24');
   expect(requests[0].rate_limit).toBe(120);
   await expect(page.getByRole('dialog', { name: '创建 MCP 专用密钥' })).toHaveCount(0);
   await page.getByRole('button', { name: '复制连接配置', exact: true }).click();

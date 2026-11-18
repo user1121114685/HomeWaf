@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/mod/semver"
 )
@@ -362,8 +363,6 @@ func applyConfigIntValue(cfg *global.RuntimeSettings, effects *[]func(), name st
 	case "log_file_write_compress":
 		cfg.GCONFIG_LOG_FILE_WRITE_COMPRESS = value
 		*effects = append(*effects, func() { syncLogFileWriterConfig() })
-	case "open_platform_enabled":
-		cfg.GCONFIG_OPEN_PLATFORM_ENABLED = value
 	case "task_log_retain_days":
 		cfg.GCONFIG_TASK_LOG_RETAIN_DAYS = value
 		// 动态更新任务日志管理器的保留天数
@@ -599,6 +598,27 @@ func migrateLegacyIntConfig(itemName string, legacyValue int64, newValue int64, 
 	configItem.Value = newStr
 	configMap[itemName] = configItem
 	zlog.Info(fmt.Sprintf("配置项 %s 仍为旧默认值 %d，已自动升级为 %d（%s）", itemName, legacyValue, newValue, reason))
+}
+
+func loadOpenPlatformSwitch(cfg *global.RuntimeSettings, item model.SystemConfig) {
+	const remarks = "开放 API 和 MCP 共用开关，开启 48 小时后自动关闭"
+	const options = "0|禁用,1|启用"
+	cfg.OpenPlatformEnabledUntil = 0
+	if item.Id == "" {
+		wafSystemConfigService.AddManagedApi(request.WafSystemConfigAddReq{
+			ItemClass: "openplatform", Item: model.OpenPlatformSwitch, Value: "0", Remarks: remarks, ItemType: "options", Options: options,
+		})
+		return
+	}
+	syncConfigMeta(item, "openplatform", "options", options, remarks)
+	if item.Value == "1" {
+		now := time.Now()
+		if item.EnabledUntil > now.Unix() {
+			cfg.OpenPlatformEnabledUntil = item.EnabledUntil
+		} else if err := wafSystemConfigService.CloseExpiredOpenPlatform(now); err != nil {
+			zlog.Error("开放平台到期状态写入失败", "error", err.Error())
+		}
+	}
 }
 
 func updateConfigIntItem(cfg *global.RuntimeSettings, effects *[]func(), initLoad bool, itemClass string, itemName string, defaultValue int64, remarks string, itemType string, options string, configMap map[string]model.SystemConfig) {
@@ -917,7 +937,7 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigIntItem(&cfg, &effects, initLoad, "logfile", "log_file_write_compress", cfg.GCONFIG_LOG_FILE_WRITE_COMPRESS, "是否压缩历史文件（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)
 
 	// 开放平台配置
-	updateConfigIntItem(&cfg, &effects, initLoad, "openplatform", "open_platform_enabled", cfg.GCONFIG_OPEN_PLATFORM_ENABLED, "开放平台开关（1启用 0禁用）", "options", "0|禁用,1|启用", configMap)
+	loadOpenPlatformSwitch(&cfg, configMap[model.OpenPlatformSwitch])
 
 	// 任务日志配置
 	updateConfigIntItem(&cfg, &effects, initLoad, "task", "task_log_retain_days", cfg.GCONFIG_TASK_LOG_RETAIN_DAYS, "任务日志保留天数（默认30天）", "int", "", configMap)

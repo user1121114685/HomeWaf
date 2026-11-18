@@ -142,7 +142,24 @@ func NewHandler(dispatch http.Handler, operations []Operation) (http.Handler, er
 			destructive, openWorld := !op.ReadOnly, true
 			server.AddTool(&mcp.Tool{Name: op.Name, Description: op.Description, InputSchema: op.InputSchema,
 				Annotations: &mcp.ToolAnnotations{ReadOnlyHint: op.ReadOnly, DestructiveHint: &destructive, OpenWorldHint: &openWorld}},
-				func(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				func(ctx context.Context, request *mcp.CallToolRequest) (result *mcp.CallToolResult, err error) {
+					start := time.Now()
+					w := &boundedResponse{header: http.Header{}, status: http.StatusOK}
+					defer func() {
+						if result != nil {
+							var text string
+							if len(result.Content) > 0 {
+								if content, ok := result.Content[0].(*mcp.TextContent); ok {
+									text = content.Text
+								}
+							}
+							if text == "" {
+								wire, _ := json.Marshal(result)
+								text = string(wire)
+							}
+							middleware.RecordMCPResult(ctx, op.Method, op.Path, op.Name, start, w.status, text, result.IsError)
+						}
+					}()
 					var args map[string]any
 					if len(request.Params.Arguments) == 0 {
 						request.Params.Arguments = json.RawMessage(`{}`)
@@ -161,7 +178,7 @@ func NewHandler(dispatch http.Handler, operations []Operation) (http.Handler, er
 					}
 					ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 					defer cancel()
-					return execute(ctx, dispatch, op, args), nil
+					return execute(ctx, dispatch, op, args, w), nil
 				})
 		}
 		servers[access] = server
@@ -169,7 +186,7 @@ func NewHandler(dispatch http.Handler, operations []Operation) (http.Handler, er
 	return mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server { return servers[middleware.MCPAccess(r.Context())] }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true}), nil
 }
 
-func execute(ctx context.Context, dispatch http.Handler, op Operation, args map[string]any) *mcp.CallToolResult {
+func execute(ctx context.Context, dispatch http.Handler, op Operation, args map[string]any, w *boundedResponse) *mcp.CallToolResult {
 	// Pagination is bounded even if a legacy endpoint permits an unbounded page.
 	for _, name := range []string{"pageSize", "page_size", "limit"} {
 		if value, ok := args[name].(float64); ok && (value < 1 || value > 100) {
@@ -194,7 +211,6 @@ func execute(ctx context.Context, dispatch http.Handler, op Operation, args map[
 	if err != nil {
 		return failure(err.Error())
 	}
-	w := &boundedResponse{header: http.Header{}, status: 200}
 	dispatch.ServeHTTP(w, r)
 	if w.overflow {
 		return failure("Result exceeds 2 MiB. Narrow the service, time range or page size; no partial result is returned.")
@@ -211,13 +227,13 @@ func execute(ctx context.Context, dispatch http.Handler, op Operation, args map[
 		}
 		return failure(message)
 	}
-	clean := redact(result)
 	if op.Name == "log_detail" {
 		if data, ok := result["data"].(map[string]any); ok {
 			requestPresent := data["header"] != "" || data["body"] != "" || data["post_form"] != ""
 			result["mcp_evidence"] = map[string]any{"request_payload_present": requestPresent, "body_truncated": data["body_truncated"] == true, "redaction": "Known credential values and duplicate raw byte fields are redacted; rule, source, timing, status, diagnostics and non-sensitive attack payload remain available.", "limitations": "Empty payload fields may mean no body, no retention or unavailable storage. Do not invent missing request/response content. Diagnose using diagnostics.state, content_length, body_truncated and current service policy; present uncertainty explicitly."}
 		}
 	}
+	clean := redact(result)
 	data, err := json.Marshal(clean)
 	if err != nil {
 		return failure("Cannot encode management result")

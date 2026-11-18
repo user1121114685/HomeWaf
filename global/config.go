@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // RuntimeSettings contains values only; callers receive private copies.
@@ -213,9 +214,8 @@ type RuntimeSettings struct {
 	GCONFIG_ZEROSSL_EAB_KID string
 	// zerossl eab_hmac_key
 	GCONFIG_ZEROSSL_EAB_HMAC_KEY string
-	// 开放平台配置
-	// 开放平台开关，默认关闭 有需要的开启 1启用 0禁用
-	GCONFIG_OPEN_PLATFORM_ENABLED int64
+	// Unix deadline shared by remote REST and MCP access. Zero means closed.
+	OpenPlatformEnabledUntil int64
 	// 任务日志配置
 	// 任务日志保留天数（默认 30 天）
 	GCONFIG_TASK_LOG_RETAIN_DAYS int64
@@ -445,7 +445,6 @@ var runtimeSettings = func() *atomic.Pointer[runtimeSettingsSnapshot] {
 		GCONFIG_ZEROSSL_ACCESS_KEY:               "",
 		GCONFIG_ZEROSSL_EAB_KID:                  "",
 		GCONFIG_ZEROSSL_EAB_HMAC_KEY:             "",
-		GCONFIG_OPEN_PLATFORM_ENABLED:            0,
 		GCONFIG_TASK_LOG_RETAIN_DAYS:             30,
 		GCONFIG_LOG_FILE_WRITE_ENABLE:            0,
 		GCONFIG_LOG_FILE_WRITE_PATH:              "logs/access.log",
@@ -501,6 +500,10 @@ var runtimeSettings = func() *atomic.Pointer[runtimeSettingsSnapshot] {
 
 // CurrentSettings returns one complete published revision.
 func CurrentSettings() RuntimeSettings { return runtimeSettings.Load().values }
+
+func (s RuntimeSettings) OpenPlatformEnabled() bool {
+	return s.OpenPlatformEnabledUntil > time.Now().Unix()
+}
 
 // UpdateSettings serializes short value-only edits. Never perform IO or call
 // UpdateSettings recursively in the callback. Retaining the draft cannot mutate published data.

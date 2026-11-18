@@ -46,7 +46,9 @@ func TestMCPHTTPPermissionsPersistenceAndRuntime(t *testing.T) {
 	dialect.Register(&dialect.SQLiteDialect{})
 	global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB = db, db
 	global.GWAF_IP_WHITELIST, global.GWAF_DOMAIN_WHITELIST = "0.0.0.0/0,::/0", ""
-	global.UpdateSettings(func(s *global.RuntimeSettings) { s.GCONFIG_OPEN_PLATFORM_ENABLED = 1 })
+	global.UpdateSettings(func(s *global.RuntimeSettings) {
+		s.OpenPlatformEnabledUntil = time.Now().Add(model.OpenPlatformWindow).Unix()
+	})
 	wafpipeline.Ports = wafpipeline.NewRegistry[wafpipeline.Snapshot](100)
 	live := &wafpipeline.Runtime{RuleSteps: wafpipeline.DefaultRuleEngine().Steps, Forward: func(_ *wafpipeline.Snapshot, _ *wafpipeline.RequestContext, w http.ResponseWriter) {
 		w.WriteHeader(204)
@@ -63,7 +65,7 @@ func TestMCPHTTPPermissionsPersistenceAndRuntime(t *testing.T) {
 		_ = sqlDB.Close()
 	})
 	key := func(scope string) (string, string) {
-		id, value, err := waf_service.WafOPlatformKeyServiceApp.AddApi(request.WafOPlatformKeyAddReq{KeyName: "test-" + scope, MCPAccess: scope})
+		id, value, err := waf_service.WafOPlatformKeyServiceApp.AddApi(request.WafOPlatformKeyAddReq{KeyName: "test-" + scope, MCPAccess: scope, IPWhitelist: "192.0.2.0/24"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -251,10 +253,21 @@ func TestMCPHTTPPermissionsPersistenceAndRuntime(t *testing.T) {
 	if err = db.Where("api_key_id = ?", writeID).Find(&audit).Error; err != nil || len(audit) < 4 {
 		t.Fatalf("missing MCP audit: %d %v", len(audit), err)
 	}
+	recordedResult := false
 	for _, row := range audit {
 		if strings.Contains(row.RequestBody, writeKey) || strings.Contains(row.RequestBody, "MCPBlock") || strings.Contains(row.ResponseBody, "MCPBlock") {
 			t.Fatal("raw credentials/config stored in MCP audit")
 		}
+		if row.MCPResult != "" {
+			result, decryptErr := wafsec.DataDecrypt(row.MCPResult, nil)
+			if decryptErr != nil || result == "" {
+				t.Fatalf("MCP result was not stored as decryptable content: %v", decryptErr)
+			}
+			recordedResult = true
+		}
+	}
+	if !recordedResult {
+		t.Fatal("MCP audit did not retain the result returned to the client")
 	}
 	if err = db.Model(&model.OPlatformKey{}).Where("id = ?", writeID).Update("status", 0).Error; err != nil {
 		t.Fatal(err)
@@ -266,7 +279,7 @@ func TestMCPHTTPPermissionsPersistenceAndRuntime(t *testing.T) {
 	if rpc(writeKey, "tools/list", map[string]any{}).Code != 401 {
 		t.Fatal("expired key still connects")
 	}
-	global.UpdateSettings(func(s *global.RuntimeSettings) { s.GCONFIG_OPEN_PLATFORM_ENABLED = 0 })
+	global.UpdateSettings(func(s *global.RuntimeSettings) { s.OpenPlatformEnabledUntil = time.Now().Unix() })
 	if rpc(readKey, "tools/list", map[string]any{}).Code != 401 {
 		t.Fatal("platform switch did not disable MCP")
 	}
