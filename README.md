@@ -2,53 +2,37 @@
 
 # HomeWaf
 
-**首款面向家庭用户的 WAF（Web 应用防火墙），让自建服务的访问控制更简单。**
+面向个人和家庭自托管服务的 Web 应用防火墙。
 
-HomeWaf 是基于 SamWaf 的独立修改发行版，重点服务于家庭和个人自建服务场景，以简单、易用为目标。
+HomeWaf 作为 HTTP/HTTPS 服务入口，为接入的自建服务检查请求、控制访问并显示运行状态。
 
-[一键安装](#一键安装) · [Docker](#docker-一键运行) · [在线更新](#在线更新) · [源码构建](#构建与运行) · [使用许可](#使用许可) · [第三方声明](THIRD_PARTY_NOTICES.md)
+[安装](#一键安装) · [首次登录](#首次登录) · [接入服务](#接入第一个服务) · [升级与卸载](#在线更新) · [安全测试](#持续安全检查) · [开发](#构建与运行) · [许可](#使用许可) · [第三方声明](THIRD_PARTY_NOTICES.md)
 
 [![Release](https://img.shields.io/github/v/release/user1121114685/HomeWaf)](https://github.com/user1121114685/HomeWaf/releases/latest)
 [![Build](https://github.com/user1121114685/HomeWaf/actions/workflows/ci-test.yml/badge.svg)](https://github.com/user1121114685/HomeWaf/actions/workflows/ci-test.yml)
 
-## 为什么面向家庭用户
+## 适用范围
 
-家庭用户通常只需要向家人、朋友或自己的设备开放服务，访问者往往只有几个人到十来个人，例如：
+适合需要保护自托管 Web 服务的个人和家庭，例如：
 
 - NAS 的 Web 管理界面、文件服务和相册。
 - 摄像头、独立设备及智能家居的远程控制面板。
 - 配合 VPN 回家使用的 Web 服务，以及其他个人网站。
 
-围绕这些场景，HomeWaf 的设计思路是 **IP 限制 + 蜜罐封锁 + 断网自保**：优先控制谁能访问，减少不必要的暴露，再处理获准访问后的异常请求。这里描述的是项目方向，具体能力以当前版本实际实现为准。
+HomeWaf 只检查经过其服务监听端口的 HTTP/HTTPS 流量；未接入或绕过该入口的流量不受保护。它不代替 VPN 或全协议网络防火墙，也不是面向海量公开流量的企业 WAF。
 
-HomeWaf 聚焦 Web 应用防护，不代替 VPN 或全协议网络防火墙。它也不是以大型企业、海量公开访客为主要目标的产品。
-
-## 为什么继续公开源码
-
-1. **尊重来源。** HomeWaf 来自开源项目 SamWaf，保留上游作者的版权、来源和许可声明。
-2. **共同发现问题。** 网络环境复杂，个人能覆盖的设备、场景和问题有限，需要使用者参与反馈和改进。
-3. **一起把产品做好。** 现在的设计未必是最好的，欢迎提出更合适的方案。
-
-源码公开不代表没有使用限制，具体范围见下方的[使用许可](#使用许可)。参与开发前，请阅读 [AGENTS.md](AGENTS.md) 中的工程规范、安全边界和贡献授权要求。
-
-## 免费与付费
-
-HomeWaf 采用免费与付费并存的方式。面向家庭的非商业使用免费；需要持续支付服务器等成本的服务，计划通过付费分摊费用。
-
-项目以收支平衡、持续维护为目标。如果产生结余，将继续投入开发，并向上游 SamWaf 捐赠。吃水不忘挖井人。
-
-付费服务的范围和价格以实际公布的方案为准；目前仓库提供离线签名授权机制，云授权、订单系统和付费功能清单尚未定义。
+非商业用途免费。商业用途（包括公司内部部署）须事先取得书面许可，详见[使用许可](#使用许可)。
 
 ## 一键安装
 
 安装脚本从 **本仓库最新正式 Release** 下载对应平台的安装包，校验 SHA256 后安装并注册系统服务。首次启动直接创建当前数据库结构和默认配置，不导入旧版 SamWaf 数据，也不执行历史升级补丁。
 
-| 系统 | 架构 | 默认安装目录 | 服务管理 |
-| --- | --- | --- | --- |
-| Windows | x64 | `C:\ProgramData\HomeWaf` | Windows 服务 |
-| Linux | x86_64、ARM64 | `/opt/homewaf` | systemd |
-| macOS | Intel、Apple Silicon | `/opt/homewaf` | launchd |
-| Docker | Linux amd64、arm64 | 容器 `/app`，数据放命名卷 | Docker |
+| 系统    | 架构                 | 默认安装目录              | 服务管理     |
+| ------- | -------------------- | ------------------------- | ------------ |
+| Windows | x64                  | `C:\ProgramData\HomeWaf`  | Windows 服务 |
+| Linux   | x86_64、ARM64        | `/opt/homewaf`            | systemd      |
+| macOS   | Intel、Apple Silicon | `/opt/homewaf`            | launchd      |
+| Docker  | Linux amd64、arm64   | 容器 `/app`，数据放命名卷 | Docker       |
 
 ### Windows PowerShell
 
@@ -86,7 +70,7 @@ Windows PowerShell（Docker Desktop）：
 & ([scriptblock]::Create((irm https://github.com/user1121114685/HomeWaf/releases/latest/download/install_homewaf.ps1))) -Docker
 ```
 
-安装后容器名为 `homewaf`，镜像标记为 `homewaf:v2.0.1` 和 `homewaf:latest`，配置、数据、密钥、日志及证书分别保存在命名卷中。管理端映射 `127.0.0.1:26666`，网站端口映射 80/TCP、443/TCP 和 443/UDP；请确保这些端口可用。
+安装后容器名为 `homewaf`，镜像标记为 `homewaf:<版本>` 和 `homewaf:latest`。配置、数据、密钥、日志及证书分别保存在命名卷中。管理端映射 `127.0.0.1:26666`，网站端口映射 80/TCP、443/TCP 和 443/UDP；请确保这些端口可用。
 
 再次执行同一命令会安装最新正式版并重新创建容器，保留命名卷；新容器启动失败时尝试恢复原镜像。脚本只接管由它创建的容器，不覆盖已有的自定义部署。Linux 用户需有访问 Docker 的权限。
 
@@ -96,15 +80,24 @@ Windows PowerShell（Docker Desktop）：
 
 打开 **http://127.0.0.1:26666**，账号为 `admin`，初始密码随机生成：
 
-| 安装方式 | 查看初始密码 |
-| --- | --- |
-| Windows | `Get-Content C:\ProgramData\HomeWaf\data\initial_password.txt` |
-| Linux/macOS | `sudo cat /opt/homewaf/data/initial_password.txt` |
-| Docker | `docker exec homewaf cat /app/data/initial_password.txt` |
+| 安装方式    | 查看初始密码                                                   |
+| ----------- | -------------------------------------------------------------- |
+| Windows     | `Get-Content C:\ProgramData\HomeWaf\data\initial_password.txt` |
+| Linux/macOS | `sudo cat /opt/homewaf/data/initial_password.txt`              |
+| Docker      | `docker exec homewaf cat /app/data/initial_password.txt`       |
 
 首次启动需要初始化资源，若文件尚未生成请稍等片刻。登录后修改密码。远程服务器可以通过 SSH 隧道访问管理端，例如 `ssh -L 26666:127.0.0.1:26666 user@server`。
 
 `initial_password.txt` 只记录首次生成的密码，后续修改或重置密码不会更新该文件。开发模式使用独立账号数据，查看密码及重置方法见[开发实例的账号与密码](#开发实例的账号与密码)。
+
+### 接入第一个服务
+
+1. 在控制台打开“我的服务”，选择“接入服务”，选定场景并填写现有业务的上游地址。
+2. 检查配置并保存；如果服务需要访问账号或服务令牌，先完成设置，再检查并启用监听。可先选择观察模式，确认真实请求和命中结果后再决定是否阻断。
+3. 将 DNS、路由器端口转发或现有入口指向 HomeWaf 的监听端口。启用监听不会自动修改这些网络设置。
+4. 通过新入口发起请求，在该服务的访问记录中确认请求已经过 HomeWaf。上游原地址可能仍可直接访问；如果存在绕过入口的路径，应在网络侧限制其访问。
+
+细节见控制台“使用指南 → 接入与验证”。
 
 ### 忘记密码与重置密码
 
@@ -147,13 +140,11 @@ docker restart homewaf
 
 重置会修改所选账号的密码并清除其数据库中保存的登录令牌，保留站点配置和其他业务数据。请对准需要恢复的实例操作；若出现 `No accounts found in database.`，先检查程序路径、数据目录和数据库配置是否属于正确实例。
 
-### 手动下载、自定义目录与卸载
+### 手动下载与自定义目录
 
 所有二进制、安装脚本和校验清单都在 [GitHub Releases](https://github.com/user1121114685/HomeWaf/releases)。Windows 解压后可直接运行 `HomeWaf64.exe`；Linux/macOS 解压后运行对应的 `HomeWafLinux64`、`HomeWafLinuxArm64`、`HomeWafDarwin64` 或 `HomeWafDarwinArm64`。
 
-下载脚本到本机后，可以指定 `--version v2.0.1 --dir /opt/homewaf --no-service`（Shell），或 `-Version v2.0.1 -Directory C:\HomeWaf -NoService`（PowerShell）。不加 `--no-service`/`-NoService` 时自动安装并启动服务。
-
-卸载服务和程序：Shell 使用 `sudo bash install_homewaf.sh uninstall`；管理员 PowerShell 使用 `./install_homewaf.ps1 -Action uninstall`。自定义目录需同时指定。默认保留配置、数据库、证书和密钥；确认已备份且需要删除实例数据时，额外传入 `--purge-data --yes` 或 `-PurgeData -Yes`。数据清理仅用于安装脚本管理的目录，不删除其中的其他文件。前台运行的实例需先停止，再使用 `--no-service` / `-NoService` 卸载。
+自定义安装目录可使用 Shell 参数 `--dir /srv/homewaf`，或 PowerShell 参数 `-Directory 'D:\HomeWaf'`。不加 `--no-service` / `-NoService` 时，安装脚本会注册并启动系统服务。升级和卸载命令见[在线更新](#在线更新)。
 
 ## 在线更新
 
@@ -161,13 +152,81 @@ docker restart homewaf
 
 Windows/Linux/macOS 原生安装可在提示中确认升级。程序下载当前系统和架构的安装包，核对 GitHub 提供的 SHA256 后替换二进制，再由 Supervisor 启动新 Worker 并排空旧 Worker。更新失败、网络错误或下载校验失败会明确报错。更新渠道只指向 `user1121114685/HomeWaf`，不访问原项目的软件更新地址。
 
-WebUI 不可用时，下载最新安装脚本执行 `sudo bash install_homewaf.sh upgrade --dir /opt/homewaf`，或在管理员 PowerShell 执行 `./install_homewaf.ps1 -Action upgrade -Directory C:\ProgramData\HomeWaf`。原生升级通过本机认证 API 完成，并自动平滑重启；脚本会为缺少命令行升级入口的旧版本加载经过 SHA256 校验的新客户端。升级前保持实例运行。`--version` / `-Version` 可限定期望版本；不匹配时不提交升级。
+管理端不可用时仍可通过安装脚本升级。原生升级通过本机认证 API 下载并校验安装包，自动平滑重启；升级前保持实例运行。安装脚本也可为缺少命令行升级入口的旧版本加载 SHA256 校验过的新客户端。使用 `--version vX.Y.Z` / `-Version vX.Y.Z` 可检查预期版本；目标不匹配时不会提交升级。
 
 新版二进制也支持 `homewaf apikey init` 后执行 `homewaf update --check`、`homewaf update --wait 15m`、`homewaf update --status`（Windows 使用 `HomeWaf64.exe`，其他平台使用对应文件名）。请求结果不确定时先查状态，避免重复提交。
 
-Docker 内保留版本检查和更新提示；使用 `bash install_homewaf.sh upgrade --docker` 或 `./install_homewaf.ps1 -Action upgrade -Docker` 下载、校验镜像并优雅停止后重建容器。单容器重建存在短暂中断，不等同于原生进程平滑切换。卸载使用 `uninstall --docker` 或 `-Action uninstall -Docker`，默认保留命名卷；只有显式附加数据清理和确认参数才删除对应实例卷。
+Docker 内保留版本检查和更新提示。脚本会下载并校验镜像、优雅停止容器后再重建；单容器重建期间会短暂中断服务。默认保留命名卷，只有明确指定数据清理才删除对应实例卷。
 
-备份时保留 `conf/`、`data/`、`ssl/` 和 **`.homewaf-keys/`**；数据密钥与数据库必须配套，不能删除密钥后生成新密钥来读取原有密文。容器命名卷默认会在重建时保留，不要执行 `down -v`。
+### 安装脚本升级与卸载命令
+
+以下原生安装命令适用于默认目录：Linux/macOS 为 `/opt/homewaf`，Windows 为 `C:\ProgramData\HomeWaf`。自定义目录时替换对应路径。Shell 使用 `sudo`；Windows 请在管理员 PowerShell 中运行。Docker 命令沿用当前用户的 Docker context；只有该 context 要求时才使用 `sudo`。
+
+Linux/macOS 原生服务：
+
+```sh
+curl -fsSL https://github.com/user1121114686/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh
+
+# 升级并自动平滑重启
+sudo bash install_homewaf.sh upgrade --dir /opt/homewaf
+
+# 卸载程序和服务，保留配置、数据库、证书及密钥
+sudo bash install_homewaf.sh uninstall --dir /opt/homewaf
+
+# 已备份并确认删除该实例的数据后再执行
+sudo bash install_homewaf.sh uninstall --dir /opt/homewaf --purge-data --yes
+```
+
+Windows 原生服务：
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -Uri 'https://github.com/user1121114686/HomeWaf/releases/latest/download/install_homewaf.ps1' -OutFile '.\install_homewaf.ps1'
+
+# 升级并自动平滑重启
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action upgrade -Directory 'C:\ProgramData\HomeWaf'
+
+# 卸载程序和服务，保留配置、数据库、证书及密钥
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action uninstall -Directory 'C:\ProgramData\HomeWaf'
+
+# 已备份并确认删除该实例的数据后再执行
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action uninstall -Directory 'C:\ProgramData\HomeWaf' -PurgeData -Yes
+```
+
+纯前台运行的原生实例请先停止进程，然后在卸载命令中增加 `--no-service` 或 `-NoService`。`--purge-data --yes` / `-PurgeData -Yes` 只删除该实例由安装脚本管理的数据目录；容器模式下只删除 HomeWaf 安装器创建的命名卷。清理前请备份 `conf/`、`data/`、`ssl/` 和 **`.homewaf-keys/`**；数据密钥与数据库必须配套。
+
+Docker 更新和卸载命令：
+
+```sh
+# Linux/macOS
+curl -fsSL https://github.com/user1121114686/HomeWaf/releases/latest/download/install_homewaf.sh -o install_homewaf.sh
+bash install_homewaf.sh upgrade --docker
+bash install_homewaf.sh uninstall --docker
+bash install_homewaf.sh uninstall --docker --purge-data --yes
+```
+
+```powershell
+# Windows PowerShell / Docker Desktop
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -Uri 'https://github.com/user1121114686/HomeWaf/releases/latest/download/install_homewaf.ps1' -OutFile '.\install_homewaf.ps1'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action upgrade -Docker
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action uninstall -Docker
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\install_homewaf.ps1' -Action uninstall -Docker -PurgeData -Yes
+```
+
+### 只重启当前版本
+
+如果只需重启 Worker、不下载新版本，可在实例目录运行 `rolling-restart`：
+
+```powershell
+.\HomeWaf64.exe rolling-restart
+```
+
+```sh
+sudo ./HomeWafLinux64 rolling-restart
+```
+
+其他架构请使用对应的二进制名称，例如 `HomeWafLinuxArm64`、`HomeWafDarwin64` 或 `HomeWafDarwinArm64`。Supervisor 会先等待新 Worker 就绪，再排空旧 Worker；启动失败时旧 Worker 继续服务。默认排空时间为 30 秒，可在 `conf/config.yml` 中通过 `drain_time_out` 修改。Windows 接管监听端口期间，新连接可能需要重试；超出排空期限的长连接会关闭。
 
 ## 构建与运行
 
@@ -177,11 +236,11 @@ Docker 内保留版本检查和更新提示；使用 `bash install_homewaf.sh up
 | -------- | -------------------------------- |
 | Go       | `1.27.4`，见 `go.mod`            |
 | Node.js  | `26.13.0`，见 `web/package.json` |
-| C 编译器 | 不需要；默认 `CGO_ENABLED=0`      |
+| C 编译器 | 不需要；默认 `CGO_ENABLED=0`     |
 
-前端源码和依赖锁文件均在本仓库中。Go 主模块为 `HomeWaf`，程序入口为 `cmd/homewaf`，前端包为 `homewaf-web`。
+Go 入口为 `cmd/homewaf`，前端源码和依赖锁文件位于 `web/`。
 
-数据库采用标准 SQLite，敏感字段使用实例密钥加密。部署和备份时请单独持久化 `.homewaf-keys/`；安全与权限边界见[核心约束](#安全与核心设计边界)。
+数据库采用 SQLite，敏感字段使用实例密钥加密。部署和备份时请单独保留 `.homewaf-keys/`；安全边界见[安全与核心设计边界](#安全与核心设计边界)。
 
 ### 从源码构建
 
@@ -214,22 +273,13 @@ Linux/macOS 执行 `sh dev.sh`。三种系统也都可以使用 `node scripts/de
 
 脚本同时启动后端和 Vite 前端；Vite 入口文件缺失时（包括安装中断后仅残留目录的情况），自动执行 `npm ci --include=dev --prefix web`，并在启动后端前验证 Vite 能否运行。依赖检查失败时按提示重新安装后重试。启动完成后访问 **http://127.0.0.1:3001**。仅需后端时执行 `dev.bat --backend-only`、`sh dev.sh --backend-only` 或 `node scripts/dev.mjs --backend-only`。
 
-保存 Go 文件后自动执行：
+保存 Go 文件后，脚本会编译候选程序并请求 Supervisor 交接 Worker。编译失败或新 Worker 未就绪时，原服务继续运行；修正代码并再次保存即可重试。修改 Supervisor、IPC 协议或开发脚本后，请停止并重新启动开发环境。
 
-1. 等待 600ms 合并连续保存，编译 `./cmd/homewaf` 到独立候选文件。
-2. 编译成功后替换开发实例的二进制，调用已有 `rolling-restart` 命令。
-3. Supervisor 启动新 Worker，确认 READY，再排空旧 Worker 并接管独占资源。
-4. 等待本轮交接完成后才处理下一轮修改，避免连续保存的重启请求被忽略。
+- 配置、数据库、密钥和日志保存在 `.cache/dev/runtime/`，与已安装实例隔离；开发账号的初始密码保存在该目录的 `data/initial_password.txt`。查看及重置步骤见[开发实例的账号与密码](#开发实例的账号与密码)。
+- 前端入口为 `http://127.0.0.1:3001`，后端默认端口为 `26666`。可在 `.cache/dev/runtime/conf/config.yml` 中修改 `local_port`；前端代理会使用该端口。
+- Go 源码、模块文件和内嵌资源变化会触发编译；单独修改 `_test.go` 不会触发编译。前端改动使用 Vite 热更新。按 `Ctrl+C` 停止本脚本启动的进程，不会影响已安装服务。
 
-编译错误会显示在终端，当前服务继续运行；修正后保存即可重试。新 Worker 就绪失败时保留旧 Worker，并恢复旧二进制启动路径。Windows 用唯一备份文件名移开运行中的映像，避免连续重编译时覆盖被占用的 `.exe`。
-
-- 开发配置、数据库、密钥和日志：`.cache/dev/runtime/`；退出和重启时保留，与仓库根目录和已安装实例分开。
-- 初始密码：`.cache/dev/runtime/data/initial_password.txt`；首次初始化后生成，查看及重置步骤见[开发实例的账号与密码](#开发实例的账号与密码)。
-- 后端默认端口：`26666`。如被占用，可预先创建或修改 `.cache/dev/runtime/conf/config.yml` 中的 `local_port`；一键启动的前端代理自动使用该端口。前端固定使用 `3001`，占用时明确报错。
-- 监听 Go 文件的修改、新增、删除和重命名，以及 `go.mod`、`go.sum`、Go workspace 文件和已有内嵌资源目录；仅修改 `_test.go` 不触发编译。前端改动交给 Vite 热更新。
-- 停止：在启动终端按 `Ctrl+C`，脚本清理自己启动的前后端进程；不会操作已安装的系统服务。
-
-Worker 业务代码自动生效；**修改常驻 Supervisor、IPC 协议或开发脚本本身后，请停止脚本并重新启动**。开发期平滑重启沿用下节的连接排空期限与 Windows 端口接管限制。它不保留进程内存或调用栈，也不提供 Delve/IDE 断点会话自动重连；断点调试需另行通过 IDE 配置。
+开发热重启不会保留进程内存、调用栈或 IDE 断点。
 
 #### 开发实例的账号与密码
 
@@ -259,30 +309,6 @@ sh dev.sh
 
 按提示选择账号（回车默认选择 `admin`），保存命令显示的新随机临时密码，确认重置成功后再启动开发脚本。到 `3001` 登录并完成强制改密；账号选择和重置行为与上方[忘记密码与重置密码](#忘记密码与重置密码)一致。
 
-### 手动平滑重启
-
-HomeWaf 已在运行时，可在**当前实例的安装目录**执行以下命令，平滑重启当前版本，不下载新程序。
-
-Windows（PowerShell）：
-
-```powershell
-.\HomeWaf64.exe rolling-restart
-```
-
-Linux x86_64：
-
-```sh
-./HomeWafLinux64 rolling-restart
-```
-
-Linux arm64 使用 `./HomeWafLinuxArm64 rolling-restart`。如果可执行文件已改名，请使用实际文件名。
-
-命令连接正在运行的 Supervisor，先启动新 Worker，确认就绪后再让旧 Worker 排空并退出；新 Worker 就绪失败时，旧 Worker 继续服务。命令返回表示请求已提交，是否交接完成请查看 Supervisor 日志。
-
-Windows 使用 `SO_REUSEADDR` 接管监听端口，切换瞬间新建 TCP 连接可能需要重试；不能对每一次新连接握手承诺零中断。已受理请求与长连接按排空期限处理。
-
-旧业务连接的排空期限由 `conf/config.yml` 中的 `drain_time_out` 控制，默认 30 秒；超过期限的长连接会被关闭。在线升级自动使用同一交接流程。普通 `restart` 是服务的停止／启动操作，管理端“重启 WAF 引擎”用于重载引擎配置。
-
 ### 使用 Docker Compose
 
 ```sh
@@ -292,7 +318,7 @@ docker compose up -d
 
 默认管理端仅映射到宿主机 `127.0.0.1:26666`，请通过安全隧道访问，或自行配置访问控制。
 
-持久化数据位于 `conf/`、`data/`、`ssl/` 和 `logs/`。升级前请备份；不要自行同时启动两个独立实例共用端口或数据目录。内置平滑升级的新旧 Worker 重叠期由 Supervisor 统一管理。
+数据保存在 Compose 配置映射的 `conf/`、`data/`、`ssl/` 和 `logs/` 目录。升级前请备份；不要让两个独立实例同时使用相同端口或数据目录。
 
 ## 使用许可
 
@@ -310,22 +336,33 @@ HomeWaf 自有新增代码及修改使用根目录 [LICENSE](LICENSE) 中的源�
 
 管理后台「系统设置 → HomeWaf 授权」支持查看实例 ID、验证签名文件和确认导入授权。发行方应离线保管 Ed25519 私钥，仅将可信公钥写入构建；默认空信任库不接受商业授权或插件签名。
 
-软件更新默认检查 `user1121114685/HomeWaf` 仓库的正式 GitHub Release。原项目的更新、公告、公网 IP 查询和机器人数据镜像默认禁用。发行方可显式配置自己的 HTTPS 服务；主动启用证书申请、DNS、通知或 AI 服务时，会向对应服务商发送实现功能所需的数据。
+软件更新默认检查 `user1121114685/HomeWaf` 仓库的正式 GitHub Release。上游项目的更新、公告、公网 IP 查询和数据镜像默认禁用。发行方可显式配置自己的 HTTPS 服务；主动启用证书申请、DNS、通知或其他外部集成时，会向对应服务商发送实现功能所需的数据。
 
 更新请求默认仅携带软件版本；`update_env_report` 默认关闭，启用后增加系统、架构和运行形态，不增加永久机器码。
 
 ## 安全与核心设计边界
 
-- 限制管理端口 `26666` 的访问来源，优先使用本地连接或安全隧道；首次登录后改密，远程管理配置 HTTPS。控制台管理员、管理 API Key 和受保护服务的访客属于不同身份范围，权限始终由服务端校验。
-- 只有明确配置的可信代理可以提供真实来源 IP；不接受 `/0` 信任范围，不把来访者自报的转发头作为身份。升级或调整代理链后，应核对日志、地域限制和封禁实际使用的来源地址。
-- HTTP-01 仅允许严格匹配的本地有效挑战由 WAF 应答，不给整个 ACME 目录免认证。DNS-01 需要出站 CA/DNS 访问，不要求入站 80/443；签发证书不会自动建立公网访问。
-- 服务配置负责监听、防护和证书绑定；证书负责材料和长期续期策略；申请记录负责执行历史；外部证书监测只负责远端探测。保存策略、提交任务、签发成功、部署成功和通知送达是不同结果。
-- 手动替换或文件接管证书时，应停止原自动申请策略，避免两个来源覆盖；恢复已签发任务只继续失败的部署/导出阶段。通知沿用用户的订阅、过滤和免打扰设置，渠道接收不代表人已读。
-- 异常访问处置以监听端口为范围，四种模式互斥；统一蜜罐内容由实例共享。观察信号不等于阻断，保存配置不等于监听已经启动，页面预览不证明真实流量已触发。
-- 蜜罐仅仿真与记录，不执行来访者提交的命令、模板或脚本，不进行外部回连。日志和导入内容均视为不可信数据；密钥、令牌和口令不得明文出现在日志或浏览器持久存储中。
-- 数据库与 `.homewaf-keys/` 必须配套备份；保留 `conf/`、`data/`、`ssl/`、插件和授权文件，先在备份上验证升级。不要让两个独立实例共用数据目录；Supervisor 管理的交接除外。
+### 管理访问
 
-安全问题通过当前仓库启用的私密安全报告渠道反馈；未启用时先联系本项目维护者确认私密渠道。报告只提供必要的脱敏信息，不在公开 Issue 放生产凭证、用户数据或未修复漏洞的利用细节。原项目的支持渠道和响应承诺不适用于 HomeWaf。
+限制管理端口 `26666` 的访问来源，优先使用本地连接或安全隧道；首次登录后修改密码，远程管理配置 HTTPS。控制台管理员、管理 API Key 和受保护服务的访客是不同身份，权限由服务端校验。
+
+### 流量与防护状态
+
+只有明确配置的可信代理可以提供真实来源 IP；不接受 `/0` 信任范围或来访者自报的转发头。调整代理链后，应核对日志、地域限制和封禁使用的来源地址。处置和防护作用于接入的监听端口，处置模式互斥；观察信号不等于阻断，保存配置不等于监听已启动，页面预览也不证明真实流量已触发。蜜罐内容由实例共享，仅仿真和记录，不执行请求者提交的命令、模板或脚本，也不向外回连。
+
+### 证书与外部任务
+
+HTTP-01 只允许匹配的本地挑战通过；DNS-01 需要出站 CA/DNS 访问。签发证书不代表已绑定服务或建立公网访问。手动接管证书前应停用原自动续期策略，避免两种来源互相覆盖。保存策略、任务受理、签发、部署和通知送达是不同结果；通知沿用用户设置的订阅、过滤和免打扰规则。
+
+### 数据与问题报告
+
+日志和导入内容均视为不可信数据；密钥、令牌和口令不得明文写入日志或浏览器持久存储。数据库、配置、证书与 `.homewaf-keys/` 应配套备份，并先在备份上验证升级；不要让两个独立实例共用数据目录。
+
+发现漏洞请使用当前仓库启用的私密报告渠道；未启用时先联系维护者确认私密渠道。只提供必要的脱敏信息，不要在公开 Issue 中发布凭证、用户数据或未修复漏洞的利用细节。原项目的支持渠道和响应承诺不适用于 HomeWaf。
+
+## 持续安全检查
+
+每次 CI 和 Release、以及每日定时安全任务都会运行依赖漏洞检查、Linux/Windows 防护回归和模糊测试。防护回归使用 OWASP CRS 的固定版本及当前上游选定样本，覆盖 SQL 注入、XSS、文件包含和正常请求；这是持续回归的一部分，不是完整的 CRS 测试套件，也不能保证覆盖所有新漏洞。
 
 ## 上游来源与致谢
 
