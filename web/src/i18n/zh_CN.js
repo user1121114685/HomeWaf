@@ -247,6 +247,8 @@ export default {
   topNav: {
     update: {
       has_new_version: "有新版本啦",
+      prerelease_label: "测试版",
+      check_failed: "检查更新失败，请检查网络后重试。",
       confirm_update: "更新",
       notes_empty: "此版本暂无更新说明。",
       request_failed: "更新请求失败，请检查网络后重试。",
@@ -337,7 +339,7 @@ export default {
     view_details: "查看详情",
     dropdown_person_center: "个人中心",
     dropdown_change_password: "修改密码",
-    dropdown_update: "升级",
+    dropdown_update: "检查更新",
     dropdown_reboot_waf: "重启WAF",
     dropdown_logout: "退出",
   },
@@ -5062,6 +5064,7 @@ export default {
       label_filter_json: "过滤条件",
       message_type_rule_trigger: "规则触发",
       message_type_operation_notice: "操作通知",
+      message_type_software_update: "新版本发布",
       message_type_user_login: "用户登录",
       message_type_attack_info: "攻击信息",
       message_type_weekly_report: "周报",
@@ -5212,6 +5215,7 @@ export default {
       label_end_time: "结束时间",
       message_type_rule_trigger: "规则触发",
       message_type_operation_notice: "操作通知",
+      message_type_software_update: "新版本发布",
       message_type_user_login: "用户登录",
       message_type_attack_info: "攻击信息",
       message_type_weekly_report: "周报",

@@ -27,27 +27,30 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 await context.addInitScript(() => {
   localStorage.setItem('access_token', 'isolated-update-test');
   localStorage.setItem('lang', 'zh_CN');
-  localStorage.removeItem('lastUpdatePopupTime');
 });
-await context.routeWebSocket('**/api/**', socket => socket.close());
+let socket;
+await context.routeWebSocket('**/api/**', ws => { socket = ws; });
 const fullCommit = '47f4857bfeb7788b9a7f2e8d111825ec5072c838';
 let updateAllowed = true, version = 'v2.0.3', failure = 'server', running = false, history = true;
-const calls = [], errors = [];
+const calls = [], checks = [], errors = [];
 await context.route('**/api/**', async route => {
   const request = route.request();
   const url = new URL(request.url());
   const endpoint = url.pathname.split('/api/v1/')[1] || '';
   const reply = (code, data, msg = '') => route.fulfill({ json: { code, data: AesEncrypt(JSON.stringify(data)), msg } });
   if (endpoint.includes('handshake') || endpoint === 'public/seckey') return reply(1, {}, 'Isolated fixture');
-  if (endpoint === 'sysinfo/checkversion') return reply(0, {
-    need_update: true, version: 'v2.0.1', version_new: version,
-    version_desc: `HomeWaf ${version}\n## Changelog\n* ${fullCommit} fix: 修复升级按钮`,
-    version_notes: history ? [
-      { version, items: ['修复升级按钮', '<img src=x onerror="window.__releaseXss=1">'] },
-      { version: 'v2.0.2', items: ['改进证书管理'] },
-    ] : undefined,
-    self_update_allowed: updateAllowed, container: updateAllowed ? '' : 'docker',
-  });
+  if (endpoint === 'sysinfo/checkversion') {
+    checks.push(url.searchParams.get('cached'));
+    return reply(0, {
+      need_update: !!version, version: 'v2.0.1', version_new: version,
+      version_desc: `HomeWaf ${version}\n## Changelog\n* ${fullCommit} fix: 修复升级按钮`,
+      version_notes: history ? [
+        { version, items: ['修复升级按钮', '<img src=x onerror="window.__releaseXss=1">'] },
+        { version: 'v2.0.2', items: ['改进证书管理'] },
+      ] : undefined,
+      self_update_allowed: updateAllowed, container: updateAllowed ? '' : 'docker',
+    });
+  }
   if (endpoint === 'sysinfo/update') {
     calls.push(url.searchParams.get('channel'));
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -71,13 +74,29 @@ page.on('pageerror', error => errors.push(error.message));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const dialog = () => page.getByTestId('software-update-dialog');
 const open = async () => {
+  const checked = page.waitForResponse(response => response.url().includes('sysinfo/checkversion'));
   await page.goto(origin + '/?scenario=' + Date.now() + '#/dashboard/base');
-  if (version.includes('beta')) await page.locator('.header-update-btn').click();
+  await checked;
+  await expect(page.locator('.header-update-btn')).toBeVisible();
+  if (!(await dialog().isVisible())) await page.locator('.header-update-btn').click();
   await expect(dialog()).toBeVisible();
 };
+const pushRelease = () => socket.send(JSON.stringify({
+  msg_code: '200', msg_cmd_type: 'UPDATE_AVAILABLE',
+  msg_data: AesEncrypt(JSON.stringify({ message_type: '新版本发布', message_data: version, message_unread_status: true })),
+}));
 const summary = [];
 try {
-  await open();
+  version = '';
+  await page.goto(origin + '/#/dashboard/base');
+  await expect.poll(() => checks.length).toBe(1);
+  expect(checks).toEqual(['1']);
+  await expect(dialog()).toBeHidden();
+  await expect.poll(() => !!socket).toBe(true);
+  version = 'v2.0.3';
+  pushRelease();
+  await expect(dialog()).toBeVisible();
+  expect(checks).toEqual(['1', '1']);
   await expect(dialog().locator('.el-dialog__footer button')).toHaveText(['取消', '更新']);
   await expect(dialog().locator('.software-update-notes h4')).toHaveText(['v2.0.3', 'v2.0.2']);
   await expect(dialog()).not.toContainText(fullCommit);
@@ -99,7 +118,22 @@ try {
   await dialog().getByRole('button', { name: '取消', exact: true }).click();
   await expect(dialog()).toBeHidden();
   expect(calls.length).toBe(0);
+  const repeated = page.waitForResponse(response => response.url().includes('sysinfo/checkversion'));
+  pushRelease();
+  await repeated;
+  await expect(dialog()).toBeHidden();
+  const reloaded = page.waitForResponse(response => response.url().includes('sysinfo/checkversion'));
+  await page.reload();
+  await reloaded;
+  await expect(page.locator('.header-update-btn')).toBeVisible();
+  await expect(dialog()).toBeHidden();
+  version = 'v2.0.4';
+  pushRelease();
+  await expect(dialog()).toContainText('v2.0.4');
+  await dialog().getByRole('button', { name: '取消', exact: true }).click();
+  summary.push('Open consoles receive releases without refresh; repeated delivery and reload stay quiet; a second same-day release appears.');
   await page.locator('.header-update-btn').click();
+  await expect.poll(() => checks.at(-1)).toBe(null);
   await dialog().getByRole('button', { name: '更新', exact: true }).evaluate(button => { button.click(); button.click(); });
   await expect(dialog().getByRole('button', { name: '取消', exact: true })).toBeDisabled();
   await expect(dialog().getByText('模拟更新请求失败，可重试')).toBeVisible();

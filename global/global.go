@@ -34,11 +34,9 @@ var (
 	GWAF_DEBUG_WORKER_HEADER bool   = false
 	GWAF_WORKER_TAG          string = "" //当前进程标识(pid+启动时间)
 
-	GWAF_RUNTIME_NEW_VERSION      string = ""      //最新版本号
-	GWAF_RUNTIME_NEW_VERSION_DESC string = ""      //最新版本描述
-	GWAF_RUNTIME_WIN7_VERSION     string = "false" //是否是win7内部版本
-	GWAF_RUNTIME_QPS              uint64 = 0       //当前qps (累积值)
-	GWAF_RUNTIME_LOG_PROCESS      uint64 = 0       //log 处理速度 (累积值)
+	GWAF_RUNTIME_WIN7_VERSION string = "false" //是否是win7内部版本
+	GWAF_RUNTIME_QPS          uint64 = 0       //当前qps (累积值)
+	GWAF_RUNTIME_LOG_PROCESS  uint64 = 0       //log 处理速度 (累积值)
 
 	// QPS实时计算相关变量 (用于差分计算)
 	GWAF_LAST_QPS_VALUE           uint64 = 0 //上次QPS计数值

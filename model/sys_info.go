@@ -15,6 +15,9 @@ type VersionInfo struct {
 	VersionName         string               `json:"version_name"`
 	VersionRelease      string               `json:"version_release"`
 	VersionNew          string               `json:"version_new"`
+	UpdateChannel       string               `json:"update_channel,omitempty"`
+	Prerelease          bool                 `json:"prerelease,omitempty"`
+	CheckWarning        string               `json:"check_warning,omitempty"`
 	VersionDesc         string               `json:"version_desc"`
 	VersionNotes        []VersionReleaseNote `json:"version_notes,omitempty"`
 	VersionNotesWarning string               `json:"version_notes_warning,omitempty"`

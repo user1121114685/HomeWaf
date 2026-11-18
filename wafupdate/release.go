@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -54,7 +55,7 @@ func (u *Updater) fetchReleaseInfo(endpoint string, allowPrerelease bool) error 
 			Digest string `json:"digest"`
 		} `json:"assets"`
 	}
-	if err := json.NewDecoder(r).Decode(&release); err != nil {
+	if err := json.NewDecoder(io.LimitReader(r, 2<<20)).Decode(&release); err != nil {
 		return fmt.Errorf("无法解析 HomeWaf release 元数据: %w", err)
 	}
 	version := normalizedVersion(release.TagName)

@@ -115,6 +115,10 @@ await context.route('**/api/**', async (route) => {
     return ok({});
   }
   if (endpoint === 'notify/subscription/list') return ok({ list: subscriptions, total: subscriptions.length });
+  if (endpoint === 'notify/subscription/add') {
+    subscriptions.push({ ...input, id: 'sub-' + subscriptions.length });
+    return ok({});
+  }
   if (endpoint === 'notify/subscription/edit') {
     Object.assign(
       subscriptions.find((item) => item.id === input.id),
@@ -310,6 +314,13 @@ try {
   expect(writes.some((write) => write.action === 'global-config')).toBe(false);
   await expect(page.locator('.el-message')).toHaveCount(0, { timeout: 10000 });
   await page.screenshot({ path: path.join(output, 'subscriptions.png'), fullPage: true });
+  const releaseRow = page.locator('.el-table__row').filter({ hasText: '新版本发布' });
+  await releaseRow.getByRole('button', { name: '订阅到 测试 bark' }).click();
+  await expect.poll(() => subscriptions.find(sub => sub.message_type === 'software_update')?.status).toBe(1);
+  await page.reload();
+  await expect(releaseRow.getByRole('switch')).toBeChecked();
+  await releaseRow.locator('.el-switch').click();
+  await expect.poll(() => subscriptions.find(sub => sub.message_type === 'software_update')?.status).toBe(0);
   for (const width of [768, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
@@ -347,6 +358,7 @@ try {
       'only configured Bark column; explicit batch menu and real confirmation body',
       'desktop and mobile layouts; dark, empty and error states',
       'log channel labels',
+      'new release subscription can be enabled, reopened and paused',
       'subscription filter/template draft survives failure; preview and saved-config dry-run remain distinct',
       'global config read failure blocks writes, retries successfully and cancellation writes nothing',
       'four subscription panes at three widths in both themes',

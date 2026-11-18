@@ -10,6 +10,7 @@
               <hw-select v-model="searchformData.message_type" clearable :style="{ width: '150px' }">
                 <hw-option value="rule_trigger" :label="$t('page.notify_log.message_type_rule_trigger')"></hw-option>
                 <hw-option value="operation_notice" :label="$t('page.notify_log.message_type_operation_notice')"></hw-option>
+                <hw-option value="software_update" :label="$t('page.notify_log.message_type_software_update')"></hw-option>
                 <hw-option value="user_login" :label="$t('page.notify_log.message_type_user_login')"></hw-option>
                 <hw-option value="attack_info" :label="$t('page.notify_log.message_type_attack_info')"></hw-option>
                 <hw-option value="weekly_report" :label="$t('page.notify_log.message_type_weekly_report')"></hw-option>
@@ -250,6 +251,7 @@ export default defineComponent({
       const typeMap: any = {
         rule_trigger: this.$t('page.notify_log.message_type_rule_trigger'),
         operation_notice: this.$t('page.notify_log.message_type_operation_notice'),
+        software_update: this.$t('page.notify_log.message_type_software_update'),
         user_login: this.$t('page.notify_log.message_type_user_login'),
         attack_info: this.$t('page.notify_log.message_type_attack_info'),
         weekly_report: this.$t('page.notify_log.message_type_weekly_report'),

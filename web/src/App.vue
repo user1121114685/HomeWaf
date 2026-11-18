@@ -287,6 +287,8 @@ export default defineComponent({
             this.$message.warning(this.$t('logExport.oldNotice'));
             // 旧导出通知仅给升级指引；原消息仍保留在铃铛中。
             return;
+          }else if(wsData.msg_cmd_type==="UPDATE_AVAILABLE"){
+            this.$bus.$emit('software-update-available');
           }else if(wsData.msg_cmd_type==="SystemStats"){
              //console.log("相关统计信息赋值",wsData.msg_data.message_attach)
              // 将统计信息传递给stats store

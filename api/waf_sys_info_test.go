@@ -85,11 +85,11 @@ func TestSysRuntimeInfoApi(t *testing.T) {
 func isolateVersionCheck(t *testing.T, handler http.HandlerFunc) *gin.Engine {
 	t.Helper()
 	oldURL, oldRelease, oldBetaURL := global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL
-	oldVersion, oldName, oldNew, oldDesc := global.GWAF_RELEASE_VERSION, global.GWAF_RELEASE_VERSION_NAME, global.GWAF_RUNTIME_NEW_VERSION, global.GWAF_RUNTIME_NEW_VERSION_DESC
+	oldVersion, oldName := global.GWAF_RELEASE_VERSION, global.GWAF_RELEASE_VERSION_NAME
 	oldBeta, oldWin7, oldUpdating := global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_WIN7_VERSION, global.GWAF_RUNTIME_IS_UPDATETING
 	t.Cleanup(func() {
 		global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL = oldURL, oldRelease, oldBetaURL
-		global.GWAF_RELEASE_VERSION, global.GWAF_RELEASE_VERSION_NAME, global.GWAF_RUNTIME_NEW_VERSION, global.GWAF_RUNTIME_NEW_VERSION_DESC = oldVersion, oldName, oldNew, oldDesc
+		global.GWAF_RELEASE_VERSION, global.GWAF_RELEASE_VERSION_NAME = oldVersion, oldName
 		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
 			cfg.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_WIN7_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = oldBeta, oldWin7, oldUpdating
 		})

@@ -509,9 +509,12 @@ func (u *Updater) fetchInfo() error {
 		return err
 	}
 	defer r.Close()
-	err = json.NewDecoder(r).Decode(&u.Info)
+	err = json.NewDecoder(io.LimitReader(r, 2<<20)).Decode(&u.Info)
 	if err != nil {
 		return err
+	}
+	if !semver.IsValid(normalizedVersion(u.Info.Version)) {
+		return errors.New("更新清单中的版本号无效")
 	}
 	if len(u.Info.Sha256) != sha256.Size {
 		return errors.New("bad cmd hash in info")

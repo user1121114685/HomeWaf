@@ -6,6 +6,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/model"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,7 @@ type NotifyEvent struct {
 var notifyMessageTypeName = map[string]string{
 	model.MSG_TYPE_RULE_TRIGGER:     "规则触发",
 	model.MSG_TYPE_OPERATION_NOTICE: "操作通知",
+	model.MSG_TYPE_SOFTWARE_UPDATE:  "新版本发布",
 	model.MSG_TYPE_USER_LOGIN:       "用户登录",
 	model.MSG_TYPE_ATTACK_INFO:      "攻击信息",
 	model.MSG_TYPE_WEEKLY_REPORT:    "周报",
@@ -104,10 +106,18 @@ func AllMessageTypes() []string {
 		model.MSG_TYPE_WEEKLY_REPORT,
 		model.MSG_TYPE_SYSTEM_ERROR,
 		model.MSG_TYPE_OPERATION_NOTICE,
+		model.MSG_TYPE_SOFTWARE_UPDATE,
 		model.MSG_TYPE_ACCESS_LOGIN,
 		model.MSG_TYPE_ACCESS_ABNORMAL,
 		model.MSG_TYPE_MANAGE_LOGIN_ABNORMAL,
 	}
+}
+
+func SoftwareUpdateEvent(current, latest string) NotifyEvent {
+	ev := newNotifyEvent(model.MSG_TYPE_SOFTWARE_UPDATE, "HomeWaf "+latest+" 已发布",
+		fmt.Sprintf("当前运行 %s，可更新到 %s。登录 HomeWaf 控制台查看更新说明。", current, latest))
+	ev.Vars["CurrentVersion"], ev.Vars["NewVersion"] = current, latest
+	return ev
 }
 
 // newNotifyEvent 构造事件骨架，填上公共变量

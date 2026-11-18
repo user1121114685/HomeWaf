@@ -1,10 +1,11 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 import { clearAppOpPassword } from '@/utils/appOperationPassword';
 
+export const RELEASE_NOTICE_PREFIX = 'homewaf.notifiedRelease.';
+
 // localStorage 保留字段配置
 export const LOCALSTORAGE_PRESERVE_KEYS = [
   'lang',                    // 语言设置
-  'lastUpdatePopupTime',     // 最后更新弹窗时间
   'attack_table_display_columns',                // 访问日志列配置本地缓存（服务端为准，这里只是首屏秒开+兜底）
   'lastVisitedUrl',          // 上次访问的URL（新增）
   'samwaf_page_setting',     // 页面布局/主题设置 (layouts/setting.vue)
@@ -17,7 +18,7 @@ export const LOCALSTORAGE_PRESERVE_KEYS = [
 export const clearLocalStorageExceptPreserved = () => {
   clearAppOpPassword();
   Object.keys(localStorage).forEach(key => {
-    if (!LOCALSTORAGE_PRESERVE_KEYS.includes(key)) {
+    if (!LOCALSTORAGE_PRESERVE_KEYS.includes(key) && !key.startsWith(RELEASE_NOTICE_PREFIX)) {
       localStorage.removeItem(key);
     }
   });

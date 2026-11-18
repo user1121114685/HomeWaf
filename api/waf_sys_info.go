@@ -169,74 +169,27 @@ func (w *WafSysInfoApi) CheckVersionApi(c *gin.Context) {
 		response.FailWithMessage("正在升级中，请等待升级结果", c)
 		return
 	}
-	updater := &wafupdate.Updater{
-		CurrentVersion: global.GWAF_RELEASE_VERSION,
-		ApiURL:         softwareManifestURL(),
-		CmdName:        "homewaf_update",
-	}
-	available, newVer, desc, err := updater.UpdateAvailable()
-	channel := "official"
-	unversioned := errors.Is(err, wafupdate.ErrUnversionedBuild)
-	message := "当前已是最新版本"
-	if unversioned {
-		message = err.Error()
-		err = nil
-	}
-	if errors.Is(err, wafupdate.ErrNoPublishedRelease) {
-		message = "HomeWaf 更新源尚未发布正式版本，发布后即可检查更新"
-		err = nil
-	}
-	if !unversioned && !available && global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION == 1 && global.GUPDATE_GITHUB_VERSION_URL != "" {
-		betaAvailable, betaVersion, betaDesc, betaErr := updater.UpdateAvailableWithChannel("github")
-		if betaAvailable {
-			available, newVer, desc, err = true, betaVersion, betaDesc, nil
-			channel = "github"
-		} else if betaErr != nil && !errors.Is(betaErr, wafupdate.ErrNoPublishedRelease) {
-			err = betaErr
-		}
-	}
+	check, err := wafupdate.SoftwareReleases.Check(c.Query("cached") == "1")
 	if err != nil {
 		response.FailWithMessage("检查 HomeWaf 更新失败："+err.Error(), c)
 		return
 	}
-	global.GWAF_RUNTIME_NEW_VERSION = newVer
-	global.GWAF_RUNTIME_NEW_VERSION_DESC = desc
-	if available {
-		message = "有新版本"
-	}
-	var notes []model.VersionReleaseNote
-	notesWarning := ""
-	if available {
-		releases, notesErr := updater.RecentReleaseNotes(channel)
-		for _, release := range releases {
-			notes = append(notes, model.VersionReleaseNote{Version: release.Version, Items: release.Items})
-		}
-		if notesErr != nil {
-			notesWarning = "历史版本说明暂时无法读取，当前仅显示目标版本的更新内容。"
-		}
-	}
 	response.OkWithDetailed(model.VersionInfo{
-		Version:        global.GWAF_RELEASE_VERSION,
+		Version:        check.Current,
 		VersionName:    global.GWAF_RELEASE_VERSION_NAME,
 		VersionRelease: global.GWAF_RELEASE,
-		NeedUpdate:     available,
+		NeedUpdate:     check.Version != "",
 		BuildID:        global.GWAF_BUILD_ID, BuildCommit: global.GWAF_BUILD_COMMIT, BuildTime: global.GWAF_BUILD_TIME, BuildChannel: global.GWAF_BUILD_CHANNEL,
-		VersionNew:          newVer,
-		VersionDesc:         desc,
-		VersionNotes:        notes,
-		VersionNotesWarning: notesWarning,
+		VersionNew:          check.Version,
+		VersionDesc:         check.Description,
+		UpdateChannel:       check.Channel,
+		Prerelease:          check.Prerelease,
+		CheckWarning:        check.CheckWarning,
+		VersionNotes:        check.Notes,
+		VersionNotesWarning: check.NotesWarning,
 		Container:           utils.DetectContainerRuntime(),
-		SelfUpdateAllowed:   isSelfUpdateAllowed() && !unversioned,
-	}, message, c)
-}
-
-// An empty manifest root selects GitHub Releases, not a relative win7 URL.
-func softwareManifestURL() string {
-	root := global.GUPDATE_VERSION_URL
-	if root != "" && (global.GWAF_RUNTIME_WIN7_VERSION == "true" || utils.IsSupportedWindows7Version()) {
-		root += "win7/"
-	}
-	return root
+		SelfUpdateAllowed:   isSelfUpdateAllowed() && !check.Unversioned,
+	}, check.Message, c)
 }
 
 // SystemParamsApi 返回认证后才能获取的系统参数（可扩展）
@@ -315,7 +268,7 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 		response.FailWithMessage("正在升级中...请在消息等待结果", c)
 		return
 	}
-	remoteURL := softwareManifestURL()
+	remoteURL := wafupdate.ManifestURL()
 	// 容器环境默认拦截应用内升级：
 	// 容器里的程序文件位于镜像可写层，升级只在本次容器生命周期内有效；容器一旦重建
 	// (docker compose up -d / 换镜像 / 重装宿主) 就会回退成镜像自带的旧版本，
@@ -336,12 +289,17 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 	if channel == "" {
 		channel = "official"
 	}
-	tracker.Begin(global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_NEW_VERSION, channel)
+	lastCheck, _ := wafupdate.SoftwareReleases.Check(true)
+	target := ""
+	if lastCheck.Channel == channel {
+		target = lastCheck.Version
+	}
+	tracker.Begin(global.GWAF_RELEASE_VERSION, target, channel)
 	// 环境检查在进入本函数前已经做完(容器检测/是否允许应用内升级)，这里直接结帐
 	tracker.StageStart(wafupdate.StageCheck)
 	tracker.StageDone(wafupdate.StageCheck, "")
 
-	var updater = &wafupdate.Updater{
+	updater := &wafupdate.Updater{
 		CurrentVersion: global.GWAF_RELEASE_VERSION, // Manually update the const, or set it using `go build -ldflags="-X main.VERSION=<newver>" -o hello-updater src/hello-updater/main.go`
 		ApiURL:         remoteURL,                   // The server hosting `$CmdName/$GOOS-$ARCH.json` which contains the checksum for the binary
 		BinURL:         remoteURL,                   // The server hosting the zip file containing the binary application which is a fallback for the patch method
@@ -350,21 +308,21 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 		CmdName:        "homewaf_update",            // The app name which is appended to the ApiURL to look for an update
 		//ForceCheck:     true,                     // For this example, always check for an update unless the version is "dev"
 		Tracker: tracker,
-		OnSuccessfulUpdate: func() {
-			// Keep the old worker locked until handoff succeeds (it exits) or the
-			// supervisor reports failure. A second update must not overwrite a candidate.
-			// 管理端 WebSocket 可能重连，界面轮询新 Worker 的版本确认交接。
-			tracker.MarkRestarting()
-			zlog.Info("OnSuccessfulUpdate 升级成功")
-			wafDelayMsgService.Add("升级结果", "升级结果", "升级成功，当前版本为："+global.GWAF_RUNTIME_NEW_VERSION+" 版本说明:"+global.GWAF_RUNTIME_NEW_VERSION_DESC)
-			global.GWAF_CHAN_UPDATE <- 1
-			//发送websocket 推送消息
-			global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.UpdateResultMessageInfo{
-				BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "系统即将重启", Server: global.GWAF_CUSTOM_SERVER_NAME},
-				Msg:             "升级成功，等待重启",
-				Success:         "true",
-			})
-		},
+	}
+	updater.OnSuccessfulUpdate = func() {
+		// Keep the old worker locked until handoff succeeds (it exits) or the
+		// supervisor reports failure. A second update must not overwrite a candidate.
+		// 管理端 WebSocket 可能重连，界面轮询新 Worker 的版本确认交接。
+		tracker.MarkRestarting()
+		zlog.Info("OnSuccessfulUpdate 升级成功")
+		wafDelayMsgService.Add("升级结果", "升级结果", "升级成功，当前版本为："+updater.Info.Version+" 版本说明:"+updater.Info.Desc)
+		global.GWAF_CHAN_UPDATE <- 1
+		//发送websocket 推送消息
+		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.UpdateResultMessageInfo{
+			BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "系统即将重启", Server: global.GWAF_CUSTOM_SERVER_NAME},
+			Msg:             "升级成功，等待重启",
+			Success:         "true",
+		})
 	}
 	go func() {
 		// 备份当前可执行文件

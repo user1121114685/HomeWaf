@@ -247,6 +247,8 @@ export default {
   topNav: {
     update: {
       has_new_version: "New version available",
+      prerelease_label: "Prerelease",
+      check_failed: "Could not check for updates. Check the connection and try again.",
       confirm_update: "Update",
       notes_empty: "No release notes are available for this version.",
       request_failed: "The update request failed. Check the connection and try again.",
@@ -337,7 +339,7 @@ export default {
     view_details: "View Details",
     dropdown_person_center: "Personal",
     dropdown_change_password: "Change Password",
-    dropdown_update: "Update",
+    dropdown_update: "Check for updates",
     dropdown_reboot_waf: "Reboot",
     dropdown_logout: "Logout",
   },
@@ -5081,6 +5083,7 @@ export default {
       label_filter_json: "Filter Condition",
       message_type_rule_trigger: "Rule Trigger",
       message_type_operation_notice: "Operation Notice",
+      message_type_software_update: "Software release",
       message_type_user_login: "User Login",
       message_type_attack_info: "Attack Info",
       message_type_weekly_report: "Weekly Report",
@@ -5231,6 +5234,7 @@ export default {
       label_end_time: "End Time",
       message_type_rule_trigger: "Rule Trigger",
       message_type_operation_notice: "Operation Notice",
+      message_type_software_update: "Software release",
       message_type_user_login: "User Login",
       message_type_attack_info: "Attack Info",
       message_type_weekly_report: "Weekly Report",

@@ -280,6 +280,10 @@ var notifyTypeVars = map[string][]NotifyTemplateVar{
 		{Name: "Server", Desc: "服务器", Example: "samwaf-01"},
 		{Name: "OperaCnt", Desc: "操作内容", Example: "www.example.com"},
 	},
+	model.MSG_TYPE_SOFTWARE_UPDATE: {
+		{Name: "CurrentVersion", Desc: "当前版本", Example: "v2.0.1"},
+		{Name: "NewVersion", Desc: "可用版本", Example: "v2.0.2"},
+	},
 	model.MSG_TYPE_ACCESS_LOGIN: {
 		{Name: "EventName", Desc: "事件名称", Example: "访问认证登录成功"},
 		{Name: "AccountName", Desc: "访问账号", Example: "zhangsan"},
@@ -345,6 +349,9 @@ func buildSampleDefaultMessage(messageType string, vars map[string]string) (stri
 	case model.MSG_TYPE_OPERATION_NOTICE:
 		return "操作通知", fmt.Sprintf("**操作类型:** %s\n\n**服务器:** %s\n\n**操作内容:** %s",
 			vars["OperaType"], vars["Server"], vars["OperaCnt"])
+	case model.MSG_TYPE_SOFTWARE_UPDATE:
+		event := SoftwareUpdateEvent(vars["CurrentVersion"], vars["NewVersion"])
+		return event.DefaultTitle, event.DefaultContent
 	case model.MSG_TYPE_USER_LOGIN:
 		title, content := s.FormatUserLoginMessage(vars["Username"], vars["Ip"], vars["Time"])
 		return title, content

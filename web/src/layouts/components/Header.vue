@@ -25,7 +25,7 @@
         </hw-link>
         <hw-button
           v-else
-          :theme="update_new_ver && update_new_ver.toLowerCase().includes('beta') ? 'danger' : 'primary'"
+          :theme="update_prerelease ? 'danger' : 'primary'"
           :loading="isUpdateloading"
           :disabled="isUpdateloading"
           @click="handleConfirmUpdate"
@@ -63,13 +63,14 @@ Windows PowerShell:
         </template>
       </hw-alert>
       <hw-alert v-if="update_error" theme="error" :closable="false" :title="update_error" role="alert" />
+      <hw-alert v-if="update_check_warning" theme="warning" :closable="false" :title="update_check_warning" />
       <hw-alert v-if="update_notes_warning" theme="warning" :closable="false" :title="update_notes_warning" />
       <div style="margin: 16px 0 0 0; line-height: 1.8">
         <div>
           <strong>{{ $t('topNav.update.version_label') }}</strong>
           <template v-if="update_current_ver">{{ update_current_ver }} → </template>{{ update_new_ver }}
         </div>
-        <span style="color: red" v-if="update_new_ver && update_new_ver.toLowerCase().includes('beta')">
+        <span style="color: red" v-if="update_prerelease">
           {{ $t('topNav.update.beta_version_warning') }}
         </span>
 
@@ -167,7 +168,7 @@ Windows PowerShell:
           >
             <NotificationErrorIcon />
             <span
-              v-if="update_new_ver && update_new_ver.toLowerCase().includes('beta')"
+              v-if="update_prerelease"
               style="
                 position: absolute;
                 top: -6px;
@@ -184,7 +185,7 @@ Windows PowerShell:
                 z-index: 10;
               "
             >
-              Beta
+              {{ $t('topNav.update.prerelease_label') }}
             </span>
             <span
               v-else-if="hasNewVersion"
@@ -336,6 +337,7 @@ import {
   TranslateIcon,
 } from '@/ui/icons';
 import { CheckVersionApi, DoUpdateApi, GetRollbackListApi, DoRollbackApi } from '@/apis/sysinfo';
+import { RELEASE_NOTICE_PREFIX } from '@/constants';
 import { releaseNoteGroups, type ReleaseNoteGroup } from '@/utils/releaseNotes';
 
 import Notice from './Notice.vue';
@@ -377,13 +379,20 @@ export default defineComponent({
       showChangePwd: false,
       /**更新内容**/
       hasNewVersion: false, //是否有新版本
+      checkingVersion: '' as '' | 'auto' | 'manual',
+      versionCheckId: 0,
+      versionRefreshTimer: 0,
+      lastPromptedVersion: '',
       isUpdateloading: false,
       update_visible: false,
       update_new_ver: '',
       update_current_ver: '',
+      update_prerelease: false,
+      update_channel: 'official',
       update_desc: '',
       update_notes: [] as ReleaseNoteGroup[],
       update_notes_warning: '',
+      update_check_warning: '',
       update_error: '',
       /**运行环境：容器类型(空=非容器)与是否允许应用内升级。
        * 容器里升级只对当前容器有效，容器重建就回退到镜像版本，而数据库回不去，
@@ -439,13 +448,22 @@ export default defineComponent({
     },
   },
   mounted() {
-    // 首次提示，每隔24小时 进行弹窗 ，其余实际不弹窗
-    this.checkVersion('auto');
     this.init();
+    this.refreshReleaseNotice();
+    this.$bus.$on('software-update-available', this.refreshReleaseNotice);
+    document.addEventListener('visibilitychange', this.refreshReleaseNotice);
+    // Recover a missed WebSocket event using the instance's saved result.
+    this.versionRefreshTimer = window.setInterval(this.refreshReleaseNotice, 5 * 60 * 1000);
     // 升级中刷新了页面：把进度捡回来，别让用户以为升级断了
     this.$nextTick(() => {
       (this.$refs.updateProgress as any)?.resume();
     });
+  },
+  beforeUnmount() {
+    ++this.versionCheckId;
+    window.clearInterval(this.versionRefreshTimer);
+    document.removeEventListener('visibilitychange', this.refreshReleaseNotice);
+    this.$bus.$off('software-update-available', this.refreshReleaseNotice);
   },
   methods: {
     // 切换语言
@@ -516,70 +534,60 @@ export default defineComponent({
     openWechat() {
       this.$router.push('/help');
     },
-    checkVersion(method) {
-      let that = this;
-      // auto 是进入页面时自动跑的：超时只进小铃铛，不弹右上角通知
-      CheckVersionApi(undefined, method === 'manual' ? undefined : { background: true })
-        .then((res) => {
-          let resdata = res;
-          console.log(resdata);
-          if (resdata.code === 0) {
-            if (resdata.data.need_update === false) {
-              that.hasNewVersion = false;
-              that.update_new_ver = '';
-              that.update_desc = '';
-              that.update_notes = [];
-              that.update_notes_warning = '';
-              that.update_error = '';
-              that.update_visible = false;
-              if (method === 'manual') that.$message.info(resdata.msg);
-              return;
-            }
-            that.hasNewVersion = true;
-            that.update_new_ver = resdata.data.version_new;
-            that.update_current_ver = resdata.data.version || '';
-            that.update_desc = resdata.data.version_desc;
-            that.update_notes = resdata.data.version_notes || [];
-            that.update_notes_warning = resdata.data.version_notes_warning || '';
-            that.update_error = '';
-            that.container_type = resdata.data.container || '';
-            // 老后端没有这个字段时按"允许"处理，避免升级入口被误屏蔽
-            that.self_update_allowed = resdata.data.self_update_allowed !== false;
-            if (method == 'manual') {
-              that.update_visible = true;
-            } else {
-              // 从本地存储获取上次显示弹窗的时间
-              const lastUpdatePopupTime = localStorage.getItem('lastUpdatePopupTime');
-
-              // 如果是beta版本，不自动弹出提示
-              if (that.update_new_ver && that.update_new_ver.toLowerCase().includes('beta')) {
-                // 只设置有新版本标志，但不弹窗
-                that.hasNewVersion = true;
-              } else {
-                // 如果上次显示时间不存在或距离当前时间超过24小时，则显示弹窗
-                if (!lastUpdatePopupTime || Date.now() - Number(lastUpdatePopupTime) > 24 * 60 * 60 * 1000) {
-                  that.update_visible = true;
-                  // 更新本地存储的上次显示时间为当前时间
-                  localStorage.setItem('lastUpdatePopupTime', String(Date.now()));
-                }
-              }
-            }
-          } else {
-            if (method == 'manual') {
-              that.$message.warning(resdata.msg);
-            }
-          }
-        })
-        .catch((e: Error) => {
-          if (method == 'manual') {
-            that.$message.warning('检测版本异常，请检测网络');
-          }
-        });
+    refreshReleaseNotice() {
+      if (!document.hidden && !this.checkingVersion && !this.update_visible) this.checkVersion('auto');
+    },
+    async checkVersion(method: 'auto' | 'manual') {
+      if (this.isUpdateloading || this.checkingVersion === 'manual') return;
+      const manual = method === 'manual';
+      const id = ++this.versionCheckId;
+      this.checkingVersion = method;
+      try {
+        const res = await CheckVersionApi(manual ? undefined : { cached: 1 }, manual ? undefined : { background: true });
+        if (id !== this.versionCheckId) return;
+        if (res.code !== 0) {
+          if (manual) this.$message.warning(res.msg);
+          return;
+        }
+        const data = res.data;
+        this.hasNewVersion = data.need_update === true && !!data.version_new;
+        this.update_new_ver = this.hasNewVersion ? data.version_new : '';
+        this.update_current_ver = data.version || '';
+        this.update_desc = data.version_desc || '';
+        this.update_notes = data.version_notes || [];
+        this.update_notes_warning = data.version_notes_warning || '';
+        this.update_check_warning = data.check_warning || '';
+        this.update_error = '';
+        this.container_type = data.container || '';
+        this.self_update_allowed = data.self_update_allowed !== false;
+        this.update_prerelease = data.prerelease ?? this.update_new_ver.split('+')[0].includes('-');
+        this.update_channel = data.update_channel || (this.update_prerelease ? 'github' : 'official');
+        if (!this.hasNewVersion) {
+          this.update_visible = false;
+          if (manual) this.$message.info(res.msg);
+          return;
+        }
+        if (!manual && (document.hidden || this.update_prerelease)) return;
+        let seen = this.lastPromptedVersion === this.update_new_ver;
+        if (!this.update_prerelease) {
+          const key = RELEASE_NOTICE_PREFIX + JSON.stringify([window.location.pathname, this.current_account]);
+          try {
+            seen ||= localStorage.getItem(key) === this.update_new_ver;
+            if (!seen) localStorage.setItem(key, this.update_new_ver);
+          } catch { /* Use the in-memory marker when browser storage is unavailable. */ }
+          this.lastPromptedVersion = this.update_new_ver;
+        }
+        if (manual || !seen) this.update_visible = true;
+      } catch {
+        if (manual && id === this.versionCheckId) this.$message.warning(this.$t('topNav.update.check_failed'));
+      } finally {
+        if (id === this.versionCheckId) this.checkingVersion = '';
+      }
     },
     handleConfirmUpdate() {
       if (this.isUpdateloading) return;
       // 如果是beta版本，需要二次确认
-      if (this.update_new_ver && this.update_new_ver.toLowerCase().includes('beta')) {
+      if (this.update_prerelease) {
         const confirmDia = this.$dialog.confirm({
           header: this.$t('topNav.update.beta_confirm_title') || '确认更新测试版本',
           body: this.$t('topNav.update.beta_confirm_content') || '您正在更新测试版本，该版本可能不稳定，确定要继续吗？',
@@ -665,13 +673,7 @@ export default defineComponent({
       }
       that.isUpdateloading = true;
       that.update_error = '';
-      // 检查是否为beta版本，如果是则添加渠道参数
-      const params =
-        that.update_new_ver && that.update_new_ver.toLowerCase().includes('beta')
-          ? { channel: 'github' }
-          : { channel: 'official' };
-
-      DoUpdateApi(params)
+      DoUpdateApi({ channel: that.update_channel })
         .then((res) => {
           let resdata = res;
           console.log(resdata);

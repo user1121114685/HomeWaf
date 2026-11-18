@@ -59,11 +59,9 @@ func TestHomeWafUpdateSourceResponses(t *testing.T) {
 func TestHomeWafUpdateSourceGroupedNotes(t *testing.T) {
 	oldManifest, oldRelease, oldBeta := global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL
 	oldVersion, oldUpdating := global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_IS_UPDATETING
-	oldNew, oldDesc := global.GWAF_RUNTIME_NEW_VERSION, global.GWAF_RUNTIME_NEW_VERSION_DESC
 	t.Cleanup(func() {
 		global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL = oldManifest, oldRelease, oldBeta
 		global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = oldVersion, oldUpdating
-		global.GWAF_RUNTIME_NEW_VERSION, global.GWAF_RUNTIME_NEW_VERSION_DESC = oldNew, oldDesc
 	})
 	global.GUPDATE_VERSION_URL, global.GUPDATE_GITHUB_VERSION_URL = "", ""
 	global.GWAF_RELEASE_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = "v2.0.1", false

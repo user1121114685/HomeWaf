@@ -506,6 +506,7 @@ func (m *wafSystenService) run() {
 	} else {
 		zlog.Info("[Worker] takeover 模式：暂不启动隧道/应用，等待旧 Worker 退出后由 Supervisor 的 ACTIVATE 接管")
 	}
+	wafupdate.SoftwareReleases = wafupdate.NewReleaseMonitor(filepath.Join(utils.GetCurrentDir(), "data"))
 	//启动管理界面
 	webmanager = &wafmangeweb.WafWebManager{LogName: "WebManager", StartupReady: &m.startup}
 	go func() {
@@ -559,6 +560,9 @@ func (m *wafSystenService) run() {
 	go waftask.TaskShareDbInfo()
 
 	globalobj.GWAF_RUNTIME_OBJ_WAF_TaskScheduler = waftask.NewTaskScheduler(globalobj.GWAF_RUNTIME_OBJ_WAF_TaskRegistry)
+	if err := globalobj.GWAF_RUNTIME_OBJ_WAF_TaskScheduler.ScheduleSoftwareUpdate(wafqueue.NotifySoftwareUpdate); err != nil {
+		zlog.Error("注册 HomeWaf 自动更新检查失败", err.Error())
+	}
 	taskDbList := waftask.InitTaskDb()
 	for _, task := range taskDbList {
 		globalobj.GWAF_RUNTIME_OBJ_WAF_TaskScheduler.ScheduleTask(task.TaskUnit, task.TaskValue, task.TaskAt, task.TaskMethod, task.TaskDaysOfTheWeek)

@@ -6,6 +6,7 @@ import (
 	"HomeWaf/common/tasklog"
 	"HomeWaf/common/zlog"
 	"HomeWaf/enums"
+	"HomeWaf/wafupdate"
 	"fmt"
 	"strconv"
 	"strings"
@@ -128,9 +129,21 @@ func applyTaskLogPolicy(taskMethod string, unit string, interval int) {
 		}
 	}
 }
+
+// Only the active worker starts this scheduler. Most ticks just compare the local deadline.
+func (ts *TaskScheduler) ScheduleSoftwareUpdate(notify func(current, latest string)) error {
+	_, err := ts.Scheduler.NewJob(gocron.DurationJob(time.Minute), gocron.NewTask(func() {
+		if err := wafupdate.SoftwareReleases.CheckDue(time.Now(), notify); err != nil {
+			zlog.Warn("自动检查 HomeWaf 更新失败", err.Error())
+		}
+	}), gocron.WithStartAt(gocron.WithStartImmediately()), gocron.WithSingletonMode(gocron.LimitModeReschedule))
+	return err
+}
+
 func (ts *TaskScheduler) Start() {
 	ts.Scheduler.Start()
 }
+
 func (ts *TaskScheduler) Stop() {
 	if ts != nil {
 		_ = ts.Scheduler.Shutdown()

@@ -44,6 +44,7 @@ func (s NotifySubscription) GetFilterConfig() NotifyFilterConfig {
 const (
 	MSG_TYPE_RULE_TRIGGER     = "rule_trigger"     // 规则触发
 	MSG_TYPE_OPERATION_NOTICE = "operation_notice" // 操作通知
+	MSG_TYPE_SOFTWARE_UPDATE  = "software_update"  // HomeWaf 新版本发布
 	MSG_TYPE_USER_LOGIN       = "user_login"       // 用户登录
 	MSG_TYPE_ATTACK_INFO      = "attack_info"      // 攻击信息
 	MSG_TYPE_WEEKLY_REPORT    = "weekly_report"    // 周报

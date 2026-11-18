@@ -141,6 +141,13 @@ func checkCanSend(messageType string) bool {
 
 // ========== 各类消息处理函数（保持队列+WebSocket方式，集成新的通知系统） ==========
 
+// NotifySoftwareUpdate runs on the release-check task, outside the traffic message queue.
+func NotifySoftwareUpdate(current, latest string) {
+	event := waf_service.SoftwareUpdateEvent(current, latest)
+	sendToWebSocket(event.MessageTypeName, event.DefaultContent, nil, "UPDATE_AVAILABLE")
+	waf_service.WafNotifySenderServiceApp.SendEvent(event)
+}
+
 // handleRuleMessage 处理规则触发消息
 func handleRuleMessage(msg innerbean.RuleMessageInfo) {
 	if !checkCanSend(model.MSG_TYPE_RULE_TRIGGER) {

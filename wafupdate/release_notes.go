@@ -2,6 +2,7 @@ package wafupdate
 
 import (
 	"HomeWaf/global"
+	"HomeWaf/model"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,17 +16,14 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-type ReleaseNote struct {
-	Version string   `json:"version"`
-	Items   []string `json:"items"`
-}
+type ReleaseNote = model.VersionReleaseNote
 
 var noteBullet = regexp.MustCompile(`^(?:[-*+] |\d+\. )`)
 var noteCommit = regexp.MustCompile(`(?i)^(?:\[[a-f0-9]{7,40}\]\([^)]*\)|[a-f0-9]{7,40})\s+`)
 var notePrefix = regexp.MustCompile(`(?i)^(?:feat|fix|perf|refactor|chore|docs|test|ci|build)(?:\([^)]*\))?!?:\s*`)
 var noteLink = regexp.MustCompile(`\[([^\]]+)\]\([^)]*\)`)
 var noteHeading = regexp.MustCompile(`(?i)^(?:changelog|what'?s changed|更新内容|更新说明|(?:HomeWaf\s+)?v\d+\.\d+\.\d+[^\s]*)$`)
-var releaseNotesRequester = HTTPRequester{Client: &http.Client{Transport: defaultHTTPClient.Transport, Timeout: 5 * time.Second}}
+var releaseMetadataRequester = HTTPRequester{Client: &http.Client{Transport: defaultHTTPClient.Transport, Timeout: 5 * time.Second}}
 
 // Release descriptions are display text, never executable HTML.
 func releaseNoteItems(body string) []string {
@@ -74,7 +72,7 @@ func (u *Updater) RecentReleaseNotes(channel string) ([]ReleaseNote, error) {
 	parsed.RawQuery = query.Encode()
 	history := *u
 	if history.Requester == nil {
-		history.Requester = &releaseNotesRequester
+		history.Requester = &releaseMetadataRequester
 	}
 	reader, err := history.fetch(parsed.String())
 	if err != nil {

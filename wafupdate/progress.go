@@ -205,6 +205,9 @@ func (t *ProgressTracker) finishStage(key, state, detail string) {
 	t.stages[i].state = state
 	if detail != "" {
 		t.stages[i].detail = detail
+		if key == StageManifest && state == StageStateDone {
+			t.to = detail
+		}
 	}
 	if !t.stages[i].startAt.IsZero() {
 		t.stages[i].costMs = time.Since(t.stages[i].startAt).Milliseconds()

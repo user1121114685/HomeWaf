@@ -32,12 +32,12 @@ try {
   await page.goto(origin + '/#/sys/SystemConfig');
   await expect(page.locator('.config-layout')).toBeVisible({ timeout: 20000 });
   await page.locator('.header-user-btn').click();
-  await page.getByRole('menuitem', { name: '升级', exact: true }).click();
+  await page.getByRole('menuitem', { name: '检查更新', exact: true }).click();
   await expect(page.getByText('HomeWaf 更新源尚未发布正式版本，发布后即可检查更新', { exact: true })).toBeVisible();
   await expect(page.locator('.el-dialog:visible')).toHaveCount(0);
   updateAvailable = true;
   await page.locator('.header-user-btn').click();
-  await page.getByRole('menuitem', { name: '升级', exact: true }).click();
+  await page.getByRole('menuitem', { name: '检查更新', exact: true }).click();
   await expect(page.locator('.el-dialog:visible')).toContainText('v2.0.1');
   report.checks.push('Empty release state shows an informational message; a newer release opens the update dialog');
   expect(report.errors).toEqual([]);
