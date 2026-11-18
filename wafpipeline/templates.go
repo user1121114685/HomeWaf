@@ -30,11 +30,15 @@ func BuiltinTemplates() []Template {
 			p.Honeypot.Enabled = true
 			p.HitPolicy.Lockdown.Enabled = true
 		case "family-nas":
-			version = 2
+			version = 4
 			p.Gate.Enabled = true
 			p.RuleSet.QPS.PerIP = 60
 			p.RuleSet.QPS.Burst = 200
+			p.RuleSet.CSRFMissingOrigin = "allow"
 			for i := range p.RuleSet.Rules {
+				if category := p.RuleSet.Rules[i].Category; category == synologyAdminCategory || category == synologyFailureCategory {
+					p.RuleSet.Rules[i].Mode = ModeBlock
+				}
 				// NAS/photo clients carry LAN URLs; SSRF remains opt-in for this template.
 				if p.RuleSet.Rules[i].Category == "ssrf" {
 					p.RuleSet.Rules[i].Mode = ModeOff
@@ -67,7 +71,9 @@ func BuiltinTemplates() []Template {
 			p.RuleSet.QPS.Mode = ModeObserve
 			p.RuleSet.CC.Mode = ModeObserve
 			for i := range p.RuleSet.Rules {
-				p.RuleSet.Rules[i].Mode = ModeObserve
+				if p.RuleSet.Rules[i].Mode != ModeOff {
+					p.RuleSet.Rules[i].Mode = ModeObserve
+				}
 			}
 		}
 		out = append(out, Template{Schema: SchemaVersion, ID: n.id, Name: n.name, Version: version, Builtin: true, Policy: p})
@@ -105,6 +111,7 @@ func ValidateTemplate(t Template) error {
 	if hasSecretKey(decoded) {
 		return fmt.Errorf("templates cannot contain credentials")
 	}
+	t.Policy.RuleSet.CompleteSynologyRules()
 	return ValidatePolicy(t.Policy)
 }
 func hasSecretKey(v any) bool {

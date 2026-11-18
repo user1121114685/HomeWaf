@@ -29,6 +29,10 @@ export function accessSourceSummary(policy: Record<string, any>): string {
 }
 
 const sourceReasons: Record<string, string> = {
+  synology_login_lockdown: '群晖登录锁定中',
+  synology_admin: '群晖内置 admin 账号认证请求',
+  synology_login_failure: '群晖 DSM 认证失败',
+  synology_state_unavailable: '群晖登录保护状态不可用',
   'blacklist:custom': '命中手动 IP 黑名单',
   'blacklist:group': '命中黑名单 IP 组',
   'blacklist:region': '命中禁止访问的地区',

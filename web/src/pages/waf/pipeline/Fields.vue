@@ -21,7 +21,7 @@
       <ElInputNumber
         v-else-if="field.kind === 'number'"
         :id="controlId(field.path)"
-        :model-value="Number(valueAt(model, field.path) || 0)"
+        :model-value="numberValue(field)"
         :min="field.min"
         :max="field.max"
         :aria-label="field.label"
@@ -98,6 +98,11 @@ const emit = defineEmits(['invalid']);
 const prefix = useId(),
   controlId = (path: string) => prefix + '-' + path.replace(/[^a-z0-9_-]/gi, '-');
 const drafts = computed(() => fieldDraftFor(props.model));
+function numberValue(field: Field) {
+  const value = Number(valueAt(props.model, field.path) || 0);
+  if (field.fallback !== undefined && (value < field.min! || value > field.max!)) return field.fallback;
+  return value;
+}
 watch(
   () => fieldsInvalid(props.model, props.definitions),
   (invalid) => emit('invalid', invalid),

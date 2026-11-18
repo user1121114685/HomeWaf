@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -75,31 +76,49 @@ func TestNASTemplateSSRFDefaultPersistsAndCanBeReenabled(t *testing.T) {
 	if err := service.Load(); err != nil {
 		t.Fatal(err)
 	}
-	check := func(port uint16, status, hitCount int) {
+	check := func(port uint16, r *http.Request, status int, category string) {
 		t.Helper()
 		snapshot, ok := wafpipeline.Ports.Get(port)
 		if !ok {
 			t.Fatal("saved service has no runtime snapshot")
 		}
-		r := httptest.NewRequest("GET", "http://example.test/photos", nil)
-		r.Header.Set("Referer", "http://169.254.169.254/latest/meta-data/")
-		r.Header.Set("User-Agent", "iOS-Synology-Photos-iPhone")
 		r = r.WithContext(context.WithValue(r.Context(), http.LocalAddrContextKey, &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: int(port)}))
 		response := httptest.NewRecorder()
 		before := forwarded
 		live.Serve(snapshot, response, r)
-		if response.Code != status || len(last.Hits) != hitCount {
+		if response.Code != status {
 			t.Fatalf("port=%d status=%d hits=%+v", port, response.Code, last.Hits)
 		}
-		if status == http.StatusForbidden && forwarded != before {
-			t.Fatal("blocked SSRF reached upstream handler")
+		if status == http.StatusForbidden && forwarded != before || status == http.StatusNoContent && forwarded != before+1 {
+			t.Fatal("upstream call count disagrees with the expected decision")
 		}
-		if hitCount > 0 && (last.Hits[0].Category != "ssrf" || last.Hits[0].Observe != (status == http.StatusNoContent)) {
-			t.Fatalf("incorrect SSRF classification: %+v", last.Hits)
+		if category == "" {
+			if len(last.Hits) != 0 {
+				t.Fatalf("unexpected rule hits on port %d: %+v", port, last.Hits)
+			}
+		} else if len(last.Hits) != 1 || last.Hits[0].Category != category || last.Hits[0].Observe != (status == http.StatusNoContent) {
+			t.Fatalf("port %d: expected %s, got %+v", port, category, last.Hits)
 		}
 	}
-	check(45231, http.StatusNoContent, 0)
-	check(45232, http.StatusNoContent, 1)
+	photosURL := func() *http.Request {
+		r := httptest.NewRequest("GET", "http://example.test/photos", nil)
+		r.Header.Set("Referer", "http://169.254.169.254/latest/meta-data/")
+		r.Header.Set("User-Agent", "iOS-Synology-Photos-iPhone")
+		return r
+	}
+	photosList := func() *http.Request {
+		r := httptest.NewRequest("POST", "http://example.test/webapi/entry.cgi", strings.NewReader("api=SYNO.Foto.Browse.Diff&method=list"))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r.AddCookie(&http.Cookie{Name: "session", Value: "fixture"})
+		return r
+	}
+	check(45231, photosURL(), http.StatusNoContent, "")
+	check(45232, photosURL(), http.StatusNoContent, "ssrf")
+	check(45231, photosList(), http.StatusNoContent, "")
+	check(45232, photosList(), http.StatusNoContent, "csrf")
+	otherOrigin := photosList()
+	otherOrigin.Header.Set("Origin", "https://other.example.test")
+	check(45231, otherOrigin, http.StatusNoContent, "csrf")
 	nas, err := service.Get(45231)
 	if err != nil {
 		t.Fatal(err)
@@ -115,6 +134,6 @@ func TestNASTemplateSSRFDefaultPersistsAndCanBeReenabled(t *testing.T) {
 	if err := service.Load(); err != nil {
 		t.Fatal(err)
 	}
-	check(45231, http.StatusForbidden, 1)
-	check(45232, http.StatusNoContent, 1)
+	check(45231, photosURL(), http.StatusForbidden, "ssrf")
+	check(45232, photosURL(), http.StatusNoContent, "ssrf")
 }

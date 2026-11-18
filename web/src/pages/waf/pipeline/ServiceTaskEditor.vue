@@ -46,11 +46,17 @@
       />
       <template v-else-if="task === 'Wafruleedit'">
         <div><ElButton :disabled="busy" @click="navigateRules('WafRule')">返回检测规则</ElButton></div>
-        <RuleAssistant :config="draft" :disabled="busy" @add="addPreparedRule" @editing="ruleAssistantEditing = $event" @busy="ruleAssistantBusy = $event" />
+        <RuleAssistant
+          :config="draft"
+          :disabled="busy"
+          @add="addPreparedRule"
+          @editing="ruleAssistantEditing = $event"
+          @busy="ruleAssistantBusy = $event"
+        />
         <RuleCollection
           v-model="draft.policy.ruleset.scripts"
           title="自定义规则"
-          description="编辑规则条件，选择观察或拦截，再保存到当前服务。语法与字段由服务器校验。"
+          description="编辑规则条件后，选择仅观察或执行规则动作，再保存到当前服务。"
           :schema="scriptSchema"
           :defaults="{ id: '', source: '', mode: 'observe', severity: 'medium' }"
           summary-key="id"
@@ -76,25 +82,21 @@
       <template v-else-if="task === 'WafRule'">
         <div><ElButton :disabled="busy" @click="navigateRules('Wafruleedit')">管理自定义规则</ElButton></div>
         <div class="task-section-heading">
-          <h3>攻击检测</h3>
+          <h3>攻击与登录检测</h3>
           <p>先确认命中原因与正常业务，再将对应规则从观察改为拦截。</p>
         </div>
         <ElTable :data="draft.policy.ruleset.rules" class="rule-modes">
           <ElTableColumn label="检测规则" min-width="220"
             ><template #default="{ row }"
               ><strong>{{ ruleNames[row.category] || row.category }}</strong>
-              <p class="rule-help">{{ ruleHelp[row.category] }}</p></template
+              <p class="rule-help">{{ ruleDescription(row) }}</p></template
             ></ElTableColumn
           >
-          <ElTableColumn label="模式" width="145"
-            ><template #default="{ row }"
-              ><ElSelect v-model="row.mode" :aria-label="(ruleNames[row.category] || row.category) + '模式'"
-                ><ElOption
-                  v-for="mode in modes"
-                  :key="mode[0]"
-                  :value="mode[0]"
-                  :label="mode[1]" /></ElSelect></template
-          ></ElTableColumn>
+          <ElTableColumn label="模式" width="182">
+            <template #default="{ row }">
+              <DetectionRuleMode :rule="row" :ruleset="draft.policy.ruleset" :disabled="busy" />
+            </template>
+          </ElTableColumn>
           <ElTableColumn label="严重度" width="140"
             ><template #default="{ row }"
               ><ElSelect v-model="row.severity" aria-label="规则严重度"
@@ -106,7 +108,9 @@
           ></ElTableColumn>
           <ElTableColumn label="范围" width="110"
             ><template #default="{ row }"
-              ><ElButton link @click="openScope(row)">范围与例外</ElButton></template
+              ><ElButton link @click="openScope(row)">{{
+                row.category === 'synology_login_failure' ? '阈值与范围' : '范围与例外'
+              }}</ElButton></template
             ></ElTableColumn
           >
         </ElTable>
@@ -117,6 +121,8 @@
             :definitions="fields.ruleset.filter((field) => !field.path.startsWith('cc.') && field.path !== 'sensitive')"
             @invalid="invalid.ruleset = $event"
           />
+          <h4>OWASP CRS 作用范围</h4>
+          <Scope :model="draft.policy.ruleset.owasp_scope" />
         </details>
       </template>
       <template v-else-if="task === 'WafSensitiveList'">
@@ -127,8 +133,8 @@
               path: 'mode',
               label: '检测模式',
               kind: 'select',
-              options: modes,
-              help: '观察只记录；拦截模式才执行拒绝或替换。',
+              options: actionModes,
+              help: '仅观察会记录命中。执行模式会按词条设置拒绝请求或替换内容。',
             },
             { path: 'replacement', label: '替换文本', help: '仅用于选择替换动作的规则。' },
           ]"
@@ -188,8 +194,12 @@
               path: 'mode',
               label: '响应脱敏模式',
               kind: 'select',
-              options: [['off', '关闭'], ['observe', '仅观察'], ['block', '执行脱敏']],
-              help: '观察不修改响应正文；选择拦截模式时执行脱敏。',
+              options: [
+                ['off', '关闭'],
+                ['observe', '仅观察'],
+                ['block', '执行脱敏'],
+              ],
+              help: '仅观察会记录命中。执行脱敏会改写命中的响应内容。',
             },
           ]"
         />
@@ -245,16 +255,24 @@
     </template>
     <ElDialog
       v-model="scopeVisible"
-      :title="'范围与例外 · ' + (scopeRule ? ruleNames[scopeRule.category] || scopeRule.id : '')"
+      :title="
+        (scopeRule?.category === 'synology_login_failure' ? '阈值与范围 · ' : '范围与例外 · ') +
+        (scopeRule ? ruleNames[scopeRule.category] || scopeRule.id : '')
+      "
       width="min(850px,94vw)"
       :close-on-click-modal="false"
     >
-      <Scope v-if="scopeRule" :model="scopeRule.scope" /><Fields
+      <Fields
+        v-if="scopeRule?.category === 'synology_login_failure'"
+        :model="scopeRule"
+        :definitions="dsmThresholdFields"
+      />
+      <Scope v-if="scopeRule" :model="scopeRule.scope" :category="scopeRule.category" /><Fields
         v-if="scopeRule?.category === 'scanner'"
-        :model="scopeRule.params"
+        :model="scopeRule"
         :definitions="[
           {
-            path: 'probe_paths',
+            path: 'params.probe_paths',
             label: '本站不存在的探测路径',
             kind: 'lines',
             help: '每行一个；不要填写真实业务路径。',
@@ -280,7 +298,8 @@ import {
   ElTableColumn,
 } from 'element-plus';
 import { pipelinePost } from '@/apis/pipeline';
-import { clone, fields, modes, ruleHelp, ruleNames, type PortConfig } from './model';
+import { actionModes, clone, dsmThresholdFields, fields, ruleDescription, ruleNames, type PortConfig } from './model';
+import DetectionRuleMode from './DetectionRuleMode.vue';
 import Fields from './Fields.vue';
 import Scope from './Scope.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
@@ -294,7 +313,9 @@ const props = defineProps({
 });
 const emit = defineEmits(['saved', 'busy']);
 const router = useRouter();
-function navigateRules(name: string) { router.push({ name, query: { host_code: props.config.host_code || 'pipeline-' + props.config.port } }); }
+function navigateRules(name: string) {
+  router.push({ name, query: { host_code: props.config.host_code || 'pipeline-' + props.config.port } });
+}
 const ipTask = computed(() => ['WafIpWhiteList', 'WafIpBlockList'].includes(props.task));
 const ipType = computed(() => (props.task === 'WafIpWhiteList' ? 'allow' : 'deny'));
 const urlTask = computed(() => ['WafUrlWhiteList', 'WafUrlBlockList'].includes(props.task));
@@ -329,6 +350,7 @@ function reset() {
   draft.value = clone(props.config);
   draft.value.revision = Math.max(currentRevision, props.config.revision);
   draft.value.policy.ip_group.entries ||= [];
+  if (props.task === 'WafRule') draft.value.policy.ruleset.owasp_scope ||= {};
   if (props.task === 'WafSensitiveList')
     draft.value.policy.ruleset.sensitive ||= { mode: 'off', replacement: '', rules: [] };
   if (privacyTask.value) {
@@ -393,11 +415,11 @@ const ipSchema = computed<CollectionField[]>(() => [
 const urlSchema: CollectionField[] = [
   { key: 'value', label: '访问路径' },
   { key: 'match', label: '匹配方式', options: matching },
-  { key: 'mode', label: '生效模式', options: modes },
+  { key: 'mode', label: '生效模式', options: actionModes },
 ];
 const scriptSchema: CollectionField[] = [
   { key: 'id', label: '规则 ID' },
-  { key: 'mode', label: '生效模式', options: modes },
+  { key: 'mode', label: '生效模式', options: actionModes },
   {
     key: 'severity',
     label: '严重度',
@@ -442,7 +464,6 @@ const routeSchema: CollectionField[] = [
 ];
 function openScope(row: any) {
   row.scope ||= {};
-  row.params ||= {};
   scopeRule.value = row;
   scopeVisible.value = true;
 }

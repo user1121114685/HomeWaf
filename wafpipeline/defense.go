@@ -236,7 +236,7 @@ func (e *DefenseEngine) counter(s *Snapshot) *defenseCounter {
 // Request failures may carry several detector events. This is called exactly
 // once for the final request outcome, rather than once for each HitEvent.
 func DefenseFailure(c *RequestContext, v Verdict) bool {
-	if c == nil || c.DryRun || v.Observe || strings.HasPrefix(v.Reason, "defense:") || v.Reason == "access_disabled" || v.Reason == "lockdown" || v.Reason == "policy_unavailable" {
+	if c == nil || c.DryRun || v.Observe || strings.HasPrefix(v.Reason, "defense:") || v.Reason == "access_disabled" || v.Reason == "lockdown" || v.Reason == synologyLockKind || v.Reason == "synology_admin" || v.Reason == "policy_unavailable" {
 		return false
 	}
 	for _, hit := range c.Hits {

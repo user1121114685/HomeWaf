@@ -28,6 +28,9 @@ func Sensitive(name string) bool {
 		name = decoded
 	}
 	name = strings.ToLower(name)
+	if name == "__ciphertext" || name == "ik_message" || name == "cipherkey" {
+		return true
+	}
 	for _, key := range []string{"password", "passwd", "pwd", "passphrase", "secret", "token", "credential", "authorization", "api-key", "api_key", "apikey", "session", "jwt", "signature", "private_key", "access_key"} {
 		if strings.Contains(name, key) {
 			return true

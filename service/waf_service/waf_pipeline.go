@@ -138,6 +138,7 @@ func decodePort(row model.PortConfig) (*wafpipeline.Snapshot, error) {
 		return nil, errors.New("port identity mismatch")
 	}
 	c.Revision = row.Revision
+	c.Policy.RuleSet.CompleteSynologyRules()
 	return &wafpipeline.Snapshot{Config: c, Secrets: secrets, PublishedAt: time.Now()}, nil
 }
 func (s *WafPipelineService) List() ([]wafpipeline.PortConfig, error) {
@@ -169,6 +170,7 @@ func (s *WafPipelineService) List() ([]wafpipeline.PortConfig, error) {
 			continue
 		}
 		config.Revision = row.Revision
+		config.Policy.RuleSet.CompleteSynologyRules()
 		out = append(out, config)
 	}
 	return out, nil
@@ -226,6 +228,7 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	pipelineGroupReferenceMu.RLock()
 	defer pipelineGroupReferenceMu.RUnlock()
 	c := wafpipeline.CloneConfig(req.Config)
+	c.Policy.RuleSet.CompleteSynologyRules()
 	if err := wafpipeline.ValidateConfig(c, uint16(global.GWAF_LOCAL_SERVER_PORT)); err != nil {
 		return c, err
 	}
@@ -585,6 +588,13 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	}
 	previousMigration := migration
 	previousOwner := wafpipeline.OwnsLegacyPort(c.Port)
+	wasLockingDSM := oldSnap != nil && oldSnap.Config.Policy.RuleSet.LocksDSMLogins()
+	locksDSM := c.Policy.RuleSet.LocksDSMLogins()
+	if isNew || !wasLockingDSM && locksDSM {
+		if err := WafPipelineStateServiceApp.Punisher.ClearSynologyLock(c.Port); err != nil {
+			return c, err
+		}
+	}
 	createdUserID := ""
 	err = db.Transaction(func(tx *gorm.DB) error {
 		if err := defenseTransactionOwner(tx, req.defenseOwner); err != nil {
@@ -678,6 +688,9 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 			return c, err
 		}
 	}
+	if wasLockingDSM && !locksDSM {
+		_ = WafPipelineStateServiceApp.Punisher.ClearSynologyLock(c.Port)
+	}
 	s.auditDetail(req.Operator, c.Port, "port_config_saved", portChangeSummary(oldSnap, snap))
 	if req.TamperUpdates == nil && !req.defenseWrite {
 		if err := WafPipelineGateServiceApp.Reload(c.Port); err != nil {
@@ -688,7 +701,7 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	if oldSnap == nil || defensePolicyChanged(oldSnap.Config.Policy.Defense, c.Policy.Defense) || oldSnap.Config.DefenseState != nil && c.DefenseState == nil {
 		WafPipelineDefenseServiceApp.Engine.Reset(c.Port)
 	}
-	return c, nil
+	return wafpipeline.CloneConfig(c), nil
 }
 func (s *WafPipelineService) Delete(port uint16, operator string) error {
 	s.mu.Lock()
@@ -732,6 +745,7 @@ func (s *WafPipelineService) Delete(port uint16, operator string) error {
 	}
 	wafpipeline.Ports.Remove(port)
 	WafPipelineDefenseServiceApp.Engine.Forget(port)
+	_ = WafPipelineStateServiceApp.Punisher.ClearSynologyLock(port)
 	if err := WafPipelineGateServiceApp.Reload(port); err != nil {
 		return err
 	}
@@ -756,6 +770,7 @@ func (s *WafPipelineService) Templates() ([]wafpipeline.Template, error) {
 		if err = wafpipeline.StrictDecode([]byte(r.ConfigJSON), &t); err != nil {
 			return nil, err
 		}
+		t.Policy.RuleSet.CompleteSynologyRules()
 		out = append(out, t)
 	}
 	return out, nil

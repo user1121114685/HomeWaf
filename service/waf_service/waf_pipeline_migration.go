@@ -267,6 +267,10 @@ func (s *WafPipelineService) previewLegacyPort(port uint16, policyHost string) (
 	flags := map[string]int{"scanner": defense.DEFENSE_SCAN, "sqli": defense.DEFENSE_SQLI, "xss": defense.DEFENSE_XSS, "rce": defense.DEFENSE_RCE, "lfi": defense.DEFENSE_DIR_TRAVERSAL}
 	for i := range c.Policy.RuleSet.Rules {
 		r := &c.Policy.RuleSet.Rules[i]
+		if r.Category == "synology_admin" || r.Category == "synology_login_failure" {
+			r.Mode = wafpipeline.ModeOff
+			continue
+		}
 		if v, ok := flags[r.Category]; ok && v == 0 || selected.GUARD_STATUS == 0 {
 			r.Mode = wafpipeline.ModeOff
 		}

@@ -14,7 +14,7 @@ const templates = JSON.parse(
   execFileSync('go', ['run', './scripts/pipeline-fixtures'], {
     cwd: root,
     encoding: 'utf8',
-    env: { ...process.env, CGO_ENABLED: '0', GOPROXY: 'off', GOSUMDB: 'off' },
+    env: { ...process.env, CGO_ENABLED: '0' },
   }),
 );
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -329,6 +329,39 @@ try {
     await expect(diagnostics.locator('[data-scope="instance"]')).toContainText('多个服务共享');
     await expect(diagnostics.getByText('未提供', { exact: true }).first()).toBeVisible();
   });
+  await check(
+    'DSM lock identifies all accounts and releases only the selected service after confirmation',
+    async () => {
+      const lock = {
+        id: 'synology_login_lockdown|port:5000|',
+        port_id: 'port:5000',
+        kind: 'synology_login_lockdown',
+        scope: 'port',
+        prefix: '',
+        hits: 10,
+        expires_at: Math.floor(Date.now() / 1000) + 10800,
+      };
+      state = [lock];
+      await page.getByRole('tab', { name: /当前处罚/ }).click();
+      await diagnostics.getByRole('button', { name: '刷新处罚记录' }).click();
+      const writesBefore = report.writes.length;
+      const row = diagnostics.getByRole('row').filter({ hasText: '群晖登录锁定' });
+      await expect(row).toContainText('所有 DSM 用户');
+      await expect(row).toContainText('DSM 认证失败累计 10 次');
+      await row.getByRole('button', { name: '解除锁定' }).click();
+      await expect(page.locator('.el-message-box')).toContainText('恢复本服务所有用户的 DSM 登录');
+      await confirm('取消');
+      expect(report.writes.length).toBe(writesBefore);
+      await page.setViewportSize({ width: 390, height: 844 });
+      const card = diagnostics.locator('.punishment-cards article').filter({ hasText: '所有 DSM 用户' });
+      await expect(card).toContainText('到期时间');
+      await card.getByRole('button', { name: '解除锁定' }).click();
+      await confirm('确认操作');
+      await expect(card).toHaveCount(0);
+      expect(report.writes.slice(writesBefore)).toEqual([{ port: 5000, id: lock.id, action: 'release' }]);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+    },
+  );
   await check('desktop, tablet, phone and dark mode preserve usable content', async () => {
     state = [
       {

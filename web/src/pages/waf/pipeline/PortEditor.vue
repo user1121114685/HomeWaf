@@ -211,7 +211,7 @@
               ><Fields :model="draft.policy.ruleset" :definitions="fields.ruleset" @invalid="invalid.ruleset = $event"
             /></ElCollapseItem>
 
-            <ElCollapseItem title="攻击检测（登录成功后继续执行）" name="attacks">
+            <ElCollapseItem title="攻击与登录检测" name="attacks">
               <ElAlert
                 title="先观察命中原因和正常业务，再逐条收紧。观察模式不阻断，也不会进入自动处罚。"
                 :closable="false"
@@ -277,16 +277,14 @@
                 ><ElTableColumn label="规则" min-width="180"
                   ><template #default="{ row }"
                     ><strong>{{ ruleNames[row.category] || row.category }}</strong
-                    ><small class="rule-help">{{ ruleHelp[row.category] }}</small></template
+                    ><small class="rule-help">{{ ruleDescription(row) }}</small></template
                   ></ElTableColumn
-                ><ElTableColumn label="模式" width="130"
+                ><ElTableColumn label="模式" width="182"
                   ><template #default="{ row }"
-                    ><ElSelect v-model="row.mode" :aria-label="`${ruleNames[row.category]}模式`"
-                      ><ElOption
-                        v-for="m in modes"
-                        :key="m[0]"
-                        :label="m[1]"
-                        :value="m[0]" /></ElSelect></template></ElTableColumn
+                    ><DetectionRuleMode
+                      :rule="row"
+                      :ruleset="draft.policy.ruleset"
+                      :disabled="busy" /></template></ElTableColumn
                 ><ElTableColumn label="严重度" width="130"
                   ><template #default="{ row }"
                     ><ElSelect v-model="row.severity" aria-label="规则严重度"
@@ -297,11 +295,13 @@
                         :value="severity" /></ElSelect></template></ElTableColumn
                 ><ElTableColumn label="范围 / 例外" width="120"
                   ><template #default="{ row }"
-                    ><ElButton link @click="openRule(row)">配置范围</ElButton></template
+                    ><ElButton link @click="openRule(row)">{{
+                      row.category === 'synology_login_failure' ? '阈值与范围' : '配置范围'
+                    }}</ElButton></template
                   ></ElTableColumn
                 ></ElTable
               >
-              <h4>CRS 作用范围</h4>
+              <h4>OWASP CRS 作用范围</h4>
               <Scope :model="draft.policy.ruleset.owasp_scope" />
             </ElCollapseItem>
           </ElCollapse>
@@ -311,7 +311,9 @@
             </p>
             <ElSelect v-model="tightenRules" multiple placeholder="选择已验证的观察规则" aria-label="渐进收紧规则"
               ><ElOption
-                v-for="rule in draft.policy.ruleset.rules.filter((r) => r.mode === 'observe')"
+                v-for="rule in draft.policy.ruleset.rules.filter(
+                  (r) => detectorMode(draft.policy.ruleset, r) === 'observe',
+                )"
                 :key="rule.id"
                 :label="ruleNames[rule.category] || rule.id"
                 :value="rule.id" /></ElSelect
@@ -599,14 +601,27 @@
       </div>
     </template>
 
-    <ElDialog v-model="ruleVisible" :title="`规则范围：${activeRule?.id || ''}`" width="min(850px,94vw)" append-to-body>
+    <ElDialog
+      v-model="ruleVisible"
+      :title="
+        activeRule?.category === 'synology_login_failure'
+          ? '阈值与范围 · 群晖 DSM 登录保护'
+          : `规则范围：${activeRule?.id || ''}`
+      "
+      width="min(850px,94vw)"
+      append-to-body
+    >
       <template v-if="activeRule"
-        ><Scope :model="activeRule.scope" /><Fields
+        ><Fields
+          v-if="activeRule.category === 'synology_login_failure'"
+          :model="activeRule"
+          :definitions="dsmThresholdFields" />
+        <Scope :model="activeRule.scope" :category="activeRule.category" /><Fields
           v-if="activeRule.category === 'scanner'"
-          :model="activeRule.params"
+          :model="activeRule"
           :definitions="[
             {
-              path: 'probe_paths',
+              path: 'params.probe_paths',
               label: '本站不存在的探测路径',
               kind: 'lines',
               help: '每行一个路径；存在的管理页、WordPress登录页不要填入。',
@@ -644,9 +659,10 @@ import {
 import { pipelinePost } from '@/apis/pipeline';
 import {
   clone,
+  detectorMode,
+  dsmThresholdFields,
   fields,
-  modes,
-  ruleHelp,
+  ruleDescription,
   ruleNames,
   sectionNames,
   sections,
@@ -659,6 +675,7 @@ import ServiceTLS from './ServiceTLS.vue';
 import AccessRestrictions from './AccessRestrictions.vue';
 import DefenseSettings from './DefenseSettings.vue';
 import Fields from './Fields.vue';
+import DetectionRuleMode from './DetectionRuleMode.vue';
 import Scope from './Scope.vue';
 import Trace from './Trace.vue';
 import ServiceIdentityPanel from './ServiceIdentityPanel.vue';
@@ -797,7 +814,6 @@ function normalize() {
   p.ruleset.owasp_scope ||= {};
   for (const r of p.ruleset.rules || []) {
     r.scope ||= {};
-    r.params ||= {};
   }
   const defaults = {
     login_ban: [600, 20, 1800],
@@ -909,7 +925,10 @@ async function tighten() {
     await ElMessageBox.confirm('确认这些命中不是正常业务？所选规则将对匹配请求执行拦截，保存后生效。', '渐进收紧', {
       type: 'warning',
     });
-    for (const r of draft.value.policy.ruleset.rules) if (tightenRules.value.includes(r.id)) r.mode = 'block';
+    const ruleset = draft.value.policy.ruleset;
+    for (const rule of ruleset.rules) {
+      if (tightenRules.value.includes(rule.id) && detectorMode(ruleset, rule) === 'observe') rule.mode = 'block';
+    }
     tightenRules.value = [];
   });
 }

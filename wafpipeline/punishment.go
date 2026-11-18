@@ -49,12 +49,13 @@ type PunishmentChange struct {
 	Event  string           `json:"event"`
 }
 type punishmentView struct {
-	Bans       map[string]map[netip.Prefix]PunishmentRecord
-	Honeypots  map[string]map[netip.Prefix]PunishmentRecord
-	Locks      map[string]PunishmentRecord
-	Widths     map[string][]int
-	Drops      map[string]map[netip.Prefix]PunishmentRecord
-	HoneyLocks map[string]PunishmentRecord
+	Bans          map[string]map[netip.Prefix]PunishmentRecord
+	Honeypots     map[string]map[netip.Prefix]PunishmentRecord
+	Locks         map[string]PunishmentRecord
+	Widths        map[string][]int
+	Drops         map[string]map[netip.Prefix]PunishmentRecord
+	HoneyLocks    map[string]PunishmentRecord
+	SynologyLocks map[string]PunishmentRecord
 }
 type hitWindow struct {
 	counts  [64]uint32
@@ -69,11 +70,11 @@ type counterEntry struct {
 	local     *list.Element
 }
 type statePort struct {
-	order         *list.List
-	distinct      map[netip.Addr]time.Time
-	cooldown      time.Time
-	honeyDistinct map[netip.Addr]time.Time
-	honeyCooldown time.Time
+	order            *list.List
+	distinct         map[netip.Addr]time.Time
+	cooldown         time.Time
+	honeyDistinct    map[netip.Addr]time.Time
+	honeyCooldown    time.Time
 }
 
 // Punisher owns bounded mutable counters and publishes immutable decision
@@ -160,7 +161,9 @@ func recordKey(kind, scope, port, prefix string) string {
 func active(r PunishmentRecord, now int64) bool { return r.ExpiresAt == 0 || r.ExpiresAt > now }
 func (p *Punisher) put(r PunishmentRecord) bool {
 	if old, exists := p.records[r.ID]; !exists {
-		if len(p.records) >= p.maxRecords || p.recordCounts[r.PortID] >= p.perPort {
+		// A login lock has exactly one port-owned key. IP penalties cannot
+		// consume its slot and thereby prevent the service-wide lock.
+		if r.Kind != synologyLockKind && (len(p.records) >= p.maxRecords || p.recordCounts[r.PortID] >= p.perPort) {
 			p.QuotaDropped.Add(1)
 			return false
 		}
@@ -444,7 +447,12 @@ func effectiveThreshold(t, fallback Threshold) Threshold {
 
 func (p *Punisher) publish() {
 	v := &punishmentView{Bans: map[string]map[netip.Prefix]PunishmentRecord{}, Honeypots: map[string]map[netip.Prefix]PunishmentRecord{}, Locks: map[string]PunishmentRecord{}, Widths: map[string][]int{}, Drops: map[string]map[netip.Prefix]PunishmentRecord{}, HoneyLocks: map[string]PunishmentRecord{}}
+	v.SynologyLocks = map[string]PunishmentRecord{}
 	for _, r := range p.records {
+		if r.Kind == synologyLockKind {
+			v.SynologyLocks[r.PortID] = r
+			continue
+		}
 		if r.Kind == "honeypot_lockdown" {
 			v.HoneyLocks[r.PortID] = r
 			continue
@@ -668,11 +676,11 @@ func (p *Punisher) Flush() error {
 func (p *Punisher) Restore(rows []PunishmentRecord) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if len(rows) > p.maxRecords {
+	if len(rows) > p.maxRecords+Ports.Limit() {
 		return errors.New("punishment state exceeds quota")
 	}
 	for _, r := range rows {
-		if r.Kind != "ban" && r.Kind != "honeypot" && r.Kind != "history" && r.Kind != "lockdown" && r.Kind != "cooldown" && r.Kind != "drop" && r.Kind != "honeypot_lockdown" && r.Kind != "honeypot_cooldown" {
+		if r.Kind != "ban" && r.Kind != "honeypot" && r.Kind != "history" && r.Kind != "lockdown" && r.Kind != "cooldown" && r.Kind != "drop" && r.Kind != "honeypot_lockdown" && r.Kind != "honeypot_cooldown" && r.Kind != synologyLockKind {
 			return errors.New("unknown punishment kind")
 		}
 		if r.Scope != "global" && r.Scope != "port" || !strings.HasPrefix(r.PortID, "port:") || r.ExpiresAt < 0 {
@@ -681,7 +689,11 @@ func (p *Punisher) Restore(rows []PunishmentRecord) error {
 		if (r.Kind == "drop" || r.Kind == "honeypot_lockdown" || r.Kind == "honeypot_cooldown") && r.Scope != "port" {
 			return errors.New("honeypot drops must be port scoped")
 		}
-		if r.Kind != "lockdown" && r.Kind != "cooldown" && r.Kind != "honeypot_lockdown" && r.Kind != "honeypot_cooldown" {
+		if r.Kind == synologyLockKind {
+			if r.Scope != "port" || r.Prefix != "" || r.ExpiresAt <= r.CreatedAt || r.ExpiresAt-r.CreatedAt > 7*86400 {
+				return errors.New("invalid DSM login lockdown")
+			}
+		} else if r.Kind != "lockdown" && r.Kind != "cooldown" && r.Kind != "honeypot_lockdown" && r.Kind != "honeypot_cooldown" {
 			prefix, err := netip.ParsePrefix(r.Prefix)
 			if err != nil || prefix.Bits() < 32 {
 				return errors.New("invalid punishment prefix")

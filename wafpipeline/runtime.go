@@ -134,6 +134,11 @@ func (r *Runtime) Prepare(s *Snapshot) error {
 	} else {
 		steps = append(steps, r.withExtensions(s, nil)...)
 	}
+	admin := s.Config.Policy.RuleSet.ruleByCategory(synologyAdminCategory)
+	failure := s.Config.Policy.RuleSet.ruleByCategory(synologyFailureCategory)
+	if admin != nil && admin.Mode != ModeOff || failure != nil && failure.Mode != ModeOff {
+		steps = append(steps, r.synologyLoginStep(s, admin, failure))
+	}
 	if s.Config.Policy.Network.MaxProxyHops > 0 {
 		steps = append(steps, proxyLoopStep(s))
 	}
@@ -292,6 +297,14 @@ func (r *Runtime) Serve(s *Snapshot, w http.ResponseWriter, req *http.Request) {
 			http.Redirect(w, c.Request, target, 302)
 			return
 		}
+	}
+	if seconds, ok := c.Values["synology_retry_after"].(int64); ok && v.Reason == synologyLockKind {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Retry-After", fmt.Sprint(seconds))
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": false, "message": "此 NAS 因多次认证失败已暂停所有用户登录，请在指定时间后重试。", "retry_after": seconds, "request_id": c.ReqID})
+		return
 	}
 	if r.defenseResponse(s, c, w, v) {
 		return

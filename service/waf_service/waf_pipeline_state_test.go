@@ -1,19 +1,137 @@
 package waf_service
 
 import (
+	"HomeWaf/common/queue"
 	"HomeWaf/global"
+	"HomeWaf/innerbean"
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"HomeWaf/model"
 	"HomeWaf/wafpipeline"
 	"HomeWaf/wafsec"
+	"context"
 	"fmt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestDSMLoginLockNotification(t *testing.T) {
+	oldMessages, oldLogs := global.GQEQUE_MESSAGE_DB, global.GQEQUE_LOG_DB
+	global.GQEQUE_MESSAGE_DB, global.GQEQUE_LOG_DB = queue.NewQueue(), nil
+	t.Cleanup(func() { global.GQEQUE_MESSAGE_DB, global.GQEQUE_LOG_DB = oldMessages, oldLogs })
+	s := &WafPipelineStateService{}
+	record := wafpipeline.PunishmentRecord{Kind: "synology_login_lockdown", PortID: "port:5001", Hits: 10, CreatedAt: 1000, ExpiresAt: 11800}
+	s.recordChange(wafpipeline.PunishmentChange{Record: record, Event: "synology_login_lockdown_started"})
+	s.recordChange(wafpipeline.PunishmentChange{Record: record, Event: "released"})
+	data, ok := global.GQEQUE_MESSAGE_DB.Dequeue()
+	msg, typed := data.(innerbean.SystemErrorMessageInfo)
+	if !ok || !typed || msg.Server != record.PortID || !strings.Contains(msg.ErrorMsg, "10 次") || !strings.Contains(msg.ErrorMsg, "恢复时间") {
+		t.Fatalf("unexpected lock notification: %+v", data)
+	}
+	if _, ok := global.GQEQUE_MESSAGE_DB.Dequeue(); ok {
+		t.Fatal("duplicate lock notification")
+	}
+}
+
+func TestDSMLoginLockServiceLifecycle(t *testing.T) {
+	defense, db, _ := defenseServiceFixture(t)
+	if err := db.AutoMigrate(&model.PipelineState{}); err != nil {
+		t.Fatal(err)
+	}
+	oldState, oldMessages := WafPipelineStateServiceApp, global.GQEQUE_MESSAGE_DB
+	state := &WafPipelineStateService{Punisher: wafpipeline.NewPunisher()}
+	WafPipelineStateServiceApp, global.GQEQUE_MESSAGE_DB = state, queue.NewQueue()
+	t.Cleanup(func() { WafPipelineStateServiceApp, global.GQEQUE_MESSAGE_DB = oldState, oldMessages })
+	if err := state.Load(); err != nil {
+		t.Fatal(err)
+	}
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"success":false,"error":{"code":400}}`)
+	}))
+	defer up.Close()
+	proxy := &wafpipeline.Forwarder{}
+	live := &wafpipeline.Runtime{State: state.Punisher, ForwardPrepare: proxy.Prepare, Forward: proxy.Serve}
+	service := defense.ports()
+	service.Prepare = live.Prepare
+	const port = 43417
+	setMode := func(cfg *wafpipeline.PortConfig, mode wafpipeline.Mode) {
+		for i := range cfg.Policy.RuleSet.Rules {
+			r := &cfg.Policy.RuleSet.Rules[i]
+			if r.Category == "synology_login_failure" {
+				r.Mode = mode
+				r.LoginFailures.Count = 2
+			}
+		}
+	}
+	base := wafpipeline.PortConfig{Schema: 1, Port: port, Protocol: "http", Upstream: up.URL, Policy: newServicePolicyFixture()}
+	setMode(&base, wafpipeline.ModeBlock)
+	save := func(c wafpipeline.PortConfig) wafpipeline.PortConfig {
+		t.Helper()
+		saved, err := service.Save(PortSaveRequest{Config: c})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return saved
+	}
+	login := func(s *wafpipeline.Snapshot, want int) {
+		t.Helper()
+		if s == nil {
+			s, _ = wafpipeline.Ports.Get(port)
+		}
+		req := httptest.NewRequest("GET", "http://nas.test/webapi/auth.cgi?api=SYNO.API.Auth&method=login", nil)
+		req = req.WithContext(context.WithValue(req.Context(), http.LocalAddrContextKey, &net.TCPAddr{Port: port}))
+		w := httptest.NewRecorder()
+		live.Serve(s, w, req)
+		if w.Code != want {
+			t.Fatalf("expected DSM status %d, got %d", want, w.Code)
+		}
+	}
+	checkStored := func(want int) {
+		t.Helper()
+		fromDB := &WafPipelineStateService{Punisher: wafpipeline.NewPunisher()}
+		err := fromDB.Load()
+		stored := fromDB.Punisher.Records(wafpipeline.PortID(port))
+		if err != nil || len(stored) != want {
+			current, _ := wafpipeline.Ports.Get(port)
+			t.Fatalf("expected %d persisted DSM locks, got %v, in-memory=%v current-block=%v: %v", want, stored, state.Punisher.Records(wafpipeline.PortID(port)), current.Config.Policy.RuleSet.LocksDSMLogins(), err)
+		}
+	}
+	cfg := save(base)
+	login(nil, 200)
+	cfg.Name = "Renamed NAS"
+	cfg = save(cfg)
+	login(nil, 200)
+	login(nil, 429)
+	checkStored(1)
+	setMode(&cfg, wafpipeline.ModeObserve)
+	cfg = save(cfg)
+	checkStored(0)
+	login(nil, 200)
+	setMode(&cfg, wafpipeline.ModeBlock)
+	save(cfg)
+	login(nil, 200)
+	login(nil, 200)
+	login(nil, 429)
+	old, _ := wafpipeline.Ports.Get(port)
+	if err := service.Delete(port, "test"); err != nil {
+		t.Fatal(err)
+	}
+	checkStored(0)
+	login(old, 200) // A late credential failure after deletion.
+	save(base)
+	login(old, 200) // The port now belongs to a different NAS service.
+	login(nil, 200)
+	checkStored(0)
+	login(nil, 200)
+	checkStored(1)
+}
 
 func TestPipelineStateSQLiteRestoreAndManagement(t *testing.T) {
 	if !wafsec.DataKeyReady() {

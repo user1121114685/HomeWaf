@@ -123,6 +123,7 @@ func WithRecorder(ctx context.Context, r *Recorder) context.Context {
 }
 
 type RequestContext struct {
+	synologyFailure  func()
 	RejectResponse   func(http.ResponseWriter, Verdict) bool
 	BusinessResponse func(Verdict)
 	Started          time.Time

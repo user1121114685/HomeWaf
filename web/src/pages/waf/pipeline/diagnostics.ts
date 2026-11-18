@@ -1,4 +1,5 @@
 import { accessReason } from './accessPolicy.ts';
+import { detectorMode } from './model.ts';
 
 export interface DiagnosticEvent {
   id?: string;
@@ -27,6 +28,7 @@ export const actionLabels: Record<string, string> = {
   ban: '封禁',
   lockdown: '端口锁定',
   honeypot_lockdown: '蜜罐锁定',
+  synology_login_lockdown: '群晖全部用户暂停登录',
 };
 const eventLabels: Record<string, string> = {
   created: '处罚已创建',
@@ -39,6 +41,7 @@ const eventLabels: Record<string, string> = {
   lockdown_released: '端口锁定解除',
   honeypot_started: '来源已进入蜜罐',
   honeypot_lockdown_started: '蜜罐锁定开始',
+  synology_login_lockdown_started: '认证失败达到阈值，群晖暂停新登录',
   honeypot_lockdown_released: '蜜罐锁定解除',
 };
 export function diagnosticReason(row: DiagnosticEvent): string {
@@ -81,7 +84,8 @@ export function diagnosticModes(policy: Record<string, any>) {
     rules.qps?.mode,
     rules.cc?.mode,
     ...['anti_leech', 'challenge', 'sensitive', 'plugins', 'callback'].map((key) => rules[key]?.mode),
-    ...['rules', 'scripts', 'urls'].flatMap((key) => (rules[key] || []).map((rule: any) => rule.mode)),
+    ...(rules.rules || []).map((rule: any) => detectorMode(rules, rule)),
+    ...['scripts', 'urls'].flatMap((key) => (rules[key] || []).map((rule: any) => rule.mode)),
     ...(response.tamper || []).map((rule: any) => rule.mode),
     response.privacy?.mode,
   ];

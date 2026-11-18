@@ -355,6 +355,9 @@ func (f *Forwarder) prepareTarget(s *Snapshot, upstream string, shared *http.Tra
 		record.location = response.Header.Get("Location")
 		record.encoding = response.Header.Get("Content-Encoding")
 		record.contentType = response.Header.Get("Content-Type")
+		if err := inspectSynologyResponse(state.request, response); err != nil {
+			return err
+		}
 		p.Health.Record(response.StatusCode)
 		if p.sharedHealth != nil {
 			p.sharedHealth.Record(response.StatusCode)
@@ -539,7 +542,7 @@ func (t forwardTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.Header.Set("X-Forwarded-Host", c.Request.Host)
 	r.Header.Set("X-Forwarded-Port", strconv.Itoa(int(s.Config.Port)))
 	StripGateCredentials(r, s.Config.Policy.Gate)
-	if state.response.login != nil && state.response.login.SuccessBodyContains != "" {
+	if state.request.synologyFailure != nil || state.response.login != nil && state.response.login.SuccessBodyContains != "" {
 		r.Header.Set("Accept-Encoding", "identity")
 	}
 	return t.base.RoundTrip(r)

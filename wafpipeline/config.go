@@ -63,12 +63,13 @@ type Scope struct {
 	ExcludeFields []string `json:"exclude_fields,omitempty"`
 }
 type Rule struct {
-	ID       string                     `json:"id"`
-	Category string                     `json:"category"`
-	Severity Severity                   `json:"severity"`
-	Mode     Mode                       `json:"mode"`
-	Scope    Scope                      `json:"scope"`
-	Params   map[string]json.RawMessage `json:"params,omitempty"`
+	ID            string                     `json:"id"`
+	Category      string                     `json:"category"`
+	Severity      Severity                   `json:"severity"`
+	Mode          Mode                       `json:"mode"`
+	Scope         Scope                      `json:"scope"`
+	Params        map[string]json.RawMessage `json:"params,omitempty"`
+	LoginFailures *Threshold                 `json:"login_failures,omitempty"`
 }
 type RateConfig struct {
 	Mode             Mode               `json:"mode"`
@@ -88,6 +89,7 @@ type CCConfig struct {
 	ChallengeSeconds int    `json:"challenge_seconds"`
 }
 type RuleSetConfig struct {
+	SynologyLogin     *SynologyLoginPolicy        `json:"synology_login,omitempty"`
 	Plugins           *PluginPolicy               `json:"plugins,omitempty"`
 	Callback          *CallbackPolicy             `json:"callback,omitempty"`
 	Sensitive         *SensitivePolicy            `json:"sensitive,omitempty"`
@@ -312,11 +314,15 @@ type Snapshot struct {
 	Preview     bool
 }
 
-var Categories = []string{"malformed", "scanner", "sqli", "xss", "upload", "lfi", "rce", "java_inject", "java_deser", "php_deser", "php_inject", "asp_inject", "ssti", "csrf", "ssrf"}
+var Categories = []string{"malformed", "scanner", "sqli", "xss", "upload", "lfi", "rce", "java_inject", "java_deser", "php_deser", "php_inject", "asp_inject", "ssti", "csrf", "ssrf", synologyAdminCategory, synologyFailureCategory}
 
 func DefaultPolicy() Policy {
 	rules := make([]Rule, 0, len(Categories))
 	for _, category := range Categories {
+		if category == synologyAdminCategory || category == synologyFailureCategory {
+			rules = append(rules, newSynologyRule(category))
+			continue
+		}
 		mode := ModeObserve
 		severity := High
 		if category == "malformed" || category == "scanner" || category == "sqli" || category == "lfi" || category == "java_inject" || category == "java_deser" {
@@ -674,6 +680,11 @@ func ValidatePolicy(p Policy) error {
 		}
 	}
 	r := p.RuleSet
+	if legacy := r.SynologyLogin; legacy != nil {
+		if !ValidMode(legacy.Admin) || !ValidMode(legacy.FailureMode) || legacy.Failures.Count < 1 || legacy.Failures.Count > 1000 || legacy.Failures.WindowSeconds < 1 || legacy.Failures.WindowSeconds > 86400 || legacy.Failures.BanSeconds < 1 || legacy.Failures.BanSeconds > 7*86400 {
+			return fmt.Errorf("无效的群晖登录模式或阈值")
+		}
+	}
 	if err := validateExtensions(r); err != nil {
 		return err
 	}
@@ -694,7 +705,7 @@ func ValidatePolicy(p Policy) error {
 			return fmt.Errorf("invalid CSRF origin exception")
 		}
 	}
-	if len(r.Rules) > 256 || r.BudgetMillis < 1 || r.BudgetMillis > 1000 || r.View.BodyBytes < 1024 || r.View.BodyBytes > 16<<20 || r.View.ExpansionRatio < 1 || r.View.ExpansionRatio > 100 || r.View.MaxFields < 1 || r.View.MaxFields > 10000 {
+	if len(r.Rules) > 258 || r.BudgetMillis < 1 || r.BudgetMillis > 1000 || r.View.BodyBytes < 1024 || r.View.BodyBytes > 16<<20 || r.View.ExpansionRatio < 1 || r.View.ExpansionRatio > 100 || r.View.MaxFields < 1 || r.View.MaxFields > 10000 {
 		return fmt.Errorf("invalid detector budget or quota")
 	}
 	categories := map[string]bool{}
@@ -702,11 +713,23 @@ func ValidatePolicy(p Policy) error {
 		categories[s] = true
 	}
 	ids := map[string]bool{}
+	regularRules := 0
 	for _, rule := range r.Rules {
 		if rule.ID == "" || len(rule.ID) > 128 || ids[rule.ID] || !categories[rule.Category] || !ValidMode(rule.Mode) || rule.Severity.Rank() == 0 {
 			return fmt.Errorf("invalid or duplicate rule %q", rule.ID)
 		}
 		ids[rule.ID] = true
+		if rule.Category == synologyAdminCategory || rule.Category == synologyFailureCategory {
+			// Each service has one account policy and one service-wide failure window.
+			categories[rule.Category] = false
+		} else {
+			regularRules++
+		}
+		if t := rule.LoginFailures; t != nil {
+			if rule.Category != synologyFailureCategory || t.Count < 1 || t.Count > 1000 || t.WindowSeconds < 1 || t.WindowSeconds > 86400 || t.BanSeconds < 1 || t.BanSeconds > 7*86400 {
+				return fmt.Errorf("规则 %s 的群晖登录失败阈值无效", rule.ID)
+			}
+		}
 		if err := ValidateScope(rule.Scope); err != nil {
 			return err
 		}
@@ -727,6 +750,9 @@ func ValidatePolicy(p Policy) error {
 				}
 			}
 		}
+	}
+	if regularRules > 256 {
+		return fmt.Errorf("invalid detector rule quota")
 	}
 	if !ValidMode(r.QPS.Mode) || !ValidMode(r.CC.Mode) || !ValidMode(r.BOT) || !ValidMode(r.OWASP) {
 		return fmt.Errorf("invalid detector mode")

@@ -21,6 +21,7 @@ type CompiledPolicy struct {
 	Privacy                  *compiledPrivacy
 	BusinessSelector         *ProxyTarget
 	Plugins                  *PreparedPlugins
+	synologyWindow           *synologyFailureWindow
 	GateLogo                 string
 	GateExemptIPs            *ipset.MatchSet
 }

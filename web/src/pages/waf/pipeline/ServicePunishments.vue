@@ -40,13 +40,17 @@
           ><ElTag :type="row.kind === 'ban' ? 'danger' : 'warning'">{{ kinds[row.kind] || row.kind }}</ElTag></template
         ></ElTableColumn
       >
-      <ElTableColumn prop="prefix" label="来源 / 网段" min-width="155" />
+      <ElTableColumn label="来源 / 网段" min-width="155">
+        <template #default="{ row }">{{ row.kind === 'synology_login_lockdown' ? '所有 DSM 用户' : row.prefix }}</template>
+      </ElTableColumn>
       <ElTableColumn label="作用域" min-width="115"
         ><template #default="{ row }">{{
           row.scope === 'global' ? '多个服务共享' : '当前服务'
         }}</template></ElTableColumn
       >
-      <ElTableColumn prop="reason" label="触发原因" min-width="180" />
+      <ElTableColumn label="触发原因" min-width="180">
+        <template #default="{ row }">{{ reason(row) }}</template>
+      </ElTableColumn>
       <ElTableColumn label="到期时间" min-width="170"
         ><template #default="{ row }">{{
           row.expires_at ? new Date(row.expires_at * 1000).toLocaleString('zh-CN') : '永久'
@@ -86,11 +90,11 @@
           <ElTag :type="row.kind === 'ban' ? 'danger' : 'warning'">{{ kinds[row.kind] || row.kind }}</ElTag
           ><span>{{ row.scope === 'global' ? '多个服务共享' : '当前服务' }}</span>
         </header>
-        <strong>{{ row.prefix || `端口 ${effectivePort}` }}</strong>
+        <strong>{{ row.kind === 'synology_login_lockdown' ? '所有 DSM 用户' : row.prefix || `端口 ${effectivePort}` }}</strong>
         <dl>
           <div>
             <dt>触发原因</dt>
-            <dd>{{ row.reason || '未记录' }}</dd>
+            <dd>{{ reason(row) }}</dd>
           </div>
           <div>
             <dt>到期时间</dt>
@@ -156,7 +160,9 @@ const effectivePort = computed(() => props.port || selectedPort.value),
     lockdown: '端口锁定',
     drop: '连接丢弃',
     honeypot_lockdown: '蜜罐锁定',
+    synology_login_lockdown: '群晖登录锁定',
   };
+const reason = (row: any) => row.kind === 'synology_login_lockdown' ? `DSM 认证失败累计 ${row.hits} 次` : row.reason || '未记录';
 let sequence = 0;
 async function readServices() {
   loadingServices.value = true;
@@ -217,7 +223,7 @@ async function manage(row: any, action: string) {
   emit('busy-change', true);
   try {
     const label = {
-      release: row.kind.endsWith('lockdown') ? '解除端口锁定' : '释放处罚',
+      release: row.kind === 'synology_login_lockdown' ? '恢复本服务所有用户的 DSM 登录' : row.kind.endsWith('lockdown') ? '解除端口锁定' : '释放处罚',
       permanent: '改为永久封禁',
       whitelist: '加入当前服务 trusted 名单并释放',
     }[action];

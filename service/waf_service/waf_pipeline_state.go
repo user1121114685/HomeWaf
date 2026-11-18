@@ -37,7 +37,7 @@ func (s *WafPipelineStateService) Load() error {
 		return err
 	}
 	var models []model.PipelineState
-	if err = db.Limit(20001).Find(&models).Error; err != nil {
+	if err = db.Limit(20001 + wafpipeline.Ports.Limit()).Find(&models).Error; err != nil {
 		return err
 	}
 	rows := make([]wafpipeline.PunishmentRecord, 0, len(models))
@@ -76,7 +76,7 @@ func (s *WafPipelineStateService) persist(rows []wafpipeline.PunishmentRecord) e
 	defer cancel()
 	if s.persisted == nil {
 		var stored []model.PipelineState
-		if err := db.WithContext(ctx).Limit(20001).Find(&stored).Error; err != nil {
+		if err := db.WithContext(ctx).Limit(20001 + wafpipeline.Ports.Limit()).Find(&stored).Error; err != nil {
 			return err
 		}
 		s.persisted = make(map[string]model.PipelineState, len(stored))
@@ -126,6 +126,14 @@ func (s *WafPipelineStateService) recordChange(change wafpipeline.PunishmentChan
 		global.GQEQUE_LOG_DB.Enqueue(&model.PipelineLog{ID: uuid.GenUUID(), PortID: r.PortID, TimeMillis: time.Now().UnixMilli(), Kind: "state", ClientIP: r.Prefix, Stage: 4, Verdict: r.Kind, Reason: change.Event, RuleID: r.RuleID, Category: r.Reason, DetailJSON: string(raw)})
 	}
 	// Existing notification channels remain opt-in and process this asynchronously.
+	if global.GQEQUE_MESSAGE_DB != nil && change.Event == "synology_login_lockdown_started" {
+		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.SystemErrorMessageInfo{
+			BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "群晖登录保护", Server: r.PortID},
+			ErrorType:       "群晖登录已暂停",
+			ErrorMsg:        fmt.Sprintf("%s 累计 %d 次 DSM 认证失败，已暂停该 NAS 所有用户的新登录。恢复时间 %s。管理员可在服务诊断的「当前处罚」中提前解除。", r.PortID, r.Hits, time.Unix(r.ExpiresAt, 0).Format(time.RFC3339)),
+			Time:            time.Unix(r.CreatedAt, 0).Format(time.RFC3339),
+		})
+	}
 	if global.GQEQUE_MESSAGE_DB != nil && (change.Event == "lockdown_started" || change.Event == "lockdown_released" || change.Event == "honeypot_lockdown_started" || change.Event == "honeypot_lockdown_released" || change.Event == "released" && (r.Kind == "lockdown" || r.Kind == "honeypot_lockdown")) {
 		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.SystemErrorMessageInfo{BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "HomeWaf port protection", Server: r.PortID}, ErrorType: "pipeline_lockdown", ErrorMsg: fmt.Sprintf("%s: %s", r.PortID, change.Event)})
 	}

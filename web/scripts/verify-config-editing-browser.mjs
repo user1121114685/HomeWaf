@@ -307,6 +307,19 @@ try {
 
   await openCommon();
   await editor().getByRole('tab', { name: '检测规则' }).click();
+  const ssrfMode = page.getByRole('combobox', { name: 'SSRF URL 检测模式' });
+  const missingOrigin = page.getByRole('combobox', { name: '缺少 Origin / Referer' });
+  const dsm = editor()
+    .getByRole('row')
+    .filter({ has: page.getByRole('combobox', { name: '群晖 DSM 登录保护模式', exact: true }) });
+  await expect(dsm).toContainText('拦截');
+  await dsm.getByRole('button', { name: '阈值与范围' }).click();
+  await expect(page.getByRole('spinbutton', { name: '暂停新登录时长（秒）' })).toHaveValue('10800');
+  await page.getByRole('button', { name: '返回配置', exact: true }).click();
+  await expect(editor().locator('.el-select').filter({ has: ssrfMode })).toContainText('允许（关闭检测）');
+  await expect(editor().locator('.el-select').filter({ has: missingOrigin })).toContainText('允许');
+  await missingOrigin.press('ArrowDown');
+  await page.getByRole('option', { name: '仅观察', exact: true }).click();
   await editor().getByRole('spinbutton', { name: '每 IP 每秒请求', exact: true }).fill('45');
   const scripts = editor().getByLabel('自定义GRL规则JSON', { exact: true });
   await scripts.fill('{}');
@@ -320,6 +333,8 @@ try {
   await editor().getByLabel('名单IP', { exact: true }).fill('192.0.2.20');
   await savePort();
   expect(configs.get(5000).policy.ruleset.qps.per_ip).toBe(45);
+  expect(configs.get(5000).policy.ruleset.csrf_missing_origin).toBe('observe');
+  expect(configs.get(5000).policy.ruleset.rules.find((r) => r.category === 'ssrf').mode).toBe('off');
   expect(configs.get(5000).policy.ip_group.entries.at(-1).value).toBe('192.0.2.20');
   report.checks.push('rules and IP entries support repeat edits and retain unrelated policy sections');
 
