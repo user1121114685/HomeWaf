@@ -25,7 +25,7 @@ func loadOrCreateKey(path string, size int) ([]byte, error) {
 	if _, err := rand.Read(key); err != nil {
 		return nil, err
 	}
-	tmp, err := stagePrivateFile(path, []byte(base64.StdEncoding.EncodeToString(key)))
+	tmp, err := stagePrivateFile(path, []byte(base64.StdEncoding.EncodeToString(key)), restrictKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,17 @@ func loadOrCreateKey(path string, size int) ([]byte, error) {
 // WritePrivateFile atomically replaces a local secret using the same owner-only
 // permissions as the instance keys, including a protected DACL on Windows.
 func WritePrivateFile(path string, data []byte) error {
-	tmp, err := stagePrivateFile(path, data)
+	return writePrivateFile(path, data, restrictKeyFile)
+}
+
+// WriteAdminPrivateFile writes a secret accessible to local administrators.
+// On Unix it remains restricted to the current account.
+func WriteAdminPrivateFile(path string, data []byte) error {
+	return writePrivateFile(path, data, restrictAdminPrivateFile)
+}
+
+func writePrivateFile(path string, data []byte, restrict func(*os.File) error) error {
+	tmp, err := stagePrivateFile(path, data, restrict)
 	if err != nil {
 		return err
 	}
@@ -47,13 +57,13 @@ func WritePrivateFile(path string, data []byte) error {
 	return os.Rename(tmp, path)
 }
 
-func stagePrivateFile(path string, data []byte) (string, error) {
+func stagePrivateFile(path string, data []byte, restrict func(*os.File) error) (string, error) {
 	f, err := os.CreateTemp(filepath.Dir(path), ".homewaf-key-*")
 	if err != nil {
 		return "", err
 	}
 	tmp := f.Name()
-	if err = restrictKeyFile(f); err == nil {
+	if err = restrict(f); err == nil {
 		_, err = f.Write(data)
 	}
 	if err == nil {

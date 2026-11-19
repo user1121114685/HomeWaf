@@ -12,6 +12,14 @@ import (
 // Windows ignores Unix 0600. Give only the service account and SYSTEM access,
 // with inheritance disabled, before writing any secret bytes.
 func restrictKeyFile(f *os.File) error {
+	return restrictPrivateFile(f, false)
+}
+
+func restrictAdminPrivateFile(f *os.File) error {
+	return restrictPrivateFile(f, true)
+}
+
+func restrictPrivateFile(f *os.File, allowAdministrators bool) error {
 	path, err := windows.UTF16PtrFromString(f.Name())
 	if err != nil {
 		return err
@@ -25,7 +33,11 @@ func restrictKeyFile(f *os.File) error {
 	if err != nil {
 		return err
 	}
-	sd, err := windows.SecurityDescriptorFromString("D:P(A;;FA;;;SY)(A;;FA;;;" + user.User.Sid.String() + ")")
+	acl := "D:P(A;;FA;;;SY)(A;;FA;;;" + user.User.Sid.String() + ")"
+	if allowAdministrators {
+		acl += "(A;;FA;;;BA)"
+	}
+	sd, err := windows.SecurityDescriptorFromString(acl)
 	if err != nil {
 		return err
 	}
