@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +22,7 @@ import (
 
 	"HomeWaf/global"
 	"HomeWaf/utils"
+	"HomeWaf/utils/localca"
 	"HomeWaf/wafconfig"
 )
 
@@ -62,18 +65,60 @@ func newLocalClient(wait time.Duration) (*apiClient, error) {
 		}
 	}
 	client := newAPIClient(base, key, wait)
-	if domain := wafconfig.GetManagementDomain(); domain != "" {
+	domain := wafconfig.GetManagementDomain()
+	if scheme == "https" {
+		config, err := localManagementTLS(localca.DefaultPaths(utils.GetCurrentDir()).SrvCert, domain)
+		if err != nil {
+			return nil, fail(ExitAuth, err)
+		}
+		client.http.Transport.(*http.Transport).TLSClientConfig = config
+	}
+	if domain != "" {
 		client.host = net.JoinHostPort(domain, fmt.Sprint(global.GWAF_LOCAL_SERVER_PORT))
 	}
 	return client, nil
+}
+
+// The local client already has access to the certificate installed by the
+// management server. Trust that exact leaf even for a self-signed installation.
+func localManagementTLS(certPath, domain string) (*tls.Config, error) {
+	data, err := os.ReadFile(certPath)
+	if err != nil {
+		return nil, fmt.Errorf("读取管理端证书失败: %w", err)
+	}
+	block, _ := pem.Decode(data)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, errors.New("管理端证书格式无效")
+	}
+	leaf, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(leaf)
+	name := domain
+	if name == "" {
+		name = "127.0.0.1"
+		if leaf.VerifyHostname(name) != nil {
+			if len(leaf.DNSNames) > 0 {
+				name = leaf.DNSNames[0]
+			} else if len(leaf.IPAddresses) > 0 {
+				name = leaf.IPAddresses[0].String()
+			}
+		}
+	}
+	return &tls.Config{RootCAs: roots, ServerName: name, VerifyConnection: func(state tls.ConnectionState) error {
+		if len(state.PeerCertificates) == 0 || !state.PeerCertificates[0].Equal(leaf) {
+			return errors.New("管理端证书与本机配置不匹配")
+		}
+		return nil
+	}}, nil
 }
 
 func newAPIClient(base, key string, wait time.Duration) *apiClient {
 	tr := &http.Transport{
 		Proxy:       nil,
 		DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
-		// 仅连接固定回环地址，允许管理端使用自签名证书。
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	return &apiClient{baseURL: strings.TrimRight(base, "/"), key: key, wait: wait,
 		http: &http.Client{Transport: tr, Timeout: 30 * time.Second,

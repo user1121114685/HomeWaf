@@ -10,29 +10,21 @@ import (
 	"HomeWaf/wafowasp"
 	"crypto/rand"
 	"fmt"
-	"math/big"
 	"os"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/spf13/viper"
 )
 
+var entryCodePattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
+
 // generateSecurityEntryPath 生成18位随机安全路径码（大小写字母+数字）
 func generateSecurityEntryPath() string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	const length = 18
-	result := make([]byte, length)
-	for i := range result {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
-		if err != nil {
-			result[i] = charset[i%len(charset)]
-		} else {
-			result[i] = charset[n.Int64()]
-		}
-	}
-	return string(result)
+	return rand.Text()[:18]
 }
 
 // 加载配置并初始化
@@ -194,7 +186,7 @@ func LoadAndInitConfig() {
 			global.GWAF_APP_OP_PASSWORD = newOpPwd
 			configChanged = true
 			fmt.Printf("%s\tINFO\t==========================================\n", currentTime)
-			fmt.Printf("%s\tINFO\t应用管理操作密码（首次自动生成）: %s\n", currentTime, newOpPwd)
+			fmt.Printf("%s\tINFO\t应用管理操作密码（首次自动生成）\n", currentTime)
 			fmt.Printf("%s\tINFO\t请妥善保管；忘记可清空 conf/config.yml 中 application_op_password 字段后重启重新生成\n", currentTime)
 			fmt.Printf("%s\tINFO\t==========================================\n", currentTime)
 		}
@@ -305,6 +297,10 @@ func LoadAndInitConfig() {
 		config.Set("security.comm_legacy_key", global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY)
 		configChanged = true
 	}
+
+	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
+		cfg.NginxConfigRoot = config.GetString("security.nginx_config_root")
+	})
 
 	//批量任务「本地路径」来源允许的额外目录（绝对路径，逗号分隔）。同 ssl_export_allowed_dirs 口径：
 	//只放 config.yml、不进数据库/API——「能读宿主机哪些目录」属运营方带外授权，
@@ -429,7 +425,7 @@ func LoadAndInitConfig() {
 		global.GWAF_SECURITY_ENTRY_PATH = generateSecurityEntryPath()
 		config.Set("security.entry_path", global.GWAF_SECURITY_ENTRY_PATH)
 		configChanged = true
-		fmt.Printf("%s\tINFO\t安全路径入口已启用，自动生成访问码: %s\n", currentTime, global.GWAF_SECURITY_ENTRY_PATH)
+		fmt.Printf("%s\tINFO\t安全路径入口已启用，自动生成访问码\n", currentTime)
 	}
 
 	//配置和提取应急路径
@@ -444,7 +440,7 @@ func LoadAndInitConfig() {
 		global.GWAF_SECURITY_EMERGENCY_PATH = generateSecurityEntryPath()
 		config.Set("security.emergency_path", global.GWAF_SECURITY_EMERGENCY_PATH)
 		configChanged = true
-		fmt.Printf("%s\tINFO\t应急恢复路径已生成: %s\n", currentTime, global.GWAF_SECURITY_EMERGENCY_PATH)
+		fmt.Printf("%s\tINFO\t应急恢复路径已生成\n", currentTime)
 	}
 
 	// Cache后端配置
@@ -1004,6 +1000,9 @@ func UpdateSslBindCertId(bindCertId string) error {
 // entryEnable: 是否启用安全路径
 // entryPath: 安全路径码，传空字符串时若 entryEnable=true 则自动生成18位随机码
 func UpdateSecurityEntry(entryEnable bool, entryPath string) error {
+	if entryPath != "" && (entryPath == "." || entryPath == ".." || !entryCodePattern.MatchString(entryPath)) {
+		return fmt.Errorf("访问码须为单个有效路径段，可使用字母、数字和 . _ ~ -")
+	}
 	configWriteMu.Lock()
 	defer configWriteMu.Unlock()
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
@@ -1038,15 +1037,11 @@ func UpdateSecurityEntry(entryEnable bool, entryPath string) error {
 	// 如果启用且路径为空，自动生成18位随机码
 	if entryEnable && entryPath == "" {
 		entryPath = generateSecurityEntryPath()
-		fmt.Printf("%s\tINFO\t安全路径已启用，自动生成访问码: %s\n", currentTime, entryPath)
+		fmt.Printf("%s\tINFO\t安全路径已启用，自动生成访问码\n", currentTime)
 	}
 
 	config.Set("security.entry_enable", entryEnable)
 	config.Set("security.entry_path", entryPath)
-
-	// 更新全局变量（立即生效，无需重启）
-	global.GWAF_SECURITY_ENTRY_ENABLE = entryEnable
-	global.GWAF_SECURITY_ENTRY_PATH = entryPath
 
 	err := config.WriteConfig()
 	if err != nil {
@@ -1054,12 +1049,17 @@ func UpdateSecurityEntry(entryEnable bool, entryPath string) error {
 		return err
 	}
 
-	fmt.Printf("%s\tINFO\tsecurity entry config updated: enable=%v path=%s\n", currentTime, entryEnable, entryPath)
+	global.GWAF_SECURITY_ENTRY_ENABLE = entryEnable
+	global.GWAF_SECURITY_ENTRY_PATH = entryPath
+	fmt.Printf("%s\tINFO\tsecurity entry config updated: enable=%v\n", currentTime, entryEnable)
 	return nil
 }
 
 // UpdateNoticeTitle 更新通知消息标题前缀配置（立即生效）
 func UpdateNoticeTitle(title string) error {
+	if strings.IndexFunc(title, unicode.IsControl) >= 0 {
+		return fmt.Errorf("通知标题不能包含控制字符")
+	}
 	configWriteMu.Lock()
 	defer configWriteMu.Unlock()
 	currentTime := time.Now().Format("2006-01-02 15:04:05.000")
@@ -1093,15 +1093,13 @@ func UpdateNoticeTitle(title string) error {
 
 	config.Set("notice.title", title)
 
-	// 立即更新全局变量，无需重启
-	global.GWAF_NOTICE_TITLE = title
-
 	err := config.WriteConfig()
 	if err != nil {
 		fmt.Printf("%s\tERROR\twrite config failed:%v\n", currentTime, err)
 		return err
 	}
 
-	fmt.Printf("%s\tINFO\tnotice title config updated: %s\n", currentTime, title)
+	global.GWAF_NOTICE_TITLE = title
+	fmt.Printf("%s\tINFO\tnotice title config updated\n", currentTime)
 	return nil
 }

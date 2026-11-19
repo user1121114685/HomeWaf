@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -169,6 +172,18 @@ func TestClientBoundaries(t *testing.T) {
 		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(`{"code":0,"data":{}}`)) }))
 		defer srv.Close()
 		a := newAPIClient(srv.URL, "test-key", 0)
+		if err := a.call(context.Background(), "GET", "/", nil, nil); err == nil {
+			t.Fatal("untrusted local server was accepted")
+		}
+		path := filepath.Join(t.TempDir(), "domain.crt")
+		if err := os.WriteFile(path, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw}), 0600); err != nil {
+			t.Fatal(err)
+		}
+		config, err := localManagementTLS(path, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.http.Transport.(*http.Transport).TLSClientConfig = config
 		if err := a.call(context.Background(), "GET", "/", nil, nil); err != nil {
 			t.Fatal(err)
 		}

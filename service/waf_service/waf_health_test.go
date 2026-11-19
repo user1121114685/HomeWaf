@@ -40,6 +40,28 @@ func TestHealthServiceOwnBusinessDestination(t *testing.T) {
 	}
 }
 
+func TestHealthPreviewLinkLocalRequiresExplicitTrust(t *testing.T) {
+	previous := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
+	global.UpdateSettings(func(c *global.RuntimeSettings) { c.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "" })
+	t.Cleanup(func() {
+		global.UpdateSettings(func(c *global.RuntimeSettings) { c.GCONFIG_OUTBOUND_ALLOWED_HOSTS = previous })
+	})
+	guard, err := newHealthDialGuard()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := guard("169.254.1.2:8443"); err == nil {
+		t.Fatal("untrusted link-local address accepted")
+	}
+	if err := guard("192.168.1.2:8443"); err != nil {
+		t.Fatal("home LAN origin rejected", err)
+	}
+	global.UpdateSettings(func(c *global.RuntimeSettings) { c.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "169.254.1.2" })
+	if err := guard("169.254.1.2:8443"); err != nil {
+		t.Fatal("trusted local origin rejected", err)
+	}
+}
+
 func TestHealthServiceOwnAdminDestination(t *testing.T) {
 	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1); w.WriteHeader(200) }))

@@ -205,7 +205,7 @@ func BuildExcludePaths(raw string) []string {
 // 传入非法值（空、只有 /）时回退到默认前缀，保证引擎侧永远有一个可用的自服务路径。
 func NormalizePathPrefix(raw string) string {
 	p := strings.ToLower(strings.TrimSpace(raw))
-	if p == "" {
+	if p == "" || strings.HasPrefix(p, "//") {
 		return disabledDefault.PathPrefix
 	}
 	if !strings.HasPrefix(p, "/") {

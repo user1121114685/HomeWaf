@@ -141,7 +141,7 @@ func (fw *FireWallEngine) isIPInRules(ip string) (bool, error) {
 	cmd := wafexec.FixStdin(exec.Command("iptables-save"))
 	err, output := fw.executeCommand(cmd)
 	if err != nil {
-		fmt.Printf("[ERROR] 获取iptables规则失败: %v\n", err)
+		fmt.Printf("[ERROR] 获取iptables规则失败: %q\n", err)
 		return false, fmt.Errorf("failed to list iptables rules: %v, output: %s", err, string(output))
 	}
 	outputStr := string(output)
@@ -153,15 +153,15 @@ func (fw *FireWallEngine) isIPInRules(ip string) (bool, error) {
 
 // AddRule Linux 下忽略规则名，直接用 ipToAdd 执行 iptables 封禁
 func (fw *FireWallEngine) AddRule(ruleName, ipToAdd, action, proc, localport string) error {
-	fmt.Printf("[DEBUG] 添加防火墙规则: ip=%s\n", ipToAdd)
+	fmt.Printf("[DEBUG] 添加防火墙规则: ip=%q\n", ipToAdd)
 	cmd := exec.Command("iptables", "-I", "INPUT", "1", "-s", ipToAdd, "-j", "DROP")
-	fmt.Printf("[DEBUG] 执行命令: iptables -I INPUT 1 -s %s -j DROP\n", ipToAdd)
+	fmt.Printf("[DEBUG] 执行命令: iptables -I INPUT 1 -s %q -j DROP\n", ipToAdd)
 	err, output := fw.executeCommand(cmd)
 	if err != nil {
-		fmt.Printf("[ERROR] 添加规则失败: %v, 输出: %s\n", err, output)
+		fmt.Printf("[ERROR] 添加规则失败: %q, 输出: %q\n", err, output)
 		return fmt.Errorf("failed to add rule for %s: %v, output: %s", ipToAdd, err, output)
 	}
-	fmt.Printf("[DEBUG] 添加规则成功, 输出: %s\n", output)
+	fmt.Printf("[DEBUG] 添加规则成功, 输出: %q\n", output)
 	return nil
 }
 
@@ -172,12 +172,12 @@ func (fw *FireWallEngine) EditRule(ruleNum int, newRule string) error {
 // DeleteRule Linux 下直接将 ruleName 当作 IP 执行 iptables 删除
 // 生产代码不直接调用此方法（通过 UnblockIP），此方法保留供测试使用
 func (fw *FireWallEngine) DeleteRule(ruleName string) (bool, error) {
-	fmt.Printf("[DEBUG] 删除防火墙规则: ip=%s\n", ruleName)
+	fmt.Printf("[DEBUG] 删除防火墙规则: ip=%q\n", ruleName)
 	cmd := exec.Command("iptables", "-D", "INPUT", "-s", ruleName, "-j", "DROP")
-	fmt.Printf("[DEBUG] 执行命令: iptables -D INPUT -s %s -j DROP\n", ruleName)
+	fmt.Printf("[DEBUG] 执行命令: iptables -D INPUT -s %q -j DROP\n", ruleName)
 	err, output := fw.executeCommand(cmd)
 	if err != nil {
-		fmt.Printf("[ERROR] 删除规则失败: %v, 输出: %s\n", err, output)
+		fmt.Printf("[ERROR] 删除规则失败: %q, 输出: %q\n", err, output)
 		return false, fmt.Errorf("failed to delete rule for %s: %v, output: %s", ruleName, err, output)
 	}
 	fmt.Printf("[DEBUG] 删除规则成功\n")
@@ -187,68 +187,68 @@ func (fw *FireWallEngine) DeleteRule(ruleName string) (bool, error) {
 // IsRuleExists Linux 下直接将 ruleName 当作 IP 检查 iptables 规则
 // 生产代码不直接调用此方法，此方法保留供测试使用
 func (fw *FireWallEngine) IsRuleExists(ruleName string) (bool, error) {
-	fmt.Printf("[DEBUG] 检查规则是否存在: ip=%s\n", ruleName)
+	fmt.Printf("[DEBUG] 检查规则是否存在: ip=%q\n", ruleName)
 	return fw.isIPInRules(ruleName)
 }
 
 // BlockIP 封禁指定IP地址，支持单个IP或CIDR格式
 func (fw *FireWallEngine) BlockIP(ip string, reason string) error {
-	fmt.Printf("[INFO] 开始封禁IP: %s, 原因: %s\n", ip, reason)
+	fmt.Printf("[INFO] 开始封禁IP: %q, 原因: %q\n", ip, reason)
 
 	exists, err := fw.isIPInRules(ip)
 	if err != nil {
 		return fmt.Errorf("检查IP状态失败: %v", err)
 	}
 	if exists {
-		fmt.Printf("[WARN] IP %s 已经被封禁\n", ip)
+		fmt.Printf("[WARN] IP %q 已经被封禁\n", ip)
 		return fmt.Errorf("IP %s already blocked", ip)
 	}
 
 	cmd := exec.Command("iptables", "-I", "INPUT", "1", "-s", ip, "-j", "DROP")
-	fmt.Printf("[DEBUG] 执行命令: iptables -I INPUT 1 -s %s -j DROP\n", ip)
+	fmt.Printf("[DEBUG] 执行命令: iptables -I INPUT 1 -s %q -j DROP\n", ip)
 	execErr, output := fw.executeCommand(cmd)
 	if execErr != nil {
-		fmt.Printf("[ERROR] 封禁IP失败: %s, error: %v, output: %s\n", ip, execErr, output)
+		fmt.Printf("[ERROR] 封禁IP失败: %q, error: %q, output: %q\n", ip, execErr, output)
 		return fmt.Errorf("failed to block IP %s: %v, output: %s", ip, execErr, output)
 	}
 
-	fmt.Printf("[INFO] 成功封禁IP: %s\n", ip)
+	fmt.Printf("[INFO] 成功封禁IP: %q\n", ip)
 	return nil
 }
 
 // UnblockIP 解除对指定IP的封禁，支持单个IP或CIDR格式
 func (fw *FireWallEngine) UnblockIP(ip string) error {
-	fmt.Printf("[INFO] 开始解除IP封禁: %s\n", ip)
+	fmt.Printf("[INFO] 开始解除IP封禁: %q\n", ip)
 
 	exists, err := fw.isIPInRules(ip)
 	if err != nil {
 		return fmt.Errorf("检查IP状态失败: %v", err)
 	}
 	if !exists {
-		fmt.Printf("[WARN] IP %s 未被封禁\n", ip)
+		fmt.Printf("[WARN] IP %q 未被封禁\n", ip)
 		return fmt.Errorf("IP %s is not blocked", ip)
 	}
 
 	cmd := exec.Command("iptables", "-D", "INPUT", "-s", ip, "-j", "DROP")
-	fmt.Printf("[DEBUG] 执行命令: iptables -D INPUT -s %s -j DROP\n", ip)
+	fmt.Printf("[DEBUG] 执行命令: iptables -D INPUT -s %q -j DROP\n", ip)
 	execErr, output := fw.executeCommand(cmd)
 	if execErr != nil {
-		fmt.Printf("[ERROR] 解除IP封禁失败: %s, error: %v, output: %s\n", ip, execErr, output)
+		fmt.Printf("[ERROR] 解除IP封禁失败: %q, error: %q, output: %q\n", ip, execErr, output)
 		return fmt.Errorf("failed to unblock IP %s: %v, output: %s", ip, execErr, output)
 	}
 
-	fmt.Printf("[INFO] 成功解除IP封禁: %s\n", ip)
+	fmt.Printf("[INFO] 成功解除IP封禁: %q\n", ip)
 	return nil
 }
 
 // IsIPBlocked 检查IP是否已被封禁
 func (fw *FireWallEngine) IsIPBlocked(ip string) (bool, error) {
-	fmt.Printf("[DEBUG] 检查IP是否被封禁: %s\n", ip)
+	fmt.Printf("[DEBUG] 检查IP是否被封禁: %q\n", ip)
 	blocked, err := fw.isIPInRules(ip)
 	if blocked {
-		fmt.Printf("[DEBUG] IP %s 已被封禁\n", ip)
+		fmt.Printf("[DEBUG] IP %q 已被封禁\n", ip)
 	} else {
-		fmt.Printf("[DEBUG] IP %s 未被封禁\n", ip)
+		fmt.Printf("[DEBUG] IP %q 未被封禁\n", ip)
 	}
 	return blocked, err
 }

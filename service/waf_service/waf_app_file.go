@@ -13,24 +13,17 @@ import (
 )
 
 // writeAppFile 在同目录替换文件；首次上传在系统初始权限上增加所有者执行位。
-func writeAppFile(destPath string, src io.Reader, mode *os.FileMode, expectedHash string) error {
-	destPath = filepath.Clean(destPath)
-	var f *os.File
-	var err error
+func writeAppFile(root *os.Root, destPath string, src io.Reader, mode *os.FileMode, expectedHash string) error {
+	tempName := filepath.Join(filepath.Dir(destPath), ".samwaf-upload-"+rand.Text())
+	perm := os.FileMode(0600)
 	if mode == nil {
-		var nonce [16]byte
-		if _, err := rand.Read(nonce[:]); err != nil {
-			return fmt.Errorf("生成临时文件名失败: %w", err)
-		}
-		tmpPath := filepath.Join(filepath.Dir(destPath), ".samwaf-upload-"+hex.EncodeToString(nonce[:]))
-		f, err = os.OpenFile(tmpPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
-	} else {
-		f, err = os.CreateTemp(filepath.Dir(destPath), ".samwaf-upload-*")
+		perm = 0666
 	}
+	f, err := root.OpenFile(tempName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
 		return fmt.Errorf("创建临时文件失败: %w", err)
 	}
-	defer os.Remove(f.Name())
+	defer root.Remove(tempName)
 	defer f.Close()
 
 	h := sha256.New()
@@ -57,14 +50,14 @@ func writeAppFile(destPath string, src io.Reader, mode *os.FileMode, expectedHas
 	if err := f.Close(); err != nil {
 		return fmt.Errorf("关闭临时文件失败: %w", err)
 	}
-	if err := os.Rename(f.Name(), destPath); err != nil {
+	if err := root.Rename(tempName, destPath); err != nil {
 		return fmt.Errorf("保存文件失败: %w", err)
 	}
 	return nil
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+func copyFile(root *os.Root, src, dst string) error {
+	in, err := root.Open(src)
 	if err != nil {
 		return err
 	}
@@ -77,5 +70,5 @@ func copyFile(src, dst string) error {
 		return fmt.Errorf("源文件不是普通文件")
 	}
 	mode := info.Mode().Perm()
-	return writeAppFile(dst, in, &mode, "")
+	return writeAppFile(root, dst, in, &mode, "")
 }

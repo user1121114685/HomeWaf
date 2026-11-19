@@ -3,9 +3,7 @@
 package mask
 
 import (
-	"crypto/md5"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"hash/crc32"
 	"strings"
@@ -14,16 +12,16 @@ import (
 	"HomeWaf/internal/thirdparty/godlp/conf"
 	"HomeWaf/internal/thirdparty/godlp/dlpheader"
 	"HomeWaf/internal/thirdparty/godlp/errlist"
+	"HomeWaf/wafsec"
 )
 
 const (
 	MASKTYPE_CHAR    = "CHAR"    // 用字符替换敏感信息，需要用到后面更详细的配置项。
 	MASKTYPE_TAG     = "TAG"     // 用识别和处理规则中的InfoType, 以`<InfoType>`的形式替换敏感信息。
 	MASKTYPE_REPLACE = "REPLACE" //用Value定义的字符串，替换敏感信息，可以设定为空串，用于直接抹除。
-	MASKTYPE_ALGO    = "ALGO"    //用Value定义的算法函数，处理敏感信息，用算法返回值替换原文，目前支持的算法有 [BASE64, MD5, CRC32]
+	MASKTYPE_ALGO    = "ALGO"    // 用所选算法的结果替换原文。
 
 	MASK_ALGO_BASE64 = "BASE64"
-	MASK_ALGO_MD5    = "MD5"
 	MASK_ALGO_CRC32  = "CRC32"
 
 	MASK_UNKNOWN_TAG = "UNKNOWN"
@@ -213,8 +211,12 @@ func (I *MaskWorker) maskAlgoImpl(in string) (string, error) {
 	switch I.rule.Value {
 	case "BASE64":
 		return base64.StdEncoding.EncodeToString(inBytes), nil
-	case "MD5":
-		return hex.EncodeToString(md5.New().Sum(inBytes)), nil
+	case "HMAC-SHA256":
+		digest, err := wafsec.PrivacyDigest(in)
+		if err != nil {
+			return "[REDACTED]", nil
+		}
+		return digest, nil
 	case "CRC32":
 		return fmt.Sprintf("%08x", crc32.ChecksumIEEE(inBytes)), nil
 	case "ADDRESS":

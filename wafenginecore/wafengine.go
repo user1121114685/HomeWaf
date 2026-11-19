@@ -196,7 +196,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if e != nil {
 			// 检查是否是连接断开相关的错误
 			if e == http.ErrAbortHandler {
-				fmt.Printf("Client connection aborted: %s\n", r.URL.Path)
+				fmt.Printf("Client connection aborted: %q\n", r.URL.Path)
 				return
 			}
 			// 其他类型的panic才打印详细堆栈
@@ -629,7 +629,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					if handleBlock(waf.CheckRule) {
 						return
 					}
-				}				//检测敏感词
+				} //检测敏感词
 				if hostDefense.DEFENSE_SENSITIVE == 1 && !ruleSkip("SENSITIVE") {
 					if handleBlock(waf.CheckSensitive) {
 						return

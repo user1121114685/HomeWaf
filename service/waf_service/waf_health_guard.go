@@ -6,6 +6,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
 	"HomeWaf/model/wafenginmodel"
+	"HomeWaf/utils"
 	"errors"
 	"net"
 	"strconv"
@@ -44,7 +45,13 @@ func newHealthDialGuard(runtime ...*wafenginmodel.SafeServerMap) (func(string) e
 		if ip == nil || err != nil {
 			return errors.New("实际源站地址格式不正确")
 		}
-		if ports[port] && (ip.IsLoopback() || ip.IsUnspecified() || localIPs[ip.String()]) {
+		if ip.IsUnspecified() || ip.IsMulticast() || ip.Equal(net.IPv4bcast) {
+			return errors.New("实际源站必须是可连接的单播地址")
+		}
+		if ip.IsLinkLocalUnicast() && !utils.IsOutboundHostAllowlisted(ip.String()) {
+			return errors.New("链路本地源站需在 security.outbound_allowed_hosts 中声明其 IP")
+		}
+		if ports[port] && (ip.IsLoopback() || localIPs[ip.String()]) {
 			return errors.New("检测目标为本机HomeWaf监听端口，请填写源站地址")
 		}
 		return nil

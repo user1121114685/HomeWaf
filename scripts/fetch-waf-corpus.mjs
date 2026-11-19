@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -25,9 +26,13 @@ async function download(url) {
 
 let commit = pinnedCommit;
 if (process.argv.includes('--latest')) {
-  const info = JSON.parse(await download(`https://api.github.com/repos/${repository}/commits/main`));
-  if (!/^[0-9a-f]{40}$/.test(info.sha)) throw new Error('Invalid upstream commit');
-  commit = info.sha;
+  const ref = 'refs/heads/main';
+  const result = execFileSync('git', ['ls-remote', '--exit-code', 'https://github.com/coreruleset/coreruleset.git', ref], {
+    encoding: 'utf8', timeout: 30000,
+  }).trim();
+  const [sha, name] = result.split('\t');
+  if (name !== ref || !/^[0-9a-f]{40}$/.test(sha)) throw new Error('Invalid upstream commit');
+  commit = sha;
 }
 await fs.mkdir(output, { recursive: true });
 // Retain the source license next to downloaded tests, including their author metadata.

@@ -65,6 +65,9 @@ func validateHealthTest(req *request.WafHostHealthTestReq) (model.HealthyConfig,
 			return cfg, errors.New("健康检测参数包含无效字符")
 		}
 	}
+	if req.InsecureSkipVerify < 0 || req.InsecureSkipVerify > 1 {
+		return cfg, errors.New("源站证书校验选项无效")
+	}
 	if req.IsEnableLoadBalance < 0 || req.IsEnableLoadBalance > 1 || req.IsTransBackDomain < 0 || req.IsTransBackDomain > 1 || req.RemotePort < 1 || req.RemotePort > 65535 {
 		return cfg, errors.New("回源开关或端口不合法")
 	}

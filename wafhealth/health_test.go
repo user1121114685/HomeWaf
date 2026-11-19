@@ -161,12 +161,19 @@ func TestHealthProbeTLS(t *testing.T) {
 	host := serverHost(t, server)
 	host.Remote_host = "https://url.example"
 	host.IsTransBackDomain = 1
-	got := Probe(context.Background(), host, host.Remote_ip, host.Remote_port, probeConfig(), "single", false)
+	host.InsecureSkipVerify = 1
+	defer CleanupTransports(nil)
+	got := Probe(context.Background(), host, host.Remote_ip, host.Remote_port, probeConfig(), "single", true)
 	if got.Outcome != Passed || got.RequestHost != "https" {
 		t.Fatalf("TLS: %+v", got)
 	}
 	if gotHost := <-seen; gotHost != "https" {
 		t.Fatalf("TLS Host: %q", gotHost)
+	}
+	host.InsecureSkipVerify = 0
+	verified := Probe(context.Background(), host, host.Remote_ip, host.Remote_port, probeConfig(), "single", true)
+	if verified.Outcome != Failed || !strings.Contains(verified.ErrorReason, "certificate") {
+		t.Fatalf("default policy must verify the certificate on the same origin: %+v", verified)
 	}
 }
 
@@ -301,7 +308,7 @@ func TestHealthTransportPoolingAndCleanup(t *testing.T) {
 	addr := server.Listener.Addr().String()
 	CleanupTransports(map[string]struct{}{addr: {}})
 	transportMu.Lock()
-	entry := transportPool[addr]
+	entry := transportPool[transportKey{dialAddr: addr}]
 	transportMu.Unlock()
 	if entry == nil {
 		t.Fatal("valid transport removed")

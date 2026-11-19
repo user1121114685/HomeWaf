@@ -162,7 +162,7 @@ func (p *SimpleIPBlockerPlugin) Filter(ctx context.Context, req *plugininterface
 	if p.logger != nil {
 		p.logger.Debug("开始IP过滤检查", "ip", ip, "path", req.RequestPath, "user_agent", req.UserAgent)
 	} else {
-		fmt.Printf("[%s] 检查IP: %s, 路径: %s\n", p.name, ip, req.RequestPath)
+		fmt.Printf("[%s] 检查IP: %q, 路径: %q\n", p.name, ip, req.RequestPath)
 	}
 
 	// 检查IP是否在屏蔽列表中

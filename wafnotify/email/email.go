@@ -4,8 +4,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"html"
+	"mime"
+	"net/mail"
 	"net/smtp"
 	"strings"
+	"unicode"
 )
 
 // EmailNotifier 邮件通知器
@@ -100,31 +104,49 @@ func (e *EmailNotifier) SendMarkdown(title, content string) error {
 
 // SendHTML 发送HTML格式消息
 func (e *EmailNotifier) SendHTML(title, content string) error {
-	return e.send(title, content, "text/html")
+	return e.send(title, content)
 }
 
-// send 发送邮件
-func (e *EmailNotifier) send(subject, body, contentType string) error {
-	// 构建邮件头
-	from := e.FromEmail
-	if e.FromName != "" {
-		from = fmt.Sprintf("%s <%s>", e.FromName, e.FromEmail)
+func (e *EmailNotifier) message(subject, body string) (string, error) {
+	if strings.IndexFunc(subject, unicode.IsControl) >= 0 || strings.IndexFunc(e.FromName, unicode.IsControl) >= 0 {
+		return "", fmt.Errorf("邮件主题和发件人名称不能包含控制字符")
 	}
-
-	headers := make(map[string]string)
-	headers["From"] = from
-	headers["To"] = strings.Join(e.ToEmails, ",")
-	headers["Subject"] = subject
-	headers["MIME-Version"] = "1.0"
-	headers["Content-Type"] = fmt.Sprintf("%s; charset=UTF-8", contentType)
-
-	// 组装邮件内容
-	message := ""
-	for k, v := range headers {
-		message += fmt.Sprintf("%s: %s\r\n", k, v)
+	formatAddress := func(raw, name string) (string, error) {
+		if strings.IndexFunc(raw, unicode.IsControl) >= 0 {
+			return "", fmt.Errorf("邮件地址包含控制字符")
+		}
+		addr, err := mail.ParseAddress(raw)
+		if err != nil || addr.Address != raw {
+			return "", fmt.Errorf("请填写单个有效邮箱地址")
+		}
+		addr.Name = name
+		return addr.String(), nil
 	}
-	message += "\r\n" + body
+	from, err := formatAddress(e.FromEmail, e.FromName)
+	if err != nil {
+		return "", err
+	}
+	recipients := make([]string, 0, len(e.ToEmails))
+	for _, recipient := range e.ToEmails {
+		formatted, err := formatAddress(recipient, "")
+		if err != nil {
+			return "", err
+		}
+		recipients = append(recipients, formatted)
+	}
+	if len(recipients) == 0 {
+		return "", fmt.Errorf("收件人邮箱不能为空")
+	}
+	return strings.Join([]string{"From: " + from, "To: " + strings.Join(recipients, ", "),
+		"Subject: " + mime.QEncoding.Encode("utf-8", subject), "MIME-Version: 1.0",
+		"Content-Type: text/html; charset=UTF-8", "", body}, "\r\n"), nil
+}
 
+func (e *EmailNotifier) send(subject, body string) error {
+	message, err := e.message(subject, body)
+	if err != nil {
+		return err
+	}
 	// 获取SMTP服务器地址
 	addr := e.SMTPHost + ":" + e.SMTPPort
 
@@ -378,7 +400,7 @@ func (e *EmailNotifier) sendWithSTARTTLS(addr string, auth smtp.Auth, message st
 
 // markdownToHTML 将简单的Markdown转换为HTML
 func (e *EmailNotifier) markdownToHTML(markdown string) string {
-	html := `<!DOCTYPE html>
+	out := `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -412,19 +434,19 @@ func (e *EmailNotifier) markdownToHTML(markdown string) string {
 				if len(parts) > 2 {
 					value = strings.TrimSpace(parts[2])
 				}
-				html += fmt.Sprintf(`        <div class="info"><span class="label">%s</span> <span class="value">%s</span></div>`, label, value)
-				html += "\n"
+				out += fmt.Sprintf(`        <div class="info"><span class="label">%s</span> <span class="value">%s</span></div>`, html.EscapeString(label), html.EscapeString(value))
+				out += "\n"
 				continue
 			}
 		}
 
 		// 普通文本
-		html += fmt.Sprintf("        <p>%s</p>\n", line)
+		out += fmt.Sprintf("        <p>%s</p>\n", html.EscapeString(line))
 	}
 
-	html += `    </div>
+	out += `    </div>
 </body>
 </html>`
 
-	return html
+	return out
 }

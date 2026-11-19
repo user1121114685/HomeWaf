@@ -57,7 +57,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 				return
 			}
 
-			// 校验密码是否正确（bcrypt，兼容存量 MD5）
+			// 校验密码是否正确（bcrypt）
 			if !wafAccountService.VerifyPassword(bean.LoginPassword, req.LoginPassword) {
 				// 密码错误，增加错误计数
 				hitCounter++
@@ -123,11 +123,6 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 
 			// 密码正确，清除错误计数
 			global.GCACHE_WAFCACHE.Remove(cacheKey)
-
-			// 透明升级：命中旧 MD5 的口令，登录成功后重算为 bcrypt 落库
-			if !utils.IsBcryptHash(bean.LoginPassword) {
-				wafAccountService.UpgradePasswordHash(bean.LoginAccount, req.LoginPassword)
-			}
 
 			// 口令强制改密判定：首次登录/被重置(NeedChangePassword) 或 口令已过有效期（提前计算，用于写入令牌与响应）
 			needChangePwd := false

@@ -7,7 +7,6 @@ import (
 	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/model"
-	"HomeWaf/utils"
 	"HomeWaf/wafdb"
 	"HomeWaf/wafdb/dialect"
 	"context"
@@ -45,12 +44,7 @@ func IsLiveShardName(name string) bool {
 // ArchiveSuffix 从归档标识里取出分片后缀（周期键或时间戳），认不出返回空。
 // 只认 web_logs_ / access_log_ 两种前缀——与读侧 ResolveTierTables 的口径一致。
 func ArchiveSuffix(name string) string {
-	for _, base := range []string{wafdb.LogTableName, model.AccessLogTableName} {
-		if strings.HasPrefix(name, base+"_") {
-			return strings.TrimPrefix(name, base+"_")
-		}
-	}
-	return ""
+	return wafdb.ArchiveTableSuffix(name)
 }
 
 // ShardTierInfo 一个分片 + 它现在还剩哪些层
@@ -174,8 +168,11 @@ func (receiver *WafShareDbService) ForceDeleteShard(name string) (string, error)
 	detail := ""
 	if dialect.Get().IsFileBased() {
 		// 先关掉可能已按需打开的连接，避免删正在被查询的文件
+		base, err := wafdb.ShardFilePath(name)
+		if err != nil {
+			return "", err
+		}
 		wafdb.CloseManualLogDb(name)
-		base := utils.GetCurrentDir() + "/data/" + name
 		removed := 0
 		for _, p := range []string{base, base + "-wal", base + "-shm"} {
 			if rerr := os.Remove(p); rerr != nil && !os.IsNotExist(rerr) {

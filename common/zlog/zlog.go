@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -143,23 +145,32 @@ func getFileLogWriter() (writeSyncer zapcore.WriteSyncer) {
 	return fileWriter
 }
 
+// SingleLine preserves ordinary log text and escapes control characters in
+// free-form messages. Structured fields are escaped by the zap encoder.
+func SingleLine(message string) string {
+	if strings.IndexFunc(message, func(r rune) bool { return unicode.IsControl(r) || r == '\u2028' || r == '\u2029' }) < 0 {
+		return message
+	}
+	return strconv.Quote(message)
+}
+
 func Info(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("info", inter))
-	logger.Load().Info(message, fields...)
+	logger.Load().Info(SingleLine(message), fields...)
 }
 
 func Debug(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("debug", inter))
-	logger.Load().Debug(message, fields...)
+	logger.Load().Debug(SingleLine(message), fields...)
 }
 
 func Error(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("err", inter))
 
-	logger.Load().Error(message, fields...)
+	logger.Load().Error(SingleLine(message), fields...)
 }
 
 func Warn(message string, inter ...interface{}) {
 	fields := append([]zap.Field{zap.String("pid", strconv.Itoa(os.Getpid()))}, zap.Any("warn", inter))
-	logger.Load().Warn(message, fields...)
+	logger.Load().Warn(SingleLine(message), fields...)
 }

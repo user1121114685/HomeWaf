@@ -9,6 +9,7 @@ type WafHostHealthTestReq struct {
 	RemotePort          int    `json:"remote_port"`
 	IsEnableLoadBalance int    `json:"is_enable_load_balance"`
 	IsTransBackDomain   int    `json:"is_trans_back_domain"`
+	InsecureSkipVerify  int    `json:"insecure_skip_verify"`
 	HealthyJSON         string `json:"healthy_json"`
 	Offset              int    `json:"offset"`
 	Limit               int    `json:"limit"`

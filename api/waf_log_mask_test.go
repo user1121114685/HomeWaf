@@ -1,6 +1,7 @@
 package api
 
 import (
+	"HomeWaf/innerbean"
 	"strings"
 	"testing"
 )
@@ -38,5 +39,28 @@ func TestMaskSensitiveCookiesJSON(t *testing.T) {
 	}
 	if !strings.Contains(masked, "dark") {
 		t.Fatalf("普通 Cookie 不应被脱敏: %q", masked)
+	}
+}
+
+func TestCurlExportUsesLiteralArguments(t *testing.T) {
+	log := innerbean.WebLog{METHOD: "POST", URL: "https://example.test/O'Brien",
+		HEADER:  "X-Label: user's choice\n@filename\nAuthorization: secret",
+		COOKIES: "theme=blue", BODY: "@notes/'sample'"}
+	command, err := GenerateCurlRequest(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{`--request 'POST'`, `--url 'https://example.test/O'\''Brien'`, `--header 'X-Label: user'\''s choice'`,
+		`--header 'Authorization: [MASKED]'`, `--header 'Cookie: theme=blue'`, `--data-raw '@notes/'\''sample'\'''`, `--proto '=http,https'`} {
+		if !strings.Contains(command, s) {
+			t.Fatalf("missing %q in %q", s, command)
+		}
+	}
+	if strings.Contains(command, "@filename") || strings.Contains(command, "secret") {
+		t.Fatal("unsafe export")
+	}
+	log.METHOD = "two words"
+	if _, err := GenerateCurlRequest(log); err == nil {
+		t.Fatal("invalid method accepted")
 	}
 }

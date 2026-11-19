@@ -1,6 +1,11 @@
 package wafonekey
 
-import "testing"
+import (
+	"HomeWaf/global"
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestParseNginxText_Example(t *testing.T) {
 	content := `
@@ -68,14 +73,37 @@ func TestParseListen(t *testing.T) {
 	}
 }
 
-func TestResolveSafeNginxDir(t *testing.T) {
-	if _, err := resolveSafeNginxDir("/www/server/panel/vhost/nginx"); err != nil {
-		t.Errorf("valid dir rejected: %v", err)
+func useNginxRoot(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	old := global.CurrentSettings().NginxConfigRoot
+	global.UpdateSettings(func(s *global.RuntimeSettings) { s.NginxConfigRoot = dir })
+	t.Cleanup(func() { global.UpdateSettings(func(s *global.RuntimeSettings) { s.NginxConfigRoot = old }) })
+	return dir
+}
+
+func TestNginxDirConfinesReadsAndWrites(t *testing.T) {
+	dir := useNginxRoot(t)
+	outside := t.TempDir()
+	lookalike := filepath.Join(outside, "server", "panel", "vhost", "nginx")
+	if err := os.MkdirAll(lookalike, 0755); err != nil {
+		t.Fatal(err)
 	}
-	bad := []string{"/etc", "/root", "/tmp/server/panel/vhostEVIL/x", "/www/server/panel/../../../etc"}
-	for _, d := range bad {
-		if _, err := resolveSafeNginxDir(d); err == nil {
-			t.Errorf("bad dir %q accepted", d)
+	for _, path := range []string{outside, lookalike} {
+		if _, err := ScanNginxDir(path); err == nil {
+			t.Fatal("scanned outside configured root")
+		}
+		if err, _ := OneKeyModifyBt(path); err == nil {
+			t.Fatal("modified outside configured root")
 		}
 	}
+	t.Run("linked directory", func(t *testing.T) {
+		link := filepath.Join(dir, "linked")
+		if err := os.Symlink(outside, link); err != nil {
+			t.Skip(err)
+		}
+		if _, err := ScanNginxDir(link); err == nil {
+			t.Fatal("followed link outside configured root")
+		}
+	})
 }

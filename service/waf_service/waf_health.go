@@ -58,7 +58,8 @@ func (s *WafHealthService) Test(ctx context.Context, req request.WafHostHealthTe
 		}
 	}
 	host := model.Hosts{Code: req.Code, Host: req.Host, Remote_host: req.RemoteHost, Remote_ip: req.RemoteIP,
-		Remote_port: req.RemotePort, IsEnableLoadBalance: req.IsEnableLoadBalance, IsTransBackDomain: req.IsTransBackDomain}
+		Remote_port: req.RemotePort, IsEnableLoadBalance: req.IsEnableLoadBalance, IsTransBackDomain: req.IsTransBackDomain,
+		InsecureSkipVerify: req.InsecureSkipVerify}
 	var targets []healthTestTarget
 	if req.IsEnableLoadBalance == 1 {
 		if req.Code == "" {

@@ -73,6 +73,16 @@ var ErrShardMissing = errors.New("归档分区的存储已不存在")
 // archiveFileRe SQLite 归档文件名：local_log_<周期或时间戳>[_序号].db，只允许纯文件名
 var archiveFileRe = regexp.MustCompile(`^local_log_[0-9]+(_[0-9]+)?\.db$`)
 
+// ArchiveTableSuffix accepts only identifiers belonging to a HomeWaf log table.
+func ArchiveTableSuffix(name string) string {
+	for _, base := range []string{LogTableName, model.AccessLogTableName} {
+		if strings.HasPrefix(name, base+"_") && dialect.ValidatePartitionPair(base, name) == nil {
+			return strings.TrimPrefix(name, base+"_")
+		}
+	}
+	return ""
+}
+
 // isLiveIdent 实时库的几种标识：空值、SQLite 库名、两张实时表名
 func isLiveIdent(name string) bool {
 	return name == "" || name == enums.DB_LOG || name == LogTableName || name == model.AccessLogTableName
@@ -117,7 +127,7 @@ func ResolveLogDB(currentDbName string) (*gorm.DB, string, error) {
 		}
 		return nil, "", fmt.Errorf("归档分片 %s 连接不可用", currentDbName)
 	}
-	if dialect.Get().TableExists(global.GWAF_LOCAL_LOG_DB, currentDbName) {
+	if ArchiveTableSuffix(currentDbName) != "" && dialect.Get().TableExists(global.GWAF_LOCAL_LOG_DB, currentDbName) {
 		return global.GWAF_LOCAL_LOG_DB, currentDbName, nil
 	}
 	return nil, "", fmt.Errorf("%w: %s", ErrShardMissing, currentDbName)
@@ -214,14 +224,11 @@ func ResolveTierTables(currentDbName string) TierTables {
 		}
 		db = d
 	} else {
-		switch {
-		case strings.HasPrefix(currentDbName, LogTableName+"_"):
-			suffix = strings.TrimPrefix(currentDbName, LogTableName)
-		case strings.HasPrefix(currentDbName, model.AccessLogTableName+"_"):
-			suffix = strings.TrimPrefix(currentDbName, model.AccessLogTableName)
-		default:
+		key := ArchiveTableSuffix(currentDbName)
+		if key == "" {
 			return TierTables{Err: fmt.Errorf("认不出的归档分区标识: %q", currentDbName)}
 		}
+		suffix = "_" + key
 		db = global.GWAF_LOCAL_LOG_DB
 		if db == nil {
 			return TierTables{Err: errors.New("日志库未就绪")}

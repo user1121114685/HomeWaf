@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/http/httpguts"
 )
 
 type WafLogAPi struct {
@@ -208,7 +209,12 @@ func (w *WafLogAPi) GetHttpCopyMaskApi(c *gin.Context) {
 		}
 
 		if req.OutputFormat == "curl" {
-			response.OkWithDetailed(GenerateCurlRequest(wafLog), "获取成功", c)
+			command, err := GenerateCurlRequest(wafLog)
+			if err != nil {
+				response.FailWithMessage(err.Error(), c)
+				return
+			}
+			response.OkWithDetailed(command, "获取成功", c)
 		} else {
 			response.OkWithDetailed(GenerateRawHTTPRequest(wafLog), "获取成功", c)
 		}
@@ -381,32 +387,58 @@ func GenerateRawHTTPRequest(weblog innerbean.WebLog) string {
 
 	return strings.Join(requestLines, "\n")
 }
-func GenerateCurlRequest(weblog innerbean.WebLog) string {
 
-	headers := strings.Split(maskSensitiveHeader(weblog.HEADER), "\n")
-	headerStrings := ""
-	for _, header := range headers {
-		headerStrings += fmt.Sprintf("-H '%s' ", strings.TrimSpace(header))
+// GenerateCurlRequest produces a POSIX shell command. Each request value is a
+// literal argument to curl, including data that begins with an at-sign.
+func GenerateCurlRequest(weblog innerbean.WebLog) (string, error) {
+	quote := func(value string) string {
+		return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 	}
-
-	maskedCookies := maskSensitiveCookies(weblog.COOKIES)
-
-	reqUrl := weblog.URL
+	rawURL := weblog.URL
 	if weblog.SrcURL != nil {
-		reqUrl = string(weblog.SrcURL)
+		rawURL = string(weblog.SrcURL)
+	}
+	method := weblog.METHOD
+	if method == "" {
+		method = http.MethodGet
+	}
+	if !httpguts.ValidHeaderFieldName(method) || strings.ContainsAny(rawURL, "\x00\r\n") || strings.ContainsRune(weblog.BODY, '\x00') {
+		return "", fmt.Errorf("请求包含无法导出为 shell 命令的字段")
 	}
 
-	curlCommand := fmt.Sprintf(
-		"curl -X %s %s \\\n	--url '%s' \\\n	--cookie '%s' \\\n	--data '%s'",
-		weblog.METHOD,
-		headerStrings,
-		reqUrl,
-		maskedCookies,
-		weblog.BODY,
-	)
-
-	return curlCommand
+	args := []string{"curl --globoff --proto '=http,https'", "--request " + quote(method), "--url " + quote(rawURL)}
+	cookies := maskSensitiveCookies(weblog.COOKIES)
+	for _, line := range strings.Split(maskSensitiveHeader(weblog.HEADER), "\n") {
+		line = strings.TrimSpace(line)
+		name, value, ok := strings.Cut(line, ":")
+		if !ok || !httpguts.ValidHeaderFieldName(name) || !httpguts.ValidHeaderFieldValue(value) ||
+			(cookies != "" && strings.EqualFold(name, "Cookie")) {
+			continue
+		}
+		args = append(args, "--header "+quote(line))
+	}
+	if cookies != "" {
+		var list []http.Cookie
+		if strings.HasPrefix(cookies, "[") && json.Unmarshal([]byte(cookies), &list) == nil {
+			req := &http.Request{Header: make(http.Header)}
+			for _, c := range list {
+				req.AddCookie(&c)
+			}
+			cookies = req.Header.Get("Cookie")
+		}
+		if !httpguts.ValidHeaderFieldValue(cookies) {
+			return "", fmt.Errorf("Cookie 格式不支持命令导出")
+		}
+		if cookies != "" {
+			args = append(args, "--header "+quote("Cookie: "+cookies))
+		}
+	}
+	if weblog.BODY != "" {
+		args = append(args, "--data-raw "+quote(weblog.BODY))
+	}
+	return strings.Join(args, " \\\n  "), nil
 }
+
 func maskSensitiveHeader(header string) string {
 	sensitiveKeys := []string{
 		"Authorization", "Proxy-Authorization", "Cookie", "Token", "Api-Key", "Secret", "Access-Token", "X-Api-Key",

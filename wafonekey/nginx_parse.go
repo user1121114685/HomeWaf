@@ -1,7 +1,11 @@
 package wafonekey
 
 import (
+	"HomeWaf/global"
 	"errors"
+	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,10 +15,10 @@ import (
 
 // 解析相关安全上限
 const (
-	maxNginxConfigLen  = 1 << 20 // 粘贴文本上限 1MB
-	maxScanFileCount   = 500     // 扫描目录最多读取的 .conf 文件数
-	maxScanFileSize    = 2 << 20 // 单个 .conf 文件读取上限 2MB
-	scanRequiredSubDir = "server/panel/vhost"
+	maxNginxConfigLen = 1 << 20 // 粘贴文本上限 1MB
+	maxScanFileCount  = 500     // 扫描目录最多读取的 .conf 文件数
+	maxScanFileSize   = 2 << 20 // 单个 .conf 文件读取上限 2MB
+	defaultNginxDir   = "/www/server/panel/vhost/nginx"
 )
 
 // NginxHostCandidate 从一个 nginx server{} 块解析出的待添加主机候选
@@ -45,30 +49,26 @@ func ParseNginxText(content string) ([]NginxHostCandidate, error) {
 
 // ScanNginxDir 安全地扫描目录下 .conf 并解析
 func ScanNginxDir(dirPath string) ([]NginxHostCandidate, error) {
-	safeDir, err := resolveSafeNginxDir(dirPath)
+	root, err := openNginxDir(dirPath)
 	if err != nil {
 		return nil, err
 	}
-	entries, err := os.ReadDir(safeDir)
+	defer root.Close()
+	entries, err := fs.ReadDir(root.FS(), ".")
 	if err != nil {
 		return nil, err
 	}
 	candidates := make([]NginxHostCandidate, 0)
-	readCnt := 0
+	readCount := 0
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".conf") {
+		if !entry.Type().IsRegular() || !strings.EqualFold(filepath.Ext(entry.Name()), ".conf") {
 			continue
 		}
-		if readCnt >= maxScanFileCount {
+		if readCount >= maxScanFileCount {
 			break
 		}
-		readCnt++
-		filePath := filepath.Join(safeDir, entry.Name())
-		info, err := entry.Info()
-		if err != nil || info.Size() > maxScanFileSize {
-			continue
-		}
-		data, err := os.ReadFile(filePath)
+		readCount++
+		data, _, err := readNginxConfig(root, entry.Name())
 		if err != nil {
 			continue
 		}
@@ -77,55 +77,62 @@ func ScanNginxDir(dirPath string) ([]NginxHostCandidate, error) {
 	return candidates, nil
 }
 
-// resolveSafeNginxDir 校验用户提供的目录必须是真实的 nginx vhost 目录，防止路径穿越/任意目录读取。
-// 采用「绝对化 + Clean + 路径分段判定」而非现有 OneKeyModifyBt 的弱子串判断：
-// 要求路径分段中连续出现 server/panel/vhost，避免 .../vhostEVIL 之类的旁路。
-func resolveSafeNginxDir(dirPath string) (string, error) {
-	if strings.TrimSpace(dirPath) == "" {
-		dirPath = "/www/server/panel/vhost/nginx"
+// Only the server's local configuration can designate a trusted Nginx root.
+func openNginxDir(requested string) (*os.Root, error) {
+	trusted := global.CurrentSettings().NginxConfigRoot
+	if trusted == "" {
+		trusted = defaultNginxDir
+	} else if !filepath.IsAbs(trusted) {
+		return nil, errors.New("security.nginx_config_root 必须是绝对目录")
 	}
-	absPath, err := filepath.Abs(filepath.Clean(dirPath))
+	base, err := filepath.Abs(trusted)
 	if err != nil {
-		return "", errors.New("无法解析目录路径")
+		return nil, err
 	}
-	// 分段（统一为斜杠）判定
-	normalized := filepath.ToSlash(absPath)
-	segs := strings.Split(normalized, "/")
-	cleaned := make([]string, 0, len(segs))
-	for _, s := range segs {
-		if s == "" || s == "." {
-			continue
-		}
-		if s == ".." {
-			return "", errors.New("目录不在允许范围内")
-		}
-		cleaned = append(cleaned, s)
+	if requested == "" {
+		requested = base
 	}
-	required := strings.Split(scanRequiredSubDir, "/")
-	if !containsContiguous(cleaned, required) {
-		return "", errors.New("目录不在允许范围内（须为宝塔 nginx vhost 目录）")
+	requested, err = filepath.Abs(requested)
+	if err != nil {
+		return nil, err
 	}
-	return absPath, nil
+	rel, err := filepath.Rel(base, requested)
+	if err != nil || !filepath.IsLocal(rel) {
+		return nil, errors.New("目录不在允许范围内；自定义宝塔安装路径请在 config.yml 配置 security.nginx_config_root")
+	}
+	root, err := os.OpenRoot(base)
+	if err != nil || rel == "." {
+		return root, err
+	}
+	defer root.Close()
+	return root.OpenRoot(rel)
 }
 
-// containsContiguous 判断 required 是否作为连续子序列出现在 segs 中
-func containsContiguous(segs, required []string) bool {
-	if len(required) == 0 || len(segs) < len(required) {
-		return false
+func readNginxConfig(root *os.Root, name string) ([]byte, os.FileMode, error) {
+	if !filepath.IsLocal(name) || name != filepath.Base(name) || !strings.EqualFold(filepath.Ext(name), ".conf") {
+		return nil, 0, errors.New("无效的 Nginx 配置文件名")
 	}
-	for i := 0; i+len(required) <= len(segs); i++ {
-		match := true
-		for j := range required {
-			if segs[i+j] != required[j] {
-				match = false
-				break
-			}
-		}
-		if match {
-			return true
-		}
+	info, err := root.Lstat(name)
+	if err != nil {
+		return nil, 0, err
 	}
-	return false
+	if !info.Mode().IsRegular() || info.Size() > maxScanFileSize {
+		return nil, 0, errors.New("配置文件必须是范围内的普通文件，大小不超过 2 MiB")
+	}
+	f, err := root.Open(name)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return nil, 0, errors.New("配置文件已变化，请重试")
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxScanFileSize+1))
+	if len(data) > maxScanFileSize {
+		return nil, 0, fmt.Errorf("配置文件超过 %d 字节", maxScanFileSize)
+	}
+	return data, opened.Mode().Perm(), err
 }
 
 // parseNginxContent 从配置文本中提取每个 server{} 块的候选

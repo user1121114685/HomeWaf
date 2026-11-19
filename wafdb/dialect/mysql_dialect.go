@@ -44,7 +44,6 @@ func (d *MySQLDialect) UpsertExcludedRef(col string) string {
 	return "VALUES(" + col + ")"
 }
 
-
 // FormatLocalTime formats the column as-is: with loc=Local in the DSN the
 // DATETIME column already holds the local wall clock, so any timezone
 // conversion here would shift the value a second time.
@@ -229,7 +228,7 @@ func mysqlQuote(name string) string {
 
 // CreatePartition 建一张与基表同构（含索引）的空周期表
 func (d *MySQLDialect) CreatePartition(db *gorm.DB, baseTable, partTable string) error {
-	if err := checkPartitionPair(baseTable, partTable); err != nil {
+	if err := ValidatePartitionPair(baseTable, partTable); err != nil {
 		return err
 	}
 	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s LIKE %s", mysqlQuote(partTable), mysqlQuote(baseTable))
@@ -246,7 +245,7 @@ func (d *MySQLDialect) ListPartitions(db *gorm.DB, baseTable string) ([]string, 
 
 // DropPartition 丢掉整张周期表，替代逐行 DELETE + VACUUM
 func (d *MySQLDialect) DropPartition(db *gorm.DB, baseTable, partTable string) error {
-	if err := checkPartitionPair(baseTable, partTable); err != nil {
+	if err := ValidatePartitionPair(baseTable, partTable); err != nil {
 		return err
 	}
 	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", mysqlQuote(partTable))).Error; err != nil {

@@ -99,3 +99,14 @@ func TestManagementDomainRejectsUnsafeNames(t *testing.T) {
 		}
 	}
 }
+
+func TestSecuritySettingsRejectInvalidControlData(t *testing.T) {
+	for _, value := range []string{"a/b", "user's", "a\nb", ".."} {
+		if err := UpdateSecurityEntry(true, value); err == nil {
+			t.Fatalf("accepted entry %q", value)
+		}
+	}
+	if err := UpdateNoticeTitle("line one\r\nline two"); err == nil {
+		t.Fatal("accepted multiline title")
+	}
+}

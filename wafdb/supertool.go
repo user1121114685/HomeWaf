@@ -7,12 +7,18 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/utils"
+	"HomeWaf/wafsec"
 	"bufio"
+	"crypto/rand"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mattn/go-isatty"
+	"gorm.io/gorm"
 )
 
 // selectAccount 列出所有账号，优先默认选中 admin，让用户选择后返回账号名
@@ -79,20 +85,43 @@ func ResetAdminPwd() {
 		fmt.Printf("Failed to hash new password: %v\n", herr)
 		return
 	}
-	beanMap := map[string]interface{}{
-		"LoginPassword":      hash,
-		"NeedChangePassword": 1, // 控制台重置后，目标账号下次登录需强制改密
-		"UPDATE_TIME":        customtype.JsonTime(time.Now()),
+	var receipt string
+	if !isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+		receipt = filepath.Join(utils.GetCurrentDir(), "data", "reset-password-"+rand.Text()+".txt")
+		if err := wafsec.WritePrivateFile(receipt, []byte(randomPassword+"\n")); err != nil {
+			fmt.Printf("Cannot save password to a private file: %v\n", err)
+			return
+		}
 	}
-	err := global.GWAF_LOCAL_DB.Model(model.Account{}).Where("login_account = ?", chosenAccount).Updates(beanMap).Error
-	if err != nil {
+	if err := resetAccountCredential(global.GWAF_LOCAL_DB, chosenAccount, hash); err != nil {
+		if receipt != "" {
+			_ = os.Remove(receipt)
+		}
 		fmt.Printf("Failed to reset password for '%s': %v\n", chosenAccount, err)
+	} else if receipt != "" {
+		fmt.Printf("Password reset. Read the new password from %s.\n", receipt)
 	} else {
-		global.GWAF_LOCAL_DB.Where("login_account = ?", chosenAccount).Delete(model.TokenInfo{})
 		fmt.Printf("Reset password for '%s' successfully, the new password is:\n", chosenAccount)
 		fmt.Println(randomPassword)
 		fmt.Println("Please keep it safe.")
 	}
+}
+
+func resetAccountCredential(db *gorm.DB, account, hash string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		res := tx.Model(&model.Account{}).Where("login_account = ?", account).Updates(map[string]any{
+			"LoginPassword": hash, "NeedChangePassword": 1, "PwdUpdateTime": now.Format("2006-01-02 15:04:05"),
+			"UPDATE_TIME": customtype.JsonTime(now),
+		})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		return tx.Where("login_account = ?", account).Delete(&model.TokenInfo{}).Error
+	})
 }
 
 // ResetAdminOTP 重置OTP

@@ -91,3 +91,40 @@ func TestAppUpgradeRollbackPreservesFileMode(t *testing.T) {
 	checkAppFile(t, path, "version one", 0750)
 	checkAppFileTempCleaned(t, app.AppDir)
 }
+
+func TestAppFileOperationsConfinedToConfiguredRoot(t *testing.T) {
+	allowed := setupAppDirEnv(t)
+	outside := t.TempDir()
+	link := filepath.Join(allowed, "external")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skip(err)
+	}
+	req := request.WafAppAddReq{Code: "files", Name: "files", StartCmd: "application", AppDir: link}
+	if _, err := WafAppServiceApp.AddApi(req); err == nil {
+		t.Fatal("accepted app directory outside configured root")
+	}
+	req.AppDir = ""
+	app, err := WafAppServiceApp.AddApi(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(app.AppDir, "backup")); err != nil {
+		t.Fatal(err)
+	}
+	if err := WafAppServiceApp.UploadFile(app.Code, "server", strings.NewReader("original"), ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := WafAppServiceApp.UpgradeApp(app.Code, "server", strings.NewReader("new"), ""); err == nil {
+		t.Fatal("wrote backup outside app")
+	}
+	if err := WafAppServiceApp.RollbackApp(app.Code, "server.20261118120000"); err == nil {
+		t.Fatal("read outside backup directory")
+	}
+	if entries, err := os.ReadDir(outside); err != nil || len(entries) != 0 {
+		t.Fatal("external directory changed", err)
+	}
+	got, err := os.ReadFile(filepath.Join(app.AppDir, "server"))
+	if err != nil || string(got) != "original" {
+		t.Fatal("failed upgrade changed application", err)
+	}
+}

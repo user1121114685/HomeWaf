@@ -8,116 +8,98 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
+	"crypto/rand"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
-	"strings"
+	"sync"
 	"time"
 )
 
-// 一键修改数据
-func OneKeyModifyBt(btSavePath string) (error, string) {
-	if btSavePath == "" {
-		btSavePath = "/www/server/panel/vhost/nginx"
-	}
-	// 将路径标准化，处理斜杠问题
-	btSavePath = filepath.Clean(btSavePath)
-	subPath := "server/panel/vhost"
-	subPath = filepath.Clean(subPath)
+var nginxWriteMu sync.Mutex
+var listenHTTP = regexp.MustCompile(`(?m)^([ \t]*listen[ \t]+)80([ \t;])`)
+var listenHTTPS = regexp.MustCompile(`(?m)^([ \t]*listen[ \t]+)443([ \t;])`)
 
-	if !strings.Contains(btSavePath, subPath) {
-		return errors.New("路径不正确"), "路径不正确"
-	}
-	// 遍历目录并替换.conf文件中的端口
-	files, err := ioutil.ReadDir(btSavePath)
+// OneKeyModifyBt updates listen directives in the authorized panel directory.
+func OneKeyModifyBt(btSavePath string) (error, string) {
+	nginxWriteMu.Lock()
+	defer nginxWriteMu.Unlock()
+	root, err := openNginxDir(btSavePath)
 	if err != nil {
 		return err, ""
 	}
-	successCnt := 0
+	defer root.Close()
+	files, err := fs.ReadDir(root.FS(), ".")
+	if err != nil {
+		return err, ""
+	}
+	count := 0
 	for _, file := range files {
-		if !file.IsDir() && filepath.Ext(file.Name()) == ".conf" {
-			filePath := filepath.Join(btSavePath, file.Name())
-			fmt.Printf("检查文件: %s\n", filePath)
-
-			// 读取文件内容
-			beforeContent, err := ioutil.ReadFile(filePath)
-			if err != nil {
-				return err, ""
-			}
-
-			// 检查是否包含目标字符串
-			if strings.Contains(string(beforeContent), "listen 80") || strings.Contains(string(beforeContent), "listen 443") {
-
-				fmt.Printf("修改文件: %s\n", filePath)
-				if err := replaceListenPorts(filePath); err != nil {
-					return err, ""
-				} else {
-					// 读取文件内容
-					afterContent, _ := ioutil.ReadFile(filePath)
-					//插入记录
-					global.GQEQUE_LOG_DB.Enqueue(model.OneKeyMod{
-						BaseOrm: baseorm.BaseOrm{
-							Id:          uuid.GenUUID(),
-							USER_CODE:   global.GWAF_USER_CODE,
-							Tenant_ID:   global.GWAF_TENANT_ID,
-							CREATE_TIME: customtype.JsonTime(time.Now()),
-							UPDATE_TIME: customtype.JsonTime(time.Now())},
-						OpSystem:      "宝塔",
-						FilePath:      filePath,
-						BeforeContent: string(beforeContent),
-						AfterContent:  string(afterContent),
-						IsRestore:     0,
-						Remarks:       "",
-					})
-					successCnt++
-				}
-
-			}
+		if !file.Type().IsRegular() || filepath.Ext(file.Name()) != ".conf" {
+			continue
 		}
+		before, mode, err := readNginxConfig(root, file.Name())
+		if err != nil {
+			return err, ""
+		}
+		after := listenHTTP.ReplaceAllString(string(before), "${1}81${2}")
+		after = listenHTTPS.ReplaceAllString(after, "${1}444${2}")
+		if after == string(before) {
+			continue
+		}
+		record := model.OneKeyMod{
+			BaseOrm: baseorm.BaseOrm{Id: uuid.GenUUID(), USER_CODE: global.GWAF_USER_CODE,
+				Tenant_ID: global.GWAF_TENANT_ID, CREATE_TIME: customtype.JsonTime(time.Now()), UPDATE_TIME: customtype.JsonTime(time.Now())},
+			OpSystem: "宝塔", FilePath: filepath.Join(root.Name(), file.Name()),
+			BeforeContent: string(before), AfterContent: after,
+		}
+		// Persist the recovery copy before changing a configuration on disk.
+		if err := global.GWAF_LOCAL_LOG_DB.Create(&record).Error; err != nil {
+			return err, ""
+		}
+		if err := replaceNginxConfig(root, file.Name(), after, mode); err != nil {
+			return fmt.Errorf("修改失败，原始配置已保存在恢复记录中: %w", err), ""
+		}
+		count++
 	}
-	if successCnt > 0 {
-		return nil, "修改文件数：" + strconv.Itoa(successCnt) + " 请重启在宝塔面板上进行Nginx重启"
-	} else {
-		return nil, "修改文件数：" + strconv.Itoa(successCnt)
+	message := "修改文件数：" + strconv.Itoa(count)
+	if count > 0 {
+		message += " 请在宝塔面板上重启 Nginx"
 	}
+	return nil, message
 }
 
-// replaceListenPorts 读取文件内容，替换listen端口，并写回文件
-func replaceListenPorts(filePath string) error {
-	// 读取文件内容
-	content, err := ioutil.ReadFile(filePath)
+func replaceNginxConfig(root *os.Root, name, content string, mode os.FileMode) error {
+	tmp := ".homewaf-nginx-" + rand.Text()
+	f, err := root.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
-
-	// 检查并替换listen 80和listen 443
-	lines := strings.Split(string(content), "\n")
-	containsTarget := false
-	for _, line := range lines {
-		if strings.Contains(line, "listen 80") || strings.Contains(line, "listen 443") {
-			containsTarget = true
-			break
-		}
+	defer root.Remove(tmp)
+	defer f.Close()
+	if _, err := f.WriteString(content); err != nil {
+		return err
 	}
-
-	if containsTarget {
-		for i, line := range lines {
-			lines[i] = strings.Replace(line, "listen 80", "listen 81", 1)
-			lines[i] = strings.Replace(lines[i], "listen 443", "listen 444", 1)
-			//fmt.Println(lines[i])
-		}
-
-		// 将修改后的内容写回文件
-		return ioutil.WriteFile(filePath, []byte(strings.Join(lines, "\n")), 0644)
+	if err := f.Chmod(mode); err != nil {
+		return err
 	}
-
-	return nil
+	if err := f.Sync(); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return root.Rename(tmp, name)
 }
 
 // 读取 model.OneKeyMod 表中 IsRestore 为 0 的记录，并还原文件
 func RestoreOneKeyMod(id string) error {
+	nginxWriteMu.Lock()
+	defer nginxWriteMu.Unlock()
 	var oneKeyMod model.OneKeyMod
 	err := global.GWAF_LOCAL_LOG_DB.Where("id = ?", id).First(&oneKeyMod).Error
 	if err != nil {
@@ -126,15 +108,26 @@ func RestoreOneKeyMod(id string) error {
 	if oneKeyMod.IsRestore == 1 {
 		return errors.New("该记录已还原")
 	}
-	//还原文件
-	err = ioutil.WriteFile(oneKeyMod.FilePath, []byte(oneKeyMod.BeforeContent), 0644)
+	root, err := openNginxDir(filepath.Dir(oneKeyMod.FilePath))
 	if err != nil {
 		return err
 	}
-	//更新 IsRestore 为 1
-	global.GWAF_LOCAL_LOG_DB.Model(&model.OneKeyMod{}).Where("id = ?", id).Update("is_restore", 1)
-	if err != nil {
+	defer root.Close()
+	name := filepath.Base(oneKeyMod.FilePath)
+	current, mode, err := readNginxConfig(root, name)
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	return nil
+	if err != nil {
+		mode = 0644
+	}
+	if string(current) != oneKeyMod.BeforeContent || err != nil {
+		if err == nil && string(current) != oneKeyMod.AfterContent {
+			return errors.New("配置已被另行修改，请核对恢复记录后手工处理")
+		}
+		if err := replaceNginxConfig(root, name, oneKeyMod.BeforeContent, mode); err != nil {
+			return err
+		}
+	}
+	return global.GWAF_LOCAL_LOG_DB.Model(&model.OneKeyMod{}).Where("id = ?", id).Update("is_restore", 1).Error
 }

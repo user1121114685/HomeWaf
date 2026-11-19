@@ -32,11 +32,11 @@ func TestCheckPartIdentRejectsUnsafeNames(t *testing.T) {
 
 // 丢分区是不可逆动作，必须确认这张表真是该基表的分区
 func TestCheckPartitionPairRequiresPrefix(t *testing.T) {
-	if err := checkPartitionPair("access_log", "access_log_202609"); err != nil {
+	if err := ValidatePartitionPair("access_log", "access_log_202609"); err != nil {
 		t.Fatalf("同族分区应通过: %v", err)
 	}
 	for _, part := range []string{"hosts", "security_event_202609", "access_log", "xaccess_log_202609"} {
-		if err := checkPartitionPair("access_log", part); err == nil {
+		if err := ValidatePartitionPair("access_log", part); err == nil {
 			t.Errorf("%q 不是 access_log 的分区，应被拒绝", part)
 		}
 	}

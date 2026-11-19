@@ -40,6 +40,8 @@ type RuntimeSettings struct {
 	GCONFIG_COMM_LEGACY_KEY bool
 	// 批量任务本地来源允许的额外目录（绝对路径，逗号分隔）；只从config.yml读、不进DB/API。内置默认data/import恒允许，留空=只允许该默认目录
 	GCONFIG_BATCH_IMPORT_ALLOWED_DIRS string
+	// 宝塔工具可访问的 Nginx 配置根目录。空值采用宝塔默认安装路径。
+	NginxConfigRoot string
 	// 用户可配的对外拉取地址允许清单（主机名/IP/CIDR，逗号分隔）；只从config.yml读、不进DB/API。留空=只允许公网目标；内网镜像源须运营方在此带外声明
 	GCONFIG_OUTBOUND_ALLOWED_HOSTS string
 	// 是否每天凌晨3点自动加载ssl证书

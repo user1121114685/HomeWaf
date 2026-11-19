@@ -386,7 +386,7 @@ func pgQuote(name string) string {
 // CreatePartition 建一张与基表同构的空周期表。INCLUDING ALL 连索引、默认值、
 // 非空约束一起复制，索引名由 PG 自己生成，不会和基表的撞。
 func (d *PostgresDialect) CreatePartition(db *gorm.DB, baseTable, partTable string) error {
-	if err := checkPartitionPair(baseTable, partTable); err != nil {
+	if err := ValidatePartitionPair(baseTable, partTable); err != nil {
 		return err
 	}
 	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (LIKE %s INCLUDING ALL)",
@@ -404,7 +404,7 @@ func (d *PostgresDialect) ListPartitions(db *gorm.DB, baseTable string) ([]strin
 
 // DropPartition 丢掉整张周期表，替代逐行 DELETE + VACUUM
 func (d *PostgresDialect) DropPartition(db *gorm.DB, baseTable, partTable string) error {
-	if err := checkPartitionPair(baseTable, partTable); err != nil {
+	if err := ValidatePartitionPair(baseTable, partTable); err != nil {
 		return err
 	}
 	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", pgQuote(partTable))).Error; err != nil {

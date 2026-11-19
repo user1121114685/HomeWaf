@@ -43,6 +43,11 @@ func checkAppFileTempCleaned(t *testing.T, dir string) {
 
 func TestAppFileNewFileExecutableRespectsUmask(t *testing.T) {
 	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
 	control := filepath.Join(dir, "control")
 	if err := os.WriteFile(control, []byte("control"), 0666); err != nil {
 		t.Fatal(err)
@@ -52,7 +57,7 @@ func TestAppFileNewFileExecutableRespectsUmask(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, "new")
-	if err := writeAppFile(path, strings.NewReader("new"), nil, ""); err != nil {
+	if err := writeAppFile(root, filepath.Base(path), strings.NewReader("new"), nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	wantMode := info.Mode().Perm()
@@ -67,11 +72,16 @@ func TestAppFileReplacementMode(t *testing.T) {
 	for _, mode := range []os.FileMode{0755, 0750, 0700, 0644, 0640, 0600, 0444} {
 		t.Run(mode.String(), func(t *testing.T) {
 			dir := t.TempDir()
+			root, err := os.OpenRoot(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer root.Close()
 			path := filepath.Join(dir, "server")
 			if err := os.WriteFile(path, []byte("old"), 0644); err != nil {
 				t.Fatal(err)
 			}
-			if err := writeAppFile(path, strings.NewReader("new"), &mode, ""); err != nil {
+			if err := writeAppFile(root, filepath.Base(path), strings.NewReader("new"), &mode, ""); err != nil {
 				t.Fatal(err)
 			}
 			checkAppFile(t, path, "new", mode)
@@ -87,6 +97,11 @@ func TestAppFileFailureKeepsOriginal(t *testing.T) {
 	for _, scenario := range []string{"hash", "read"} {
 		t.Run(scenario, func(t *testing.T) {
 			dir := t.TempDir()
+			root, err := os.OpenRoot(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer root.Close()
 			path := filepath.Join(dir, "server")
 			if err := os.WriteFile(path, []byte("original"), 0750); err != nil {
 				t.Fatal(err)
@@ -100,7 +115,7 @@ func TestAppFileFailureKeepsOriginal(t *testing.T) {
 			if err := os.Chmod(path, 0750); err != nil {
 				t.Fatal(err)
 			}
-			if err := writeAppFile(path, src, appTestMode(0644), expected); err == nil {
+			if err := writeAppFile(root, filepath.Base(path), src, appTestMode(0644), expected); err == nil {
 				t.Fatal("expected failure")
 			}
 			checkAppFile(t, path, "original", 0750)
@@ -111,13 +126,18 @@ func TestAppFileFailureKeepsOriginal(t *testing.T) {
 
 func TestAppFileHashCaseAndRenameFailure(t *testing.T) {
 	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
 	path := filepath.Join(dir, "server")
 	hash := sha256.Sum256([]byte("new"))
-	if err := writeAppFile(path, strings.NewReader("new"), appTestMode(0644), strings.ToUpper(hex.EncodeToString(hash[:]))); err != nil {
+	if err := writeAppFile(root, filepath.Base(path), strings.NewReader("new"), appTestMode(0644), strings.ToUpper(hex.EncodeToString(hash[:]))); err != nil {
 		t.Fatal(err)
 	}
 	checkAppFile(t, path, "new", 0644)
-	if err := writeAppFile(dir, strings.NewReader("new"), appTestMode(0644), ""); err == nil {
+	if err := writeAppFile(root, ".", strings.NewReader("new"), appTestMode(0644), ""); err == nil {
 		t.Fatal("replacing a directory must fail")
 	}
 	checkAppFile(t, path, "new", 0644)
@@ -126,6 +146,11 @@ func TestAppFileHashCaseAndRenameFailure(t *testing.T) {
 
 func TestAppFileCopyPreservesSourceMode(t *testing.T) {
 	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
 	src, dst := filepath.Join(dir, "server"), filepath.Join(dir, "backup")
 	if err := os.WriteFile(src, []byte("old version"), 0750); err != nil {
 		t.Fatal(err)
@@ -133,7 +158,7 @@ func TestAppFileCopyPreservesSourceMode(t *testing.T) {
 	if err := os.Chmod(src, 0750); err != nil {
 		t.Fatal(err)
 	}
-	if err := copyFile(src, dst); err != nil {
+	if err := copyFile(root, filepath.Base(src), filepath.Base(dst)); err != nil {
 		t.Fatal(err)
 	}
 	checkAppFile(t, dst, "old version", 0750)
@@ -143,7 +168,7 @@ func TestAppFileCopyPreservesSourceMode(t *testing.T) {
 	if err := os.Chmod(src, 0750); err != nil {
 		t.Fatal(err)
 	}
-	if err := copyFile(src, dst); err != nil {
+	if err := copyFile(root, filepath.Base(src), filepath.Base(dst)); err != nil {
 		t.Fatal(err)
 	}
 	checkAppFile(t, dst, "old version", 0750)
@@ -154,11 +179,16 @@ func TestAppFileExecutableAfterFirstUploadAndCopy(t *testing.T) {
 		t.Skip("requires Unix execute permissions and /bin/sh")
 	}
 	dir := t.TempDir()
-	path, backup := filepath.Join(dir, "server"), filepath.Join(dir, "backup")
-	if err := writeAppFile(path, strings.NewReader("#!/bin/sh\nprintf 'app-permission-ok\\n'\n"), nil, ""); err != nil {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := copyFile(path, backup); err != nil {
+	defer root.Close()
+	path, backup := filepath.Join(dir, "server"), filepath.Join(dir, "backup")
+	if err := writeAppFile(root, filepath.Base(path), strings.NewReader("#!/bin/sh\nprintf 'app-permission-ok\\n'\n"), nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyFile(root, filepath.Base(path), filepath.Base(backup)); err != nil {
 		t.Fatal(err)
 	}
 	for _, executable := range []string{path, backup} {

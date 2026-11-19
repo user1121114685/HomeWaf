@@ -32,12 +32,21 @@ func TestAdminTitlesNoRouteBootstrap(t *testing.T) {
 			t.Fatalf("bootstrap missing: %d %s", w.Code, body)
 		}
 		if enabled {
-			if !strings.Contains(body, `src="/entry/assets/app.js"`) || !strings.Contains(body, `href="/entry/assets/app.css"`) || !strings.Contains(body, `window.__SAMWAF_SECURITY_PATH__='/entry'`) {
+			if !strings.Contains(body, `src="/entry/assets/app.js"`) || !strings.Contains(body, `href="/entry/assets/app.css"`) || !strings.Contains(body, `window.__SAMWAF_SECURITY_PATH__="/entry"`) {
 				t.Fatalf("security path rewriting changed: %s", body)
 			}
 		} else if !strings.Contains(body, `src="/assets/app.js"`) || strings.Contains(body, "__SAMWAF_SECURITY_PATH__") {
 			t.Fatalf("unexpected security path rewriting: %s", body)
 		}
+	}
+	global.GWAF_SECURITY_ENTRY_ENABLE = true
+	global.GWAF_SECURITY_ENTRY_PATH = `department'"<&`
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
+	body := w.Body.String()
+	if strings.Contains(body, global.GWAF_SECURITY_ENTRY_PATH) ||
+		!strings.Contains(body, `window.__SAMWAF_SECURITY_PATH__="/department'\"\u003c\u0026";`) {
+		t.Fatalf("legacy entry path was not encoded: %s", body)
 	}
 }
 

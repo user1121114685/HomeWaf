@@ -13,6 +13,7 @@ import (
 	"HomeWaf/model/request"
 	"HomeWaf/utils"
 	"HomeWaf/wafdb/dialect"
+	"HomeWaf/wafsec"
 	"errors"
 	"fmt"
 	"os"
@@ -31,22 +32,9 @@ func (receiver *WafAccountService) pwdHash(plain string) (string, error) {
 	return utils.BcryptHash(plain)
 }
 
-// VerifyPassword 校验明文口令是否匹配存储哈希：bcrypt 走 bcrypt；存量裸 MD5 走旧算法(透明升级期间兼容)。
+// VerifyPassword 校验控制台账号的 bcrypt 口令。
 func (receiver *WafAccountService) VerifyPassword(stored, plain string) bool {
-	if utils.IsBcryptHash(stored) {
-		return utils.BcryptVerify(stored, plain)
-	}
-	return stored != "" && stored == utils.Md5String(plain+global.GWAF_DEFAULT_ACCOUNT_SALT)
-}
-
-// UpgradePasswordHash 透明升级：命中旧 MD5 的账户，登录成功后用 bcrypt 重算落库
-// （同一口令，不改 PwdUpdateTime、不记历史）。
-func (receiver *WafAccountService) UpgradePasswordHash(loginAccount, plain string) {
-	newHash, err := receiver.pwdHash(plain)
-	if err != nil || newHash == "" {
-		return
-	}
-	global.GWAF_LOCAL_DB.Model(model.Account{}).Where("login_account = ?", loginAccount).Update("LoginPassword", newHash)
+	return utils.BcryptVerify(stored, plain)
 }
 
 // ValidateNewPassword 校验新口令：复杂度 + 历史防重用
@@ -59,7 +47,7 @@ func (receiver *WafAccountService) ValidateNewPassword(loginAccount, newPlain st
 		var histories []model.AccountPwdHistory
 		global.GWAF_LOCAL_DB.Where("login_account = ?", loginAccount).Order("CREATE_TIME desc").Limit(historyCount).Find(&histories)
 		for _, h := range histories {
-			// bcrypt 非确定性，不能按等值比较；逐条校验明文是否命中历史哈希(同时兼容存量 MD5)
+			// bcrypt 非确定性，不能按等值比较；逐条校验明文是否命中历史哈希
 			if receiver.VerifyPassword(h.PasswordHash, newPlain) {
 				return fmt.Errorf("新密码不能与最近 %d 次使用过的密码相同", historyCount)
 			}
@@ -106,37 +94,31 @@ func (receiver *WafAccountService) AddApi(req request.WafAccountAddReq) error {
 }
 
 // InitDefaultAccount 系统引导创建默认管理员（全新安装）。
-// 安全加固：不再使用固定默认口令 admin868，改为生成强随机初始口令，写入 data/ 供用户查看，并强制首登改密。
 func (receiver *WafAccountService) InitDefaultAccount() error {
 	plainPwd, err := utils.GenerateRandomPassword(16)
-	if err != nil || plainPwd == "" {
-		// 极端兜底：随机生成失败时退回旧默认口令，但仍强制改密
-		plainPwd = global.GWAF_DEFAULT_ACCOUNT_PWD
+	if err != nil {
+		return fmt.Errorf("生成初始管理员口令失败: %w", err)
 	}
 	// 强制首登改密（needChange=true），不做复杂度校验避免严格策略下引导被锁死
 	if e := receiver.createAccount(global.GWAF_DEFAULT_ACCOUNT, enums.ROLE_SUPER_ADMIN, plainPwd, 0, "系统初始化生成", true); e != nil {
 		return e
 	}
-	receiver.writeInitialPasswordFile(global.GWAF_DEFAULT_ACCOUNT, plainPwd)
-	return nil
+	return receiver.writeInitialPasswordFile(global.GWAF_DEFAULT_ACCOUNT, plainPwd)
 }
 
-// writeInitialPasswordFile 全新安装时把随机初始口令写入 data/ 供用户查看，并打印日志提示。
-func (receiver *WafAccountService) writeInitialPasswordFile(account, plainPwd string) {
+// writeInitialPasswordFile 全新安装时把随机初始口令写入专用文件，供本机管理员领取。
+func (receiver *WafAccountService) writeInitialPasswordFile(account, plainPwd string) error {
 	dir := filepath.Join(utils.GetCurrentDir(), "data")
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		zlog.Error("创建 data 目录失败", err)
-		return
+		return fmt.Errorf("创建初始口令目录失败，可通过 homewaf resetpwd 重置口令: %w", err)
 	}
 	fp := filepath.Join(dir, "initial_password.txt")
 	content := fmt.Sprintf("HomeWaf 初始管理员账号: %s\n初始随机口令: %s\n生成时间: %s\n请立即登录并修改密码，登录后本文件可删除。\n",
 		account, plainPwd, time.Now().Format(pwdTimeLayout))
-	if err := os.WriteFile(fp, []byte(content), 0600); err != nil {
-		zlog.Error("写入初始口令文件失败", err)
-		return
+	if err := wafsec.WritePrivateFile(fp, []byte(content)); err != nil {
+		return fmt.Errorf("写入初始口令文件失败，可通过 homewaf resetpwd 重置口令: %w", err)
 	}
-	zlog.Info(fmt.Sprintf("首次安装已生成随机管理员初始口令（首次登录必须立即修改）：账号=%s 初始口令=%s ，也可查看文件 %s",
-		account, plainPwd, fp))
+	return nil
 }
 
 // createAccount 内部统一建账逻辑
@@ -165,7 +147,9 @@ func (receiver *WafAccountService) createAccount(loginAccount, role, plainPwd st
 		PwdUpdateTime:      time.Now().Format(pwdTimeLayout),
 		Remarks:            remarks,
 	}
-	global.GWAF_LOCAL_DB.Create(bean)
+	if err := global.GWAF_LOCAL_DB.Create(bean).Error; err != nil {
+		return err
+	}
 	receiver.recordPwdHistory(loginAccount, hash)
 	return nil
 }
@@ -318,19 +302,12 @@ func (receiver *WafAccountService) UpdateLastLoginInfo(loginAccount, ip, area, l
 *
  */
 func (receiver *WafAccountService) IsExistDefaultAccount() bool {
-	var total int64 = 0
-
-	err := global.GWAF_LOCAL_DB.Model(&model.Account{}).Where("login_account=? and login_password =?", global.GWAF_DEFAULT_ACCOUNT, utils.Md5String(global.GWAF_DEFAULT_ACCOUNT_PWD+global.GWAF_DEFAULT_ACCOUNT_SALT)).Count(&total).Error
-	if err == nil {
-		if total > 0 {
-			return true
-		} else {
-			return false
-		}
-	} else {
-		return false
-	}
+	var total int64
+	err := global.GWAF_LOCAL_DB.Model(&model.Account{}).
+		Where("login_account = ? AND need_change_password = ?", global.GWAF_DEFAULT_ACCOUNT, 1).Count(&total).Error
+	return err == nil && total > 0
 }
+
 func (receiver *WafAccountService) GetDetailByIdApi(id string) model.Account {
 	var bean model.Account
 	global.GWAF_LOCAL_DB.Where("id=?", id).Find(&bean)

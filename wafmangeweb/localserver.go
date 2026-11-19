@@ -19,6 +19,7 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -327,13 +328,14 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 	if global.GWAF_SECURITY_EMERGENCY_PATH != "" {
 		emergencyPath := "/" + global.GWAF_SECURITY_EMERGENCY_PATH
 		// 注入应急路径占位符，供页面 JS 推导 API 基础路径
-		renderedPage := strings.ReplaceAll(emergencyPageHTML, "{{EMERGENCY_PATH}}", global.GWAF_SECURITY_EMERGENCY_PATH)
+		pathJSON, _ := json.Marshal(global.GWAF_SECURITY_EMERGENCY_PATH)
+		renderedPage := strings.ReplaceAll(emergencyPageHTML, "'{{EMERGENCY_PATH}}'", string(pathJSON))
 		r.GET(emergencyPath, func(c *gin.Context) {
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 			c.String(200, renderedPage)
 		})
-		zlog.Info(web.LogName, "emergency page registered at: "+emergencyPath)
+		zlog.Info(web.LogName, "emergency page registered")
 	}
 
 	if global.GWAF_RELEASE == "true" {
@@ -449,7 +451,7 @@ func (web *WafWebManager) StartLocalServer() error {
 	// 始终使用 securityPathHandler 包装，内部动态检查全局开关，无需重启即可生效
 	handler := &securityPathHandler{inner: r}
 	if global.GWAF_SECURITY_ENTRY_ENABLE && global.GWAF_SECURITY_ENTRY_PATH != "" {
-		zlog.Info(web.LogName, "安全路径入口已启用，访问码: "+global.GWAF_SECURITY_ENTRY_PATH)
+		zlog.Info(web.LogName, "安全路径入口已启用")
 	}
 
 	web.HttpServer = &http.Server{

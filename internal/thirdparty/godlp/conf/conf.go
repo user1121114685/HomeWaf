@@ -93,7 +93,7 @@ var (
 	defModeSet          []string = []string{"debug", "release"}
 	defAPIVersionPrefix          = "v2"
 	defMaskTypeSet      []string = []string{"CHAR", "TAG", "REPLACE", "ALGO"}
-	defMaskAlgo         []string = []string{"BASE64", "MD5", "CRC32", "ADDRESS", "NUMBER", "DEIDENTIFY"}
+	defMaskAlgo         []string = []string{"BASE64", "HMAC-SHA256", "CRC32", "ADDRESS", "NUMBER", "DEIDENTIFY"}
 	defIgnoreKind       []string = []string{"NUMERIC", "ALPHA_UPPER_CASE", "ALPHA_LOWER_CASE", "WHITESPACE", "PUNCTUATION"}
 )
 

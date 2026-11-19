@@ -10,9 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -157,17 +159,17 @@ func Static(r *gin.Engine, noRoute func(handlers ...gin.HandlerFunc)) {
 	noRoute(func(c *gin.Context) {
 		c.Header("Content-Type", "text/html")
 		c.Status(200)
-		html := global.GWAF_LOCAL_INDEX_HTML
-		// 动态注入安全路径 JS 变量和静态资源路径前缀（每次请求时检查全局开关）
+		index := global.GWAF_LOCAL_INDEX_HTML
 		if global.GWAF_SECURITY_ENTRY_ENABLE && global.GWAF_SECURITY_ENTRY_PATH != "" {
 			secPath := "/" + global.GWAF_SECURITY_ENTRY_PATH
-			html = strings.ReplaceAll(html, ` src="/assets/`, ` src="`+secPath+`/assets/`)
-			html = strings.ReplaceAll(html, ` href="/assets/`, ` href="`+secPath+`/assets/`)
-			injectScript := `<script>window.__SAMWAF_SECURITY_PATH__='` + secPath + `';</script>`
-			html = strings.ReplaceAll(html, `</head>`, injectScript+`</head>`)
+			assetPrefix := html.EscapeString((&url.URL{Path: secPath}).EscapedPath())
+			index = strings.ReplaceAll(index, ` src="/assets/`, ` src="`+assetPrefix+`/assets/`)
+			index = strings.ReplaceAll(index, ` href="/assets/`, ` href="`+assetPrefix+`/assets/`)
+			pathJSON, _ := json.Marshal(secPath)
+			script := `<script>window.__SAMWAF_SECURITY_PATH__=` + string(pathJSON) + `;</script>`
+			index = strings.Replace(index, "</head>", script+"</head>", 1)
 		}
-		html = injectAdminTitles(html, wafconfig.GetAdminTitles())
-		_, _ = c.Writer.WriteString(html)
+		_, _ = c.Writer.WriteString(injectAdminTitles(index, wafconfig.GetAdminTitles()))
 		c.Writer.Flush()
 		c.Writer.WriteHeaderNow()
 	})

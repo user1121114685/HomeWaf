@@ -628,13 +628,13 @@ func (m *wafSystenService) run() {
 		zlog.Info("regInfo", err)
 	}
 
-	entry := ""
-	if global.GWAF_SECURITY_ENTRY_ENABLE {
-		entry = global.GWAF_SECURITY_ENTRY_PATH
-	}
 	zlog.Info("HomeWaf has started successfully.")
-	for _, url := range utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, global.GWAF_SSL_ENABLE, entry) {
-		zlog.Info("Console address: " + url)
+	if global.GWAF_SECURITY_ENTRY_ENABLE {
+		zlog.Info("Use homewaf console-info to view the management entry address.")
+	} else {
+		for _, address := range utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, global.GWAF_SSL_ENABLE, "") {
+			zlog.Info("Console address: " + address)
+		}
 	}
 	// 仅全新安装(本次启动创建了默认管理员)时提示随机初始口令位置；按系统语言环境选择中/英文(默认英文，见 utils.IsChineseEnv 跨平台实现)
 	if isFreshInstall {

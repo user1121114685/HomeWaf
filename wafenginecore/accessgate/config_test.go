@@ -158,6 +158,7 @@ func TestNormalizePathPrefix(t *testing.T) {
 		{"", "/samwaf_access"},
 		{"/", "/samwaf_access"},
 		{"///", "/samwaf_access"},
+		{"//other.example/login", "/samwaf_access"},
 		{"samwaf_x", "/samwaf_x"},
 		{"/samwaf_x/", "/samwaf_x"},
 		{"  /SamWaf_X  ", "/samwaf_x"},

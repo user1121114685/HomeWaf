@@ -34,7 +34,7 @@ func BcryptVerify(hash, plain string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)) == nil
 }
 
-// IsBcryptHash 判断是否为 bcrypt 哈希串（$2a$/$2b$/$2y$ 前缀），用于区分存量 MD5 与新 bcrypt。
+// IsBcryptHash identifies bcrypt records used by protected-service HTTP authentication.
 func IsBcryptHash(s string) bool {
 	return strings.HasPrefix(s, "$2a$") || strings.HasPrefix(s, "$2b$") || strings.HasPrefix(s, "$2y$")
 }

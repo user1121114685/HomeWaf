@@ -77,6 +77,9 @@ try {
   const initialText = fs.readFileSync(path.join(runtime, 'data/initial_password.txt'), 'utf8');
   const initial = initialText.match(/初始随机口令:\s*(.+)/)?.[1];
   if (!initial) throw new Error('Initial random password was not created');
+  if (fs.readFileSync(path.join(runtime, 'runtime.log'), 'utf8').includes(initial)) {
+    throw new Error('Initial password was written to the service log');
+  }
   const info = spawnSync(binary, ['console-info', '--wait', '10s', '--show-initial-password'], {
     cwd: runtime,
     env,

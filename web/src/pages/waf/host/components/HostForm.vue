@@ -1163,9 +1163,9 @@ import {defineComponent} from 'vue';
     },
     computed: {
       healthTestConfigKey() {
-        const { code, host, remote_host, remote_ip, remote_port, is_enable_load_balance, is_trans_back_domain } = this.formData;
+        const { code, host, remote_host, remote_ip, remote_port, is_enable_load_balance, is_trans_back_domain, insecure_skip_verify } = this.formData;
         return JSON.stringify({ code, host, remote_host, remote_ip, remote_port, is_enable_load_balance,
-          is_trans_back_domain, healthy: this.healthyConfigData });
+          is_trans_back_domain, insecure_skip_verify, healthy: this.healthyConfigData });
       },
       // 证书夹下拉项。绑定ID在证书夹里找不到时（条目已被删除等）补一条同值选项，
       // 否则 t-select 直接把原始ID显示出来，看着像是没加载
@@ -1938,6 +1938,7 @@ import {defineComponent} from 'vue';
           remote_ip: origin.remote_ip || '', remote_port: parseInt(origin.remote_port, 10) || 0,
           is_enable_load_balance: parseInt(origin.is_enable_load_balance, 10),
           is_trans_back_domain: parseInt(origin.is_trans_back_domain, 10),
+          insecure_skip_verify: Number(origin.insecure_skip_verify) || 0,
           healthy_json: JSON.stringify(healthy), limit: 5
         };
         this.resetHealthTest();

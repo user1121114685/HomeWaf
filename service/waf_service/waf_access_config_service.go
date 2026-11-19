@@ -71,6 +71,9 @@ func (receiver *WafAccessConfigService) SaveApi(req request.WafAccessConfigSaveR
 		return errors.New("认证中心域名必须先在【网站维护】里配置为一个站点：" + centerHost)
 	}
 
+	if strings.HasPrefix(strings.TrimSpace(req.PathPrefix), "//") {
+		return errors.New("认证路径前缀必须是站内路径")
+	}
 	prefix := accessgate.NormalizePathPrefix(req.PathPrefix)
 	if !pathPrefixPattern.MatchString(prefix) {
 		return errors.New("路径前缀只能包含小写字母、数字、下划线、短横线，长度 3-64，且以 / 开头")

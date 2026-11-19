@@ -98,6 +98,7 @@ func TestHealthTestValidation(t *testing.T) {
 		{"codes range", func(r *request.WafHostHealthTestReq) {
 			r.HealthyJSON = strings.ReplaceAll(r.HealthyJSON, "200,", "600,")
 		}},
+		{"invalid TLS policy", func(r *request.WafHostHealthTestReq) { r.InsecureSkipVerify = 2 }},
 		{"invalid ip", func(r *request.WafHostHealthTestReq) { r.RemoteIP = "invalid" }},
 		{"invalid port", func(r *request.WafHostHealthTestReq) { r.RemotePort = 65536 }},
 		{"origin userinfo", func(r *request.WafHostHealthTestReq) { r.RemoteHost = "http://user:secret@origin.example" }},
@@ -120,6 +121,23 @@ func TestHealthTestValidation(t *testing.T) {
 	base.Limit = 0
 	if _, err := validateHealthTest(&base); err != nil || base.Limit != 5 {
 		t.Fatalf("default batch: %v %d", err, base.Limit)
+	}
+}
+
+func TestHealthTestUsesDraftTLSSetting(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }))
+	defer server.Close()
+	req := healthTestRequest(t, server)
+	req.RemoteHost = "https://localhost"
+	for _, skip := range []int{0, 1} {
+		req.InsecureSkipVerify = skip
+		code, result, msg := callHealthTest(t, req)
+		if code != 0 || len(result.Results) != 1 {
+			t.Fatalf("response %d %v %s", code, result, msg)
+		}
+		if (result.Results[0].Outcome == "passed") != (skip == 1) {
+			t.Fatalf("skip=%d result=%+v", skip, result.Results[0])
+		}
 	}
 }
 

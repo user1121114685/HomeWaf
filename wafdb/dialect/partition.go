@@ -43,9 +43,9 @@ func checkPartIdent(name string) error {
 	return nil
 }
 
-// checkPartitionPair 校验「基表 + 分区表」这一对：分区表必须真的是该基表的分区，
+// ValidatePartitionPair 校验「基表 + 分区表」这一对：分区表必须真的是该基表的分区，
 // 免得把无关的表当分区丢掉。
-func checkPartitionPair(baseTable, partTable string) error {
+func ValidatePartitionPair(baseTable, partTable string) error {
 	if err := checkPartIdent(baseTable); err != nil {
 		return err
 	}

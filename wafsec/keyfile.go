@@ -25,28 +25,48 @@ func loadOrCreateKey(path string, size int) ([]byte, error) {
 	if _, err := rand.Read(key); err != nil {
 		return nil, err
 	}
-	f, err := os.CreateTemp(filepath.Dir(path), ".homewaf-key-*")
+	tmp, err := stagePrivateFile(path, []byte(base64.StdEncoding.EncodeToString(key)))
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-	if err := restrictKeyFile(f); err != nil {
-		return nil, fmt.Errorf("protect key file: %w", err)
-	}
-	if _, err := f.WriteString(base64.StdEncoding.EncodeToString(key)); err != nil {
-		return nil, err
-	}
-	if err := f.Sync(); err != nil {
-		return nil, err
-	}
-	if err := f.Close(); err != nil {
-		return nil, err
-	}
-	if err := os.Link(f.Name(), path); err != nil && !errors.Is(err, os.ErrExist) {
+	defer os.Remove(tmp)
+	if err := os.Link(tmp, path); err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, fmt.Errorf("publish key file without overwriting: %w", err)
 	}
 	return readKeyFile(path, size)
+}
+
+// WritePrivateFile atomically replaces a local secret using the same owner-only
+// permissions as the instance keys, including a protected DACL on Windows.
+func WritePrivateFile(path string, data []byte) error {
+	tmp, err := stagePrivateFile(path, data)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp)
+	return os.Rename(tmp, path)
+}
+
+func stagePrivateFile(path string, data []byte) (string, error) {
+	f, err := os.CreateTemp(filepath.Dir(path), ".homewaf-key-*")
+	if err != nil {
+		return "", err
+	}
+	tmp := f.Name()
+	if err = restrictKeyFile(f); err == nil {
+		_, err = f.Write(data)
+	}
+	if err == nil {
+		err = f.Sync()
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(tmp)
+		return "", err
+	}
+	return tmp, nil
 }
 
 func readKeyFile(path string, size int) ([]byte, error) {

@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"HomeWaf/common/zlog"
 	"fmt"
 	"io"
 	"log"
@@ -101,7 +102,7 @@ func (l *Logger) formatMessage(level string, msg string, keysAndValues ...interf
 		}
 	}
 
-	return message
+	return zlog.SingleLine(message)
 }
 
 // Debug 调试日志

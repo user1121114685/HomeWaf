@@ -37,6 +37,11 @@ type Result struct {
 	ErrorReason string `json:"error_reason"`
 }
 
+type transportKey struct {
+	dialAddr   string
+	skipVerify bool
+}
+
 type transportEntry struct {
 	transport *http.Transport
 	users     int
@@ -45,10 +50,10 @@ type transportEntry struct {
 
 var (
 	transportMu   sync.Mutex
-	transportPool = make(map[string]*transportEntry)
+	transportPool = make(map[transportKey]*transportEntry)
 )
 
-func newTransport(dialAddr string, guard func(address string) error) *http.Transport {
+func newTransport(key transportKey, guard func(address string) error) *http.Transport {
 	dialer := &net.Dialer{}
 	if guard != nil {
 		dialer.ControlContext = func(_ context.Context, _, address string, _ syscall.RawConn) error {
@@ -56,25 +61,25 @@ func newTransport(dialAddr string, guard func(address string) error) *http.Trans
 		}
 	}
 	return &http.Transport{
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: key.skipVerify},
 		MaxIdleConnsPerHost: 2,
 		IdleConnTimeout:     90 * time.Second,
 		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			return dialer.DialContext(ctx, network, dialAddr)
+			return dialer.DialContext(ctx, network, key.dialAddr)
 		},
 	}
 }
 
-func acquireTransport(dialAddr string, pooled bool, guard func(address string) error) (*http.Transport, func()) {
+func acquireTransport(key transportKey, pooled bool, guard func(address string) error) (*http.Transport, func()) {
 	if !pooled {
-		t := newTransport(dialAddr, guard)
+		t := newTransport(key, guard)
 		return t, t.CloseIdleConnections
 	}
 	transportMu.Lock()
-	entry := transportPool[dialAddr]
+	entry := transportPool[key]
 	if entry == nil {
-		entry = &transportEntry{transport: newTransport(dialAddr, nil)}
-		transportPool[dialAddr] = entry
+		entry = &transportEntry{transport: newTransport(key, nil)}
+		transportPool[key] = entry
 	}
 	entry.users++
 	transportMu.Unlock()
@@ -92,9 +97,9 @@ func acquireTransport(dialAddr string, pooled bool, guard func(address string) e
 func CleanupTransports(validDialAddrs map[string]struct{}) {
 	transportMu.Lock()
 	defer transportMu.Unlock()
-	for addr, entry := range transportPool {
-		if _, ok := validDialAddrs[addr]; !ok {
-			delete(transportPool, addr)
+	for key, entry := range transportPool {
+		if _, ok := validDialAddrs[key.dialAddr]; !ok {
+			delete(transportPool, key)
 			entry.retired = true
 			entry.transport.CloseIdleConnections()
 		}
@@ -135,7 +140,7 @@ func probe(ctx context.Context, host model.Hosts, ip string, port int, config mo
 		result.DialAddress = parsedURL.Host
 	}
 
-	transport, release := acquireTransport(result.DialAddress, pooled, guard)
+	transport, release := acquireTransport(transportKey{dialAddr: result.DialAddress, skipVerify: host.InsecureSkipVerify == 1}, pooled, guard)
 	defer release()
 	reqCtx, cancel := context.WithTimeout(ctx, time.Duration(config.ResponseTime)*time.Second)
 	defer cancel()
