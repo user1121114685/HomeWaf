@@ -9,7 +9,7 @@ import (
 )
 
 func TestPortPluginSecretsPrunedAndFailedLoadClosesCandidate(t *testing.T) {
-	s, db := legacyMigrationFixture(t)
+	s, db := nativePortFixture(t)
 	c := wafpipeline.PortConfig{Schema: 1, Port: 54101, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: newServicePolicyFixture()}
 	c.Policy.Gate.Enabled = false
 	c.Policy.RuleSet.Plugins = &wafpipeline.PluginPolicy{Mode: wafpipeline.ModeBlock, IDs: []string{"a", "b", "c", "d"}}

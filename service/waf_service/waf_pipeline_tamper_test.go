@@ -3,84 +3,13 @@ package waf_service
 import (
 	"HomeWaf/model"
 	"HomeWaf/wafpipeline"
-	"HomeWaf/wafsec"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 )
 
-func TestTamperMigrationEncryptsBaselineAndRejectsStaleContentPreview(t *testing.T) {
-	s, db := legacyMigrationFixture(t)
-	if err := db.AutoMigrate(&model.TamperRule{}); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Model(&model.Hosts{}).Where("code = ?", "nas").Update("tamper_json", `{"is_enable":1,"action":"replace","max_size_kb":1024}`).Error; err != nil {
-		t.Fatal(err)
-	}
-	body := []byte("trusted-baseline-fixture")
-	sum := sha256.Sum256(body)
-	rule := model.TamperRule{BaseOrm: pipelineORM(), HostCode: "nas", Url: "/index.html", IsEnable: 1, BaselineStatus: 1, BaselineContent: body, BaselineHash: hex.EncodeToString(sum[:]), ContentType: "text/html; charset=utf-8"}
-	if err := db.Create(&rule).Error; err != nil {
-		t.Fatal(err)
-	}
-	p, err := s.PreviewLegacyPort(5300, "nas")
-	if err != nil || len(p.Blockers) > 0 {
-		t.Fatal(err, p.Blockers)
-	}
-	public, _ := json.Marshal(p)
-	if strings.Contains(string(public), string(body)) {
-		t.Fatal("preview leaked protected content")
-	}
-	rule.BaselineContent = []byte("renewed-baseline-fixture")
-	sum = sha256.Sum256(rule.BaselineContent)
-	rule.BaselineHash = hex.EncodeToString(sum[:])
-	if err := db.Save(&rule).Error; err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.ImportLegacyPort(LegacyPortImportRequest{Port: 5300, PolicyHost: "nas", PreviewToken: p.PreviewToken, AcceptChanges: true}, "tester"); err == nil {
-		t.Fatal("stale baseline preview accepted")
-	}
-	p, err = s.PreviewLegacyPort(5300, "nas")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.ImportLegacyPort(LegacyPortImportRequest{Port: 5300, PolicyHost: "nas", PreviewToken: p.PreviewToken, AcceptChanges: true}, "tester"); err != nil {
-		t.Fatal(err)
-	}
-	var raw string
-	if err := db.Raw("SELECT secrets_json FROM port_config WHERE port = ?", 5300).Scan(&raw).Error; err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(raw, string(rule.BaselineContent)) {
-		t.Fatal("baseline persisted without encryption")
-	}
-	plain, err := wafsec.DecryptBound(raw, "port_config/secrets_json")
-	if err != nil || string(plain) == raw || !json.Valid(plain) {
-		t.Fatal("baseline did not use authenticated encrypted storage", err)
-	}
-	var row model.PortConfig
-	if err := db.First(&row, "port = ?", 5300).Error; err != nil {
-		t.Fatal(err)
-	}
-	snapshot, err := decodePort(row)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(snapshot.Secrets.TamperBaselines[rule.Id].Content) != string(rule.BaselineContent) {
-		t.Fatal("baseline not recovered from persistence")
-	}
-	exported, _ := json.Marshal(wafpipeline.TemplateFromPort("test", "test", snapshot.Config))
-	if strings.Contains(string(exported), "renewed-baseline-fixture") {
-		t.Fatal("template leaked baseline")
-	}
-}
-
 func TestTamperCaptureQueueBoundsStaleRevisionAndShutdownDrain(t *testing.T) {
-	s, db := legacyMigrationFixture(t)
+	s, db := nativePortFixture(t)
 	changes := 0
 	s.OnChange = func(*wafpipeline.Snapshot, *wafpipeline.Snapshot) error { changes++; return nil }
 	rule := wafpipeline.TamperRule{ID: "home", Path: "/", Mode: wafpipeline.ModeBlock, Action: "replace", MaxBytes: 1024}

@@ -49,9 +49,7 @@
 import {defineComponent} from 'vue';
 
 
-import { wafIPBlockAddApi } from '@/apis/ipblock';
-import { wafIPWhiteAddApi } from '@/apis/ipwhite';
-import { allhost } from '@/apis/host';
+import { addServiceIPRule, listServices } from '@/apis/services';
 
 // IP 处置弹窗：加黑与加白合用一个。
 // 抽出来是因为「加入黑名单」此前在 4 个页面各写了一遍 $dialog.confirm，
@@ -109,41 +107,32 @@ export default defineComponent({
       return first ? String(first.host_code) : '';
     },
     loadHosts() {
-      allhost()
+      listServices()
         .then((res) => {
           if (res.code === 0) {
-            // allhost 返回的 json 字段就叫 value / label（见 model/response/all_host.go 的 tag），
+            // 服务列表返回的 json 字段就叫 value / label（见 model/response/all_host.go 的 tag），
             // 不是 code / host——取错的话下拉项全是空白、选中值会显示成 undefined
             this.hostOptions = (res.data || [])
               .filter((h) => h && h.value)
               .map((h) => ({ value: h.value, label: h.label || h.value }));
           }
         })
-        .catch(() => {});
+        .catch(error => this.$message.error(error.message || '服务列表读取失败'));
     },
     handleConfirm() {
       if (!this.form.host_code) {
         this.$message.warning(this.$t('components.ip_disposal.host_required'));
         return;
       }
+      if (this.submitting) return;
       this.submitting = true;
-      const payload: any = {
-        host_code: this.form.host_code,
-        ip: this.ip,
-        remarks: this.form.remarks,
-      };
-      const call = this.isBlock ? wafIPBlockAddApi(payload) : wafIPWhiteAddApi(payload);
-      call
-        .then((res) => {
-          if (res.code === 0) {
-            this.$message.success(res.msg || this.$t('components.ip_disposal.done'));
-            this.$emit('success', { ip: this.ip, mode: this.mode });
-            this.close();
-          } else {
-            this.$message.error(res.msg);
-          }
+      addServiceIPRule(this.form.host_code, this.isBlock ? 'deny' : 'allow', this.ip, this.form.remarks)
+        .then(message => {
+          this.$message.success(message);
+          this.$emit('success', { ip: this.ip, mode: this.mode });
+          this.close();
         })
-        .catch(() => {})
+        .catch(error => this.$message.error(error.message))
         .finally(() => {
           this.submitting = false;
         });

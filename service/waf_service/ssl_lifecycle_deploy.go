@@ -4,11 +4,9 @@ package waf_service
 import (
 	"HomeWaf/common/uuid"
 	"HomeWaf/customtype"
-	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
-	"HomeWaf/model/spec"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -210,42 +208,6 @@ func deployCertificateBinding(b CertificateBinding, c model.SslConfig, initial b
 		}
 		_, err = WafPipelineServiceApp.Save(req)
 		return err
-	case "host":
-		var h model.Hosts
-		if err := db.First(&h, "id = ? AND code = ?", b.ID, b.Code).Error; err != nil {
-			return err
-		}
-		fp := CertificateFingerprint(h.Certfile)
-		if fp != b.Fingerprint && fp != CertificateFingerprint(c.CertContent) {
-			return errors.New("站点证书已经手动替换")
-		}
-		if !initial && h.BindSslId != c.Id {
-			return errors.New("证书绑定已解除")
-		}
-		old := h
-		h.Certfile, h.Keyfile, h.BindSslId = c.CertContent, c.KeyContent, c.Id
-		result := db.Model(&model.Hosts{}).Where("id = ? AND (certfile = ? OR (certfile IS NULL AND ? = ?)) AND (bind_ssl_id = ? OR (bind_ssl_id IS NULL AND ? = ?))", h.Id, old.Certfile, old.Certfile, "", old.BindSslId, old.BindSslId, "").
-			Select("Certfile", "Keyfile", "BindSslId").Updates(&h)
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected != 1 {
-			var current model.Hosts
-			if err := db.First(&current, "id = ?", h.Id).Error; err != nil {
-				return err
-			}
-			if current.Certfile != c.CertContent || current.Keyfile != c.KeyContent || current.BindSslId != c.Id {
-				return errors.New("站点证书被并发修改")
-			}
-		}
-		if global.GWAF_CHAN_MSG != nil {
-			select {
-			case global.GWAF_CHAN_MSG <- spec.ChanCommonHost{HostCode: h.Code, Type: enums.ChanTypeSSL, Content: h, OldContent: old}:
-			case <-time.After(3 * time.Second):
-				return errors.New("站点配置已保存，运行时更新通知尚未送达，请重试")
-			}
-		}
-		return nil
 	case "manager":
 		return RefreshManagerCertificateResult(c.Id, c.CertContent, c.KeyContent)
 	default:

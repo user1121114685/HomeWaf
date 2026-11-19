@@ -1,8 +1,6 @@
 package enums
 
 const (
-	BATCHTASK_IPALLOW = "ipallow"
-	BATCHTASK_IPDENY  = "ipdeny"
 	// BATCHTASK_IPGROUP 导入到 IP 组。IP 组是租户级资源、不带 host_code，
 	// 目标组由 batch_extra_config 里的 group_code 指定，与 batch_host_code 无关。
 	BATCHTASK_IPGROUP                = "ipgroup"
@@ -10,11 +8,8 @@ const (
 	BATCHTASK_EXECUTEMETHODAPPEND    = "append"
 	BATCHTASK_EXECUTEMETHODOVERWRITE = "overwrite"
 
-	// 来源类型。local=本地文件；remote 是前端在用的值，url 是模型注释里的历史写法，
-	// 两者语义相同（HTTP 拉取），都要认，否则存量任务与现有前端会一起失效。
 	BATCHTASK_SOURCETYPE_LOCAL  = "local"
 	BATCHTASK_SOURCETYPE_REMOTE = "remote"
-	BATCHTASK_SOURCETYPE_URL    = "url"
 
 	// 触发类型
 	BATCHTASK_TRIGGERTYPE_CRON   = "cron"
@@ -29,7 +24,7 @@ const (
 // IsValidBatchType 任务类型是否合法
 func IsValidBatchType(v string) bool {
 	switch v {
-	case BATCHTASK_IPALLOW, BATCHTASK_IPDENY, BATCHTASK_IPGROUP, BATCHTASK_SENSITIVE:
+	case BATCHTASK_IPGROUP, BATCHTASK_SENSITIVE:
 		return true
 	}
 	return false
@@ -38,7 +33,7 @@ func IsValidBatchType(v string) bool {
 // IsValidBatchSourceType 来源类型是否合法
 func IsValidBatchSourceType(v string) bool {
 	switch v {
-	case BATCHTASK_SOURCETYPE_LOCAL, BATCHTASK_SOURCETYPE_REMOTE, BATCHTASK_SOURCETYPE_URL:
+	case BATCHTASK_SOURCETYPE_LOCAL, BATCHTASK_SOURCETYPE_REMOTE:
 		return true
 	}
 	return false

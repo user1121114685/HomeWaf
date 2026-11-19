@@ -217,12 +217,6 @@ func applyConfigIntValue(cfg *global.RuntimeSettings, effects *[]func(), name st
 	case "enable_https_redirect":
 		cfg.GCONFIG_ENABLE_HTTPS_REDIRECT = value
 		break
-	case "ipprobe_enable":
-		if value != 1 {
-			*effects = append(*effects, func() { wafenginecore.ClearAllIPProbeSamples() })
-		}
-		cfg.GCONFIG_IPPROBE_ENABLE = value
-		break
 	case "allow_container_selfupdate":
 		cfg.GCONFIG_ALLOW_CONTAINER_SELFUPDATE = value
 		break
@@ -320,14 +314,6 @@ func applyConfigIntValue(cfg *global.RuntimeSettings, effects *[]func(), name st
 	case "check_beta_version":
 		cfg.GCONFIG_CHECK_BETA_VERSION = value
 		break
-	case "http3":
-		cfg.GCONFIG_ENABLE_HTTP3 = value
-		if change == 1 {
-			// 光改全局变量不会让任何端口去监听 UDP：h3 实例只在 StartProxyServer 里建，
-			// 而已在监听的端口(Status==0)会被直接跳过，所以必须显式让引擎重新对齐(issue #916)。
-			// 先赋值再投递，避免消费方读到旧值。
-			*effects = append(*effects, func() { global.NotifyHTTP3ConfigChanged() })
-		}
 	case "record_log_desensitize":
 		cfg.GCONFIG_RECORD_LOG_DESENSITIZE = value
 	case "pwd_min_length":
@@ -368,12 +354,6 @@ func applyConfigIntValue(cfg *global.RuntimeSettings, effects *[]func(), name st
 		// 动态更新任务日志管理器的保留天数
 		if tasklog.GlobalTaskLogManager != nil {
 			*effects = append(*effects, func() { tasklog.GlobalTaskLogManager.UpdateRetainDays(int(value)) })
-		}
-	case "http3_bbr":
-		cfg.GCONFIG_ENABLE_HTTP3_BBR = value
-		if change == 1 {
-			// 拥塞算法变了需要重建 QUIC 监听，同样要通知引擎
-			*effects = append(*effects, func() { global.NotifyHTTP3ConfigChanged() })
 		}
 	default:
 		zlog.Warn("Unknown config item:", name)
@@ -554,14 +534,6 @@ func applyConfigStringValue(cfg *global.RuntimeSettings, effects *[]func(), name
 	}
 }
 
-// legacyMigrateOnce 保证旧默认值迁移在一个进程内只执行一次
-var legacyMigrateOnce sync.Once
-
-// defaultTokenExpireMinutes 令牌有效期的出厂默认值(分钟)，与 global/config.go 的初始值保持一致。
-// 单独取常量而不是读全局变量：全局变量在迁移执行时可能已被库里的旧值覆盖成 5，
-// 那样迁移就成了"5 改成 5"的空操作。
-const defaultTokenExpireMinutes int64 = 30
-
 // syncConfigMeta 把配置项的说明性字段（分类/类型/可选项/备注）同步成代码里的最新文案。
 // 只在确实不一致时写库，且绝不触碰 Value —— 用户设过的值不受影响。
 // 存在的意义：存量库里的说明是首次写入时的老文案，页面会一直显示过时描述。
@@ -573,31 +545,6 @@ func syncConfigMeta(configItem model.SystemConfig, itemClass string, itemType st
 	if err := wafSystemConfigService.SyncMetaByItemApi(configItem.Item, itemClass, itemType, options, remarks); err != nil {
 		zlog.Debug("同步配置项说明失败", configItem.Item, err.Error())
 	}
-}
-
-// migrateLegacyIntConfig 一次性把"仍停留在旧默认值"的存量配置迁移到新默认值。
-// 仅当库里的值恰好等于 legacyValue 时才迁移；用户自己改过的值一律不动。
-// 迁移后同步更新 configMap，避免紧接着的 updateConfigIntItem 又把全局变量按旧值写回去。
-func migrateLegacyIntConfig(itemName string, legacyValue int64, newValue int64, reason string, configMap map[string]model.SystemConfig) {
-	configItem, exists := configMap[itemName]
-	if !exists || configItem.Id == "" {
-		return // 新装：直接走默认值创建，无需迁移
-	}
-	value, err := strconv.ParseInt(configItem.Value, 10, 0)
-	if err != nil || value != legacyValue {
-		return
-	}
-	newStr := strconv.FormatInt(newValue, 10)
-	if err := wafSystemConfigService.ModifyByItemApi(request.WafSystemConfigEditByItemReq{
-		Item:  itemName,
-		Value: newStr,
-	}); err != nil {
-		zlog.Warn("迁移旧默认配置失败", itemName, err.Error())
-		return
-	}
-	configItem.Value = newStr
-	configMap[itemName] = configItem
-	zlog.Info(fmt.Sprintf("配置项 %s 仍为旧默认值 %d，已自动升级为 %d（%s）", itemName, legacyValue, newValue, reason))
 }
 
 func loadOpenPlatformSwitch(cfg *global.RuntimeSettings, item model.SystemConfig) {
@@ -779,11 +726,6 @@ func TaskLoadSetting(initLoad bool) {
 	// 存量实例的旧默认值升级：令牌有效期长期没有页面入口（issue #930），库里若还是 5 分钟
 	// 必然是老默认值而非用户选择，5 分钟同时充当空闲与绝对超时会导致"页面开着不动就掉线"。
 	// 只在进程启动后的第一次加载执行：配置页每保存一次都会调 TaskLoadSetting(true)，
-	// 若不加守卫，用户特意填回 5 分钟会被反复改成 30，等于夺走用户的选择权。
-	legacyMigrateOnce.Do(func() {
-		migrateLegacyIntConfig("token_expire_time", 5, defaultTokenExpireMinutes,
-			"旧默认值5分钟过短，易造成反复登录", configMap)
-	})
 
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_max_req_body_length", cfg.GCONFIG_RECORD_MAX_BODY_LENGTH, "记录请求最大报文", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_max_res_body_length", cfg.GCONFIG_RECORD_MAX_RES_BODY_LENGTH, "如果可以记录，满足最大响应报文大小才记录", "int", "", configMap)
@@ -815,7 +757,6 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "login_max_error_time", cfg.GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME, "登录周期里错误最大次数 请大于0 ", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "login_limit_mintutes", cfg.GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES, "登录错误记录周期 单位分钟数，默认1分钟", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "enable_owasp", cfg.GCONFIG_RECORD_ENABLE_OWASP, "启动OWASP数据检测（1启动 0关闭）", "int", "", configMap)
-	updateConfigIntItem(&cfg, &effects, initLoad, "system", "ipprobe_enable", cfg.GCONFIG_IPPROBE_ENABLE, "真实IP来源探针（1开启 0关闭，默认关闭）。开启后记录各站点最近到达的请求头(脱敏,仅内存,每站每秒最多1条)，供站点「真实IP来源」处排查CDN送来的是哪个头；排查完建议关闭", "int", "", configMap)
 	updateConfigStringItem(&cfg, &effects, initLoad, "system", "body_detect_mode", cfg.GCONFIG_BODY_DETECT_MODE, "请求体深度检测模式(formValue/JSON 逐值 XSS/SQLi/RCE)：observe 观察(命中只记录不拦,默认) block 拦截(命中即拦) off 关闭。默认 observe 避免误伤正常 JSON/表单流量，观察日志确认无误后再切 block；查询串检测不受影响始终拦截", "options", "observe|观察(只记录),block|拦截,off|关闭", configMap)
 	updateConfigStringItem(&cfg, &effects, initLoad, "system", "body_detect_field_exclude", cfg.GCONFIG_BODY_DETECT_FIELD_EXCLUDE, "请求体深检字段排除清单(逗号分隔字段名,不区分大小写)。这些字段名下的表单值/JSON值(匹配直接父键名)跳过 XSS/SQLi/RCE 深检，用于放行已知携带富文本/HTML/代码的合法字段(如 content,html,markdown)，压 block 模式误报。看观察日志里是哪些字段误报再填", "string", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "rule_chain_mode", cfg.GCONFIG_RULE_CHAIN_MODE, "自定义规则在检测链中的位置（0默认：排在CC之后；1规则优先：排在黑名单之后、Bot/SQLI/XSS等之前，此时规则的放行动作才能跳过这些检测）", "int", "", configMap)
@@ -834,8 +775,6 @@ func TaskLoadSetting(initLoad bool) {
 
 	updateConfigIntItem(&cfg, &effects, initLoad, "network", "connect_time_out", cfg.GCONFIG_RECORD_CONNECT_TIME_OUT, "连接超时（默认30s）", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "network", "keepalive_time_out", cfg.GCONFIG_RECORD_KEEPALIVE_TIME_OUT, "保持活动超时（默认30s）", "int", "", configMap)
-	updateConfigIntItem(&cfg, &effects, initLoad, "network", "http3", cfg.GCONFIG_ENABLE_HTTP3, "是否启用HTTP/3(QUIC)。生效前提：①站点必须开启SSL（HTTP/3 只跑在 TLS 上，非HTTPS端口不会监听UDP）；②必须在防火墙/安全组放行对应的【UDP】端口（如 443/udp）。开启后立即生效、无需重启；浏览器通过响应头 Alt-Svc 升级到 h3", "options", "0|关闭,1|开启", configMap)
-	updateConfigIntItem(&cfg, &effects, initLoad, "network", "http3_bbr", cfg.GCONFIG_ENABLE_HTTP3_BBR, "HTTP/3 拥塞控制算法：0=NewReno(默认) 1=BBR。仅在已启用 HTTP/3 时有意义，修改后会自动重建 QUIC 监听", "options", "0|NewReno,1|BBR", configMap)
 
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_all_src_byte_info", cfg.GCONFIG_RECORD_ALL_SRC_BYTE_INFO, "启动记录原始请求BODY报文（1启动 0关闭）", "int", "", configMap)
 	updateConfigIntItem(&cfg, &effects, initLoad, "system", "record_log_desensitize", cfg.GCONFIG_RECORD_LOG_DESENSITIZE, "请求记录是否进行脱敏处理（1开启脱敏 0关闭脱敏）", "options", "0|关闭脱敏,1|开启脱敏", configMap)
@@ -963,11 +902,7 @@ func TaskLoadSetting(initLoad bool) {
 
 	// 把落在另一个库里的 IP 标签收回当前归属。按内容判断、源库空即返回，
 	// 所以更早版本切换归属时留下的历史也能在这里被收回来，重复跑无副作用。
-	// 合并前先清存量「正常」行（分层后不再记它）：那是表里的大头，清完合并要搬的行数能少几个数量级。
 	if initLoad {
-		go func() {
-			waf_service.CleanLegacyBenignIPTags()
-			waf_service.MergeIPTagsInto(cfg.GDATA_IP_TAG_DB)
-		}()
+		go waf_service.MergeIPTagsInto(cfg.GDATA_IP_TAG_DB)
 	}
 }

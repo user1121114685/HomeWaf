@@ -1,9 +1,6 @@
 package main
 
 import (
-	"HomeWaf/globalobj"
-	"HomeWaf/model/wafenginmodel"
-	"HomeWaf/wafenginecore"
 	"HomeWaf/wafmangeweb"
 	"context"
 	"errors"
@@ -12,9 +9,8 @@ import (
 )
 
 func TestWorkerReadinessWaitsForInitializationAndManager(t *testing.T) {
-	oldEngine, oldManager := globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE, webmanager
-	t.Cleanup(func() { globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE, webmanager = oldEngine, oldManager })
-	globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE = &wafenginecore.WafEngine{ServerOnline: wafenginmodel.NewSafeServerMap()}
+	oldManager := webmanager
+	t.Cleanup(func() { webmanager = oldManager })
 	webmanager = &wafmangeweb.WafWebManager{}
 	prg := &wafSystenService{}
 	for _, initialized := range []bool{false, true} {

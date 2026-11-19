@@ -1,8 +1,7 @@
 <template>
   <section class="honeypot-settings" data-testid="honeypot-settings">
-    <h2>{{ shared ? '1. 准备蜜罐页面' : '蜜罐设置' }}</h2>
+    <h2>准备蜜罐页面</h2>
     <p class="help">选一个模板，再按提示修改文字。第一次使用也可以直接保留内置页面，下面的可选设置不用填写。</p>
-    <Fields v-if="!shared" :model="model" :definitions="group('enabled', 'capture_denied')" />
     <div class="page-workspace">
       <div class="page-editor">
         <h3>从模板开始</h3>
@@ -140,9 +139,7 @@
           placeholder="例如 /__decoy_test，填写前先确认业务没有使用它"
         />
         <small :id="id + '-trap-help'"
-          >只填 / 开头的具体路径，不填域名或查询参数。{{
-            shared ? '所有使用统一蜜罐的服务都必须没有这些业务路径。' : '当前服务必须没有这些业务路径。'
-          }}真实登录页不能填在这里。</small
+          >只填 / 开头的具体路径，不填域名或查询参数。所有使用统一蜜罐的服务都必须没有这些业务路径。真实登录页不能填在这里。</small
         >
       </label>
       <p v-if="trapError" class="field-error" role="alert">{{ trapError }}</p>
@@ -154,53 +151,44 @@
       <p class="help">用于控制蜜罐占用的资源，通常保持当前值即可，不影响页面文案。</p>
       <Fields :model="model" :definitions="resourceFields" />
     </details>
-    <section v-if="!shared" class="settings-section">
-      <h3>当前服务的旧版处罚设置</h3>
-      <ElAlert
-        v-if="!hitPolicyEnabled"
-        title="自动处罚当前关闭，以下命中阈值不会生效。"
-        type="warning"
-        :closable="false"
-        ><ElButton text @click="emit('open-punishment')">配置自动处罚</ElButton></ElAlert
-      >
-      <Fields
-        :model="model"
-        :definitions="[...group('ttl_seconds', 'auth_fail_threshold', 'weak_password_threshold'), ...dropFields]"
-      />
-    </section>
   </section>
 </template>
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue';
 import type { PropType } from 'vue';
-import { ElAlert, ElButton, ElInput, ElInputNumber, ElMessageBox, ElOption, ElSelect, ElSwitch } from 'element-plus';
+import { ElButton, ElInput, ElInputNumber, ElMessageBox, ElOption, ElSelect, ElSwitch } from 'element-plus';
 import Fields from './Fields.vue';
 import HoneypotPreview from './HoneypotPreview.vue';
-import { fields, parseLines } from './model';
+import type { Field } from './model';
+import { parseLines } from './model';
 import { honeypotTemplates, type HoneypotLure } from './honeypotPresentation';
 const props = defineProps({
   model: { type: Object as PropType<Record<string, any>>, required: true },
-  hitPolicyEnabled: { type: Boolean, default: false },
-  shared: Boolean,
 });
-const emit = defineEmits(['invalid', 'open-punishment']);
+const emit = defineEmits(['invalid']);
 const id = useId(),
   previewIndex = ref(0),
   templateTarget = ref(0),
   applyingTemplate = ref(false),
   templateNotice = ref('');
-const group = (...paths: string[]) => fields.honeypot.filter((field) => paths.includes(field.path));
-const dropFields = fields.honeypot.filter(
-  (field) => field.path.startsWith('drop_') || field.path.startsWith('distributed_drop.'),
-);
-const resourceFields = group('max_concurrent', 'max_delay_ms').map((field) => ({
-  ...field,
-  label: field.path === 'max_concurrent' ? '同时处理的蜜罐请求数' : '每次响应最多等待（毫秒）',
-  help:
-    field.path === 'max_concurrent'
-      ? '默认 32。单个服务有效上限为 32，整个实例最多 64 个；用满时返回预览中的“服务繁忙”。'
-      : '默认 250 毫秒（四分之一秒）。每次在 0 到此值之间随机等待；0 表示立即响应，最多 2000 毫秒。',
-}));
+const resourceFields: Field[] = [
+  {
+    path: 'max_concurrent',
+    label: '同时处理的蜜罐请求数',
+    kind: 'number',
+    min: 1,
+    max: 32,
+    help: '默认 32。单个服务有效上限为 32，整个实例最多 64 个；用满时返回预览中的“服务繁忙”。',
+  },
+  {
+    path: 'max_delay_ms',
+    label: '每次响应最多等待（毫秒）',
+    kind: 'number',
+    min: 0,
+    max: 2000,
+    help: '默认 250 毫秒（四分之一秒）。每次在 0 到此值之间随机等待；0 表示立即响应。',
+  },
+];
 const lures = computed<HoneypotLure[]>(() => (Array.isArray(props.model.lures) ? props.model.lures : []));
 const trapDraft = ref('');
 watch(

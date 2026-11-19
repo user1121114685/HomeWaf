@@ -45,23 +45,6 @@ func (receiver *WafFirewallIPBlockService) CheckFirewallAvailable() error {
 	return receiver.fw.CheckAvailable()
 }
 
-// RecommendBlockLayer 根据站点 IP 模式与系统防火墙可用性，推荐"加黑名单"的封禁层级(供前端下拉预选)。
-//   - 代理模式站点：系统防火墙只能看到上游代理IP，封真实客户端无效 → 推荐 WAF 应用层
-//   - 直连站点且防火墙可用：内核层 DROP 更省资源 → 推荐系统层
-//   - 直连但防火墙不可用：回退 WAF 应用层
-func (receiver *WafFirewallIPBlockService) RecommendBlockLayer(hostCode string) (layer string, reason string) {
-	var host model.Hosts
-	global.GWAF_LOCAL_DB.Where("code = ?", hostCode).First(&host)
-	if host.IPMode == "proxy" {
-		return "waf", "该站点为代理模式，系统防火墙只能看到上游代理IP，封真实客户端无效，建议在WAF应用层封禁"
-	}
-	if err := receiver.fw.CheckAvailable(); err == nil {
-		return "system", "该站点直连客户端，系统防火墙内核层DROP性能更优"
-	} else {
-		return "waf", "当前环境无系统防火墙能力(" + err.Error() + ")，回退WAF应用层封禁"
-	}
-}
-
 // AddApi 添加防火墙IP封禁（自动调用系统防火墙）
 func (receiver *WafFirewallIPBlockService) AddApi(req request.WafFirewallIPBlockAddReq) error {
 	// 1. 目标校验先于环境探测：格式错误不需要真实防火墙环境即可快速失败

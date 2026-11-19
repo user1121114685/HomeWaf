@@ -37,7 +37,6 @@ When dependencies or embedded assets change, update this inventory and the corre
 | github.com/corazawaf/libinjection-go | v0.3.5 | BSD-3-Clause |
 | github.com/coreos/go-semver | v0.3.1 | Apache-2.0 |
 | github.com/denisbrodbeck/machineid | v1.0.1 | MIT |
-| github.com/dsnet/compress | v0.0.1 | BSD-3-Clause |
 | github.com/dustin/go-humanize | v1.1.0 | MIT |
 | github.com/ebitengine/purego | v0.11.3 | Apache-2.0 |
 | github.com/eclipse/paho.mqtt.golang | v1.5.1 | EPL-2.0 / EDL-1.0 (dual-licensed; see LICENSES/eclipse-paho-mqtt-golang.txt) |
@@ -92,14 +91,11 @@ When dependencies or embedded assets change, update this inventory and the corre
 | github.com/pingcap/errors | v0.11.5-0.20260310054046-9c8b3586e4b2 | BSD-2-Clause |
 | github.com/pingcap/log | v1.1.1-0.20260227082333-572e590d08f1 | Apache-2.0 |
 | github.com/pingcap/tidb/pkg/parser | v0.0.0-20261107225221-b98174386ec5 | Apache-2.0 |
-| github.com/pires/go-proxyproto | v0.16.0 | Apache-2.0 |
 | github.com/pquerna/otp | v1.5.0 | Apache-2.0 |
 | github.com/quic-go/qpack | v0.6.0 | MIT |
-| github.com/quic-go/quic-go | v0.0.0-20261108163454-291d013e1594 | MIT |
+| github.com/quic-go/quic-go | v0.65.0 | MIT |
 | github.com/redis/go-redis/v9 | v9.23.0 | BSD-2-Clause |
 | github.com/remyoudompheng/bigfft | v0.0.0-20230129092748-24d4a6f8daec | BSD-3-Clause |
-| github.com/richardlehane/mscfb | v1.0.9 | Apache-2.0 |
-| github.com/richardlehane/msoleps | v1.0.6 | Apache-2.0 |
 | github.com/robfig/cron/v3 | v3.0.1 | MIT |
 | github.com/rs/zerolog | v1.35.1 | MIT |
 | github.com/sagikazarmark/locafero | v0.12.0 | MIT |
@@ -115,7 +111,6 @@ When dependencies or embedded assets change, update this inventory and the corre
 | github.com/tidwall/gjson | v1.20.2 | MIT |
 | github.com/tidwall/match | v1.2.0 | MIT |
 | github.com/tidwall/pretty | v1.3.0 | MIT |
-| github.com/tiendc/go-deepcopy | v1.7.2 | MIT |
 | github.com/tjfoc/gmsm | v1.4.1 | Apache-2.0 |
 | github.com/tklauser/go-sysconf | v0.4.0 | BSD-3-Clause |
 | github.com/tklauser/numcpus | v0.12.0 | Apache-2.0 |
@@ -123,9 +118,6 @@ When dependencies or embedded assets change, update this inventory and the corre
 | github.com/twmb/franz-go/pkg/kmsg | v1.15.0 | BSD-3-Clause |
 | github.com/ugorji/go/codec | v1.3.2 | MIT |
 | github.com/valllabh/ocsf-schema-golang | v1.0.3 | Apache-2.0 |
-| github.com/xuri/efp | v0.0.3-0.20260924042702-217b81952dec | BSD-3-Clause |
-| github.com/xuri/excelize/v2 | v2.11.1 | BSD-3-Clause |
-| github.com/xuri/nfp | v0.0.2-0.20250530014748-2ddeb826f9a9 | BSD-3-Clause |
 | github.com/yosida95/uritemplate/v3 | v3.0.2 | BSD-3-Clause |
 | github.com/yusufpapurcu/wmi | v1.2.4 | MIT |
 | go.mongodb.org/mongo-driver | v1.17.10 | Apache-2.0 |

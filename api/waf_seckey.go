@@ -5,6 +5,7 @@ package api
 import (
 	"HomeWaf/model/common/response"
 	"HomeWaf/wafsec"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,6 +30,7 @@ const maxClientPubLen = 64
 // SecKeyApi 用客户端一次性公钥协商本次会话密钥，
 // 返回服务端公钥（客户端据此算出同一把共享密钥）、keyid 与存活秒数。
 func (w *WafSecKeyApi) SecKeyApi(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4096)
 	var req struct {
 		Epk string `json:"epk"`
 	}

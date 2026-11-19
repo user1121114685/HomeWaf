@@ -47,45 +47,11 @@ func (w *WafBlockIpApi) AddApi(c *gin.Context) {
 		response.FailWithMessage("is_enable 取值只能是 0 或 1", c)
 		return
 	}
-	// 封禁层级：""/waf=WAF应用层(默认) | system=系统防火墙 | both=两者
-	// 说明：黑名单页已去掉层级选择、回归纯WAF层，本分支仅为外部直调 API 兼容保留，
-	// 前端不再有入口；系统层写入在 firewall_ip_block service 层另有全网封禁校验兜底
-	layer := req.TargetLayer
-	if layer == "" {
-		layer = "waf"
-	}
-
-	// 系统防火墙层封禁
-	if layer == "system" || layer == "both" {
-		// 系统层只认单IP与CIDR，通配符/区间/组引用必须挡在这里，
-		// 否则底层 iptables/netsh 拿到这类字符串会报错或行为未定义
-		if serr := checkSystemLayerSupported(ipType, ip); serr != nil {
-			response.FailWithMessage(serr.Error(), c)
-			return
-		}
-		fwReq := request.WafFirewallIPBlockAddReq{
-			HostCode:  req.HostCode,
-			IP:        req.Ip,
-			Reason:    "手动加入黑名单",
-			BlockType: "manual",
-			Remarks:   req.Remarks,
-		}
-		if ferr := wafFirewallIPBlockService.AddApi(fwReq); ferr != nil {
-			response.FailWithMessage("系统防火墙封禁失败: "+ferr.Error(), c)
-			return
-		}
-		if layer == "system" {
-			response.OkWithMessage("已在系统防火墙层面封禁", c)
-			return
-		}
-	}
-
 	if needsBlockAllConfirmation(ipType, ip, req.ConfirmBlockAll) {
 		response.Result(response.NEED_CONFIRM_BLOCK_ALL, nil, "该规则覆盖整个IP地址族，请确认封禁范围后再次提交", c)
 		return
 	}
 
-	// WAF 应用层封禁(默认 / both)
 	err = wafIpBlockService.CheckIsExistApi(req)
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		if aerr := wafIpBlockService.AddApi(req); aerr != nil {
@@ -96,19 +62,7 @@ func (w *WafBlockIpApi) AddApi(c *gin.Context) {
 		response.OkWithMessage("添加成功", c)
 		return
 	}
-	// WAF 层已存在：若同时已成功加系统层(both)，视为成功；否则提示已存在
-	if layer == "both" {
-		response.OkWithMessage("系统层已封禁；WAF层该IP已存在", c)
-		return
-	}
 	response.FailWithMessage("当前网站的IP已经存在", c)
-}
-
-// GetRecommendLayerApi 返回推荐的封禁层级(供前端"加黑名单"弹窗下拉预选)
-func (w *WafBlockIpApi) GetRecommendLayerApi(c *gin.Context) {
-	hostCode := c.Query("host_code")
-	layer, reason := wafFirewallIPBlockService.RecommendBlockLayer(hostCode)
-	response.OkWithDetailed(gin.H{"layer": layer, "reason": reason}, "获取成功", c)
 }
 
 // GetDetailApi 获取IP黑名单详情

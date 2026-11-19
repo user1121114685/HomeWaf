@@ -153,7 +153,7 @@ func TestTransportRejectsTamper(t *testing.T) {
 	}
 }
 
-// keyid 不存在（服务端重启丢会话）时必须报错，让调用方回落 legacy 或要求重新握手。
+// keyid 不存在（服务端重启丢会话）时必须报错并要求重新握手。
 func TestUnknownKeyIDFails(t *testing.T) {
 	setupCommKey(t)
 
@@ -165,7 +165,7 @@ func TestUnknownKeyIDFails(t *testing.T) {
 	}
 }
 
-// 非 swt2 报文一律不认，避免与 legacy 通道混淆。
+// 非 swt2 报文一律拒绝。
 func TestIsTransportV2(t *testing.T) {
 	if IsTransportV2("U2FtV2Fm") {
 		t.Fatal("legacy 密文被误判为 v2")

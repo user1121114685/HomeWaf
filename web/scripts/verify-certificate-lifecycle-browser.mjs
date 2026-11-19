@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const dist = path.join(root, 'web/dist'),
   output = path.join(root, 'artifacts/certificate-lifecycle');
@@ -143,24 +143,19 @@ await context.route('**/*', (route) =>
 );
 await context.routeWebSocket('**/api/**', (socket) => socket.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const req = route.request(),
     url = new URL(req.url()),
     endpoint = url.pathname.split('/api/v1/')[1] || '';
   const respond = (code, data, msg = '') =>
-    route.fulfill({ json: { code, data: AesEncrypt(JSON.stringify(data)), msg } });
+    route.fulfill({ json: { code, data: routeSession(route).encrypt(JSON.stringify(data)), msg } });
   const ok = (data, msg = '成功') => respond(0, data, msg),
     fail = (msg) => respond(-1, {}, msg);
   let data = {};
   if (req.postData()) {
-    try {
-      data = JSON.parse(AesDecrypt(req.postData()));
-    } catch {
-      try {
-        data = JSON.parse(req.postData());
-      } catch {}
-    }
+    data = JSON.parse(routeSession(route).decrypt(req.postData()));
   }
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
+  if (endpoint === 'sysinfo/checkversion')
     return fail('Isolated fixture');
   if (endpoint === 'certificates/list') {
     const list = data.domains && data.domains !== 'nas.example.test' ? [] : [record];

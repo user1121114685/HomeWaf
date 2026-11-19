@@ -28,8 +28,7 @@ type OSDetail struct {
 	KernelVersion   string `json:"kernel_version"`   //内核版本
 	KernelArch      string `json:"kernel_arch"`      //内核架构(真实机器架构，32位程序跑在64位系统时与 GOARCH 不同)
 
-	IsWindows    bool `json:"is_windows"`     //是否 Windows 系统
-	IsWin7Kernel bool `json:"is_win7_kernel"` //当前系统是否是 Win7/Win8/Server2008R2 内核(6.1/6.2)
+	IsWindows bool `json:"is_windows"` //是否 Windows 系统
 
 	Container      string `json:"container"`      //容器类型：空=非容器；docker/podman/containerd/lxc/oci
 	InKubernetes   bool   `json:"in_kubernetes"`  //是否运行在 Kubernetes 中
@@ -69,11 +68,10 @@ func GetOSDetail() OSDetail {
 
 func buildOSDetail() OSDetail {
 	detail := OSDetail{
-		GOOS:         runtime.GOOS,
-		GOARCH:       runtime.GOARCH,
-		GoVersion:    runtime.Version(),
-		IsWindows:    runtime.GOOS == "windows",
-		IsWin7Kernel: safeBool(IsSupportedWindows7Version),
+		GOOS:      runtime.GOOS,
+		GOARCH:    runtime.GOARCH,
+		GoVersion: runtime.Version(),
+		IsWindows: runtime.GOOS == "windows",
 	}
 
 	if info, err := safeHostInfo(); err == nil && info != nil {
@@ -134,17 +132,6 @@ func safeHostInfo() (info *host.InfoStat, err error) {
 		}
 	}()
 	return host.Info()
-}
-
-// safeBool 执行可能触发系统调用的判断函数，异常时返回 false
-func safeBool(fn func() bool) (result bool) {
-	defer func() {
-		if r := recover(); r != nil {
-			zlog.Warn("系统信息判断异常", r)
-			result = false
-		}
-	}()
-	return fn()
 }
 
 // buildOSName 拼一个尽量可读的操作系统名称

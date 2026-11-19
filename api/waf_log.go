@@ -44,7 +44,7 @@ func normalizeLogRequestID(value string, required bool) (string, error) {
 // @Accept       json
 // @Produce      json
 // @Param        req_uuid         query  string  true   "请求UUID"
-// @Param        current_db_name  query  string  false  "数据库名称，默认 local_log"
+// @Param        current_db_name  query  string  false  "日志分区，auto 按时间范围查询"
 // @Param        output_format    query  string  false  "输出格式：raw 或 curl"
 // @Success      200  {object}  response.Response  "获取成功"
 // @Security     ApiKeyAuth
@@ -123,18 +123,6 @@ func (w *WafLogAPi) GetListApi(c *gin.Context) {
 	} else {
 		response.FailWithMessage("解析失败", c)
 	}
-}
-func (w *WafLogAPi) ExportDBApi(c *gin.Context) {
-	logExportAPIChanged(c)
-}
-
-func (w *WafLogAPi) DownloadApi(c *gin.Context) {
-	logExportAPIChanged(c)
-}
-
-func logExportAPIChanged(c *gin.Context) {
-	response.FailWithDetailed(gin.H{"error_code": "EXPORT_API_CHANGED"},
-		"日志导出接口已更新，请升级管理端后通过导出任务创建和下载日志包", c)
 }
 
 func (w *WafLogAPi) GetAllShareDbApi(c *gin.Context) {

@@ -37,7 +37,7 @@ func testOptions(t *testing.T, format string) Options {
 	return Options{Dir: dir, Format: format, Tables: []string{"access_log", "security_event"}, TaskID: "task-1"}
 }
 func testRow(id string) map[string]interface{} {
-	return map[string]interface{}{"req_uuid": id, "url": "中文\nquoted,\"text\"", "guest_id_entification": "00001234567890123456789", "create_time": "2026-10-29 12:00:00", "time_spent": int64(9007199254740993), "ai_score": 0.25, "status_code": int64(200), "body": "excluded"}
+	return map[string]interface{}{"req_uuid": id, "url": "中文\nquoted,\"text\"", "guest_identification": "00001234567890123456789", "create_time": "2026-10-29 12:00:00", "time_spent": int64(9007199254740993), "ai_score": 0.25, "status_code": int64(200), "body": "excluded"}
 }
 func readZIP(t *testing.T, r *Result) map[string][]byte {
 	t.Helper()
@@ -361,7 +361,7 @@ func TestCSVCellTextAndManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 	row := testRow("1")
-	row["guest_id_entification"] = "007"
+	row["guest_identification"] = "007"
 	if err = b.AddBatch("access_log", []map[string]interface{}{row}); err != nil {
 		t.Fatal(err)
 	}

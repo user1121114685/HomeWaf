@@ -166,7 +166,7 @@ func TestDefenseRealRequestsKeepNormalLoginAndHideFailedBusinessResponse(t *test
 		defer resp.Body.Close()
 		t.Fatalf("failed login emitted an HTTP response: %d", resp.StatusCode)
 	}
-	shared := SharedHoneypotConfig{Configured: true, Revision: 1, Config: SharedHoneypotPolicy(DefaultPolicy().Honeypot)}
+	shared := SharedHoneypotConfig{Configured: true, Revision: 1, Config: DefaultHoneypotConfig()}
 	shared.Config.MaxDelayMillis = 0
 	PublishSharedHoneypot(&shared)
 	t.Cleanup(func() { PublishSharedHoneypot(nil) })

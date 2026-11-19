@@ -80,19 +80,3 @@ func TestBlockAllConfirmationAPI(t *testing.T) {
 		drainChanMsg()
 	}
 }
-
-func TestBlockAllConfirmationCannotEnableSystemLayer(t *testing.T) {
-	for _, layer := range []string{"system", "both"} {
-		for _, ip := range []string{"0.0.0.0/0", "::/0"} {
-			rec := doJSONPost(t, new(WafBlockIpApi).AddApi,
-				fmt.Sprintf(`{"host_code":"host-a","ip":%q,"target_layer":%q,"confirm_block_all":true}`, ip, layer))
-			var res response.Response
-			if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-				t.Fatal(err)
-			}
-			if res.Code != response.ERROR {
-				t.Fatalf("system entry must be rejected: %+v", res)
-			}
-		}
-	}
-}

@@ -7,7 +7,7 @@ import (
 )
 
 // 复现渠道测试的标题：[<12位容器ID>] HomeWaf 测试通知
-// 旧实现按字节截前 32 字节，"知" 只剩 E7，Server酱入库报 1366。
+// Server酱限定 32 个字符，中文标题需要在完整字符边界截断。
 func TestClampTitleKeepsWholeRunes(t *testing.T) {
 	cases := []string{
 		"[28c42919efe3] HomeWaf 测试通知",
@@ -31,7 +31,7 @@ func TestClampTitleKeepsWholeRunes(t *testing.T) {
 		if !strings.HasPrefix(in, got) {
 			t.Fatalf("截断结果不是原串前缀: in=%q got=%q", in, got)
 		}
-		if next := in[len(got):]; next != "" && !utf8.ValidString(next[:min(4, len(next))]) {
+		if next := in[len(got):]; next != "" && !utf8.RuneStart(next[0]) {
 			t.Fatalf("切在了字符中间: got=%q 剩余=%q", got, next)
 		}
 	}
@@ -67,19 +67,10 @@ func TestTruncateSanitizesInvalidUTF8(t *testing.T) {
 	}
 }
 
-// 反向验证：把缺陷注入回旧写法，确认上面的用例确实能抓到它
-func TestRegressionOldByteTruncationIsInvalid(t *testing.T) {
-	old := func(title string) string {
-		if len(title) > 32 {
-			return title[:32]
-		}
-		return title
-	}
-	in := "[28c42919efe3] HomeWaf 测试通知"
-	if utf8.ValidString(old(in)) {
-		t.Fatalf("用例已失去区分度：旧字节截断在本例未切碎字符，换更长的中文前缀")
-	}
-	if old(in) == clampTitle(in) {
-		t.Fatal("用例已失去区分度：新旧实现结果相同")
+func TestClampTitleAtMultibyteBoundary(t *testing.T) {
+	prefix := strings.Repeat("a", maxTitleRunes-1)
+	got := clampTitle(prefix + "测试")
+	if got != prefix+"测" {
+		t.Fatalf("truncated title %q", got)
 	}
 }

@@ -36,36 +36,8 @@
         </ul>
       </details>
       <section class="settings-panel" :inert="busy || loading">
-        <HoneypotSettings :model="draft.config" shared @invalid="invalid = $event" />
+        <HoneypotSettings :model="draft.config" @invalid="invalid = $event" />
       </section>
-      <details v-if="legacy.length" class="legacy-import">
-        <summary>复用已有蜜罐内容（可选）</summary>
-        <p>
-          以下服务仍保留自己的旧设置。可选择一份内容填入统一草稿，核对后保存；不会自动覆盖或合并其他服务的不同内容。
-        </p>
-        <label
-          >选择旧服务<ElSelect v-model="sourcePort" :disabled="busy" aria-label="旧蜜罐配置来源"
-            ><ElOption
-              v-for="item in legacy"
-              :key="item.port"
-              :value="item.port"
-              :label="`${item.name || '服务'} · :${item.port}`" /></ElSelect
-        ></label>
-        <template v-if="selectedLegacy">
-          <p>
-            提示 {{ selectedLegacy.config.lures?.length || 0 }} 项 · 陷阱路径
-            {{ selectedLegacy.config.trap_paths?.length || 0 }} 项 · 并发上限 {{ selectedLegacy.config.max_concurrent }}
-          </p>
-          <details>
-            <summary>查看所选服务的配置差异</summary>
-            <pre>{{ JSON.stringify(selectedLegacy.config, null, 2) }}</pre>
-          </details>
-          <ElButton :disabled="busy" @click="importLegacy">将所选内容填入草稿</ElButton>
-        </template>
-        <small
-          >只导入内容、陷阱路径、运行限制和归档。旧自动处罚阈值不会导入；服务保存所选处置方式后，才会使用统一蜜罐。</small
-        >
-      </details>
       <div class="save-row">
         <div>
           <strong role="status">{{
@@ -180,12 +152,10 @@ const originPort = Number(route.query.port) || 0;
 const targetPort = ref<number | undefined>(originPort || undefined);
 const draft = ref<any>(null),
   baseline = ref(''),
-  legacy = ref<any[]>([]),
   services = ref<any[]>([]),
   sources = ref<any[]>([]),
   logs = ref<any[]>([]);
-const sourcePort = ref<number>(),
-  logPort = ref(originPort),
+const logPort = ref(originPort),
   loading = ref(false),
   busy = ref(false),
   invalid = ref(false),
@@ -194,9 +164,8 @@ const sourcePort = ref<number>(),
   logsError = ref(''),
   logsLoading = ref(false);
 const dirty = computed(() => !!draft.value && JSON.stringify(draft.value) !== baseline.value);
-const selectedLegacy = computed(() => legacy.value.find((item) => item.port === sourcePort.value));
 const allServices = computed(() => [
-  ...new Map([...sources.value, ...services.value, ...legacy.value].map((item) => [item.port, item])).values(),
+  ...new Map([...sources.value, ...services.value].map((item) => [item.port, item])).values(),
 ]);
 let live = true,
   loadGeneration = 0,
@@ -219,7 +188,6 @@ async function reload() {
     if (!live || generation !== loadGeneration) return;
     draft.value = clone(value.shared);
     baseline.value = JSON.stringify(draft.value);
-    legacy.value = value.legacy;
     sources.value = value.sources || [];
     services.value = value.services;
     error.value = '';
@@ -251,15 +219,6 @@ async function save() {
   } finally {
     busy.value = false;
   }
-}
-async function importLegacy() {
-  if (!selectedLegacy.value || busy.value) return;
-  if (!(await mayDiscard())) return;
-  const source = selectedLegacy.value.config;
-  for (const key of ['lures', 'trap_paths', 'max_concurrent', 'max_delay_ms', 'archive_body', 'archive_max_bytes'])
-    draft.value.config[key] = clone(
-      source[key] ?? (['lures', 'trap_paths'].includes(key) ? [] : draft.value.config[key]),
-    );
 }
 async function loadLogs() {
   logs.value = [];
@@ -326,7 +285,6 @@ onBeforeUnmount(() => {
   font-size: 18px;
   margin: 0;
 }
-.legacy-import,
 .settings-panel,
 .next-step,
 .logs-panel {
@@ -335,10 +293,6 @@ onBeforeUnmount(() => {
   border-radius: var(--hw-r-lg);
   background: var(--hw-panel);
   min-width: 0;
-}
-.legacy-import {
-  display: grid;
-  gap: 16px;
 }
 .shared-honeypot label {
   display: grid;
@@ -438,7 +392,6 @@ onBeforeUnmount(() => {
   min-height: 44px;
 }
 @media (max-width: 700px) {
-  .legacy-import,
   .settings-panel,
   .next-step,
   .logs-panel {

@@ -27,8 +27,6 @@ func BuiltinTemplates() []Template {
 		case "family-whitelist":
 			p.IPGroup.UnlistedAction = Deny
 			p.Gate.Enabled = true
-			p.Honeypot.Enabled = true
-			p.HitPolicy.Lockdown.Enabled = true
 		case "family-nas":
 			version = 4
 			p.Gate.Enabled = true
@@ -67,7 +65,6 @@ func BuiltinTemplates() []Template {
 			}
 		case "observe":
 			p.HitPolicy.Enabled = false
-			p.Honeypot.Enabled = false
 			p.RuleSet.QPS.Mode = ModeObserve
 			p.RuleSet.CC.Mode = ModeObserve
 			for i := range p.RuleSet.Rules {
@@ -111,7 +108,6 @@ func ValidateTemplate(t Template) error {
 	if hasSecretKey(decoded) {
 		return fmt.Errorf("templates cannot contain credentials")
 	}
-	t.Policy.RuleSet.CompleteSynologyRules()
 	return ValidatePolicy(t.Policy)
 }
 func hasSecretKey(v any) bool {
@@ -146,7 +142,7 @@ func ImportTemplate(data []byte) (Template, error) {
 	return t, ValidateTemplate(t)
 }
 
-var PolicySections = []string{"access", "ip_group", "ruleset", "hit_policy", "honeypot", "defense", "gate", "network"}
+var PolicySections = []string{"access", "ip_group", "ruleset", "hit_policy", "defense", "gate", "network"}
 
 func ApplyTemplate(c PortConfig, t Template, sections []string) (PortConfig, error) {
 	if err := ValidateTemplate(t); err != nil {
@@ -162,9 +158,7 @@ func ApplyTemplate(c PortConfig, t Template, sections []string) (PortConfig, err
 	for _, s := range sections {
 		switch s {
 		case "defense":
-			if p.Defense != nil {
-				out.Policy.Defense = p.Defense
-			}
+			out.Policy.Defense = p.Defense
 		case "access":
 			out.Policy.Access = p.Access
 		case "ip_group":
@@ -184,14 +178,6 @@ func ApplyTemplate(c PortConfig, t Template, sections []string) (PortConfig, err
 			}
 		case "hit_policy":
 			out.Policy.HitPolicy = p.HitPolicy
-			if out.Policy.Defense != nil {
-				out.Policy.HitPolicy.Lockdown.Enabled = false
-				out.Policy.HitPolicy.BanScope = "port"
-			}
-		case "honeypot":
-			if out.Policy.Defense == nil {
-				out.Policy.Honeypot = p.Honeypot
-			}
 		case "gate":
 			ips := out.Policy.Gate.ExemptIPs
 			cookiePrefixes, headers := out.Policy.Gate.CredentialCookiePrefixes, out.Policy.Gate.CredentialHeaders
@@ -218,10 +204,6 @@ type SectionDiff struct {
 }
 
 func TemplateDiff(c PortConfig, t Template) []SectionDiff {
-	if c.Policy.Defense != nil {
-		t.Policy.HitPolicy.Lockdown.Enabled = false
-		t.Policy.HitPolicy.BanScope = "port"
-	}
 	clean := TemplateFromPort("diff", "diff", c)
 	a, _ := json.Marshal(clean.Policy)
 	b, _ := json.Marshal(t.Policy)
@@ -230,9 +212,6 @@ func TemplateDiff(c PortConfig, t Template) []SectionDiff {
 	_ = json.Unmarshal(b, &right)
 	var out []SectionDiff
 	for _, key := range PolicySections {
-		if c.Policy.Defense != nil && (key == "honeypot" || key == "defense" && t.Policy.Defense == nil) {
-			continue
-		}
 		if !reflect.DeepEqual(left[key], right[key]) {
 			out = append(out, SectionDiff{key, left[key], right[key]})
 		}

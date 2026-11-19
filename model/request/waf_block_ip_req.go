@@ -11,7 +11,6 @@ type WafBlockIpAddReq struct {
 	HostCode        string `json:"host_code" binding:"required"` //网站唯一码（主要键）
 	Ip              string `json:"ip"`                           //Block ip：单IP / CIDR / 通配符(10.10.*.*) / 区间(起-止)
 	Remarks         string `json:"remarks"`                      //备注
-	TargetLayer     string `json:"target_layer"`                 //封禁层级: ""/waf(WAF应用层) | system(系统防火墙) | both(两者)
 	IpType          string `json:"ip_type"`                      //条目类型: ""/ip(单条) | group(引用IP组)
 	GroupCode       string `json:"group_code"`                   //IpType=group 时的IP组短码
 	ConfirmBlockAll bool   `json:"confirm_block_all"`            //确认WAF全网封禁

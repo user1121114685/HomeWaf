@@ -51,8 +51,8 @@ import {
 } from '@/apis/analysis';
 import { NowDate } from '@/utils/date';
 import {
-  allLogServices
-} from '@/apis/host';
+  listServices
+} from '@/apis/services';
 import * as echarts from "@/ui/charts";
 
 export default defineComponent({
@@ -118,7 +118,7 @@ export default defineComponent({
   methods: {
     loadHostList() {
       return new Promise((resolve, reject) => {
-        allLogServices()
+        listServices()
           .then((res) => {
             let resdata = res;
             console.log("host", resdata);

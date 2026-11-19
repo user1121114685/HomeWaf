@@ -3,8 +3,6 @@
 <template>
   <div>
     <hw-card class="list-card-container resource-panel">
-      <hw-tabs v-model="activeTab">
-        <hw-tab-panel value="port" :label="$t('page.one_key_mod.tab_port_modify')">
       <hw-row justify="space-between">
         <div class="left-operation-container">
           <hw-form :label-width="300" colon layout="inline"  :style="{ marginBottom: '8px' }">
@@ -44,11 +42,6 @@
       <div>
       <router-view></router-view>
       </div>
-        </hw-tab-panel>
-        <hw-tab-panel value="import" :label="$t('page.one_key_mod.tab_import_nginx')">
-          <import-nginx />
-        </hw-tab-panel>
-      </hw-tabs>
     </hw-card>
 
     <hw-dialog :header="$t('common.details')" v-model:visible="editFormVisible" :width="680" :footer="false">
@@ -100,7 +93,6 @@ import {defineComponent} from 'vue';
 import {
     wafOneKeyModDelApi,wafOneKeyModDetailApi,wafOneKeyModListApi,wafDoOneKeyModApi,wafRestoreOneKeyModApi
   } from '@/apis/onekeymod';
-  import ImportNginx from './components/ImportNginx.vue';
 
   const INITIAL_DATA = {
 
@@ -110,12 +102,9 @@ import {
     components: {
       SearchIcon,
       Trend,
-      ImportNginx,
     },
     data() {
       return {
-        activeTab: 'port',
-        defaultFilePath:"/www/server/panel/vhost/nginx",
         addFormVisible: false,
         editFormVisible: false,
         guardVisible: false,

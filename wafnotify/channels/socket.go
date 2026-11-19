@@ -134,6 +134,10 @@ func waitToken(ctx context.Context, token mqtt.Token) error {
 
 func (n *Notifier) sendMQTT(ctx context.Context, payload []byte) error {
 	c := n.Config
+	qos, err := strconv.ParseUint(c.Default("qos", "0"), 10, 8)
+	if err != nil || qos > 2 {
+		return fmt.Errorf("MQTT QoS 必须是 0、1 或 2")
+	}
 	u := url.URL{Scheme: c.String("uriType"), Host: net.JoinHostPort(c.String("address"), c.String("port"))}
 	if u.Scheme == "ws" || u.Scheme == "wss" {
 		u.Path = c.String("path")
@@ -174,7 +178,7 @@ func (n *Notifier) sendMQTT(ctx context.Context, payload []byte) error {
 	defer client.Disconnect(100)
 	ack := make(chan bool, 1)
 	if c.String("response") != "" {
-		err := waitToken(ctx, client.Subscribe(c.String("inMessageTopic"), byte(c.Int("qos")), func(_ mqtt.Client, message mqtt.Message) {
+		err := waitToken(ctx, client.Subscribe(c.String("inMessageTopic"), byte(qos), func(_ mqtt.Client, message mqtt.Message) {
 			data := message.Payload()
 			if len(data) > maxResponseBytes {
 				return
@@ -198,7 +202,7 @@ func (n *Notifier) sendMQTT(ctx context.Context, payload []byte) error {
 			return err
 		}
 	}
-	if err := waitToken(ctx, client.Publish(c.String("outMessageTopic"), byte(c.Int("qos")), c.Bool("retained"), payload)); err != nil {
+	if err := waitToken(ctx, client.Publish(c.String("outMessageTopic"), byte(qos), c.Bool("retained"), payload)); err != nil {
 		return err
 	}
 	if c.String("response") != "" {

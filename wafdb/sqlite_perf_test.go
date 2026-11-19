@@ -3,11 +3,10 @@
 package wafdb
 
 import (
-	"HomeWaf/innerbean"
+	"HomeWaf/model"
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +22,7 @@ import (
 // SQLite 使用纯 Go 驱动，支持 `CGO_ENABLED=0`。
 // 用临时目录隔离，不污染真实 data 目录。
 
-// openPerfTestDB 打开一个临时日志库并应用性能 pragma + 迁移 web_logs 表。
+// openPerfTestDB 打开一个临时日志库并应用性能 pragma + 迁移 access_log 表。
 func openPerfTestDB(t *testing.T, path string, relaxedSync bool) *gorm.DB {
 	t.Helper()
 	dns := sqlite.FileDSN(path)
@@ -34,8 +33,8 @@ func openPerfTestDB(t *testing.T, path string, relaxedSync bool) *gorm.DB {
 		t.Fatalf("打开测试库失败: %v", err)
 	}
 	applyPerfPragmas(db, relaxedSync)
-	if err := db.AutoMigrate(&innerbean.WebLog{}); err != nil {
-		t.Fatalf("迁移 web_logs 失败: %v", err)
+	if err := db.AutoMigrate(&model.AccessLog{}); err != nil {
+		t.Fatalf("迁移 access_log 失败: %v", err)
 	}
 	// 关闭连接，否则 Windows 下 t.TempDir 清理会因文件被占用而失败
 	t.Cleanup(func() {
@@ -46,30 +45,26 @@ func openPerfTestDB(t *testing.T, path string, relaxedSync bool) *gorm.DB {
 	return db
 }
 
-// genWebLogs 构造 n 条贴近真实的访问日志（含 BODY/POST_FORM 大字段）。
-func genWebLogs(n int) []*innerbean.WebLog {
-	body := strings.Repeat("a=1&b=2&payload=", 64)         // ~1KB
-	postForm := strings.Repeat("user=test&token=abc&", 32) // ~640B
+// genAccessLogs 构造 n 条贴近真实的访问日志。
+func genAccessLogs(n int) []*model.AccessLog {
 	now := time.Now()
-	logs := make([]*innerbean.WebLog, 0, n)
+	logs := make([]*model.AccessLog, 0, n)
 	for i := 0; i < n; i++ {
 		ts := now.Add(time.Duration(i) * time.Millisecond)
-		logs = append(logs, &innerbean.WebLog{
-			HOST:          "site.example.com",
+		logs = append(logs, &model.AccessLog{LogNarrow: model.LogNarrow{
+			ReqUUID:       fmt.Sprintf("request-%d", i),
+			Host:          "site.example.com",
 			URL:           fmt.Sprintf("/api/path/%d?x=%d", i, i),
-			METHOD:        "POST",
+			Method:        "POST",
 			SRC_IP:        fmt.Sprintf("10.0.%d.%d", (i/256)%256, i%256),
-			BODY:          body,
-			POST_FORM:     postForm,
-			HEADER:        "Content-Type: application/x-www-form-urlencoded",
 			STATUS_CODE:   200,
-			USER_CODE:     "test_user",
+			UserCode:      "test_user",
 			TenantId:      "test_user",
-			HOST_CODE:     "host_01",
+			HostCode:      "host_01",
 			CREATE_TIME:   ts.Format("2006-01-02 15:04:05"),
 			UNIX_ADD_TIME: ts.UnixNano() / 1e6,
 			Day:           ts.Year()*10000 + int(ts.Month())*100 + ts.Day(),
-		})
+		}})
 	}
 	return logs
 }
@@ -84,7 +79,7 @@ func pctile(d []time.Duration, p float64) time.Duration {
 	return cp[idx]
 }
 
-func batchInsert(t *testing.T, db *gorm.DB, logs []*innerbean.WebLog, batchSize int) (time.Duration, []time.Duration) {
+func batchInsert(t *testing.T, db *gorm.DB, logs []*model.AccessLog, batchSize int) (time.Duration, []time.Duration) {
 	t.Helper()
 	var perBatch []time.Duration
 	start := time.Now()
@@ -114,8 +109,8 @@ func TestSqliteHighFreqWrite(t *testing.T) {
 	fullDB := openPerfTestDB(t, dir+"/full.db", false)
 	normalDB := openPerfTestDB(t, dir+"/normal.db", true)
 
-	fullElapsed, fullBatches := batchInsert(t, fullDB, genWebLogs(n), batch)
-	normalElapsed, normalBatches := batchInsert(t, normalDB, genWebLogs(n), batch)
+	fullElapsed, fullBatches := batchInsert(t, fullDB, genAccessLogs(n), batch)
+	normalElapsed, normalBatches := batchInsert(t, normalDB, genAccessLogs(n), batch)
 
 	fullQPS := float64(n) / fullElapsed.Seconds()
 	normalQPS := float64(n) / normalElapsed.Seconds()
@@ -125,7 +120,7 @@ func TestSqliteHighFreqWrite(t *testing.T) {
 		fullElapsed.Seconds()/normalElapsed.Seconds())
 
 	var cnt int64
-	normalDB.Model(&innerbean.WebLog{}).Count(&cnt)
+	normalDB.Model(&model.AccessLog{}).Count(&cnt)
 	if cnt != int64(n) {
 		t.Fatalf("NORMAL 库写入条数不符: got=%d want=%d", cnt, n)
 	}
@@ -140,7 +135,7 @@ func TestSqliteQueryLatencyBySize(t *testing.T) {
 	for _, size := range []int{2000, 20000} {
 		db := openPerfTestDB(t, fmt.Sprintf("%s/q_%d.db", dir, size), true)
 		if _, _, err := func() (time.Duration, []time.Duration, error) {
-			el, pb := batchInsert(t, db, genWebLogs(size), 100)
+			el, pb := batchInsert(t, db, genAccessLogs(size), 100)
 			return el, pb, nil
 		}(); err != nil {
 			t.Fatal(err)
@@ -150,14 +145,14 @@ func TestSqliteQueryLatencyBySize(t *testing.T) {
 		var lat []time.Duration
 		for page := 1; page <= 5; page++ {
 			st := time.Now()
-			var rows []innerbean.WebLog
-			db.Table("web_logs").
+			var rows []model.AccessLog
+			db.Table("access_log").
 				Where("unix_add_time >= ? and unix_add_time <= ?", int64(0), nowMs+86400000).
 				Order("unix_add_time desc").
 				Limit(20).Offset(20 * (page - 1)).
 				Find(&rows)
 			var total int64
-			db.Table("web_logs").
+			db.Table("access_log").
 				Where("unix_add_time >= ? and unix_add_time <= ?", int64(0), nowMs+86400000).
 				Count(&total)
 			lat = append(lat, time.Since(st))
@@ -174,7 +169,7 @@ func TestSqliteIntegrityAcrossShards(t *testing.T) {
 	for i, c := range counts {
 		path := fmt.Sprintf("%s/local_log_shard%d.db", dir, i)
 		db := openPerfTestDB(t, path, true)
-		if err := db.CreateInBatches(genWebLogs(c), 100).Error; err != nil {
+		if err := db.CreateInBatches(genAccessLogs(c), 100).Error; err != nil {
 			t.Fatalf("写入分片失败: %v", err)
 		}
 		// checkpoint 让数据落主库，贴近切库后归档文件状态
@@ -186,7 +181,7 @@ func TestSqliteIntegrityAcrossShards(t *testing.T) {
 			t.Fatalf("分片 %s integrity_check 未通过: %q", path, res)
 		}
 		var n int64
-		db.Model(&innerbean.WebLog{}).Count(&n)
+		db.Model(&model.AccessLog{}).Count(&n)
 		if n != int64(c) {
 			t.Fatalf("分片 %d 条数不符: got=%d want=%d", i, n, c)
 		}
@@ -217,7 +212,7 @@ func TestSqliteWalBounded(t *testing.T) {
 	// 关闭自动 checkpoint 以便观察 WAL 累积
 	db.Exec("PRAGMA wal_autocheckpoint=0;")
 
-	if err := db.CreateInBatches(genWebLogs(20000), 100).Error; err != nil {
+	if err := db.CreateInBatches(genAccessLogs(20000), 100).Error; err != nil {
 		t.Fatalf("写入失败: %v", err)
 	}
 	walBefore := fileSize(path + "-wal")

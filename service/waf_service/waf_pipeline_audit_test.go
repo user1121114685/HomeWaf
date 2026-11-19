@@ -9,7 +9,7 @@ import (
 )
 
 func TestPortAuditRecordsChangedSectionsWithoutSecretValues(t *testing.T) {
-	s, db := legacyMigrationFixture(t)
+	s, db := nativePortFixture(t)
 	if err := db.AutoMigrate(&model.SecurityAuditLog{}, &model.ConfigTemplate{}); err != nil {
 		t.Fatal(err)
 	}

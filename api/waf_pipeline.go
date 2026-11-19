@@ -4,7 +4,6 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model/common/response"
 	"HomeWaf/service/waf_service"
-	"HomeWaf/wafenginecore"
 	"HomeWaf/wafpipeline"
 	"encoding/json"
 	"io"
@@ -87,17 +86,11 @@ func (w *WafPipelineApi) PipelineOverview(c *gin.Context) {
 		return
 	}
 	states := waf_service.WafPipelineStateServiceApp.Punisher.Records("")
-	local := map[string]map[string]int{}
-	globalBans := 0
-	for _, r := range states {
-		if r.Scope == "global" && r.Kind == "ban" {
-			globalBans++
-			continue
+	bans := make(map[string]int)
+	for _, row := range states {
+		if row.Kind == "ban" {
+			bans[row.PortID]++
 		}
-		if local[r.PortID] == nil {
-			local[r.PortID] = map[string]int{}
-		}
-		local[r.PortID][r.Kind]++
 	}
 	rows := make([]gin.H, 0, len(configs))
 	defenseReady := waf_service.WafPipelineDefenseServiceApp.Ready()
@@ -107,16 +100,9 @@ func (w *WafPipelineApi) PipelineOverview(c *gin.Context) {
 		if s, ok := wafpipeline.Ports.Get(config.Port); ok && s.Compiled != nil && s.Compiled.Metrics != nil {
 			stats = s.Compiled.Metrics.Stats()
 		}
-		counts := local[port]
-		if config.Policy.Defense != nil {
-			counts = map[string]int{"ban": counts["ban"]}
-		}
 		locked := config.DefenseState != nil && config.DefenseState.Mode == wafpipeline.DefenseClose
-		if config.Policy.Defense == nil {
-			locked = counts["lockdown"] > 0 || counts["honeypot_lockdown"] > 0
-		}
 		defense := waf_service.WafPipelineDefenseServiceApp.Status(config, defenseReady)
-		rows = append(rows, gin.H{"config": config, "stats": stats, "defense": defense, "ban_count": globalBans + counts["ban"], "honeypot_count": counts["honeypot"], "drop_count": counts["drop"], "locked": locked, "listener": wafpipeline.Listeners.Status(config.Port)})
+		rows = append(rows, gin.H{"config": config, "stats": stats, "defense": defense, "ban_count": bans[port], "locked": locked, "listener": wafpipeline.Listeners.Status(config.Port)})
 	}
 	data := gin.H{"ports": rows, "issues": waf_service.WafPipelineServiceApp.Issues(), "punishment": waf_service.WafPipelineStateServiceApp.Punisher.Stats()}
 	if global.GQEQUE_LOG_DB != nil {
@@ -208,7 +194,6 @@ func (w *WafPipelineApi) PipelineStats(c *gin.Context) {
 	}
 	data := gin.H{"runtime": wafpipeline.Live.Stats(), "protocol": wafpipeline.Listeners.ProtocolStats(p)}
 	data["tamper_capture"] = waf_service.WafPipelineTamperServiceApp.Stats()
-	data["legacy_tamper_jobs"] = wafenginecore.LegacyTamperTaskStats()
 	if wafpipeline.Live.PluginStats != nil {
 		data["plugin_pool"] = wafpipeline.Live.PluginStats()
 	}
@@ -245,8 +230,8 @@ func pipelineBind(c *gin.Context, out any) bool {
 	return true
 }
 
-// PipelineState lists active bans, honeypots and lockdowns for a port.
-// @Summary PipelineState lists active bans, honeypots and lockdowns for a port.
+// PipelineState lists active source bans and DSM login locks for a port.
+// @Summary PipelineState lists active source bans and DSM login locks for a port.
 // @Tags Pipeline
 // @Security ApiKeyAuth
 // @Accept json
@@ -262,21 +247,11 @@ func (w *WafPipelineApi) PipelineState(c *gin.Context) {
 	if !ok {
 		return
 	}
-	config, err := waf_service.WafPipelineServiceApp.Get(p)
-	if err != nil {
+	if _, err := waf_service.WafPipelineServiceApp.Get(p); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
 	rows := waf_service.WafPipelineStateServiceApp.Punisher.Records(wafpipeline.PortID(p))
-	if config.Policy.Defense != nil {
-		active := make([]wafpipeline.PunishmentRecord, 0, len(rows))
-		for _, row := range rows {
-			if row.Kind == "ban" || row.Kind == "history" {
-				active = append(active, row)
-			}
-		}
-		rows = active
-	}
 	response.OkWithDetailed(rows, "", c)
 }
 

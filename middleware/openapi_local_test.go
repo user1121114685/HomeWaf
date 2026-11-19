@@ -97,11 +97,15 @@ func openApiLocalTestDB(t *testing.T) *gorm.DB {
 		t.Fatal(err)
 	}
 	gin.SetMode(gin.TestMode)
+	var previous dialect.DBDialect
+	func() { defer func() { _ = recover() }(); previous = dialect.Get() }()
+	dialect.Register(&dialect.SQLiteDialect{})
+	t.Cleanup(func() { dialect.Register(previous) })
 	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "openapi.db")), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&model.OPlatformKey{}); err != nil {
+	if err := wafdb.InitializeCoreSchema(db); err != nil {
 		t.Fatal(err)
 	}
 	oldDB := global.GWAF_LOCAL_DB
@@ -116,12 +120,12 @@ func openApiLocalTestDB(t *testing.T) *gorm.DB {
 
 func TestValidateOpenApiKeyLocalOnly(t *testing.T) {
 	db := openApiLocalTestDB(t)
-	oldSwitch, oldHeader, oldLegacy := global.CurrentSettings().OpenPlatformEnabledUntil, global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER, global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY
+	oldSwitch, oldHeader := global.CurrentSettings().OpenPlatformEnabledUntil, global.CurrentSettings().GCONFIG_MANAGE_PROXY_HEADER
 	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_MANAGE_PROXY_HEADER = " X-Client-IP, X-Origin-IP " })
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = false })
+
 	t.Cleanup(func() {
 		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
-			cfg.OpenPlatformEnabledUntil, cfg.GCONFIG_MANAGE_PROXY_HEADER, cfg.GCONFIG_COMM_LEGACY_KEY = oldSwitch, oldHeader, oldLegacy
+			cfg.OpenPlatformEnabledUntil, cfg.GCONFIG_MANAGE_PROXY_HEADER = oldSwitch, oldHeader
 		})
 	})
 	if err := wafsec.InitCommKey(t.TempDir(), ""); err != nil {
@@ -346,17 +350,7 @@ func TestOpenApiLogBodyPolicies(t *testing.T) {
 }
 
 func TestOpenApiLocalOnlySchemaPreservesKeys(t *testing.T) {
-	var oldDialect dialect.DBDialect
-	func() {
-		defer func() { _ = recover() }()
-		oldDialect = dialect.Get()
-	}()
-	dialect.Register(&dialect.SQLiteDialect{})
-	t.Cleanup(func() { dialect.Register(oldDialect) })
 	db := openApiLocalTestDB(t)
-	if err := wafdb.InitializeCoreSchema(db); err != nil {
-		t.Fatal(err)
-	}
 	if !db.Migrator().HasColumn(&model.OPlatformKey{}, "LocalOnly") || db.Migrator().HasTable("migrations") {
 		t.Fatal("fresh schema must include local_only without historical migrations")
 	}

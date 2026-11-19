@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const origin = process.env.OVERVIEW_TEST_ORIGIN || 'http://127.0.0.1:3001';
 const key = fs
@@ -19,12 +19,11 @@ await context.addInitScript(() => {
 });
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const request = route.request(),
     url = new URL(request.url()),
     path = url.pathname.split('/api/v1/')[1] || '';
   if (
-    path.includes('handshake') ||
-    path === 'public/seckey' ||
     path === 'sysinfo/checkversion' ||
     path === 'sysinfo/announcement'
   )
@@ -40,11 +39,11 @@ await context.route('**/api/**', async (route) => {
   const response = await fetch('http://127.0.0.1:26666' + url.pathname + url.search, {
     method: readPost ? 'POST' : 'GET',
     headers: { 'X-API-Key': key, 'Content-Type': 'application/json' },
-    body: readPost ? AesDecrypt(request.postData()) : undefined,
+    body: readPost ? routeSession(route).decrypt(request.postData()) : undefined,
     signal: AbortSignal.timeout(20000),
   });
   const envelope = await response.json();
-  if (envelope.code === 0) envelope.data = AesEncrypt(JSON.stringify(envelope.data));
+  if (envelope.code === 0) envelope.data = routeSession(route).encrypt(JSON.stringify(envelope.data));
   await route.fulfill({ json: envelope });
 });
 const page = await context.newPage();

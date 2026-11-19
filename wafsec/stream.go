@@ -36,7 +36,7 @@ func UnwrapStreamKey(wrapped string) ([]byte, error) {
 	if !IsDataKeyCiphertext(wrapped) {
 		return nil, ErrStreamAuthentication
 	}
-	text, err := DataDecrypt(wrapped, nil)
+	text, err := DataDecrypt(wrapped)
 	if err != nil {
 		return nil, ErrStreamAuthentication
 	}

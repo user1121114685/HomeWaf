@@ -185,8 +185,8 @@ import {
   prefix
 } from '@/config/global';
 import {
-  allhost
-} from '@/apis/host';
+  listServices
+} from '@/apis/services';
 
 import {
   wafTaskListApi,wafTaskDelApi,wafTaskEditApi,wafTaskAddApi,wafTaskDetailApi,wafTaskManualExecApi,
@@ -482,7 +482,7 @@ export default defineComponent({
   methods: {
     loadHostList() {
       return new Promise((resolve, reject) => {
-        allhost()
+        listServices()
           .then((res) => {
             let resdata = res;
             console.log(resdata);

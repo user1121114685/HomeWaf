@@ -161,8 +161,6 @@ func TestPipelineStateSQLiteRestoreAndManagement(t *testing.T) {
 		WafPipelineServiceApp = oldService
 	})
 	policy := wafpipeline.DefaultPolicy()
-	policy.Honeypot.Enabled = true
-	policy.HitPolicy.Lockdown.Enabled = true
 	config := wafpipeline.PortConfig{Schema: 1, Port: 45126, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: policy}
 	config = seedLegacyPortFixture(t, WafPipelineServiceApp, db, config)
 	s := &WafPipelineStateService{Punisher: wafpipeline.NewPunisher()}
@@ -175,12 +173,6 @@ func TestPipelineStateSQLiteRestoreAndManagement(t *testing.T) {
 		s.Punisher.Drain(256)
 	}
 	hit("198.51.100.7", "rce", wafpipeline.Critical, "critical")
-	for i := 0; i < 3; i++ {
-		hit("198.51.100.8", "weak_pwd", wafpipeline.Low, fmt.Sprint("weak", i))
-	}
-	for i := 1; i <= 5; i++ {
-		hit(fmt.Sprintf("198.51.100.%d", 20+i), "sqli", wafpipeline.High, fmt.Sprint("high", i))
-	}
 	if err := s.Punisher.Flush(); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +180,7 @@ func TestPipelineStateSQLiteRestoreAndManagement(t *testing.T) {
 	if err := loaded.Load(); err != nil {
 		t.Fatal(err)
 	}
-	if loaded.Punisher.BanReason("port:45127", netip.MustParseAddr("198.51.100.7")) == "" || !loaded.Punisher.InHoneypot(port, netip.MustParseAddr("198.51.100.8")) || !loaded.Punisher.Locked(port) || loaded.Punisher.Locked("port:45127") {
+	if loaded.Punisher.BanReason(port, netip.MustParseAddr("198.51.100.7")) == "" || loaded.Punisher.BanReason("port:45127", netip.MustParseAddr("198.51.100.7")) != "" {
 		t.Fatal("persisted states or scope lost")
 	}
 	var banID string

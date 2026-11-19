@@ -185,26 +185,15 @@ func TestSSLOrderRenewalIsAtomicAndDoesNotRewriteSource(t *testing.T) {
 	}
 }
 
-func TestSSLOrderLegacyDuplicateAndInterruptedProgress(t *testing.T) {
+func TestSSLOrderInterruptedProgress(t *testing.T) {
 	db := setupSslExportTestDB(t)
 	if err := db.AutoMigrate(&model.SslOrder{}); err != nil {
 		t.Fatal(err)
 	}
 	first := model.SslOrder{HostCode: "nas", ApplyStatus: "submitted", ApplyDomain: "example.com", ApplyEmail: "owner@example.com"}
 	first.Id, first.CREATE_TIME = "legacy-a", customtype.JsonTime(time.Now())
-	second := first
-	second.Id = "legacy-b"
 	if err := db.Create(&first).Error; err != nil {
 		t.Fatal(err)
-	}
-	if err := db.Create(&second).Error; err != nil {
-		t.Fatal(err)
-	}
-	if _, ok, err := WafSSLOrderServiceApp.Claim(second.Id); err != nil || ok {
-		t.Fatalf("duplicate reached CA: %v", err)
-	}
-	if duplicate := WafSSLOrderServiceApp.GetDetailById(second.Id); duplicate.ApplyStatus != "fail" || !strings.Contains(duplicate.ResultError, first.Id) {
-		t.Fatal("duplicate history not explained")
 	}
 	if _, ok, err := WafSSLOrderServiceApp.Claim(first.Id); err != nil || !ok {
 		t.Fatalf("original not processed: %v", err)

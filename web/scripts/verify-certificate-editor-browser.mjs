@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const dist = path.join(root, 'web/dist');
@@ -78,11 +78,12 @@ await context.route('**/*', (route) =>
 );
 await context.routeWebSocket('**/api/**', (socket) => socket.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const request = route.request();
   const endpoint = new URL(request.url()).pathname.split('/api/v1/')[1] || '';
   const respond = (code, data, msg = '') =>
-    route.fulfill({ json: { code, data: AesEncrypt(JSON.stringify(data)), msg } });
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
+    route.fulfill({ json: { code, data: routeSession(route).encrypt(JSON.stringify(data)), msg } });
+  if (endpoint === 'sysinfo/checkversion')
     return respond(-1, {}, 'Isolated fixture');
   if (endpoint === 'sslconfig/detail')
     return respond(
@@ -96,11 +97,7 @@ await context.route('**/api/**', async (route) => {
   if (endpoint === 'sslconfig/edit' || endpoint === 'sslconfig/add') {
     writes++;
     let input;
-    try {
-      input = JSON.parse(AesDecrypt(request.postData()));
-    } catch {
-      input = JSON.parse(request.postData());
-    }
+    input = JSON.parse(routeSession(route).decrypt(request.postData()));
     if (failure === 'pending')
       await new Promise((resolve) => {
         releaseSave = resolve;

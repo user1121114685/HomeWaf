@@ -24,7 +24,6 @@ function template() {
         ],
       },
       hit_policy: { enabled: true, lockdown: { enabled: true } },
-      honeypot: { enabled: true },
       network: { trusted_proxies: ['10.0.0.0/8'] },
     },
   };
@@ -52,7 +51,6 @@ test('observation startup retains access controls and never activates disabled d
   assert.equal(next.policy.ruleset.owasp, 'off');
   assert.equal(next.policy.hit_policy.enabled, false);
   assert.equal(next.policy.hit_policy.lockdown.enabled, false);
-  assert.equal(next.policy.honeypot.enabled, false);
   assert.equal(original.policy.ruleset.rules[0].mode, 'block');
   assert.equal(original.policy.hit_policy.enabled, true);
 });

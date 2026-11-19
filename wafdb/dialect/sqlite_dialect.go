@@ -25,7 +25,7 @@ func (d *SQLiteDialect) ForceIndexClause(table, idx string) string {
 func (d *SQLiteDialect) Quote(ident string) string { return sqliteQuote(ident) }
 
 // BatchDeleteSQL uses SQLite's implicit rowid pseudo-column, which works even on
-// tables without a declared primary key (web_logs).
+// tables without a shared primary key.
 func (d *SQLiteDialect) BatchDeleteSQL(table, where string, limit int) string {
 	q := sqliteQuote(table)
 	return fmt.Sprintf(
@@ -67,11 +67,11 @@ func (d *SQLiteDialect) RenameTable(db *gorm.DB, src, dst string) error {
 	return db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", sqliteQuote(src), sqliteQuote(dst))).Error
 }
 
-// ShardSwapTable is not used for SQLite: sharding is done by renaming the whole
+// RotateLogTables is not used for SQLite: sharding is done by renaming the whole
 // .db file at the OS level (see waftask.TaskShareDbInfo). Returns an error to
 // guard against accidental use.
-func (d *SQLiteDialect) ShardSwapTable(db *gorm.DB, liveTable, archiveTable string) error {
-	return fmt.Errorf("ShardSwapTable 不适用于 SQLite（按文件改名分库），当前驱动: sqlite")
+func (d *SQLiteDialect) RotateLogTables(db *gorm.DB, tables []string, suffix string) error {
+	return fmt.Errorf("RotateLogTables 不适用于 SQLite（按文件改名分库），当前驱动: sqlite")
 }
 
 // TableSizeMB returns 0 for SQLite; the caller uses the .db file size instead.
@@ -218,7 +218,7 @@ func sqliteQuote(name string) string {
 }
 
 // CreatePartition 不适用于 SQLite：分区就是一个 .db 文件，建分区等于建文件 + 跑迁移，
-// 得由掌握数据目录的任务层做（与 ShardSwapTable 同样的分工）。
+// 得由掌握数据目录的任务层做（与 RotateLogTables 同样的分工）。
 func (d *SQLiteDialect) CreatePartition(db *gorm.DB, baseTable, partTable string) error {
 	return fmt.Errorf("CreatePartition 不适用于 SQLite（按文件分区，建分区=建库文件），当前驱动: sqlite")
 }

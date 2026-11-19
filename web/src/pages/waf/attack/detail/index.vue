@@ -358,7 +358,7 @@
 <script lang="ts">
 import { LogoAndroidIcon, SecuredFilledIcon, ShieldErrorFilledIcon, ErrorTriangleFilledIcon, InfoCircleFilledIcon } from '@/ui/icons';
 
-import { wafIPBlockAddApi } from '@/apis/ipblock';
+import { addServiceIPRule } from '@/apis/services';
 import { getHeaderCopyDetail, geWebLogDetail } from '@/apis/waflog/attacklog';
 import { requestDiagnosticView } from './diagnostics';
 import { requestOutcome } from '../logPresentation';
@@ -790,22 +790,9 @@ export default {
         confirmBtn: this.$t('common.confirm'),
         cancelBtn: this.$t('common.cancel'),
         onConfirm: () => {
-          wafIPBlockAddApi({
-            host_code: this.detail_data.host_code,
-            ip,
-            remarks: '手工增加',
-          })
-            .then((res) => {
-              if (res.code === 0) {
-                this.$message.success(res.msg);
-              } else {
-                this.$message.warning(res.msg);
-              }
-            })
-            .catch((e: Error) => {
-              console.log(e);
-            });
-          confirmDia.destroy();
+          addServiceIPRule(this.detail_data.host_code, 'deny', ip, '来自访问日志')
+            .then(message => { this.$message.success(message); confirmDia.destroy(); })
+            .catch(error => this.$message.error(error.message));
         },
         onClose: () => {
           confirmDia.hide();

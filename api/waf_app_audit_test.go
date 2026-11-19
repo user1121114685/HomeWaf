@@ -5,6 +5,7 @@ package api
 import (
 	"HomeWaf/global"
 	"HomeWaf/globalobj"
+	"HomeWaf/internal/transporttest"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/spec"
@@ -81,6 +82,7 @@ func invokeAppAudit(t *testing.T, handler gin.HandlerFunc, req *http.Request) (*
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = req
+	ctx.Request.Header.Set("X-Key-Id", transporttest.Session(t))
 	ctx.Request.RemoteAddr = "127.0.0.1:43210"
 	ctx.Request.Header.Set("X-Forwarded-For", "198.51.100.100")
 	ctx.Request.Header.Set("Authorization", "header-secret-sentinel")

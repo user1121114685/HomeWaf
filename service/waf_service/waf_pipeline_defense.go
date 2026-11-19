@@ -57,7 +57,7 @@ func (s *WafPipelineDefenseService) Status(c wafpipeline.PortConfig, ready bool)
 	if out.Mode == wafpipeline.DefenseHoney && out.Enabled && !out.HoneypotReady {
 		out.Error = "统一蜜罐未就绪，安全拒绝请求保持拒绝且不回源"
 	}
-	if d := c.Policy.Defense; !ready && d != nil && d.Enabled && d.Mode != wafpipeline.DefenseHoney {
+	if d := c.Policy.Defense; !ready && d.Enabled && d.Mode != wafpipeline.DefenseHoney {
 		out.Error = "自动处置运行权未就绪，请检查实例运行与数据库状态"
 	}
 	return out
@@ -79,7 +79,7 @@ func defenseModeChanged(a, b *wafpipeline.DefenseConfig) bool {
 
 func validateDefenseAvailability(c wafpipeline.PortConfig) error {
 	d := c.Policy.Defense
-	if d == nil || !d.Enabled {
+	if !d.Enabled {
 		return nil
 	}
 	if d.Mode != wafpipeline.DefenseHoney && !WafPipelineDefenseServiceApp.Ready() {
@@ -165,7 +165,7 @@ func (s *WafPipelineDefenseService) Activate(t wafpipeline.DefenseTransition) er
 		return err
 	}
 	c := snap.Config
-	if c.Revision != t.Revision || c.Policy.Defense == nil || *c.Policy.Defense != t.Config || !c.Policy.Defense.Enabled || c.DefenseState != nil || !c.Policy.Access.Enabled || !c.ListenEnabled {
+	if c.Revision != t.Revision || defensePolicyChanged(c.Policy.Defense, &t.Config) || c.Policy.Defense == nil || !c.Policy.Defense.Enabled || c.DefenseState != nil || !c.Policy.Access.Enabled || !c.ListenEnabled {
 		s.Engine.Reset(t.Port)
 		return nil // Stale observations never close a newly edited/replaced service.
 	}

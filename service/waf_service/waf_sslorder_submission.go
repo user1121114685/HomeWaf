@@ -106,7 +106,7 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 		req.AutoRenew = &enabled
 	}
 	fingerprintInput := req
-	// Enabling the default has the same identity as submissions from older UIs.
+	// Explicit and implicit default values have the same submission identity.
 	if *req.AutoRenew {
 		fingerprintInput.AutoRenew = nil
 	}
@@ -129,8 +129,7 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 	}
 	created := false
 	err = global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
-		// The first statement takes the write lock on SQLite. It also frees keys
-		// from terminal rows written by older code during a rolling upgrade.
+		// Release completed keys and take the SQLite write lock before reading.
 		if err := tx.Model(&model.SslOrder{}).Where("active_key = ? AND apply_status NOT IN ?", activeKey, []string{"submitted", "applying"}).Update("active_key", nil).Error; err != nil {
 			return err
 		}
@@ -146,7 +145,7 @@ func (s *WafSSLOrderService) Submit(req request.WafSslorderaddReq, renewFrom str
 				return err
 			}
 		}
-		// Include pre-migration pending orders; never delete the user's duplicates.
+		// An existing pending order owns the active service or domain key.
 		var active model.SslOrder
 		err := sslOrderPendingScope(tx, global.GWAF_USER_CODE, global.GWAF_TENANT_ID, req.HostCode, req.ApplyDomain).Where("apply_status IN ?", []string{"submitted", "applying"}).Order("create_time asc").First(&active).Error
 		if err == nil {
@@ -255,40 +254,33 @@ func (s *WafSSLOrderService) Retry(req request.WafSslorderretryReq) (model.SslOr
 }
 
 func (s *WafSSLOrderService) SubmitRenew(req request.WafSslordereditReq) (model.SslOrder, bool, error) {
-	if CertificateLifecycleAvailable() {
-		if err := MigrateCertificatePolicies(); err != nil {
-			return model.SslOrder{}, false, err
-		}
-		var source model.SslOrder
-		if err := global.GWAF_LOCAL_DB.First(&source, "id = ?", req.Id).Error; err != nil {
-			return model.SslOrder{}, false, err
-		}
-		if source.CertificateID == "" {
-			return model.SslOrder{}, false, errors.New("历史记录尚未关联当前证书，请从证书管理重新配置")
-		}
-		if source.HostCode != req.HostCode || canonicalSSLDomainSet(source.ApplyDomain) != canonicalSSLDomainSet(req.ApplyDomain) || source.ApplyPlatform != req.ApplyPlatform {
-			return model.SslOrder{}, false, errors.New("续期不能更改服务、域名或 CA")
-		}
-		var p model.SslRenewalPolicy
-		if err := global.GWAF_LOCAL_DB.First(&p, "id = ?", source.CertificateID).Error; err != nil {
-			return model.SslOrder{}, false, err
-		}
-		enabled := p.Enabled
-		if req.AutoRenew != nil {
-			enabled = *req.AutoRenew
-		}
-		if enabled != p.Enabled || req.ApplyMethod != p.ApplyMethod || req.ApplyDns != p.ApplyDNS || req.ApplyEmail != p.ApplyEmail || req.PrivateGroupName != p.CredentialGroup || req.SkipDNSVerify != p.SkipDNSVerify {
-			if _, err := SaveCertificatePolicy(CertificatePolicyEdit{ID: p.Id, Version: p.Version, Enabled: enabled, Method: req.ApplyMethod, DNS: req.ApplyDns, Email: req.ApplyEmail, Group: req.PrivateGroupName, SkipDNSVerify: req.SkipDNSVerify}); err != nil {
-				return model.SslOrder{}, false, err
-			}
-		}
-		if req.RequestID == "" {
-			req.RequestID = uuid.GenUUID()
-		}
-		return RequestCertificateRenewal(source.CertificateID, req.RequestID, false, time.Now())
+	var source model.SslOrder
+	if err := global.GWAF_LOCAL_DB.First(&source, "id = ?", req.Id).Error; err != nil {
+		return model.SslOrder{}, false, err
 	}
-
-	return s.Submit(request.WafSslorderaddReq{AutoRenew: req.AutoRenew, RequestID: req.RequestID, HostCode: req.HostCode, ApplyPlatform: req.ApplyPlatform, ApplyMethod: req.ApplyMethod, SkipDNSVerify: req.SkipDNSVerify, ApplyDns: req.ApplyDns, ApplyEmail: req.ApplyEmail, ApplyDomain: req.ApplyDomain, PrivateGroupName: req.PrivateGroupName}, req.Id)
+	if source.CertificateID == "" {
+		return model.SslOrder{}, false, errors.New("此记录未关联证书，请从证书管理选择续期对象")
+	}
+	if source.HostCode != req.HostCode || canonicalSSLDomainSet(source.ApplyDomain) != canonicalSSLDomainSet(req.ApplyDomain) || source.ApplyPlatform != req.ApplyPlatform {
+		return model.SslOrder{}, false, errors.New("续期不能更改服务、域名或 CA")
+	}
+	var p model.SslRenewalPolicy
+	if err := global.GWAF_LOCAL_DB.First(&p, "id = ?", source.CertificateID).Error; err != nil {
+		return model.SslOrder{}, false, err
+	}
+	enabled := p.Enabled
+	if req.AutoRenew != nil {
+		enabled = *req.AutoRenew
+	}
+	if enabled != p.Enabled || req.ApplyMethod != p.ApplyMethod || req.ApplyDns != p.ApplyDNS || req.ApplyEmail != p.ApplyEmail || req.PrivateGroupName != p.CredentialGroup || req.SkipDNSVerify != p.SkipDNSVerify {
+		if _, err := SaveCertificatePolicy(CertificatePolicyEdit{ID: p.Id, Version: p.Version, Enabled: enabled, Method: req.ApplyMethod, DNS: req.ApplyDns, Email: req.ApplyEmail, Group: req.PrivateGroupName, SkipDNSVerify: req.SkipDNSVerify}); err != nil {
+			return model.SslOrder{}, false, err
+		}
+	}
+	if req.RequestID == "" {
+		req.RequestID = uuid.GenUUID()
+	}
+	return RequestCertificateRenewal(source.CertificateID, req.RequestID, false, time.Now())
 }
 
 // Claim atomically rejects duplicate queue deliveries before any CA/DNS call.
@@ -308,21 +300,6 @@ func (s *WafSSLOrderService) Claim(id string) (model.SslOrder, bool, error) {
 		}
 		if order.ApplyStatus != "submitted" {
 			return nil
-		}
-		if order.SubmissionHash == "" {
-			// Old UI double-clicks produced rows without submission keys. Keep
-			// their history, but only run the first equivalent row in 5 seconds.
-			var nearby []model.SslOrder
-			if err := tx.Where("host_code = ? AND create_time >= ? AND create_time <= ? AND id <> ?", order.HostCode, customtype.JsonTime(time.Time(order.CREATE_TIME).Add(-5*time.Second)), order.CREATE_TIME, id).Order("create_time asc, id asc").Find(&nearby).Error; err != nil {
-				return err
-			}
-			for _, other := range nearby {
-				earlier := time.Time(other.CREATE_TIME).Before(time.Time(order.CREATE_TIME)) || (time.Time(other.CREATE_TIME).Equal(time.Time(order.CREATE_TIME)) && other.Id < order.Id)
-				same := other.ApplyPlatform == order.ApplyPlatform && other.ApplyMethod == order.ApplyMethod && other.ApplyDns == order.ApplyDns && other.PrivateGroupName == order.PrivateGroupName && other.ApplyEmail == order.ApplyEmail && other.SkipDNSVerify == order.SkipDNSVerify && canonicalSSLDomainSet(other.ApplyDomain) == canonicalSSLDomainSet(order.ApplyDomain)
-				if earlier && same {
-					return tx.Model(&model.SslOrder{}).Where("id = ? AND apply_status = ?", id, "submitted").Updates(map[string]any{"apply_status": "fail", "active_key": nil, "progress": "已跳过重复提交", "result_error": "检测到同一操作的重复订单，已跳过；请查看订单 " + other.Id}).Error
-				}
-			}
 		}
 		activeKey := sslOrderActiveKey(global.GWAF_USER_CODE, global.GWAF_TENANT_ID, order.HostCode, order.ApplyDomain)
 		var active model.SslOrder

@@ -17,9 +17,7 @@ func setupRBACRouter(userRole string, isOpenApi bool, allowed ...string) *gin.En
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		if userRole != "" {
-			c.Set("userRole", userRole)
-		}
+		c.Set("userRole", userRole)
 		if isOpenApi {
 			c.Set("is_openapi", true)
 		}
@@ -40,7 +38,7 @@ func TestRequireRole(t *testing.T) {
 		wantReached bool
 	}{
 		{"super always allowed", enums.ROLE_SUPER_ADMIN, false, []string{enums.ROLE_SECURITY_ADMIN}, true},
-		{"missing role denied", "", false, []string{enums.ROLE_SECURITY_ADMIN}, false},
+		{"empty role denied", "", false, []string{enums.ROLE_SECURITY_ADMIN}, false},
 		{"invalid role denied", "garbage", false, []string{enums.ROLE_SECURITY_ADMIN}, false},
 		{"matching role allowed", enums.ROLE_SECURITY_ADMIN, false, []string{enums.ROLE_SECURITY_ADMIN}, true},
 		{"non-matching role denied", enums.ROLE_AUDIT_ADMIN, false, []string{enums.ROLE_SECURITY_ADMIN}, false},

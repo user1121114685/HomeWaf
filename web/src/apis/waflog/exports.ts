@@ -3,16 +3,10 @@
 import request from '@/utils/request';
 import host from '@/config/host';
 import { v4 as uuidv4 } from 'uuid';
-import { decryptIncoming } from '@/utils/seccrypto';
 
 const base = '/waflog/exports';
 async function exportRequest(config) {
-  const res: any = await request(config);
-  // 成功响应由公共拦截器解密，错误详情在此按相同传输协议解析。
-  if (res && res.code !== 0 && typeof res.data === 'string' && res.data) {
-    try { res.data = JSON.parse(decryptIncoming(res.data)); } catch (_) { /* Preserve the response code and message. */ }
-  }
-  return res;
+  return request({ ...config, decodeErrorData: true });
 }
 export const exportCapabilities = () => exportRequest({ url: `${base}/capabilities`, method: 'get' });
 export const createLogExport = (data) => exportRequest({ url: base, method: 'post', data });

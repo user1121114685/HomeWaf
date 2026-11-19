@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 import { listenLoopbackForTest } from '../../scripts/test-listener.mjs';
 const root = fileURLToPath(new URL('../..', import.meta.url)),
   dist = path.join(root, 'web/dist'),
@@ -60,7 +60,7 @@ const stateRows = new Map([
       {
         id: 'shared-ban',
         kind: 'ban',
-        scope: 'global',
+        scope: 'port',
         prefix: '192.0.2.5/32',
         reason: 'isolated fixture',
         expires_at: 1893456000,
@@ -139,20 +139,15 @@ const guardValues = {
   host_guard_exec_mode: 'auto',
 };
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const req = route.request(),
     url = new URL(req.url()),
     endpoint = url.pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '' } }),
-    fail = (msg) => route.fulfill({ json: { code: 1, data: AesEncrypt('{}'), msg } });
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '' } }),
+    fail = (msg) => route.fulfill({ json: { code: 1, data: routeSession(route).encrypt('{}'), msg } });
   let input = {};
   if (req.postData()) {
-    try {
-      input = JSON.parse(AesDecrypt(req.postData()));
-    } catch {
-      try {
-        input = JSON.parse(req.postData());
-      } catch {}
-    }
+    input = JSON.parse(routeSession(route).decrypt(req.postData()));
   }
   if (endpoint === 'oplatform/doc/api')
     return failDocs ? fail('模拟目录读取失败') : ok(emptyDocs ? { modules: {} } : catalogue);
@@ -264,12 +259,12 @@ await context.route('**/api/**', async (route) => {
           enforce_bodyproc_urlencoded: 1,
         });
   if (endpoint === 'owasp/crs_vars') return ok({ vars: {} });
-  if (endpoint === 'wafhost/host/allhost' || endpoint === 'wafhost/ipgroup/options') return ok([]);
+  if (endpoint === 'waflog/services' || endpoint === 'wafhost/ipgroup/options') return ok([]);
   if (endpoint.startsWith('application/') && req.method() !== 'GET')
     return fail('Unexpected application write: ' + endpoint);
   if (['account/info', 'account/current', 'account/detail'].includes(endpoint))
     return ok({ user_name: 'fixture', role: 'super_admin' });
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
+  if (endpoint === 'sysinfo/checkversion')
     return fail('Isolated fixture');
   if (req.method() === 'POST' && !endpoint.endsWith('/list')) return fail('Unhandled isolated endpoint: ' + endpoint);
   return ok({ list: [], total: 0 });
@@ -411,23 +406,23 @@ try {
 
   await goto('/waf-host/wafIPBan', 'service-punishments');
   const punish = page.getByTestId('service-punishments');
-  await expect(punish.getByText('192.0.2.5/32', { exact: true })).toBeVisible();
+  await expect(punish.getByText('192.0.2.5/32', { exact: true }).filter({ visible: true })).toBeVisible();
   await punish.getByRole('button', { name: '释放', exact: true }).click();
-  await expect(page.locator('.el-message-box')).toContainText('释放会同时影响其他服务');
+  await expect(page.locator('.el-message-box')).toContainText('当前服务 :15000');
   await page.locator('.el-message-box').getByRole('button', { name: '取消', exact: true }).click();
   expect(report.writes).toHaveLength(0);
   failManage = true;
   await punish.getByRole('button', { name: '释放', exact: true }).click();
   await page.getByRole('button', { name: '确认操作', exact: true }).click();
   await expect(punish.getByText('模拟处罚操作失败')).toBeVisible();
-  await expect(punish.getByText('192.0.2.5/32', { exact: true })).toBeVisible();
+  await expect(punish.getByText('192.0.2.5/32', { exact: true }).filter({ visible: true })).toBeVisible();
   failManage = false;
   await punish.getByRole('button', { name: '刷新处罚记录' }).click();
   await expect(punish.getByRole('button', { name: '释放', exact: true })).toBeEnabled();
   await capture('native-punishments');
   await punish.getByRole('button', { name: '释放', exact: true }).click();
   await page.getByRole('button', { name: '确认操作', exact: true }).click();
-  await expect(punish.getByText('当前服务没有处罚记录')).toBeVisible();
+  await expect(punish.getByText('当前服务没有处罚记录').filter({ visible: true })).toBeVisible();
   expect(stateRows.get(15001)).toHaveLength(1);
   await punish.locator('.el-select').click();
   await page.getByRole('option', { name: '测试服务15001 · :15001', exact: true }).click();
@@ -572,27 +567,6 @@ try {
   await expect.poll(() => report.writes.filter((write) => write.endpoint === 'owasp/tuning').length).toBe(1);
   expect(report.writes.find((write) => write.endpoint === 'owasp/tuning').input.enforce_bodyproc_urlencoded).toBe(1);
   report.checks.push('OWASP tuning retains mode/threshold/body budgets and prevents saving unread defaults');
-  await page.goto(origin + '/?verification=' + Date.now() + '#/waf-pipeline/legacy-sources');
-  await page.getByRole('button', { name: /新建防护/ }).click();
-  const legacyNav = page.getByRole('navigation', { name: '旧站点配置分类' });
-  await expect(legacyNav).toBeVisible();
-  await expect(legacyNav.locator('section')).toHaveCount(4);
-  await expect(legacyNav.getByRole('button')).toHaveCount(20);
-  const legacyNames = await legacyNav.getByRole('button').allTextContents();
-  for (const name of legacyNames) {
-    await legacyNav.getByRole('button', { name: name.trim(), exact: true }).click();
-    await expect(legacyNav.getByRole('button', { name: name.trim(), exact: true })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
-  }
-  await legacyNav.getByRole('button').first().click();
-  await capture('legacy-editor');
-  await page.setViewportSize({ width: 390, height: 900 });
-  await expect(page.getByRole('combobox', { name: '旧站点配置任务', exact: true })).toBeVisible();
-  await dialog().getByRole('button', { name: '关闭', exact: true }).click();
-  report.checks.push('Legacy editor retains all twenty pane identities under four task groups and compact selection');
   }
   expect(report.errors).toEqual([]);
   console.log(JSON.stringify(report, null, 2));

@@ -2,12 +2,10 @@
 
 //go:build crossdb
 
-// 报文垂直拆表的三库回归：报文按 req_uuid 点查、老数据回落读 web_logs 原列、
-// 保留期清理连报文一起删。由 TestCrossEngine 每引擎调一次。
+// Cross-engine request detail and retention checks.
 package waf_service
 
 import (
-	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	req "HomeWaf/model/request"
 	"testing"
@@ -22,23 +20,17 @@ func runPayloadCases(t *testing.T, logdb *gorm.DB) {
 	// 新数据：窄行不带报文，报文在 event_payload 里，详情按 req_uuid 点查补回来
 	t.Run("拆表后详情能读到报文", func(t *testing.T) {
 		uid := "req_split_" + sfx()
-		must(t, logdb.Create(&innerbean.WebLog{
-			REQ_UUID:      uid,
-			HOST_CODE:     "h1",
-			URL:           "/login",
-			METHOD:        "POST",
-			USER_CODE:     xtestUser,
-			TenantId:      xtestTenant,
-			UNIX_ADD_TIME: now.Unix(),
-			CREATE_TIME:   now.Format("2006-01-02 15:04:05"),
-			HEADER:        "User-Agent: curl", // HEADER 本次不搬，仍在窄行上
-		}).Error)
+		must(t, logdb.Create(&model.SecurityEvent{LogNarrow: model.LogNarrow{
+			ReqUUID: uid, HostCode: "h1", URL: "/login", Method: "POST", UserCode: xtestUser,
+			TenantId: xtestTenant, UNIX_ADD_TIME: now.UnixMilli(), CREATE_TIME: now.Format("2006-01-02 15:04:05"),
+		}}).Error)
 		must(t, logdb.Create(&model.EventPayload{
 			ReqUUID:     uid,
 			TenantId:    xtestTenant,
 			UserCode:    xtestUser,
 			HostCode:    "h1",
 			Kind:        "event",
+			HEADER:      "User-Agent: curl",
 			BODY:        "user=admin&pwd=1",
 			RES_BODY:    "<html>ok</html>",
 			POST_FORM:   "user=admin&pwd=1",
@@ -59,33 +51,22 @@ func runPayloadCases(t *testing.T, logdb *gorm.DB) {
 			t.Fatalf("报文补得不全: %+v", got)
 		}
 		if got.HEADER != "User-Agent: curl" {
-			t.Fatalf("HEADER 留在窄行上，不该被报文行的空值抹掉: %q", got.HEADER)
+			t.Fatalf("报文缺少 HEADER: %q", got.HEADER)
 		}
 		if got.Truncated != 1 {
 			t.Fatal("截断标记应跟着报文一起回来")
 		}
 	})
 
-	// 存量数据：报文还在 web_logs 自己的列里，没有对应的报文行，详情必须照旧能看
-	t.Run("改造前的存量行仍读原列", func(t *testing.T) {
-		uid := "req_legacy_" + sfx()
-		must(t, logdb.Create(&innerbean.WebLog{
-			REQ_UUID:      uid,
-			HOST_CODE:     "h1",
-			URL:           "/old",
-			USER_CODE:     xtestUser,
-			TenantId:      xtestTenant,
-			UNIX_ADD_TIME: now.Unix(),
-			CREATE_TIME:   now.Format("2006-01-02 15:04:05"),
-			BODY:          "legacy-body",
-			RES_BODY:      "legacy-res",
-			COOKIES:       "legacy-cookie",
-		}).Error)
-
+	t.Run("unsampled request has no payload", func(t *testing.T) {
+		uid := "req_unsampled_" + sfx()
+		must(t, logdb.Create(&model.AccessLog{LogNarrow: model.LogNarrow{
+			ReqUUID: uid, UserCode: xtestUser, TenantId: xtestTenant, URL: "/unsampled",
+		}}).Error)
 		got, err := WafLogServiceApp.GetDetailApi(req.WafAttackLogDetailReq{REQ_UUID: uid})
 		fatalIf(t, err)
-		if got.BODY != "legacy-body" || got.RES_BODY != "legacy-res" || got.COOKIES != "legacy-cookie" {
-			t.Fatalf("存量行的报文被抹掉了: %+v", got)
+		if got.URL != "/unsampled" || got.BODY != "" || got.HEADER != "" {
+			t.Fatalf("unexpected unsampled request: %+v", got)
 		}
 	})
 
@@ -93,10 +74,6 @@ func runPayloadCases(t *testing.T, logdb *gorm.DB) {
 	t.Run("保留期清理连报文一起删", func(t *testing.T) {
 		uid := "req_expire_" + sfx()
 		old := now.AddDate(0, 0, -30).Format("2006-01-02 15:04:05")
-		must(t, logdb.Create(&innerbean.WebLog{
-			REQ_UUID: uid, HOST_CODE: "h1", USER_CODE: xtestUser, TenantId: xtestTenant,
-			UNIX_ADD_TIME: now.AddDate(0, 0, -30).Unix(), CREATE_TIME: old,
-		}).Error)
 		must(t, logdb.Create(&model.EventPayload{
 			ReqUUID: uid, TenantId: xtestTenant, UserCode: xtestUser,
 			Kind: "event", BODY: "expired", CreateTime: old,

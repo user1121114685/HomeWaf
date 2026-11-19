@@ -5,11 +5,9 @@ package wafenginmodel
 import (
 	"HomeWaf/model"
 	"HomeWaf/utils"
-	"HomeWaf/wafenginecore/ccrule"
 	"HomeWaf/wafenginecore/ipset"
 	"HomeWaf/wafenginecore/loadbalance"
 	"HomeWaf/wafproxy"
-	"HomeWaf/webplugin"
 	"sync"
 )
 
@@ -19,15 +17,14 @@ import (
 // 运行期热更新一律 copy-on-write(见 wafenginecore/routing_table.go 的 updateHost)，绝不就地改已发布的 HostSafe。
 // 例外：LoadBalanceRuntime 是共享可变子对象(每请求轮询状态)，由其自身的 Mux 保护。
 type HostSafe struct {
-	Rule                *utils.RuleHelper
-	TargetHost          string
-	RuleData            []model.Rules
-	RuleVersionSum      int //规则版本的汇总 通过这个来进行版本动态加载
-	Host                model.Hosts
-	PluginIpRateLimiter *webplugin.IPRateLimiter //ip限流
-	IPWhiteLists        []model.IPAllowList      //ip 白名单
-	UrlWhiteLists       []model.URLAllowList     //url 白名单
-	LdpUrlLists         []model.LDPUrl           //url 隐私保护
+	Rule           *utils.RuleHelper
+	TargetHost     string
+	RuleData       []model.Rules
+	RuleVersionSum int //规则版本的汇总 通过这个来进行版本动态加载
+	Host           model.Hosts
+	IPWhiteLists   []model.IPAllowList  //ip 白名单
+	UrlWhiteLists  []model.URLAllowList //url 白名单
+	LdpUrlLists    []model.LDPUrl       //url 隐私保护
 
 	IPBlockLists []model.IPBlockList //ip 黑名单
 	IPBlockIndex *ipset.MatchSet     //ip 黑名单编译后的快速索引(手工小名单，可空；nil 时回退 IPBlockLists 线性遍历)
@@ -46,8 +43,6 @@ type HostSafe struct {
 	UrlBlockLists          []model.URLBlockList          //url 黑名单
 	LoadBalanceLists       []model.LoadBalance           //负载均衡
 	LoadBalanceRuntime     *LoadBalanceRuntime           //负载运行时
-	AntiCCBean             model.AntiCC                  //抵御CC(旧版单条配置，多规则未配置时兜底)
-	CCRules                []*ccrule.CompiledRule        //抵御CC(多规则，按优先级升序，已编译)
 	HttpAuthBases          []model.HttpAuthBase          //HTTP AUTH校验
 	BlockingPage           map[string]model.BlockingPage //自定义拦截界面
 	CacheRule              []model.CacheRule             //CacheRule

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestExtractJSONStringValues(t *testing.T) {
+func TestExtractJSONFieldValuesStrings(t *testing.T) {
 	cases := []struct {
 		name    string
 		body    string
@@ -45,7 +45,7 @@ func TestExtractJSONStringValues(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := ExtractJSONStringValues(c.body)
+			_, got := ExtractJSONFieldValues(c.body)
 			if c.wantNil {
 				if got != nil {
 					t.Errorf("期望 nil，得到 %v", got)
@@ -62,12 +62,12 @@ func TestExtractJSONStringValues(t *testing.T) {
 	}
 }
 
-// TestExtractJSONStringValues_UnicodeEscape 验证 JSON \uXXXX 转义会被 json 解析还原，
+// TestExtractJSONFieldValuesUnicodeEscape 验证 JSON \uXXXX 转义会被 json 解析还原，
 // 从而覆盖 {"x":"<script>..."} 这类绕过（body 用字节构造反斜杠，避免源码转义歧义）。
-func TestExtractJSONStringValues_UnicodeEscape(t *testing.T) {
+func TestExtractJSONFieldValuesUnicodeEscape(t *testing.T) {
 	bs := string([]byte{0x5c}) // 反斜杠
 	body := `{"x":"` + bs + `u003cscript` + bs + `u003ealert(1)` + bs + `u003c/script` + bs + `u003e"}`
-	got := ExtractJSONStringValues(body)
+	_, got := ExtractJSONFieldValues(body)
 	joined := strings.Join(got, "\x00")
 	if !strings.Contains(joined, "<script>alert(1)</script>") {
 		t.Errorf("期望 JSON 转义被解成 <script>...，实际提取=%v", got)

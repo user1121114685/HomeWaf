@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"HomeWaf/internal/transporttest"
 	requestmodel "HomeWaf/model/common/request"
+	"HomeWaf/model/common/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,22 +21,37 @@ func TestSecApiBoundsUnknownLengthAndPreservesStreamingUpload(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	reached := false
-	r.POST("/probe", SecApi(), func(c *gin.Context) { reached = true; c.Status(http.StatusNoContent) })
+	handler := func(c *gin.Context) { reached = true; c.Status(http.StatusNoContent) }
+	r.POST("/probe", SecApi(), handler)
+	const upload = "/api/v1/iplocation/upload"
+	r.POST(upload, SecApi(), handler)
+	id := transporttest.Session(t)
 	stream := &zeroBody{}
 	req := httptest.NewRequest(http.MethodPost, "/probe", io.LimitReader(stream, 40<<20))
 	req.ContentLength = -1
+	req.Header.Set(response.HeaderKeyID, id)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusRequestEntityTooLarge || reached || stream.read > (32<<20)+1 {
 		t.Fatalf("unbounded transport read: status %d, reached %v, read %d", w.Code, reached, stream.read)
 	}
 	stream = &zeroBody{}
-	req = httptest.NewRequest(http.MethodPost, "/probe", io.LimitReader(stream, 100<<20))
+	req = httptest.NewRequest(http.MethodPost, upload, io.LimitReader(stream, 100<<20))
+	req.Header.Set(response.HeaderKeyID, id)
 	req.Header.Set("Content-Type", "multipart/form-data; boundary=fixture")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusNoContent || !reached || stream.read != 0 {
 		t.Fatal("multipart upload buffered by decryption middleware")
+	}
+	reached = false
+	req = httptest.NewRequest(http.MethodPost, "/probe", nil)
+	req.Header.Set(response.HeaderKeyID, id)
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=fixture")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnsupportedMediaType || reached {
+		t.Fatal("multipart accepted outside upload route")
 	}
 }
 

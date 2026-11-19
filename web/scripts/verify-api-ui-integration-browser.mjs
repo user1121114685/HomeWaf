@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 const root = fileURLToPath(new URL('../..', import.meta.url)),
   dist = path.join(root, 'web/dist'),
   output = path.join(root, 'artifacts/api-ui-integration');
@@ -130,25 +130,20 @@ await context.addInitScript(() => {
 });
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const req = route.request(),
     url = new URL(req.url()),
     endpoint = url.pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '' } }),
-    fail = (msg) => route.fulfill({ json: { code: 1, data: AesEncrypt('{}'), msg } });
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '' } }),
+    fail = (msg) => route.fulfill({ json: { code: 1, data: routeSession(route).encrypt('{}'), msg } });
   let input = {};
   if (req.postData()) {
-    try {
-      input = JSON.parse(AesDecrypt(req.postData()));
-    } catch {
-      try {
-        input = JSON.parse(req.postData());
-      } catch {}
-    }
+    input = JSON.parse(routeSession(route).decrypt(req.postData()));
   }
   const write = () => report.writes.push({ endpoint, input });
   if (['account/info', 'account/current', 'account/detail'].includes(endpoint))
     return ok({ user_name: 'fixture', role: 'super_admin' });
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
+  if (endpoint === 'sysinfo/checkversion')
     return fail('Isolated fixture');
   if (endpoint === 'owasp/rules')
     return ok({ list: [{ id: 1001, file: 'rules/test.conf', message: 'fixture', raw: 'SecAction test' }], total: 1 });

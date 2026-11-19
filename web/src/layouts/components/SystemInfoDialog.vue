@@ -142,15 +142,6 @@ export default defineComponent({
       if (envParts.length > 0) {
         rows.push({ label: t('runtime_env'), value: envParts.join(' / ') });
       }
-      // Win7 内核只在 Windows 下才有意义
-      if (info.is_windows) {
-        rows.push({
-          label: t('win7_kernel'),
-          value: info.is_win7_kernel ? (this.$t('common.yes') as string) : (this.$t('common.no') as string),
-          tag: info.is_win7_build ? t('win7_build') : '',
-          tagTheme: 'warning',
-        });
-      }
       if (info.os) {
         rows.push({
           label: t('start_mode'),

@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const origin = process.env.OVERVIEW_TEST_ORIGIN || 'http://127.0.0.1:3001';
 const output = new URL('../../artifacts/', import.meta.url);
@@ -15,15 +15,16 @@ await context.addInitScript(() => {
 });
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const path = new URL(route.request().url()).pathname;
-  if (path.includes('handshake') || path.endsWith('/public/seckey')) return route.fulfill({ json: { code: 1, msg: 'Isolated legacy transport test' } });
+
   let data = { list: [], total: 0 }, msg = 'OK';
   if (path.endsWith('/sysinfo/checkversion')) {
     data = { need_update: updateAvailable, version: 'v2.0.0-dev', version_new: updateAvailable ? 'v2.0.1' : '', version_desc: 'Release verification', self_update_allowed: true };
     msg = updateAvailable ? '有新版本' : 'HomeWaf 更新源尚未发布正式版本，发布后即可检查更新';
   }
   if (path.endsWith('/systemconfig/list')) data = { list: [], total: 0 };
-  return route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg } });
+  return route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg } });
 });
 const page = await context.newPage();
 page.on('pageerror', (error) => report.errors.push(error.message));

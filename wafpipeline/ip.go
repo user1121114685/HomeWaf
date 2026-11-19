@@ -119,8 +119,6 @@ func ExtractClientIP(r *http.Request, cfg NetworkConfig, proxies *ipset.MatchSet
 
 type IPStateReader interface {
 	BanReason(string, netip.Addr) string
-	Locked(string) bool
-	InHoneypot(string, netip.Addr) bool
 }
 
 func protectedAddress(ip netip.Addr) bool {
@@ -131,15 +129,6 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 		ip := net.IP(c.ClientIP.AsSlice())
 		now := time.Now().Unix()
 		p := s.Compiled
-		// Apply active honeypot drops before a blacklist can route back to a lure.
-		if state, ok := r.State.(interface {
-			HoneypotDropReason(string, netip.Addr) string
-		}); ok && s.Config.Policy.Defense == nil && !protectedAddress(c.ClientIP) && !p.Trusted.Contains(ip, now) && (r.Protected == nil || !r.Protected(c.ClientIP)) {
-			if reason := state.HoneypotDropReason(c.PortID, c.ClientIP); reason != "" {
-				honeypotInteraction(c)
-				return Verdict{Action: Drop, Reason: "honeypot:drop:" + reason}, nil
-			}
-		}
 		if p.Deny.Contains(ip, now) {
 			return Verdict{Action: Deny, Reason: "blacklist:custom", Status: 403}, nil
 		}
@@ -147,7 +136,7 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 		// Resolve the shared snapshot on every request: editing a group updates all
 		// referencing services without copying its addresses into port policies.
 		groupAllowed := false
-		matchers := make(map[string]*ipset.MatchSet, len(group.DenyGroups)+len(group.AllowGroups))
+		matchers := make(map[string]*ipset.MatchSet, len(group.DenyGroups))
 		for _, codes := range [][]string{group.DenyGroups, group.AllowGroups} {
 			for _, code := range codes {
 				if matchers[code] == nil {
@@ -192,7 +181,7 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 				if diagnostic, ok := r.State.(interface{ ProtectedRestriction(string, netip.Addr) bool }); ok {
 					matched = diagnostic.ProtectedRestriction(c.PortID, c.ClientIP)
 				} else {
-					matched = r.State.BanReason(c.PortID, c.ClientIP) != "" || r.State.InHoneypot(c.PortID, c.ClientIP)
+					matched = r.State.BanReason(c.PortID, c.ClientIP) != ""
 				}
 				if matched {
 					c.Hit("protected_match", "automatic_state", Low, true, "automatic restriction ignored for protected source")
@@ -218,12 +207,6 @@ func (r *Runtime) ipStep(s *Snapshot) Step {
 		}
 		if !protected && s.Config.Policy.IPGroup.FeedEnabled && r.Feed != nil && r.Feed.Contains(c.ClientIP, now) {
 			return Verdict{Action: Deny, Reason: "blacklist:vip", Status: 403}, nil
-		}
-		if s.Config.Policy.Defense == nil && r.State != nil && r.State.Locked(c.PortID) {
-			return Verdict{Action: s.Config.Policy.HitPolicy.Lockdown.Action, Reason: "lockdown", Status: 503}, nil
-		}
-		if s.Config.Policy.Defense == nil && !protected && s.Config.Policy.Honeypot.Enabled && r.State != nil && r.State.InHoneypot(c.PortID, c.ClientIP) {
-			return Verdict{Action: Honeypot, Reason: "honeypot:state"}, nil
 		}
 		if groupAllowed {
 			return Verdict{Action: Continue, Reason: "whitelist:group", Status: 0}, nil

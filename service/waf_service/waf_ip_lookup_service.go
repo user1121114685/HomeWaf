@@ -10,9 +10,13 @@ import (
 	"HomeWaf/utils"
 	"HomeWaf/wafenginecore/ipset"
 	"HomeWaf/wafipban"
+	"HomeWaf/wafpipeline"
 	"HomeWaf/waftask/threatip"
 	"fmt"
 	"net"
+	"net/netip"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -92,8 +96,7 @@ const (
 	// 只报 block 不报 allow 的话，用户排除完再查会看到一片空白，分不清是不在情报里还是已豁免。
 	srcThreatExclude = "threat_exclude"
 	srcIPFailure     = "ip_failure"
-	srcCCBan         = "cc_ban"
-	srcRuleBan       = "rule_ban"
+	srcServiceBan    = "service_ban"
 	srcFirewall      = "firewall"
 	srcCDN           = "cdn"
 )
@@ -152,7 +155,7 @@ func (r *WafIPLookupService) Lookup(ipStr string, sources []string) (*response2.
 	}
 	for _, src := range []string{
 		srcIPWhite, srcIPBlack, srcIPGroup, srcLogExclude, srcThreatIP,
-		srcIPFailure, srcCCBan, srcRuleBan, srcFirewall, srcCDN,
+		srcIPFailure, srcServiceBan, srcFirewall, srcCDN,
 	} {
 		if pick(src) {
 			resp.Sources = append(resp.Sources, src)
@@ -164,22 +167,19 @@ func (r *WafIPLookupService) Lookup(ipStr string, sources []string) (*response2.
 		resp.Location = r.location(ipStr)
 	}
 
-	// 名单类共用一份站点名映射，没查名单就不用捞 hosts 表
-	var hostNames map[string]string
-	if pick(srcIPWhite) || pick(srcIPBlack) {
-		hostNames = r.hostNameMap()
-	}
-
-	// 白名单放在最前：命中白名单的 IP 即便同时在黑名单里也会被放行，
-	// 顺序本身就是给用户的排查提示
-	if pick(srcIPWhite) {
-		r.matchAllowList(ipStr, hostNames, resp)
-	}
-	if pick(srcIPBlack) {
-		r.matchBlockList(ipStr, hostNames, resp)
+	var services []wafpipeline.PortConfig
+	if pick(srcIPWhite) || pick(srcIPBlack) || pick(srcIPGroup) {
+		ports := wafpipeline.Ports.Ports()
+		slices.Sort(ports)
+		for _, port := range ports {
+			if snapshot, ok := wafpipeline.Ports.Get(port); ok {
+				services = append(services, snapshot.Config)
+			}
+		}
+		r.matchServiceLists(ipStr, services, pick(srcIPWhite), pick(srcIPBlack), resp)
 	}
 	if pick(srcIPGroup) {
-		r.matchIPGroup(ipStr, resp)
+		r.matchIPGroup(ipStr, services, resp)
 	}
 	if pick(srcLogExclude) {
 		r.matchLogExclude(ipStr, resp)
@@ -190,11 +190,8 @@ func (r *WafIPLookupService) Lookup(ipStr string, sources []string) (*response2.
 	if pick(srcIPFailure) {
 		r.matchIPFailure(ipStr, resp)
 	}
-	if pick(srcCCBan) {
-		r.matchCCBan(ipStr, resp)
-	}
-	if pick(srcRuleBan) {
-		r.matchRuleBan(ipStr, resp)
+	if pick(srcServiceBan) {
+		r.matchServiceBans(parsed, resp)
 	}
 	if pick(srcFirewall) {
 		r.matchFirewall(ipStr, resp)
@@ -224,88 +221,34 @@ func (r *WafIPLookupService) location(ipStr string) string {
 	return strings.Join(parts, " ")
 }
 
-// hostNameMap 网站唯一码 → 域名，用于把 host_code 翻成用户认得的名字
-func (r *WafIPLookupService) hostNameMap() map[string]string {
-	m := map[string]string{}
-	var hosts []model.Hosts
-	if err := global.GWAF_LOCAL_DB.Select("code", "host").Find(&hosts).Error; err != nil {
-		return m
-	}
-	for _, h := range hosts {
-		m[h.Code] = h.Host
-	}
-	return m
+func serviceLookupScope(config wafpipeline.PortConfig) string {
+	return fmt.Sprintf("%s (:%d)", config.Name, config.Port)
 }
 
-// hostLabel 把 host_code 翻成用户认得的站点名。
-//
-// 全局站点在 hosts 表里就是一条 host="全局网站" 的普通记录(code 是 uuid)，
-// 所以走 names 就能得到「全局网站」，不需要特殊分支——
-// global.GWAF_GLOBAL_HOST_CODE 那个 "0" 是引擎路由表的 key，不是数据库 code，别拿来比。
-//
-// 查不到对应站点说明这条名单指向了已删除(或从来不存在)的站点，实际不会生效，
-// 必须标出来，不能让用户以为它在保护什么。
-func (r *WafIPLookupService) hostLabel(code string, names map[string]string) string {
-	if code == "" {
-		return "全局"
-	}
-	if n, ok := names[code]; ok && n != "" {
-		return n
-	}
-	return code + "(站点已不存在，该条不生效)"
-}
-
-func (r *WafIPLookupService) matchAllowList(ip string, names map[string]string, resp *response2.IPLookupResp) {
-	var rows []model.IPAllowList
-	//与引擎同口径：停用条目不参与判定，诊断结论才不会背离实际拦截行为
-	if err := global.GWAF_LOCAL_DB.Where("is_enable = 1").Find(&rows).Error; err != nil {
-		resp.Degraded = append(resp.Degraded, srcIPWhite)
-		return
-	}
-	for _, row := range rows {
-		// IpType=group 的行本身没有 IP，内容在 IP 组里，交给 matchIPGroup 统一判
-		if row.IpType == model.IPEntryTypeGroup || row.Ip == "" {
-			continue
-		}
-		if utils.MatchIPPattern(ip, row.Ip) {
-			resp.Hits = append(resp.Hits, response2.IPLookupHit{
-				Source:     srcIPWhite,
-				SourceName: "IP白名单",
-				Scope:      r.hostLabel(row.HostCode, names),
-				Matched:    row.Ip,
-				Effect:     "allow",
-				Detail:     row.Remarks,
-			})
-		}
-	}
-}
-
-func (r *WafIPLookupService) matchBlockList(ip string, names map[string]string, resp *response2.IPLookupResp) {
-	var rows []model.IPBlockList
-	if err := global.GWAF_LOCAL_DB.Where("is_enable = 1").Find(&rows).Error; err != nil {
-		resp.Degraded = append(resp.Degraded, srcIPBlack)
-		return
-	}
-	for _, row := range rows {
-		if row.IpType == model.IPEntryTypeGroup || row.Ip == "" {
-			continue
-		}
-		if utils.MatchIPPattern(ip, row.Ip) {
-			resp.Hits = append(resp.Hits, response2.IPLookupHit{
-				Source:     srcIPBlack,
-				SourceName: "IP黑名单",
-				Scope:      r.hostLabel(row.HostCode, names),
-				Matched:    row.Ip,
-				Effect:     "block",
-				Detail:     row.Remarks,
-			})
+func (r *WafIPLookupService) matchServiceLists(ip string, services []wafpipeline.PortConfig, allow, deny bool, resp *response2.IPLookupResp) {
+	now := time.Now().Unix()
+	for _, service := range services {
+		for _, entry := range service.Policy.IPGroup.Entries {
+			if entry.ExpiresAt != 0 && entry.ExpiresAt <= now || !utils.MatchIPPattern(ip, entry.Value) {
+				continue
+			}
+			hit := response2.IPLookupHit{Scope: serviceLookupScope(service), Port: service.Port, Matched: entry.Value, Detail: entry.Remark}
+			switch {
+			case entry.Type == "deny" && deny:
+				hit.Source, hit.SourceName, hit.Effect = srcIPBlack, "服务 IP 黑名单", "block"
+			case entry.Type == "allow" && allow:
+				hit.Source, hit.SourceName, hit.Effect = srcIPWhite, "服务 IP 白名单", "allow"
+			default:
+				continue
+			}
+			resp.Hits = append(resp.Hits, hit)
 		}
 	}
 }
 
 // matchIPGroup IP 组本身不决定放行还是拦截——取决于哪个名单引用了它，
 // 所以 effect 记 none，另外把引用它的名单列出来，用户才知道命中意味着什么
-func (r *WafIPLookupService) matchIPGroup(ip string, resp *response2.IPLookupResp) {
+func (r *WafIPLookupService) matchIPGroup(ip string, services []wafpipeline.PortConfig, resp *response2.IPLookupResp) {
 	var groups []model.IPGroup
 	if err := global.GWAF_LOCAL_DB.Find(&groups).Error; err != nil {
 		resp.Degraded = append(resp.Degraded, srcIPGroup)
@@ -326,72 +269,35 @@ func (r *WafIPLookupService) matchIPGroup(ip string, resp *response2.IPLookupRes
 		byGroup[it.GroupCode] = append(byGroup[it.GroupCode], it)
 	}
 
-	refs := r.groupRefs()
 	logRefs := r.logExcludeGroupRefs()
-	for _, g := range groups {
-		for _, it := range byGroup[g.GroupCode] {
-			if it.Ip == "" || !utils.MatchIPPattern(ip, it.Ip) {
+	for _, group := range groups {
+		for _, entry := range byGroup[group.GroupCode] {
+			if entry.Ip == "" || !utils.MatchIPPattern(ip, entry.Ip) {
 				continue
 			}
-			effect := "none"
-			detail := "该组未被任何黑/白名单引用"
-			if ref, ok := refs[g.GroupCode]; ok {
-				effect = ref.effect
-				detail = ref.text
-			} else if text, ok := logRefs[g.GroupCode]; ok {
-				// 组没被黑白名单引用、却被日志排除清单引用时，原来的文案会让人以为这组没任何作用
-				effect = "log_skip"
-				detail = text
+			hit := response2.IPLookupHit{Source: srcIPGroup, SourceName: "IP 组", Scope: group.GroupName, Matched: entry.Ip, Effect: "none", Detail: "未被服务名单引用"}
+			before := len(resp.Hits)
+			for _, service := range services {
+				ref := hit
+				ref.Port, ref.Scope = service.Port, serviceLookupScope(service)
+				switch {
+				case slices.Contains(service.Policy.IPGroup.DenyGroups, group.GroupCode):
+					ref.Effect, ref.Detail = "block", "拒绝组："+group.GroupName
+				case slices.Contains(service.Policy.IPGroup.AllowGroups, group.GroupCode):
+					ref.Effect, ref.Detail = "allow", "允许组："+group.GroupName
+				default:
+					continue
+				}
+				resp.Hits = append(resp.Hits, ref)
 			}
-			if text, ok := logRefs[g.GroupCode]; ok && effect != "log_skip" {
-				detail = detail + "；同时" + text
+			if detail, ok := logRefs[group.GroupCode]; ok {
+				hit.Effect, hit.Detail = "log_skip", detail
+				resp.Hits = append(resp.Hits, hit)
+			} else if len(resp.Hits) == before {
+				resp.Hits = append(resp.Hits, hit)
 			}
-			resp.Hits = append(resp.Hits, response2.IPLookupHit{
-				Source:     srcIPGroup,
-				SourceName: "IP组",
-				Scope:      g.GroupName,
-				Matched:    it.Ip,
-				Effect:     effect,
-				Detail:     detail,
-			})
-			break // 同一组命中一条即可，不必把组内所有匹配行都列出来
 		}
 	}
-}
-
-type groupRef struct {
-	effect string
-	text   string
-}
-
-// groupRefs 统计每个 IP 组被黑/白名单引用的情况
-func (r *WafIPLookupService) groupRefs() map[string]groupRef {
-	refs := map[string]groupRef{}
-
-	var blockRows []model.IPBlockList
-	//引用统计同样只算启用条目，与引擎侧组短码抽取同口径
-	global.GWAF_LOCAL_DB.Where("ip_type = ? and is_enable = 1", model.IPEntryTypeGroup).Find(&blockRows)
-	for _, row := range blockRows {
-		if row.GroupCode == "" {
-			continue
-		}
-		refs[row.GroupCode] = groupRef{effect: "block", text: "被IP黑名单引用，命中即拦截"}
-	}
-
-	var allowRows []model.IPAllowList
-	global.GWAF_LOCAL_DB.Where("ip_type = ? and is_enable = 1", model.IPEntryTypeGroup).Find(&allowRows)
-	for _, row := range allowRows {
-		if row.GroupCode == "" {
-			continue
-		}
-		if old, ok := refs[row.GroupCode]; ok && old.effect == "block" {
-			// 同一个组既被黑名单又被白名单引用：白名单先判，实际效果是放行
-			refs[row.GroupCode] = groupRef{effect: "allow", text: "同时被黑白名单引用，白名单优先，实际放行"}
-			continue
-		}
-		refs[row.GroupCode] = groupRef{effect: "allow", text: "被IP白名单引用，命中即放行"}
-	}
-	return refs
 }
 
 // matchThreatIP 威胁情报动辄十万条，逐渠道解压比对很贵。
@@ -516,7 +422,6 @@ func landTargetText(v string) string {
 // ipFailureEffect 由失败记录算出查询展示的 effect 与文案。
 // 有失败记录≠被封禁：记分卡只说明窗口内有失败请求，只有自定义规则真实命中
 // （记录上带阈值戳）才是 block；否则报 none，避免管理员把"有失败记录"当成"已被拦截"。
-// 判据与封禁列表(api.GetBanIpListApi)的收录条件一致。
 func ipFailureEffect(record *wafipban.IPFailureRecord, remain string) (string, string) {
 	effect := "none"
 	detail := ""
@@ -561,94 +466,26 @@ func (r *WafIPLookupService) matchIPFailure(ip string, resp *response2.IPLookupR
 	})
 }
 
-func (r *WafIPLookupService) matchCCBan(ip string, resp *response2.IPLookupResp) {
-	if global.GCACHE_WAFCACHE == nil {
-		resp.Degraded = append(resp.Degraded, srcCCBan)
+func (r *WafIPLookupService) matchServiceBans(ip net.IP, resp *response2.IPLookupResp) {
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
 		return
 	}
-	// 封禁键按作用域分开存放，任一命中即视为处于封禁期
-	hitKey := ""
-	hitScope := ""
-	for cacheKey := range global.GCACHE_WAFCACHE.ListAvailableKeysWithPrefix(enums.CACHE_CCVISITBAN_PRE) {
-		if scope, _, banIp, ok := model.ParseCCBanKey(cacheKey); ok && banIp == ip {
-			hitKey, hitScope = cacheKey, scope
-			break
+	for _, record := range WafPipelineStateServiceApp.Punisher.Records("") {
+		prefix, err := netip.ParsePrefix(record.Prefix)
+		if record.Kind != "ban" || err != nil || !prefix.Contains(addr.Unmap()) {
+			continue
 		}
-	}
-	if hitKey == "" {
-		return
-	}
-	detail := "CC防护触发的临时封禁"
-	if remain := r.remainTextByKey(enums.CACHE_CCVISITBAN_PRE, hitKey); remain != "" {
-		detail += "，剩余" + remain
-	}
-	scopeText := "全局"
-	if hitScope == model.CCBanScopeHost {
-		scopeText = "本站点"
-	}
-	resp.Hits = append(resp.Hits, response2.IPLookupHit{
-		Source:     srcCCBan,
-		SourceName: "CC封禁",
-		Scope:      scopeText,
-		Effect:     "block",
-		Detail:     detail,
-	})
-}
-
-// matchRuleBan 规则封禁命中（自定义规则 RF.Ban 写入，站点作用域）。
-func (r *WafIPLookupService) matchRuleBan(ip string, resp *response2.IPLookupResp) {
-	if global.GCACHE_WAFCACHE == nil {
-		resp.Degraded = append(resp.Degraded, srcRuleBan)
-		return
-	}
-	hitKey := ""
-	hitHostCode := ""
-	for cacheKey := range global.GCACHE_WAFCACHE.ListAvailableKeysWithPrefix(enums.CACHE_RULE_BAN_PRE) {
-		if hostCode, banIp, ok := model.ParseRuleBanKey(cacheKey); ok && banIp == ip {
-			hitKey, hitHostCode = cacheKey, hostCode
-			break
+		value, ok := strings.CutPrefix(record.PortID, "port:")
+		port, err := strconv.ParseUint(value, 10, 16)
+		if !ok || err != nil || port == 0 {
+			continue
 		}
+		resp.Hits = append(resp.Hits, response2.IPLookupHit{
+			Source: srcServiceBan, SourceName: "服务封禁", Scope: fmt.Sprintf("端口 %d", port), Port: uint16(port),
+			Matched: record.Prefix, Effect: "block", Detail: record.Reason,
+		})
 	}
-	if hitKey == "" {
-		return
-	}
-	detail := "自定义规则 RF.Ban 触发的临时封禁"
-	if remain := r.remainTextByKey(enums.CACHE_RULE_BAN_PRE, hitKey); remain != "" {
-		detail += "，剩余" + remain
-	}
-	if hitHostCode != "" {
-		names := r.hostNameMap()
-		if label := r.hostLabel(hitHostCode, names); label != "" {
-			detail += "，站点 " + label
-		}
-	}
-	resp.Hits = append(resp.Hits, response2.IPLookupHit{
-		Source:     srcRuleBan,
-		SourceName: "规则封禁",
-		Scope:      "本站点",
-		Effect:     "block",
-		Detail:     detail,
-	})
-}
-
-// remainText 取缓存剩余时间。缓存接口只给了「按前缀列出可用键」，没有单键 TTL，
-// 所以这里列一次再挑出目标键。
-// remainTextByKey 与 remainText 同义，区别是直接给完整缓存键——
-// CC 封禁键含作用域与站点码，拼不出「前缀+ip」的形式。
-func (r *WafIPLookupService) remainTextByKey(prefix, key string) string {
-	list := global.GCACHE_WAFCACHE.ListAvailableKeysWithPrefix(prefix)
-	d, ok := list[key]
-	if !ok || d <= 0 {
-		return ""
-	}
-	if d < time.Minute {
-		return fmt.Sprintf("%d秒", int(d.Seconds()))
-	}
-	total := int(d.Minutes())
-	if total < 60 {
-		return fmt.Sprintf("%d分钟", total)
-	}
-	return fmt.Sprintf("%d小时%d分钟", total/60, total%60)
 }
 
 func (r *WafIPLookupService) remainText(prefix, ip string) string {
@@ -774,19 +611,6 @@ func (r *WafIPLookupService) collectLogExcludeLists() []logExcludeList {
 	lists := make([]logExcludeList, 0, 4)
 	if strings.TrimSpace(global.CurrentSettings().GCONFIG_EXCLUDE_IP_LOG) != "" {
 		lists = append(lists, logExcludeList{scope: "全局", raw: global.CurrentSettings().GCONFIG_EXCLUDE_IP_LOG})
-	}
-	var hosts []model.Hosts
-	if err := global.GWAF_LOCAL_DB.Where("exclude_ip_log <> ''").Find(&hosts).Error; err == nil {
-		for _, h := range hosts {
-			if strings.TrimSpace(h.EXCLUDE_IP_LOG) == "" {
-				continue
-			}
-			name := h.Host
-			if name == "" {
-				name = h.Code
-			}
-			lists = append(lists, logExcludeList{scope: name, raw: h.EXCLUDE_IP_LOG})
-		}
 	}
 	return lists
 }

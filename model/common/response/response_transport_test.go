@@ -3,7 +3,6 @@
 package response
 
 import (
-	"HomeWaf/global"
 	"HomeWaf/wafsec"
 	"crypto/rand"
 	"encoding/base64"
@@ -19,9 +18,6 @@ import (
 	"golang.org/x/crypto/curve25519"
 )
 
-// 传输层协商的四种组合：v2 有效、无声明(旧客户端)、v2 失效+legacy 开、v2 失效+legacy 关。
-// 重点是第二种——旧客户端行为必须逐字节不变。
-
 func newCtx(t *testing.T, keyid string) (*gin.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -30,7 +26,6 @@ func newCtx(t *testing.T, keyid string) (*gin.Context, *httptest.ResponseRecorde
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/whatever", nil)
 	if keyid != "" {
 		req.Header.Set(HeaderKeyID, keyid)
-		req.Header.Set("X-Sec-Ver", "2")
 	}
 	c.Request = req
 	return c, rec
@@ -94,63 +89,14 @@ func TestResultUsesV2WhenSessionValid(t *testing.T) {
 	}
 }
 
-// 旧客户端（不声明 keyid）必须原样走 legacy——这是"不破坏存量行为"的硬约束
-func TestResultFallsBackToLegacyForOldClient(t *testing.T) {
-	setupSession(t)
-	c, rec := newCtx(t, "")
-
-	OkWithData(map[string]string{"hello": "world"}, c)
-
-	resp := decodeBody(t, rec)
-	data, _ := resp.Data.(string)
-	if strings.HasPrefix(data, wafsec.TransportPrefixV2) {
-		t.Fatal("旧客户端收到了 v2 报文")
-	}
-	plain, err := wafsec.AesDecrypt(data, global.GWAF_COMMUNICATION_KEY)
-	if err != nil {
-		t.Fatalf("legacy 响应解密失败: %v", err)
-	}
-	if !strings.Contains(string(plain), "world") {
-		t.Fatalf("明文内容不符: %s", plain)
-	}
-}
-
-// 会话失效（服务端重启）时，legacy 开着就回落，客户端仍能解开并据此重新握手
-func TestResultFallsBackWhenSessionExpired(t *testing.T) {
-	setupSession(t)
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
-	c, rec := newCtx(t, "早就没了的keyid")
-
-	OkWithData(map[string]string{"hello": "world"}, c)
-
-	resp := decodeBody(t, rec)
-	if resp.Code != SUCCESS {
-		t.Fatalf("期望回落 legacy 正常返回，实际 code=%d", resp.Code)
-	}
-	data, _ := resp.Data.(string)
-	if _, err := wafsec.AesDecrypt(data, global.GWAF_COMMUNICATION_KEY); err != nil {
-		t.Fatalf("回落的 legacy 报文解不开: %v", err)
-	}
-}
-
-// legacy 被运维关掉后，没有会话密钥的请求要拿到明确的重新握手信号，
-// 而不是一段对方解不开的密文
-func TestResultSignalsRehandshakeWhenLegacyDisabled(t *testing.T) {
-	setupSession(t)
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = false })
-	defer func() {
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
-	}()
-
-	c, rec := newCtx(t, "早就没了的keyid")
-	OkWithData(map[string]string{"hello": "world"}, c)
-
-	resp := decodeBody(t, rec)
-	if resp.Code != NEED_REHANDSHAKE {
-		t.Fatalf("期望 %d，实际 %d", NEED_REHANDSHAKE, resp.Code)
-	}
-	if resp.Data != "" {
-		t.Fatalf("重新握手信号不该带数据: %v", resp.Data)
+func TestSessionRequiredForEncryptedResults(t *testing.T) {
+	for _, id := range []string{"", "expired-session"} {
+		c, rec := newCtx(t, id)
+		OkWithData(map[string]string{"secret": "never-in-plaintext"}, c)
+		reply := decodeBody(t, rec)
+		if reply.Code != NEED_REHANDSHAKE || reply.Data != "" {
+			t.Fatalf("unexpected reply: %#v", reply)
+		}
 	}
 }
 

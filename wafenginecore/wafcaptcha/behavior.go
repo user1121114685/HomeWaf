@@ -12,9 +12,6 @@ import (
 // 这些数据来自客户端、天然可伪造——它的定位不是"证明访客是人"，
 // 而是把"用无头浏览器打开页面直接点、没有任何人类交互"这类最省事的自动化挡在门外，
 // 与交卷接口的按 IP 限频一起抬高批量绕过的成本。
-//
-// 兼容性：旧版/自定义挑战页不带 v 字段时只做自动化特征判定，
-// 避免升级后用户手里未替换的旧页面一夜之间全部无法通过。
 const (
 	// captchaBehaviorVersion 新挑战页提交的数据格式版本。
 	captchaBehaviorVersion = 1
@@ -44,9 +41,7 @@ type captchaBehavior struct {
 func checkCaptchaBehavior(raw string) (bool, string) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		// 没有行为数据不拒绝：旧版/自定义挑战页可能不带 botCheck 字段，
-		// 误伤真人的代价（验证永远过不去）远高于放过这一层信号。
-		return true, ""
+		return false, "缺少行为数据"
 	}
 
 	var b captchaBehavior
@@ -56,9 +51,8 @@ func checkCaptchaBehavior(raw string) (bool, string) {
 	if b.Auto > 0 {
 		return false, "检测到自动化环境特征"
 	}
-	if b.V < captchaBehaviorVersion {
-		// 旧版数据没有采集耗时与轨迹，无法做进一步判断。
-		return true, ""
+	if b.V != captchaBehaviorVersion {
+		return false, "行为数据版本不受支持"
 	}
 	if b.ElapsedMs <= 0 {
 		return false, "缺少答题耗时"

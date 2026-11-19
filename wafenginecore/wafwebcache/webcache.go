@@ -11,7 +11,6 @@ import (
 	"HomeWaf/internal/logsanitize"
 	"HomeWaf/model"
 	"HomeWaf/model/wafenginmodel"
-	"HomeWaf/utils"
 	"bufio"
 	"bytes"
 	"crypto/sha256"
@@ -29,6 +28,11 @@ import (
 	"time"
 )
 
+func cacheKeyDigest(key string) string {
+	sum := sha256.Sum256([]byte(key))
+	return hex.EncodeToString(sum[:])
+}
+
 const maxCacheObjectBytes = 8 << 20
 
 // LoadWebDataFormCache  从缓存里面拿数据
@@ -45,10 +49,10 @@ func LoadWebDataFormCache(w http.ResponseWriter, r *http.Request, hostSafe *wafe
 
 	zlog.Debug(fmt.Sprintf("缓存键组成部分 (加载) - 方法: %s, URI: %s", requestMethod, logsanitize.URI(requestURI)))
 
-	key := utils.Md5String(requestMethod + requestURI)
+	key := cacheKeyDigest(requestMethod + requestURI)
 	if requestMethod == "post" || requestMethod == "put" {
 		zlog.Debug(fmt.Sprintf("缓存键组成部分 (加载) - BodyHash: %s (用于POST/PUT请求)", bodyHashKey))
-		key = utils.Md5String(requestMethod + requestURI + bodyHashKey)
+		key = cacheKeyDigest(requestMethod + requestURI + bodyHashKey)
 	}
 	zlog.Debug(fmt.Sprintf("尝试从缓存加载数据 URL: %s, 缓存键: %s, 主机代码: %s, 缓存位置: %s",
 		logsanitize.URI(requestURI), key, hostSafe.Host.Code, cacheConfig.CacheLocation))
@@ -122,10 +126,10 @@ func StoreWebDataCache(resp *http.Response, hostSafe *wafenginmodel.HostSafe, ca
 	requestMethod := strings.ToLower(resp.Request.Method)
 	requestURI := resp.Request.RequestURI
 	zlog.Debug(fmt.Sprintf("缓存键组成部分 - 方法: %s, URI: %s", requestMethod, logsanitize.URI(requestURI)))
-	key := utils.Md5String(requestMethod + requestURI)
+	key := cacheKeyDigest(requestMethod + requestURI)
 	if requestMethod == "post" || requestMethod == "put" {
 		zlog.Debug(fmt.Sprintf("缓存键组成部分 - BodyHash: %s (用于POST/PUT请求)", weblog.BodyHash))
-		key = utils.Md5String(requestMethod + requestURI + weblog.BodyHash)
+		key = cacheKeyDigest(requestMethod + requestURI + weblog.BodyHash)
 	}
 	zlog.Debug(fmt.Sprintf("尝试存储响应到缓存 URL: %s, 缓存键: %s, 主机代码: %s, 缓存位置: %s",
 		logsanitize.URI(requestURI), key, hostSafe.Host.Code, cacheConfig.CacheLocation))

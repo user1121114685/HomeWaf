@@ -5,10 +5,8 @@ package waftask
 import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/customtype"
-	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
-	"HomeWaf/model/spec"
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
 	"fmt"
@@ -19,9 +17,7 @@ import (
 )
 
 var (
-	wafHostService      = waf_service.WafHostServiceApp
 	wafSslConfigService = waf_service.WafSslConfigServiceApp
-	wafSslOrderService  = waf_service.WafSSLOrderServiceApp
 	wafSslExpireService = waf_service.WafSslExpireServiceApp
 )
 
@@ -85,6 +81,7 @@ func SSLReload() {
 			err = wafSslConfigService.ModifyInner(updateSslConfig)
 			if err != nil {
 				zlog.Error(innerLogName, "ssl modify inner config:", err.Error())
+				continue
 			}
 			//若管理端证书绑定了该证书夹条目，顺带刷新管理端证书
 			waf_service.RefreshManagerCertBySslConfig(updateSslConfig.Id, updateSslConfig.CertContent, updateSslConfig.KeyContent)
@@ -96,28 +93,9 @@ func SSLReload() {
 			} else if exportMsg != "" {
 				zlog.Info(innerLogName, fmt.Sprintf("证书夹[%s] %s", rep.Domains, exportMsg))
 			}
-			hostCount := 0
-			for _, hosts := range wafHostService.GetHostBySSLConfigId(updateSslConfig.Id) {
-				//1.更新主机信息 2.发送主机通知
-				err = wafHostService.UpdateSSLInfo(updateSslConfig.CertContent, updateSslConfig.KeyContent, hosts.Code)
-				if err != nil {
-					zlog.Error(innerLogName, "ssl host update:", err.Error())
-					continue
-				}
-				hosts.Keyfile = updateSslConfig.KeyContent
-				hosts.Certfile = updateSslConfig.CertContent
-				var chanInfo = spec.ChanCommonHost{
-					HostCode:   hosts.Code,
-					Type:       enums.ChanTypeSSL,
-					Content:    hosts,
-					OldContent: hosts,
-				}
-				global.GWAF_CHAN_MSG <- chanInfo
-				hostCount++
+			if err := waf_service.WafPipelineServiceApp.RefreshSourceCertificates(); err != nil {
+				zlog.Error(innerLogName, "证书库已更新，刷新关联服务失败", err.Error())
 			}
-			zlog.Info(innerLogName, fmt.Sprintf("证书夹[%s] 处理完成，重新加载 %d 个关联主机 (crt=%s key=%s)",
-				rep.Domains, hostCount, rep.CertPath, rep.KeyPath))
-
 		}
 	} else {
 		zlog.Info(innerLogName, "自动加载ssl开关:关闭")
@@ -142,74 +120,8 @@ func nonEmpty(s string) string {
 
 // SSLOrderReload SSL证书自动续期 远程申请
 func SSLOrderReload() {
-	if waf_service.CertificateLifecycleAvailable() {
-		if err := waf_service.RunCertificateRenewals(time.Now(), false); err != nil {
-			zlog.Error("证书生命周期检查失败", err.Error())
-		}
-		return
-	}
-
-	innerLogName := "TaskSSLOrder"
-	zlog.Info(innerLogName, "准备进行ssl证书自动续期检测")
-	//1.找出来所有得SSL得主机 2.查询是否存在自动SSL订单得最新得数据 3.查询没有到期得最后一条信息来申请延期
-	allSSLHost, err := waf_service.GetSSLRenewalHosts()
-	if err == nil {
-		for _, hostBean := range allSSLHost {
-			zlog.Info(innerLogName, fmt.Sprintf("正在检测域名: %s:%d", hostBean.Host, hostBean.Port))
-			lastSslOrderInfo, err := wafSslOrderService.GetLastedInfo(hostBean.Code)
-			if err != nil {
-				zlog.Error(innerLogName, "ssl order get lasted info:", err.Error())
-			} else {
-				if lastSslOrderInfo.Id == "" || !lastSslOrderInfo.AutoRenewEnabled() {
-					//未找到关联信息
-					continue
-				}
-				isExpire, availDay, msg, err := lastSslOrderInfo.ExpirationMessage()
-				if err != nil {
-					zlog.Error(innerLogName, "ssl order get lasted info:", err.Error())
-				} else {
-					// 判断是IP证书还是域名证书，使用不同的过期检测天数
-					isIpSSL := utils.IsIP(lastSslOrderInfo.ApplyDomain)
-					var expireDays int64
-					var certType string
-					if isIpSSL {
-						expireDays = global.CurrentSettings().GCONFIG_RECORD_SSL_IP_EXPIRE_DAY
-						certType = "IP证书"
-					} else {
-						expireDays = global.CurrentSettings().GCONFIG_RECORD_SSLOrder_EXPIRE_DAY
-						certType = "域名证书"
-					}
-
-					zlog.Info(fmt.Sprintf("%s %s %s 是否过期 %v 天数：%v 信息 %v ，系统检测超期天数 %v 天",
-						innerLogName, certType, hostBean.Host, isExpire, availDay, msg, expireDays))
-					if isExpire == false && availDay <= int(expireDays) {
-						// http01 续期要求 80 端口是 HTTP 明文：若被设成 HTTPS 或没有 80，
-						// 挑战必失败且会消耗 ACME 服务商的失败频率配额，这里跳过并明确告警，
-						// 不静默重试（静默重试只会让配额耗尽、真到期时也申请不下来）
-						if lastSslOrderInfo.ApplyMethod == "http01" && waf_service.ValidateSSLCertificateTarget(hostBean.Code, "http01", lastSslOrderInfo.ApplyDomain) != nil {
-							msg := fmt.Sprintf("站点 %s 的证书自动续期已跳过：文件验证(http01)需要 80 端口以 HTTP 明文提供服务，"+
-								"当前该站点没有 HTTP 协议的 80 端口。请在网站编辑的「监听端口」里把 80 设为 HTTP，或把该证书订单改用 DNS 验证方式",
-								hostBean.Host)
-							zlog.Error(innerLogName, msg)
-							global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.OpResultMessageInfo{
-								BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "提示信息", Server: global.GWAF_CUSTOM_SERVER_NAME},
-								Msg:             msg,
-								Success:         "false",
-							})
-							continue
-						}
-						renewal, created, err := wafSslOrderService.AutomaticRenew(lastSslOrderInfo)
-						if err != nil {
-							zlog.Warn(innerLogName, "自动续期未提交", err.Error())
-							continue
-						}
-						if created {
-							waf_service.WakeSSLOrderWorker(renewal)
-						}
-					}
-				}
-			}
-		}
+	if err := waf_service.RunCertificateRenewals(time.Now(), false); err != nil {
+		zlog.Error("证书生命周期检查失败", err.Error())
 	}
 }
 
@@ -262,45 +174,23 @@ func SSLExpireCheck() {
 
 // SyncHostToSslCheck 同步已存在主机到SSL证书检测任务里
 func SyncHostToSslCheck() {
-	targets, targetErr := waf_service.GetSSLCertificateTargets()
-	if targetErr == nil {
-		for _, target := range targets {
-			if target.Protocol != "https" {
+	defer func() { global.GWAF_RUNTIME_SSL_SYNC_HOST = false }()
+	targets, err := waf_service.GetSSLCertificateTargets()
+	if err != nil {
+		zlog.Error("读取服务证书监测目标失败", err.Error())
+		return
+	}
+	for _, target := range targets {
+		if target.Protocol != "https" {
+			continue
+		}
+		for _, domain := range target.Domains {
+			if strings.Contains(domain, "*") || wafSslExpireService.CheckIsExist(domain, target.Port) != 0 {
 				continue
 			}
-			for _, domain := range target.Domains {
-				if strings.Contains(domain, "*") {
-					continue
-				}
-				if wafSslExpireService.CheckIsExist(domain, target.Port) == 0 {
-					if err := wafSslExpireService.Add(domain, target.Port); err != nil {
-						zlog.Warn("同步监测目标失败", err.Error())
-					}
-				}
+			if err := wafSslExpireService.Add(domain, target.Port); err != nil {
+				zlog.Warn("同步监测目标失败", err.Error())
 			}
-		}
-	}
-
-	// 无论正常结束还是中途 return/出错，都释放运行标志位，避免前端一直卡在“正在进行中”
-	defer func() {
-		global.GWAF_RUNTIME_SSL_SYNC_HOST = false
-	}()
-	innerLogName := "SyncHostToSslCheck"
-	zlog.Info(innerLogName, "准备进行同步已存在主机到SSL证书检测任务里")
-	//检测信息 如果主机和端口不存在 则新增
-	sslHost, sslHostCnt, err := wafHostService.GetAllSSLHost()
-	if err != nil {
-		zlog.Error(innerLogName, "sync host to ssl expire:", err.Error())
-		return
-	}
-	if sslHostCnt == 0 {
-		zlog.Error(innerLogName, "sync host not find ssl host")
-		return
-	}
-	for _, hostBean := range sslHost {
-		if wafSslExpireService.CheckIsExist(hostBean.Host, hostBean.Port) == 0 {
-			//插入新的数据
-			wafSslExpireService.Add(hostBean.Host, hostBean.Port)
 		}
 	}
 }

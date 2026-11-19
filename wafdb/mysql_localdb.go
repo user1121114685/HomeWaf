@@ -268,7 +268,7 @@ func InitLogDbMySQL() (bool, error) {
 	RegisterTenantQueryScope(global.GWAF_LOCAL_LOG_DB)
 	global.GWAF_LOCAL_LOG_DB.Callback().Query().Before("gorm:update").Register("tenant_plugin:before_update", before_update)
 
-	// live 分片标识用 web_logs 表名（与 ResolveLogDB 的 live 判定一致），不能用库名，否则读取会误入历史分支
+	// 分片登记与查询都使用当前驱动的实时标识。
 	ensureLiveShardRecord(global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, LiveLogName())
 
 	return false, nil

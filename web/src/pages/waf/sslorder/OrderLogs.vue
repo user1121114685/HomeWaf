@@ -131,11 +131,8 @@
           <p v-if="detail.apply_status === 'fail'" class="log-help">
             修正日志中的问题后可直接重试，沿用本次配置并保留失败记录。申请过程中请保持服务运行，避免重启。
           </p>
-          <p v-if="detail.legacy" class="log-help">
-            此订单创建时尚未启用逐单日志。以下历史内容按域名和时间从运行日志中筛选，可能不完整。
-          </p>
           <ol v-if="detail.entries.length" class="log-entries" role="log" aria-label="申请过程日志">
-            <li v-for="(entry, index) in detail.entries" :key="entry.id || `legacy-${index}`">
+            <li v-for="entry in detail.entries" :key="entry.id">
               <div class="log-meta">
                 <time>{{ entry.time }}</time
                 ><span>{{ levelLabels[entry.level] || entry.level }}</span>
@@ -192,7 +189,6 @@ interface LogDetail {
   update_time: string;
   result_error: string;
   heartbeat_stale: boolean;
-  legacy: boolean;
   limit: number;
   entries: { id: number; time: string; level: string; message: string }[];
 }

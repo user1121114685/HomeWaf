@@ -26,23 +26,12 @@ func PublishSharedHoneypot(value *SharedHoneypotConfig) {
 
 func SharedHoneypotReady() bool { s := sharedHoneypot.Load(); return s != nil && s.Configured }
 
-func HoneypotPolicy(s *Snapshot) HoneypotConfig {
-	if d := s.Config.Policy.Defense; d != nil {
-		if d.Enabled && d.Mode == DefenseHoney {
-			if shared := sharedHoneypot.Load(); shared != nil && shared.Configured {
-				return shared.Config
-			}
-		}
-		return HoneypotConfig{}
+func HoneypotPolicy(s *Snapshot) (HoneypotConfig, bool) {
+	d := s.Config.Policy.Defense
+	shared := sharedHoneypot.Load()
+	if d != nil && d.Enabled && d.Mode == DefenseHoney && shared != nil && shared.Configured {
+		return shared.Config, true
 	}
-	return s.Config.Policy.Honeypot
+	return HoneypotConfig{}, false
 }
-
-// A shared honeypot owns presentation and resource limits, not port lockdowns.
-func SharedHoneypotPolicy(c HoneypotConfig) HoneypotConfig {
-	c.Enabled = true
-	c.CaptureDenied = false
-	c.DropAfterHits = 0
-	c.DistributedDrop.Enabled = false
-	return effectiveHoneypot(c)
-}
+func SharedHoneypotPolicy(c HoneypotConfig) HoneypotConfig { return c }

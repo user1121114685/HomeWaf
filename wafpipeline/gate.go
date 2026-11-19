@@ -136,7 +136,7 @@ func (g *Gate) Step(s *Snapshot) Step {
 			}
 		}
 		if cfg.RequireToken {
-			if d := s.Config.Policy.Defense; d != nil && d.Enabled && cfg.TokenHeader != "" && len(c.Request.Header.Values(cfg.TokenHeader)) > 0 {
+			if s.Config.Policy.Defense.Enabled && cfg.TokenHeader != "" && len(c.Request.Header.Values(cfg.TokenHeader)) > 0 {
 				c.Hit("auth_fail", "service_token", Low, false, "service token verification failed")
 			}
 			return Verdict{Action: Challenge, Status: 401, Reason: "gate:token_required"}, nil
@@ -163,7 +163,7 @@ func (g *Gate) Step(s *Snapshot) Step {
 				c.Values["gate_cookie"] = token
 				return Verdict{Action: Continue, Reason: "gate:basic"}, nil
 			}
-			if d := s.Config.Policy.Defense; d != nil && d.Enabled && c.Request.Header.Get("Authorization") != "" {
+			if s.Config.Policy.Defense.Enabled && c.Request.Header.Get("Authorization") != "" {
 				c.Hit("auth_fail", "auth_gate", Low, false, "invalid basic credentials")
 			}
 		}
@@ -362,7 +362,7 @@ func (g *Gate) Respond(s *Snapshot, c *RequestContext, w http.ResponseWriter, v 
 	cfg := s.Config.Policy.Gate
 	prefix := strings.TrimRight(cfg.Prefix, "/")
 	reject := func(status int, category, message string) {
-		if d := s.Config.Policy.Defense; d != nil && d.Enabled {
+		if s.Config.Policy.Defense.Enabled {
 			v = Verdict{Action: Deny, Stage: 3, Status: status, Reason: "gate:" + category}
 			c.Hit(category, "auth_gate", Medium, false, "authentication endpoint rejected request")
 			if c.RejectResponse != nil && c.RejectResponse(w, v) {

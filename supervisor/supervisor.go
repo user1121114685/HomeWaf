@@ -152,7 +152,7 @@ func (s *Supervisor) Run() error {
 	// 只在这里扫、不在 Worker 里扫：Supervisor 常驻不为升级退出，升级后它自身的
 	// 映像文件就是某个 .old、在它活着时(Windows)删不掉；只有"服务重启后、新 Supervisor
 	// 刚起来"这一刻上一代 Supervisor 已退出，旧映像才真正可删。
-	wafupdate.CleanupLegacyLeftovers()
+	wafupdate.CleanupStagedExecutables()
 
 	go s.acceptLoop()
 

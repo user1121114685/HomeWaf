@@ -30,7 +30,7 @@ func (s *releaseSchedule) scheduleWindow(start time.Time) {
 // CheckDue reserves the next window before contacting the publisher. Restarts,
 // API reads and network failures cannot cause a second automatic check in this window.
 func (m *ReleaseMonitor) CheckDue(now time.Time, notify func(current, latest string)) error {
-	if global.GUPDATE_VERSION_URL == "" && global.GUPDATE_RELEASE_URL == "" &&
+	if global.GUPDATE_RELEASE_URL == "" &&
 		(global.GUPDATE_GITHUB_VERSION_URL == "" || global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION != 1) {
 		return nil
 	}

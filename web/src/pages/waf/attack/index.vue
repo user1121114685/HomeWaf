@@ -643,137 +643,24 @@
         </li>
       </ol>
     </hw-dialog>
-    <!-- IP提取问题对话框 -->
     <hw-dialog
-      :header="$t('page.visit_log.detail.ip_extract_issue')"
+      :header="text('排查来源 IP', 'Diagnose source IP')"
       v-model:visible="ipExtractDialogVisible"
-      :width="800"
       :footer="false"
     >
-      <template #body
-        ><div>
-          <!-- 这里改的是全局配置，站点里的「真实IP来源」会覆盖它；不写清楚用户会以为改了全局所有站点都变 -->
-          <hw-alert theme="warning" style="margin-bottom: 16px">
-            <div>
-              <b>{{ $t('page.visit_log.detail.ip_extract_scope_title') }}</b>
-              <div style="margin-top: 4px">{{ $t('page.visit_log.detail.ip_extract_scope_desc') }}</div>
-              <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
-                <hw-select
-                  v-model="ipExtractHostCode"
-                  clearable
-                  filterable
-                  :style="{ width: 'min(100%, 220px)' }"
-                  :placeholder="$t('page.visit_log.detail.ip_extract_select_host')"
-                >
-                  <hw-option
-                    v-for="item in realHostOptions"
-                    :value="item.value"
-                    :label="item.label"
-                    :key="item.value"
-                    >{{ item.label }}</hw-option
-                  >
-                </hw-select>
-                <hw-button size="small" :disabled="!ipExtractHostCode" @click="gotoHostIpSource">
-                  {{ $t('page.visit_log.detail.ip_extract_goto_host') }}
-                </hw-button>
-                <hw-button size="small" variant="outline" :disabled="!ipExtractHostCode" @click="openHostProbe">
-                  {{ $t('page.visit_log.detail.ip_extract_view_headers') }}
-                </hw-button>
-              </div>
-            </div>
-          </hw-alert>
-          <p>{{ $t('page.visit_log.detail.ip_extract_issue_desc') }}</p>
-
-          <!-- 视频教程链接 -->
-          <hw-alert theme="success" style="margin-bottom: 16px">
-            <template #icon>
-              <span style="font-size: 20px">📺</span>
-            </template>
-            <div style="display: flex; align-items: center; justify-content: space-between">
-              <span>{{ $t('page.visit_log.detail.ip_extract_video_tutorial') }}</span>
-              <hw-button theme="primary" size="small" @click="openVideoTutorial">
-                {{ $t('page.visit_log.detail.ip_extract_watch_tutorial') }}
-              </hw-button>
-            </div>
-          </hw-alert>
-
-          <!-- 常用头信息提示区域 -->
-          <hw-card :title="$t('page.visit_log.detail.ip_extract_common_headers')" style="margin-bottom: 20px">
-            <p style="margin-bottom: 12px; color: #666">
-              {{ $t('page.visit_log.detail.ip_extract_common_headers_desc') }}
-            </p>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px">
-              <hw-button size="small" variant="outline" @click="selectIPHeader('CF-Connecting-IP')">
-                {{ $t('page.visit_log.detail.ip_extract_headers.cloudflare') }}
-              </hw-button>
-              <hw-button size="small" variant="outline" @click="selectIPHeader('True-Client-IP')">
-                {{ $t('page.visit_log.detail.ip_extract_headers.cloudflare_enterprise') }}
-              </hw-button>
-              <hw-button size="small" variant="outline" @click="selectIPHeader('X-Forwarded-For')">
-                {{ $t('page.visit_log.detail.ip_extract_headers.x_forwarded_for') }}
-              </hw-button>
-              <hw-button size="small" variant="outline" @click="selectIPHeader('X-Real-IP')">
-                {{ $t('page.visit_log.detail.ip_extract_headers.x_real_ip') }}
-              </hw-button>
-              <hw-button size="small" variant="outline" @click="selectIPHeader('X-Client-IP')">
-                {{ $t('page.visit_log.detail.ip_extract_headers.x_client_ip') }}
-              </hw-button>
-              <hw-button size="small" variant="outline" @click="selectIPHeader('Fastly-Client-IP')">
-                {{ $t('page.visit_log.detail.ip_extract_headers.fastly') }}
-              </hw-button>
-              <hw-button size="small" variant="outline" @click="selectIPHeader('Incap-Client-IP')">
-                {{ $t('page.visit_log.detail.ip_extract_headers.incapsula') }}
-              </hw-button>
-              <hw-button
-                size="small"
-                variant="outline"
-                @click="selectIPHeader('CF-Connecting-IP,X-Forwarded-For,X-Real-IP')"
-              >
-                {{ $t('page.visit_log.detail.ip_extract_headers.multiple') }}
-              </hw-button>
-            </div>
-            <hw-alert
-              theme="info"
-              :message="$t('page.visit_log.detail.ip_extract_multiple_tips')"
-              style="margin-top: 8px"
-            />
-            <div style="margin-top: 8px; color: #999; font-size: 12px">
-              {{ $t('page.visit_log.detail.ip_extract_example') }}
-            </div>
-          </hw-card>
-
-          <hw-form
-            :data="ipExtractFormData"
-            ref="ipExtractForm"
-            :rules="ipExtractRules"
-            @submit="onSubmitIPExtract"
-            :labelWidth="150"
-          >
-            <hw-form-item :label="$t('page.systemconfig.label_configuration_item')" name="item">
-              <hw-input :style="{ width: 'min(100%, 600px)' }" v-model="ipExtractFormData.item" disabled></hw-input>
-            </hw-form-item>
-            <hw-form-item :label="$t('page.systemconfig.label_configuration_value')" name="value">
-              <hw-input
-                :style="{ width: 'min(100%, 600px)' }"
-                v-model="ipExtractFormData.value"
-                :placeholder="$t('page.visit_log.detail.ip_extract_issue_tips')"
-              ></hw-input>
-              <div class="form-item-tips">{{ $t('page.visit_log.detail.ip_extract_issue_tips') }}</div>
-            </hw-form-item>
-            <hw-form-item style="float: right">
-              <hw-button variant="outline" @click="ipExtractDialogVisible = false">{{ $t('common.close') }}</hw-button>
-              <hw-button theme="primary" type="submit">{{ $t('common.confirm') }}</hw-button>
-            </hw-form-item>
-          </hw-form>
-        </div></template
-      >
+      <template #body>
+        <p>{{ text('选择接收请求的服务，检查其可信代理与来源 IP 请求头。', 'Choose the service that receives the request to check its trusted proxies and client IP header.') }}</p>
+        <p v-if="hostError" role="alert">{{ hostError }} <hw-button @click="loadHostList">{{ text('重试', 'Retry') }}</hw-button></p>
+        <p v-else-if="!hostLoading && !serviceOptions.length">{{ text('尚未配置受保护服务。', 'No protected services configured.') }}</p>
+        <hw-select v-else v-model="ipExtractHostCode" filterable :loading="hostLoading"
+          :aria-label="text('受保护服务', 'Protected service')" :placeholder="text('选择服务', 'Select a service')">
+          <hw-option v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="item.label" />
+        </hw-select>
+        <hw-button theme="primary" :disabled="!serviceByCode[ipExtractHostCode]" @click="gotoHostIpSource">
+          {{ text('打开代理配置', 'Open proxy settings') }}
+        </hw-button>
+      </template>
     </hw-dialog>
-    <!-- 某个站点单独看真实到达的请求头(与站点编辑页共用同一组件) -->
-    <ip-source-probe-dialog
-      v-model:visible="hostProbeVisible"
-      :host-code="ipExtractHostCode"
-      :host-name="host_dic[ipExtractHostCode] || ''"
-    />
   </div>
 </template>
 <script lang="ts">
@@ -790,23 +677,19 @@ import {
 import { SearchIcon } from '@/ui/icons';
 import Trend from '@/components/trend/index.vue';
 import { prefix } from '@/config/global';
-import IpSourceProbeDialog from '@/pages/waf/host/components/IpSourceProbeDialog.vue';
 import { allsharedblist, delsharedb } from '@/apis/waflog/attacklog';
 import LogExportDialog from './components/LogExportDialog.vue';
 import VisitDetailPage from './detail/index.vue';
 
 import { NowDate, ConvertStringToUnix, ConvertDateToString, ConvertUnixToDate } from '@/utils/date';
-import { allLogServices } from '@/apis/host';
+import { listServices } from '@/apis/services';
 import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemconfig';
 import { get_ui_preference_api, save_ui_preference_api } from '@/apis/uipreference';
 
 // 默认不显示的可选列：新增后不会被"新列自动加入"逻辑塞进已有用户的可见列，需用户主动勾选
 
 // 列配置持久化：服务端（按登录账号）为准，localStorage 只作首屏秒开缓存 + 接口不可用兜底。
-// v2 起把"可见列"与"用户已见过的列基线"合并到同一个 key，
-// 避免 401 清缓存时只保留其中一个，导致列配置被重置（issue #893）
 const COLUMN_CONFIG_KEY = 'attack_table_display_columns';
-const LEGACY_KNOWN_COLUMNS_KEY = 'attack_table_known_columns'; // v1 遗留，迁移后删除
 const COLUMN_CONFIG_VERSION = 3;
 const COLUMN_PREF_NAME = 'visit_log_columns'; // 服务端偏好名（后端白名单内）
 
@@ -832,7 +715,6 @@ export default defineComponent({
   name: 'WebLogList',
   components: {
     LogExportDialog,
-    IpSourceProbeDialog,
     SearchIcon,
     Trend,
     VisitDetailPage,
@@ -1023,11 +905,7 @@ export default defineComponent({
       },
       //主机字典
       host_dic: {},
-      ipExtractHostCode: '', //IP提取弹窗里选中的站点(用于直达站点配置/查看该站点真实请求头)
-      hostProbeVisible: false,
-      //「IP提取有问题?」里选站点用的列表：只含真实站点("全局网站"不是站点，没有自己的真实IP来源配置)。
-      //必须整体赋值成数组，不能在模板里现算 host_dic —— Vue2 对新增 key 不响应，会渲染成空
-      realHostOptions: [],
+      ipExtractHostCode: '', // 选中的受保护服务
       //主机昵称字典 host_code -> 纯昵称
       host_nickname_dic: {},
       //日志存档字典
@@ -1061,15 +939,6 @@ export default defineComponent({
 
       // IP提取配置相关
       ipExtractDialogVisible: false,
-      ipExtractFormData: {
-        item: 'gwaf_proxy_header',
-        value: '',
-        remarks: '获取访客IP头信息（按照顺序）',
-      },
-      ipExtractRules: {
-        item: [{ required: true, message: '', type: 'error' }],
-        value: [{ required: false, message: '', type: 'error' }],
-      },
     };
   },
   computed: {
@@ -1404,103 +1273,35 @@ export default defineComponent({
       return this.availableFields.map((f) => f.value);
     },
 
-    // 读取 v1 遗留的 known 基线（仅迁移期使用）。无记录/损坏返回 null，以区别于"空数组"
-    readLegacyKnownColumns() {
+    // Keep the current account's selected columns for the initial render.
+    persistColumnConfigLocalSafe(columns) {
       try {
-        const raw = localStorage.getItem(LEGACY_KNOWN_COLUMNS_KEY);
-        if (!raw) return null;
-        const arr = JSON.parse(raw);
-        return Array.isArray(arr) && arr.length > 0 ? arr : null;
-      } catch (e) {
-        return null;
+        localStorage.setItem(COLUMN_CONFIG_KEY, JSON.stringify({
+          v: COLUMN_CONFIG_VERSION,
+          account: localStorage.getItem('current_account') || '',
+          columns: Array.from(new Set(columns)),
+        }));
+      } catch (error) {
+        console.warn('写入本地列配置缓存失败:', error);
       }
     },
 
-    // 统一落盘本地缓存：columns 与 known 必须成对写入，杜绝两者脱节。
-    // 写成功后才删除 v1 遗留 key，避免写失败（配额/无痕模式）时基线丢失
-    persistColumnConfigLocal(columns, knownKeys) {
-      const payload = {
-        v: COLUMN_CONFIG_VERSION,
-        account: localStorage.getItem('current_account') || '',
-        columns: Array.from(new Set(columns)),
-        known: knownKeys && knownKeys.length ? Array.from(new Set(knownKeys)) : this.allColumnFieldKeys(),
-      };
-      localStorage.setItem(COLUMN_CONFIG_KEY, JSON.stringify(payload)); // 异常交由调用方处理
-      try {
-        localStorage.removeItem(LEGACY_KNOWN_COLUMNS_KEY);
-      } catch (e) {
-        /* ignore */
-      }
+    mergeColumnConfig(columns) {
+      return normalizeLogColumns(columns, this.allColumnFieldKeys());
     },
 
-    // 合并列配置：known 为空则一次性按默认列补齐；否则只补"用户从未见过的新列"
-    mergeColumnConfig(columns, known) {
-      // Preserve the user's selection and order; new fields remain opt-in.
-      return normalizeLogColumns(
-        columns,
-        this.allColumns.map((column) => column.colKey),
-      );
-    },
-
-    // 落盘本地缓存但不让写失败影响界面（无痕模式/配额满时只告警）
-    persistColumnConfigLocalSafe(columns, knownKeys) {
-      try {
-        this.persistColumnConfigLocal(columns, knownKeys);
-      } catch (e) {
-        console.warn('写入本地列配置缓存失败（不影响使用）:', e);
-      }
-    },
-
-    // 加载本地缓存的列配置（同步，首屏立即渲染，避免闪一下默认列）
     loadColumnConfig() {
-      const allFieldKeys = this.allColumnFieldKeys();
-      let columns = null;
-      let known = null; // null = 无基线记录
       try {
         const raw = localStorage.getItem(COLUMN_CONFIG_KEY);
-        // 全新用户：以当前默认可见列为准并立刻写下基线，
-        // 否则下次挂载会因 known 缺失而走"旧缓存兼容"分支强行补齐默认列
-        if (!raw) {
-          this.persistColumnConfigLocalSafe(this.displayColumns, allFieldKeys);
-          return;
-        }
-
+        if (!raw) return;
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          // v1 旧格式：纯数组，基线只能来自遗留 key（必须读，否则用户主动取消的默认列会被加回来）
-          columns = parsed;
-          known = this.readLegacyKnownColumns();
-        } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.columns)) {
-          // v2 格式；账号不一致时忽略缓存（多账号切换不把 A 的配置显示给 B），
-          // 先落到默认配置，等服务端返回本账号的真实配置
-          const currentAccount = localStorage.getItem('current_account') || '';
-          if (parsed.account && currentAccount && parsed.account !== currentAccount) {
-            this.displayColumns = [...this.defaultDisplayColumns];
-            return;
-          }
-          columns = parsed.columns;
-          known = Array.isArray(parsed.known) && parsed.known.length > 0 ? parsed.known : null;
+        const account = localStorage.getItem('current_account') || '';
+        if (parsed?.v === COLUMN_CONFIG_VERSION && parsed.account === account && Array.isArray(parsed.columns)) {
+          this.displayColumns = this.mergeColumnConfig(parsed.columns);
         }
       } catch (error) {
-        console.error(this.$t('common.column_config_load_failed'), error);
-        // 解析失败：内存里用默认配置，但不覆盖 localStorage，避免一次解析异常永久丢配置
-        this.displayColumns = [...this.defaultDisplayColumns];
-        return;
+        console.warn(this.$t('common.column_config_load_failed'), error);
       }
-
-      if (!columns || columns.length === 0) {
-        // 空/损坏：回退默认并重建基线，保证下次挂载稳定
-        this.displayColumns = [...this.defaultDisplayColumns];
-        this.persistColumnConfigLocalSafe(this.displayColumns, allFieldKeys);
-        return;
-      }
-
-      const merged = this.mergeColumnConfig(columns, known);
-      this.displayColumns = merged;
-      // 关键：合并结果 + 最新基线一起落盘，让加载幂等（旧实现只回写 known 不回写 columns，
-      // 导致"本次挂载合并出 A、下次挂载读出 B"的不对称，正是 #893 的根因）。
-      // 落盘失败不能影响已经算对的界面配置，所以走 Safe 版本
-      this.persistColumnConfigLocalSafe(merged, allFieldKeys);
     },
 
     // 从服务端加载列配置（异步，服务端为准，覆盖本地缓存结果）
@@ -1515,20 +1316,18 @@ export default defineComponent({
           }
           if (res.data && res.data.id && res.data.pref_json) {
             const payload = JSON.parse(res.data.pref_json);
-            if (payload && Array.isArray(payload.columns) && payload.columns.length > 0) {
-              const known = Array.isArray(payload.known) && payload.known.length > 0 ? payload.known : null;
-              const merged = this.mergeColumnConfig(payload.columns, known);
+            if (payload?.v === COLUMN_CONFIG_VERSION && Array.isArray(payload.columns) && payload.columns.length > 0) {
+
+              const merged = this.mergeColumnConfig(payload.columns);
               this.displayColumns = merged;
-              this.persistColumnConfigLocalSafe(merged, this.allColumnFieldKeys());
+              this.persistColumnConfigLocalSafe(merged);
               return;
             }
           }
-          // 服务端还没有记录：把当前（本地缓存/默认）配置同步上去一次，
-          // 让存量用户的 localStorage 配置无感迁移到服务端
-          this.syncColumnConfigToServer().catch(() => {});
+
         })
         .catch((err) => {
-          // 接口不可用（如后端为老版本）时保持本地缓存结果，不打扰用户
+
           console.warn('获取服务端列配置异常:', err);
         });
     },
@@ -1538,7 +1337,7 @@ export default defineComponent({
       const payload = {
         v: COLUMN_CONFIG_VERSION,
         columns: Array.from(new Set(this.displayColumns)),
-        known: this.allColumnFieldKeys(),
+
       };
       return save_ui_preference_api({
         pref_name: COLUMN_PREF_NAME,
@@ -1553,9 +1352,8 @@ export default defineComponent({
 
     // 保存列配置（本地缓存 + 服务端）
     saveColumnConfig(successMsgKey) {
-      // known 更新为全量：用户此刻正看着列配置弹窗里的全部字段，等价于"全部已见过"，
-      // 这保证主动取消的列之后不会被"新列自动加入"逻辑加回
-      this.persistColumnConfigLocalSafe(this.displayColumns, this.allColumnFieldKeys());
+
+      this.persistColumnConfigLocalSafe(this.displayColumns);
       // 成功提示等服务端返回后再弹，避免与调用方的提示重复/乱序
       const successKey = successMsgKey || 'common.column_config_saved';
       this.syncColumnConfigToServer()
@@ -1606,7 +1404,7 @@ export default defineComponent({
       return ' · ' + v + ' 条';
     },
     // 归档分片的显示名：实时单独标出，按月分区显示「年-月」，
-    // 旧分片显示起止时间——同一天切了好几个时必须带上时分，否则七条长得一模一样。
+
     shardLabel(item) {
       const cnt = this.fmtCnt(item.cnt);
       if (item.is_current) {
@@ -1620,24 +1418,11 @@ export default defineComponent({
         : item.tiers && item.tiers.length > 0 && item.tiers.indexOf('access_log') < 0
           ? ' · ' + this.$t('page.visit_log.shard_only_event')
           : '';
-      if (item.period_key && item.period_key.length >= 6) {
-        return item.period_key.substring(0, 4) + '-' + item.period_key.substring(4, 6) + cnt + note;
-      }
-      const day = (v) => (v ? String(v).substring(0, 10) : '');
-      const hm = (v) => (v ? String(v).substring(11, 16) : '');
-      const from = day(item.start_time);
-      const to = day(item.end_time);
-      if (from && from === to) {
-        // 同一天内切出来的：带时分才分得清
-        const a = hm(item.start_time);
-        const b = hm(item.end_time);
-        return (a || b ? from + ' ' + a + '~' + b : from) + cnt + note;
-      }
-      if (from || to) {
-        return from + ' ~ ' + to + cnt + note;
-      }
-      // 时间信息都缺（脏数据）：退回显示原始标识，至少还能对上库里的东西
-      return item.file_name + cnt + note;
+      const period = item.period_key;
+      if (!period) return item.file_name + cnt + note;
+      const sequence = /_([0-9]{2,})(?:\.db)?$/.exec(item.file_name);
+      const extra = sequence && sequence[1] !== period ? ' (' + sequence[1] + ')' : '';
+      return period.slice(0, 4) + '-' + period.slice(4) + extra + cnt + note;
     },
     // 识别码直查模式：填了访问识别码就忽略时间与分区，后端按主键跨分区找
     applyQuickRange() {
@@ -1660,7 +1445,7 @@ export default defineComponent({
         access_log: this.$t('page.visit_log.view_access'),
         security_event: this.$t('page.visit_log.view_event'),
         event_payload: this.$t('logExport.payload'),
-        web_logs: this.$t('logExport.legacyLogs'),
+
       };
       return m[t] || t;
     },
@@ -1732,25 +1517,23 @@ export default defineComponent({
             that.shardRows = share_options;
             const gLive = { label: that.$t('page.visit_log.shard_group_live'), options: [] };
             const gPeriod = { label: that.$t('page.visit_log.shard_group_period'), options: [] };
-            const gLegacy = { label: that.$t('page.visit_log.shard_group_legacy'), options: [] };
+
             for (let i = 0; i < share_options.length; i++) {
               const it = share_options[i];
               // 下拉里显示「时间段」而不是文件名/表名：归档分区按月切，用户要找的是某段时间的日志
               const label = that.shardLabel(it);
               that.share_db_dic[it.file_name] = label;
               const opt = { value: it.file_name, label: label, disabled: !!it.missing };
-              // 后端按驱动标记当前(实时)分片：SQLite=local_log.db，MySQL=web_logs
+
               if (it.is_current) {
                 gLive.options.push(opt);
-              } else if (it.period_key) {
-                gPeriod.options.push(opt);
               } else {
-                gLegacy.options.push(opt);
+                gPeriod.options.push(opt);
               }
             }
-            that.shardGroups = [gLive, gPeriod, gLegacy].filter((g) => g.options.length > 0);
+            that.shardGroups = [gLive, gPeriod].filter((g) => g.options.length > 0);
             // 默认停在「自动（按时间范围）」：分区由时间算出来，不再让用户自己猜
-            // （旧默认是实时分片，会出现「日期选了上个月、分区停在实时 → 0 条」）
+
           }
         })
         .catch((e: Error) => {
@@ -1761,14 +1544,13 @@ export default defineComponent({
       this.hostLoading = true;
       this.hostError = '';
       try {
-        const res = await allLogServices();
+        const res = await listServices();
         if (res.code !== 0 || !Array.isArray(res.data))
           throw new Error(res.msg || this.text('服务列表暂时无法读取', 'Services unavailable'));
         this.serviceOptions = res.data;
         this.host_dic = Object.fromEntries(res.data.map((item) => [item.value, item.label]));
         this.host_nickname_dic = Object.fromEntries(res.data.map((item) => [item.value, item.nickname || item.label]));
         this.serviceByCode = Object.fromEntries(res.data.map((item) => [item.value, item]));
-        this.realHostOptions = res.data.filter((item) => item.global_host !== 1 && item.source !== 'pipeline');
       } catch (error) {
         this.hostError = error.message || this.text('服务列表读取失败，请重试。', 'Could not load services. Retry.');
       } finally {
@@ -2106,66 +1888,17 @@ export default defineComponent({
       }
     },
 
-    // 处理IP提取问题
     handleIPExtractIssue() {
-      const service = this.serviceByCode[this.searchformData.host_code];
-      if (service?.source === 'pipeline') {
-        this.$router.push({ name: 'WafPipeline', query: { edit: String(service.port) } });
-        return;
-      }
-      this.ipExtractDialogVisible = true;
-      // 获取当前配置
-      get_detail_by_item_api({ item: 'gwaf_proxy_header' })
-        .then((res) => {
-          if (res.code === 0 && res.data) {
-            this.ipExtractFormData = res.data;
-          }
-        })
-        .catch((err) => {
-          console.error('获取IP提取配置失败:', err);
-        });
+      this.ipExtractHostCode = this.searchformData.host_code || '';
+      if (this.serviceByCode[this.ipExtractHostCode]) this.gotoHostIpSource();
+      else this.ipExtractDialogVisible = true;
     },
-
-    // 跳到该站点的「真实IP来源」配置(网站防护列表页会自动打开编辑弹窗的"其他配置")
     gotoHostIpSource() {
-      if (!this.ipExtractHostCode) return;
+      const service = this.serviceByCode[this.ipExtractHostCode];
+      if (!service) return;
       this.ipExtractDialogVisible = false;
-      this.$router.push({ name: 'WafHost', query: { editcode: this.ipExtractHostCode, tab: 'ipsource' } });
+      this.$router.push({ name: 'WafPipeline', query: { edit: String(service.port), tab: 'network' } });
     },
-    // 就地查看该站点最近真实到达的请求头
-    openHostProbe() {
-      if (!this.ipExtractHostCode) return;
-      this.hostProbeVisible = true;
-    },
-    // 快捷选择IP头信息
-    selectIPHeader(headerValue) {
-      this.ipExtractFormData.value = headerValue;
-      this.$message.success('已选择: ' + headerValue);
-    },
-
-    // 打开视频教程
-    openVideoTutorial() {
-      window.open('https://www.bilibili.com/video/BV1pn8Ez2ELQ/', '_blank', 'noopener,noreferrer');
-    },
-
-    // 提交IP提取配置
-    onSubmitIPExtract({ validateResult }) {
-      if (validateResult === true) {
-        edit_system_config_api(this.ipExtractFormData)
-          .then((res) => {
-            if (res.code === 0) {
-              this.$message.success(res.msg);
-              this.ipExtractDialogVisible = false;
-            } else {
-              this.$message.error(res.msg);
-            }
-          })
-          .catch((err) => {
-            this.$message.error(err.message);
-          });
-      }
-    },
-    //end meathod
   },
 });
 </script>

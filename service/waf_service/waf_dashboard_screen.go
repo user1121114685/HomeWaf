@@ -5,7 +5,6 @@ import (
 	"HomeWaf/model"
 	response "HomeWaf/model/response"
 	"HomeWaf/wafdb"
-	"HomeWaf/wafdb/dialect"
 	"context"
 	"errors"
 	"fmt"
@@ -64,7 +63,7 @@ func GetScreenSnapshot(ctx context.Context) (*response.ScreenSnapshot, error) {
 	}
 	shards := []logShard{{Name: wafdb.LiveLogName(), Live: true, End: now}}
 	for _, sh := range registered {
-		if sh.FileName == "" || sh.FileName == wafdb.LiveLogName() || sh.IsTableShard() == dialect.Get().IsFileBased() || (sh.DbLogicType != "" && sh.DbLogicType != "log") {
+		if sh.DbLogicType != "log" || !wafdb.IsLogArchive(sh.FileName) {
 			continue
 		}
 		start, end := time.Time(sh.StartTime), time.Time(sh.EndTime)
@@ -91,9 +90,6 @@ func GetScreenSnapshot(ctx context.Context) (*response.ScreenSnapshot, error) {
 			continue
 		}
 		table := tier.Access
-		if table == "" {
-			table = tier.WebLog
-		}
 		if table == "" {
 			if sh.Registered > 0 {
 				issues = append(issues, "部分历史日志分区缺少访问记录")

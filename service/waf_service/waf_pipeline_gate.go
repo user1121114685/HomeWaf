@@ -5,8 +5,6 @@ import (
 	"HomeWaf/utils"
 	"HomeWaf/wafpipeline"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -45,17 +43,8 @@ func (s *WafPipelineGateService) OwnsRuntime() bool {
 	return db.WithContext(ctx).First(&runtime, "id = ?", 1).Error == nil && runtime.Owner == s.owner
 }
 
-func gateAccount(u model.GateUser) wafpipeline.GateAccount {
-	version := u.AuthVersion
-	if version == "" {
-		seed := u.PasswordHash
-		if u.TOTPSecret != "" {
-			seed += "\x00totp=" + u.TOTPSecret
-		}
-		h := sha256.Sum256([]byte(seed))
-		version = hex.EncodeToString(h[:])
-	}
-	return wafpipeline.GateAccount{PortID: u.PortID, Username: u.Username, PasswordHash: u.PasswordHash, TOTPSecret: u.TOTPSecret, Version: version, Enabled: u.Enabled, ExpiresAt: u.ExpiresAt}
+func activeGateUsers(db *gorm.DB, portID string) *gorm.DB {
+	return db.Model(&model.GateUser{}).Where("port_id = ? AND auth_version <> '' AND enabled = ? AND (expires_at = 0 OR expires_at > ?)", portID, true, time.Now().Unix())
 }
 func (s *WafPipelineGateService) Reload(port uint16) error {
 	s.mu.Lock()
@@ -73,7 +62,7 @@ func (s *WafPipelineGateService) reload(port uint16) error {
 	}
 	accounts := make([]wafpipeline.GateAccount, 0, len(users))
 	for _, u := range users {
-		accounts = append(accounts, gateAccount(u))
+		accounts = append(accounts, wafpipeline.GateAccount{PortID: u.PortID, Username: u.Username, PasswordHash: u.PasswordHash, TOTPSecret: u.TOTPSecret, Version: u.AuthVersion, Enabled: u.Enabled, ExpiresAt: u.ExpiresAt})
 	}
 	s.Store.ReplaceAccounts(wafpipeline.PortID(port), accounts)
 	return nil
@@ -245,7 +234,7 @@ func (s *WafPipelineGateService) Save(req GateUserSaveRequest, operator string) 
 		}
 		u = model.GateUser{BaseOrm: pipelineORM(), PortID: wafpipeline.PortID(req.Port), Username: req.Username}
 	}
-	if req.Password != "" || isNew {
+	if req.Password != "" || u.AuthVersion == "" {
 		if err = ValidateGatePassword(req.Username, req.Password); err != nil {
 			return err
 		}
@@ -268,7 +257,7 @@ func (s *WafPipelineGateService) Save(req GateUserSaveRequest, operator string) 
 	}
 	if cfg.Policy.Gate.Enabled && (!req.Enabled || req.ExpiresAt > 0 && req.ExpiresAt <= time.Now().Unix()) {
 		var n int64
-		if err = db.Model(&model.GateUser{}).Where("port_id = ? AND username <> ? AND enabled = ? AND (expires_at = 0 OR expires_at > ?)", u.PortID, u.Username, true, time.Now().Unix()).Count(&n).Error; err != nil {
+		if err = activeGateUsers(db, u.PortID).Where("username <> ?", u.Username).Count(&n).Error; err != nil {
 			return err
 		}
 		if n == 0 {
@@ -309,7 +298,7 @@ func (s *WafPipelineGateService) Delete(port uint16, username, operator string) 
 	}
 	if cfg.Policy.Gate.Enabled {
 		var n int64
-		if err = db.Model(&model.GateUser{}).Where("port_id = ? AND username <> ? AND enabled = ? AND (expires_at = 0 OR expires_at > ?)", wafpipeline.PortID(port), username, true, time.Now().Unix()).Count(&n).Error; err != nil {
+		if err = activeGateUsers(db, wafpipeline.PortID(port)).Where("username <> ?", username).Count(&n).Error; err != nil {
 			return err
 		}
 		if n == 0 {

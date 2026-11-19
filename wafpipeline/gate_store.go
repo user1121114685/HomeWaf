@@ -63,7 +63,7 @@ func (s *GateStore) ReplaceAccounts(port string, users []GateAccount) {
 		}
 	}
 	for _, u := range users {
-		if u.PortID == port {
+		if u.PortID == port && u.Version != "" {
 			s.users[accountKey(port, u.Username)] = u
 		}
 	}

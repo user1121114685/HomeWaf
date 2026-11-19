@@ -9,34 +9,18 @@ import (
 	"unicode/utf8"
 )
 
-// Zero-valued new fields preserve compatibility with existing saved policies.
-func effectiveHoneypot(cfg HoneypotConfig) HoneypotConfig {
-	if cfg.DropWindowSeconds == 0 {
-		cfg.DropWindowSeconds = 600
-	}
-	if cfg.DropSeconds == 0 {
-		cfg.DropSeconds = 10800
-	}
-	if cfg.DistributedDrop.WindowSeconds == 0 {
-		cfg.DistributedDrop.WindowSeconds = 600
-	}
-	if cfg.DistributedDrop.DistinctIPs == 0 {
-		cfg.DistributedDrop.DistinctIPs = 10
-	}
-	if cfg.DistributedDrop.Seconds == 0 {
-		cfg.DistributedDrop.Seconds = 10800
-	}
-	if cfg.ArchiveMaxBytes == 0 {
-		cfg.ArchiveMaxBytes = 16 << 10
-	}
-	return cfg
+func DefaultHoneypotConfig() HoneypotConfig {
+	return HoneypotConfig{MaxConcurrent: 32, MaxDelayMillis: 250, ArchiveMaxBytes: 16 << 10}
 }
 
-func validateHoneypotControls(cfg HoneypotConfig) error {
-	cfg = effectiveHoneypot(cfg)
-	d := cfg.DistributedDrop
-	if cfg.DropAfterHits < 0 || cfg.DropAfterHits > 100000 || cfg.DropWindowSeconds < 1 || cfg.DropWindowSeconds > 86400 || cfg.DropSeconds < 1 || cfg.DropSeconds > 7*86400 || d.WindowSeconds < 1 || d.WindowSeconds > 86400 || d.DistinctIPs < 2 || d.DistinctIPs > 1000 || d.Seconds < 1 || d.Seconds > 7*86400 || cfg.ArchiveMaxBytes < 1024 || cfg.ArchiveMaxBytes > 64<<10 || len(cfg.Lures) > 32 {
-		return fmt.Errorf("invalid honeypot drop or archive limits")
+func ValidateHoneypotConfig(cfg HoneypotConfig) error {
+	if cfg.MaxConcurrent < 1 || cfg.MaxConcurrent > 32 || cfg.MaxDelayMillis < 0 || cfg.MaxDelayMillis > 2000 || cfg.ArchiveMaxBytes < 1024 || cfg.ArchiveMaxBytes > 64<<10 || len(cfg.TrapPaths) > 128 || len(cfg.Lures) > 32 {
+		return fmt.Errorf("invalid honeypot resource limits")
+	}
+	for _, path := range cfg.TrapPaths {
+		if !strings.HasPrefix(path, "/") || len(path) > 1024 || NormalizePath(path) != path {
+			return fmt.Errorf("honeypot trap paths must be canonical absolute paths")
+		}
 	}
 	ids, total := map[string]bool{}, 0
 	for _, lure := range cfg.Lures {
@@ -52,8 +36,7 @@ func validateHoneypotControls(cfg HoneypotConfig) error {
 // The same source sees a stable weighted choice without trusting a cookie or
 // issuing any client-side script. This server never uses display text as
 // instructions to a model or tool.
-func selectHoneypotLure(s *Snapshot, c *RequestContext) HoneypotLure {
-	lures := HoneypotPolicy(s).Lures
+func selectHoneypotLure(s *Snapshot, c *RequestContext, lures []HoneypotLure) HoneypotLure {
 	total := 0
 	for _, lure := range lures {
 		if lure.Weight > 0 {

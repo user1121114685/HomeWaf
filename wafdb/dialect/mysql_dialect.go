@@ -55,31 +55,34 @@ func (d *MySQLDialect) RenameTable(db *gorm.DB, src, dst string) error {
 	return db.Exec(fmt.Sprintf("RENAME TABLE %s TO %s", mysqlQuote(src), mysqlQuote(dst))).Error
 }
 
-// ShardSwapTable archives liveTable to archiveTable and leaves an empty liveTable.
-// It first creates an empty clone of the live table (structure + all indexes via
-// CREATE TABLE ... LIKE), then atomically swaps the two names in a single
-// RENAME TABLE statement so there is no window where the live table is missing
-// (avoids losing concurrent log inserts).
-func (d *MySQLDialect) ShardSwapTable(db *gorm.DB, liveTable, archiveTable string) error {
-	tmpTable := liveTable + "_shardtmp"
-
-	// Clean up any leftover temp table from a previously failed attempt.
-	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", mysqlQuote(tmpTable))).Error; err != nil {
-		return fmt.Errorf("mysql: 清理临时分表 %s 失败: %w", tmpTable, err)
+// RotateLogTables swaps all log tiers together in a single RENAME TABLE statement.
+func (d *MySQLDialect) RotateLogTables(db *gorm.DB, tables []string, suffix string) error {
+	var renames, temporary []string
+	defer func() {
+		for _, table := range temporary {
+			db.Exec("DROP TABLE IF EXISTS " + mysqlQuote(table))
+		}
+	}()
+	for _, table := range tables {
+		archive := table + "_" + suffix
+		if err := ValidatePartitionPair(table, archive); err != nil {
+			return err
+		}
+		tmp := table + shardTmpSuffix
+		// A failed or interrupted attempt may have left an unused empty clone.
+		if err := db.Exec("DROP TABLE IF EXISTS " + mysqlQuote(tmp)).Error; err != nil {
+			return err
+		}
+		if err := db.Exec("CREATE TABLE " + mysqlQuote(tmp) + " LIKE " + mysqlQuote(table)).Error; err != nil {
+			return err
+		}
+		temporary = append(temporary, tmp)
+		renames = append(renames, mysqlQuote(table)+" TO "+mysqlQuote(archive), mysqlQuote(tmp)+" TO "+mysqlQuote(table))
 	}
-	// Create an empty clone with identical structure and indexes.
-	if err := db.Exec(fmt.Sprintf("CREATE TABLE %s LIKE %s", mysqlQuote(tmpTable), mysqlQuote(liveTable))).Error; err != nil {
-		return fmt.Errorf("mysql: 创建临时分表 %s 失败: %w", tmpTable, err)
+	if err := db.Exec("RENAME TABLE " + strings.Join(renames, ", ")).Error; err != nil {
+		return fmt.Errorf("mysql: 原子切换日志分区失败: %w", err)
 	}
-	// Atomic swap: live → archive, tmp → live (single statement).
-	swapSQL := fmt.Sprintf("RENAME TABLE %s TO %s, %s TO %s",
-		mysqlQuote(liveTable), mysqlQuote(archiveTable),
-		mysqlQuote(tmpTable), mysqlQuote(liveTable))
-	if err := db.Exec(swapSQL).Error; err != nil {
-		// Best-effort cleanup so a retry can succeed.
-		db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", mysqlQuote(tmpTable)))
-		return fmt.Errorf("mysql: 原子换表失败 (%s→%s): %w", liveTable, archiveTable, err)
-	}
+	temporary = nil
 	return nil
 }
 

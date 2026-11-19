@@ -90,7 +90,7 @@
 import { defineComponent } from 'vue';
 import { ElMessageBox } from 'element-plus';
 
-import { hashBytes } from '@/utils/legacyCipher';
+import { hashBytes } from '@/utils/fileHash';
 import request from '@/utils/request';
 import {
   wafAppBackupsApi,

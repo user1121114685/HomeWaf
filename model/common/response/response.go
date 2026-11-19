@@ -3,7 +3,6 @@
 package response
 
 import (
-	"HomeWaf/global"
 	"HomeWaf/wafsec"
 	"encoding/json"
 	"net/http"
@@ -24,7 +23,6 @@ const (
 	NEED_BIND_2FA     = -3
 	NEED_CHANGE_PWD   = -4
 	// NEED_REHANDSHAKE 告诉客户端本次没有可用的会话密钥，请重新握手后重试。
-	// 只在 legacy 通道被运维关掉时出现（开着的话直接回落 legacy，旧客户端无感）。
 	NEED_REHANDSHAKE = -5
 	// BACKEND_UNAVAILABLE 依赖的存储/缓存后端本次不可用，请求未能完成。
 	// 与 AUTHFAIL 的区别：登录状态没有问题，客户端应保留登录态并稍后重试。
@@ -37,11 +35,11 @@ const (
 	AUTHFAIL               = -999
 )
 
-// HeaderKeyID 是客户端声明本次会话密钥的请求头，与 X-Sec-Ver: 2 配套。
+// HeaderKeyID 是客户端声明本次会话标识的请求头。
 const HeaderKeyID = "X-Key-Id"
 
 func Result(code int, data interface{}, msg string, c *gin.Context) {
-	// OpenAPI 请求直接返回明文 JSON，不做 AES 加密
+	// API Key 客户端使用 JSON 响应。
 	if isOpenApi, exists := c.Get("is_openapi"); exists && isOpenApi == true {
 		c.JSON(http.StatusOK, Response{
 			code,
@@ -50,44 +48,37 @@ func Result(code int, data interface{}, msg string, c *gin.Context) {
 		})
 		return
 	}
-	result, _ := json.Marshal(data) //将数据转换为json
-
-	// v2 客户端：用本次会话密钥加密（swt2）。会话失效（服务端重启/过期）时不报错，
-	// 按下面的 legacy 分支回落——客户端能解开，并据此自行重新握手。
-	keyid := ""
-	if c.Request != nil {
-		keyid = c.Request.Header.Get(HeaderKeyID)
-	}
-	if keyid != "" {
-		if encryptStr, err := wafsec.TransportEncrypt(keyid, result); err == nil {
-			c.JSON(http.StatusOK, Response{
-				code,
-				encryptStr,
-				msg,
-			})
-			return
-		}
-	}
-
-	// 关掉 legacy 的前提是 v2 确实可用；传输密钥没初始化成功时仍走 legacy，
-	// 否则管理端会两条通道都不通，等于把自己锁在门外。
-	if !global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY && wafsec.CommKeyReady() {
-		// legacy 通道已被关闭：给出可诊断的明文信号，而不是发一段对方解不开的密文
-		c.JSON(http.StatusOK, Response{
-			NEED_REHANDSHAKE,
-			"",
-			"会话密钥不可用，请重新握手",
-		})
+	raw, err := json.Marshal(data)
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
+	var session *wafsec.TransportSession
+	if value, ok := c.Get(TransportSessionKey); ok {
+		session, _ = value.(*wafsec.TransportSession)
+	} else if c.Request != nil {
+		session, _ = wafsec.OpenTransportSession(c.GetHeader(HeaderKeyID))
+	}
+	if session == nil {
+		if code == SUCCESS {
+			Rehandshake(c)
+			return
+		}
+		c.JSON(http.StatusOK, Response{code, "", msg})
+		return
+	}
+	encrypted, err := session.Encrypt(raw)
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	c.JSON(http.StatusOK, Response{code, encrypted, msg})
+}
 
-	encryptStr, _ := wafsec.AesEncrypt(result, global.GWAF_COMMUNICATION_KEY)
-	// 开始时间
-	c.JSON(http.StatusOK, Response{
-		code,
-		encryptStr,
-		msg,
-	})
+const TransportSessionKey = "management_transport_session"
+
+func Rehandshake(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusOK, Response{NEED_REHANDSHAKE, "", "会话密钥不可用，请重新握手"})
 }
 
 // OkWithPlainData 返回不加密的 data，供握手类接口使用——此时双方还没有共享密钥。

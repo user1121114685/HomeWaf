@@ -12,6 +12,22 @@ import (
 	"HomeWaf/model"
 )
 
+func TestNotifyEmailRecordsEffectiveRecipients(t *testing.T) {
+	channel := model.NotifyChannel{Type: "email", ConfigJSON: `{"smtp_host":"127.0.0.1","smtp_port":"1","from_email":"waf@example.test","to_emails":["default@example.test"]}`}
+	for _, tc := range []struct{ recipients, want string }{
+		{"", "default@example.test"},
+		{" , ", "default@example.test"},
+		{" one@example.test, two@example.test ", "one@example.test, two@example.test"},
+	} {
+		sub := model.NotifySubscription{Recipients: tc.recipients}
+		// An invalid subject stops delivery before SMTP, while preserving the recipients for the log.
+		got, err := WafNotifySenderServiceApp.deliverToChannel(channel, sub, "", "invalid\nsubject", "")
+		if err == nil || got != tc.want {
+			t.Fatalf("recipients %q: want %q, got %q (error %v)", tc.recipients, tc.want, got, err)
+		}
+	}
+}
+
 func TestNotifySubscriptionDeliversNewProviderWithTemplate(t *testing.T) {
 	old := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
 	global.UpdateSettings(func(c *global.RuntimeSettings) { c.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "127.0.0.1" })

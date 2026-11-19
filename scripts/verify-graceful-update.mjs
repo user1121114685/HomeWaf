@@ -3,17 +3,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
+import https from 'node:https';
 import net from 'node:net';
 import { createHash } from 'node:crypto';
-import { createGzip } from 'node:zlib';
-import { pipeline } from 'node:stream/promises';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { listenLoopbackForTest as listen } from './test-listener.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const [oldInput, newInput, nextVersion = 'v2.0.1-graceful-test'] = process.argv.slice(2);
-const githubRelease = process.argv.includes('--github');
+const [oldInput, newInput, nextVersion = 'v3.0.1'] = process.argv.slice(2);
 const viaInstaller = process.argv.includes('--via-installer');
 if (!oldInput || !newInput) throw new Error('Usage: node scripts/verify-graceful-update.mjs old-binary new-binary next-version');
 const dir = fs.mkdtempSync(path.join(root, '.cache', 'graceful-smoke-'));
@@ -25,19 +23,20 @@ const report = { requests: 0, failures: [], failureSamples: {}, versions: [], ch
 const freePort = async () => { const s = net.createServer(); const p = await listen(s); await new Promise((r) => s.close(r)); return p; };
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const waitFor = async (fn, timeout = 60000) => { const end = Date.now() + timeout; let last; while (Date.now() < end) { try { const value = await fn(); if (value) return value; } catch (err) { last = err; } await delay(100); } throw new Error('Timed out waiting for smoke check: ' + (last?.message || 'condition not satisfied') + (last?.cause?.message ? ` (${last.cause.message})` : '')); };
-const hash = createHash('sha256');
-for await (const chunk of fs.createReadStream(path.resolve(newInput))) hash.update(chunk);
-const checksum = hash.digest('base64');
-const archive = path.join(dir, 'new.gz');
-await pipeline(fs.createReadStream(path.resolve(newInput)), createGzip({ level: 1 }), fs.createWriteStream(archive));
-
-const publisher = http.createServer((req, res) => {
-  if (req.url.split('?')[0].endsWith('.json')) {
+const keyPath = path.join(dir, 'publisher.key');
+const caPath = path.join(dir, 'publisher.pem');
+execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
+  '-subj', '/CN=HomeWaf update fixture', '-addext', 'subjectAltName=IP:127.0.0.1',
+  '-keyout', keyPath, '-out', caPath], { windowsHide: true, stdio: 'ignore' });
+let release;
+const publisher = https.createServer({ key: fs.readFileSync(keyPath), cert: fs.readFileSync(caPath) }, (req, res) => {
+  if (req.url === '/release') {
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ Version: nextVersion, Sha256: checksum, Desc: 'Isolated smooth update verification' }));
-  } else if (req.url.endsWith('.gz')) {
-    res.setHeader('Content-Length', fs.statSync(archive).size);
-    fs.createReadStream(archive).pipe(res);
+    res.end(JSON.stringify({ tag_name: nextVersion, body: 'Isolated smooth update verification',
+      assets: [{ name: release.name, browser_download_url: `https://127.0.0.1:${publisherPort}/${release.name}`, digest: `sha256:${release.digest}` }] }));
+  } else if (req.url === '/' + release.name) {
+    res.setHeader('Content-Length', fs.statSync(release.archivePath).size);
+    fs.createReadStream(release.archivePath).pipe(res);
   } else { res.writeHead(404); res.end(); }
 });
 const publisherPort = await listen(publisher);
@@ -66,7 +65,8 @@ origin.on('upgrade', (req, socket) => {
 });
 const originPort = await listen(origin), managerPort = await freePort(), proxyPort = await freePort();
 fs.writeFileSync(path.join(dir, 'conf', 'config.yml'), `local_port: ${managerPort}\ndrain_time_out: 15\ndebug_worker_header: true\nupdate_restart_timeout: 90\nnotice:\n  isenable: false\n`);
-const env = { ...process.env, HOMEWAF_DEV: '1', HOMEWAF_UPDATE_URL: githubRelease ? '' : `http://127.0.0.1:${publisherPort}/`, HOMEWAF_RELEASE_URL: 'https://api.github.com/repos/user1121114685/HomeWaf/releases/latest' };
+const env = { ...process.env, HOMEWAF_UPDATE_URL: '', HOMEWAF_RELEASE_URL: `https://127.0.0.1:${publisherPort}/release`,
+  HOMEWAF_SMOKE_CA: caPath };
 const log = fs.openSync(path.join(dir, 'process.log'), 'a');
 const helperProcesses = new Set();
 const runProcess = (command, args, stdio = ['ignore', log, log]) => new Promise((resolve, reject) => {
@@ -95,12 +95,14 @@ async function prepareInstaller() {
   const digest = createHash('sha256');
   for await (const data of fs.createReadStream(archivePath)) digest.update(data);
   const checksumsPath = path.join(dir, 'fixture-checksums.txt');
-  fs.writeFileSync(checksumsPath, `${digest.digest('hex')}  ${asset}\n`);
+  release = { name: asset, archivePath, digest: digest.digest('hex') };
+  fs.writeFileSync(checksumsPath, `${release.digest}  ${asset}\n`);
   fs.writeFileSync(path.join(dir, '.homewaf-installer'), 'HomeWaf');
   return process.platform === 'win32'
     ? ['-Version', nextVersion, '-ArchivePath', archivePath, '-ChecksumsPath', checksumsPath]
     : ['--version', nextVersion, '--archive', archivePath, '--checksums', checksumsPath];
 }
+const upgradeArgs = await prepareInstaller();
 const child = spawn(exe, [], { cwd: dir, env, windowsHide: true, stdio: ['ignore', log, log] });
 let key, upgraded, stopped = false;
 let monitor = [];
@@ -136,24 +138,25 @@ try {
     return (await api('version')).version;
   });
   report.versions.push((await api('version')).version);
-  const siteFile = path.join(dir, 'site.json');
-  // This disposable site isolates transport continuity from WAF challenge rules.
-  fs.writeFileSync(siteFile, JSON.stringify({ host: 'graceful.test', port: proxyPort, remote_host: 'http://127.0.0.1', remote_port: originPort, is_enable_response_buffering: 0, log_only_mode: 1 }));
-  const created = await new Promise((resolve, reject) => {
-    const cli = spawn(exe, ['site', 'apply', '-f', siteFile, '--wait', '60s', '-o', 'json'], { cwd: dir, env, windowsHide: true, stdio: ['ignore', 'pipe', log] });
-    let out = ''; cli.stdout.on('data', (s) => { out += s; });
-    cli.on('error', reject);
-    cli.on('exit', (code) => code === 0 ? resolve(JSON.parse(out)) : reject(new Error('Site fixture creation failed: ' + out.slice(-500))));
+  const postPort = async (action, payload) => {
+    const response = await fetch(`http://127.0.0.1:${managerPort}/api/v1/pipeline/ports/${action}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+      body: JSON.stringify(payload), signal: AbortSignal.timeout(10000),
+    });
+    const result = await response.json();
+    if (!response.ok || result.code !== 0) throw new Error(`Service ${action} failed: ${result.msg || response.status}`);
+    return result.data;
+  };
+  const { config } = await postPort('draft', {
+    port: proxyPort, name: 'Graceful update fixture', host_names: ['graceful.test'],
+    upstream: `http://127.0.0.1:${originPort}`, template_id: 'observe', defense_mode: 'restrict',
   });
-  const siteCode = created.results?.[0]?.code;
-  if (!siteCode) throw new Error('Missing test site code');
-  const guard = await fetch(`http://127.0.0.1:${managerPort}/api/v1/wafhost/host/guardstatus?code=${encodeURIComponent(siteCode)}&guard_status=0`, { headers: { 'X-API-Key': key }, signal: AbortSignal.timeout(5000) });
-  if ((await guard.json()).code !== 0) throw new Error('Could not disable challenges on disposable test site');
+  const saved = await postPort('save', { config });
+  await postPort('save', { config: { ...saved, listen_enabled: true } });
   await waitFor(async () => { const r = await proxyRequest(); if (r.status !== 200 || r.body !== 'origin-ok') throw new Error(`Proxy fixture HTTP ${r.status}: ${r.body.slice(0, 300)}`); return true; }, 10000);
   const before = readState(); report.oldWorker = before.active_pid;
   const available = await api('checkversion');
   if (!available.need_update || available.version_new !== nextVersion) throw new Error('Update was not detected');
-  const upgradeArgs = viaInstaller ? await prepareInstaller() : null;
   monitor = Array.from({ length: 4 }, async () => {
     while (!stopped) {
       try { const r = await proxyRequest(); if (r.status !== 200 || r.body !== 'origin-ok') { report.failures.push(`HTTP ${r.status}: ${r.body.slice(0, 80)}`); report.failureSamples[r.worker || 'unknown'] ||= { request: report.requests, status: r.status, body: r.body.slice(0, 8000) }; } }

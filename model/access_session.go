@@ -15,11 +15,7 @@ const (
 
 // 会话作用域
 const (
-	AccessScopeSSO = "sso" // 一次登录换取多个业务域的子令牌，这是现在唯一会被创建的作用域
-	// AccessScopeLocal 是早期「每域各自登录」方案留下的作用域，已不再签发。
-	// 常量与 loadValidSession 里的 BindHost 校验都保留着：升级前建的老会话若还在库里，
-	// 必须继续按"只服务一个域名"来判，不能因为不认识就当成全站通行。
-	AccessScopeLocal = "local"
+	AccessScopeSSO = "sso" // 一次登录换取多个业务域的子令牌。
 )
 
 // 会话被撤销的原因（RevokeReason）
@@ -41,8 +37,7 @@ type AccessSession struct {
 	SessionCode    string              `gorm:"size:64" json:"session_code"`   //sha256hex(cookie明文)，唯一
 	AccountCode    string              `gorm:"size:64" json:"account_code"`   //AccessAccount.Id
 	AccountName    string              `gorm:"size:128" json:"account_name"`  //冗余登录名，方便列表展示与审计
-	Scope          string              `gorm:"size:16" json:"scope"`          //sso | local
-	BindHost       string              `gorm:"size:255" json:"bind_host"`     //scope=local 时绑定的域名
+	Scope          string              `gorm:"size:16" json:"scope"`          //sso
 	ClientIP       string              `gorm:"size:64" json:"client_ip"`      //登录时的客户端IP
 	Fingerprint    string              `gorm:"size:64" json:"fingerprint"`    //登录时的设备指纹
 	UserAgent      string              `gorm:"size:512" json:"user_agent"`    //登录时的UA

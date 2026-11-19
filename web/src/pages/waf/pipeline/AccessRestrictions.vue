@@ -116,8 +116,8 @@
           : '只有命中白名单的来源才可继续；黑名单始终优先。'
       }}
     </p>
-    <p v-if="legacyEntries" class="access-summary">
-      已保留 {{ legacyEntries }} 条已有单独地址规则，可在高级配置中管理；新增地址请使用统一 IP 组。
+    <p v-if="addressCount" class="access-summary">
+      当前服务设置了 {{ addressCount }} 条单独地址规则，可在此服务的 IP 黑白名单中编辑。
     </p>
     <p v-if="conflictingGroups" class="access-error">
       同一个 IP 组同时出现在黑白名单中：黑名单优先，该组的地址会被拒绝。
@@ -178,8 +178,8 @@ const groups = ref<any[]>([]),
   groupsLoaded = ref(false),
   groupBusy = ref(false);
 const regionKey = (region: any) => JSON.stringify([region.country, region.province || '']);
-const legacyEntries = computed(() => (props.policy.ip_group.entries || []).length);
-const legacyAllows = computed(() => (props.policy.ip_group.entries || []).some((entry) => entry.type === 'allow'));
+const addressCount = computed(() => (props.policy.ip_group.entries || []).length);
+const hasAllowedAddress = computed(() => (props.policy.ip_group.entries || []).some((entry) => entry.type === 'allow'));
 let updatingSources = false;
 watch(
   () => props.policy.ip_group,
@@ -234,7 +234,7 @@ const validationMessage = computed(() => {
     props.policy.ip_group.unlisted_action === 'deny' &&
     !regional.value &&
     !allowGroupsEnabled.value &&
-    !legacyAllows.value
+    !hasAllowedAddress.value
   )
     return '当前模板仅允许白名单访问，请选择允许的地区或 IP 组。';
   return '';
@@ -261,7 +261,7 @@ function updateSources(allowChanged = false) {
       group.regions = regional.value ? decodeRegions(chosenRegions.value) : [];
       group.allow_groups = allowGroupsEnabled.value ? [...chosenAllowGroups.value] : [];
       group.unlisted_action =
-        regional.value || allowGroupsEnabled.value || (legacyAllows.value && group.unlisted_action === 'deny')
+        regional.value || allowGroupsEnabled.value || (hasAllowedAddress.value && group.unlisted_action === 'deny')
           ? 'deny'
           : 'continue';
     }

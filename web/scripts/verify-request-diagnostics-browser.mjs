@@ -3,7 +3,7 @@ import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const origin = process.env.LOG_TEST_ORIGIN || 'http://127.0.0.1:3002';
@@ -24,11 +24,12 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 await context.addInitScript(() => { localStorage.setItem('access_token', 'isolated-diagnostics'); localStorage.setItem('lang', 'zh_CN'); });
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const url = new URL(route.request().url());
   const endpoint = url.pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '' } });
-  const fail = (msg) => route.fulfill({ json: { code: 1, data: AesEncrypt('{}'), msg } });
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint)) return fail('Isolated fixture');
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '' } });
+  const fail = (msg) => route.fulfill({ json: { code: 1, data: routeSession(route).encrypt('{}'), msg } });
+  if (endpoint === 'sysinfo/checkversion') return fail('Isolated fixture');
   if (endpoint === 'waflog/attack/detail') {
     requests++;
     const id = url.searchParams.get('req_uuid');
@@ -42,7 +43,7 @@ await context.route('**/api/**', async (route) => {
     } });
   }
   if (endpoint === 'waflog/attack/list') return ok({ list: [sample], total: 1, shards: [], took_ms: 1 });
-  if (endpoint === 'wafhost/host/allhost') return ok([{ value: sample.host_code, label: '群晖 · :15000', source: 'pipeline', port: 15000 }]);
+  if (endpoint === 'waflog/services') return ok([{ value: sample.host_code, label: '群晖 · :15000', source: 'pipeline', port: 15000 }]);
   if (endpoint === 'waflog/attack/allsharedb') return ok([{ label: '实时库', value: 'local_log.db' }]);
   if (endpoint === 'uipreference/get') return ok({});
   if (endpoint === 'waflog/attack/alliptag') return ok([]);

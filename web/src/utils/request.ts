@@ -6,8 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import proxy from '../config/host';
 import router from '../router/index';
 import store from '@/store';
-import { AesDecrypt, AesEncrypt, isObject } from './usuallytool'
-import { ensureSecSession, currentKeyId, secEncrypt, secDecrypt, isSecPayload, resetSecSession } from './seccrypto'
+import { ensureSecSession, invalidateSecSession } from './seccrypto';
+import type { TransportSession } from './transportCipher';
 import { clearLocalStorageExceptPreserved,saveCurrentUrl } from '@/constants';
 import { getRequestTimeout, DEFAULT_REQUEST_TIMEOUT } from '@/config/requestTimeout';
 import { NotifyPlugin, DialogPlugin, MessagePlugin } from '@/ui';
@@ -24,6 +24,7 @@ declare module 'axios' {
     foreground?: boolean;
     /** Decode structured validation errors for forms that handle their own recovery. */
     decodeErrorData?: boolean;
+    transportSession?: TransportSession;
   }
 }
 
@@ -137,20 +138,7 @@ const instance = axios.create({
   // 这样"系统配置页-前端请求超时"改完立即生效，无需刷新；单条请求也可自带更长超时。
   timeout: 0,
   withCredentials: true,
-  transformRequest: [
-    function (data, headers) {
-      // 这里没有对 Form-Data 格式的报文处理
-      if (isObject(data)) {
-        // 一、请求参数加密：有会话密钥走 v2(swt2)，否则回落 legacy。
-        // 握手已在请求拦截器里完成，这里是同步的（tweetnacl 无异步接口）。
-        data = JSON.stringify(data)
-        const sec = secEncrypt(data)
-        data = sec !== null ? sec : AesEncrypt(data)
-        return data
-      }
-      return data
-    }
-  ],
+  transformRequest: [data => data],
 });
 
 // eslint-disable-next-line
@@ -161,17 +149,14 @@ instance.interceptors.retry = 3;
 
 instance.interceptors.request.use(
   async (config: any) => {
-    // 先确保本标签页有可用的会话密钥；握手失败(旧后端没有该接口等)就回落 legacy 通道。
-    // 放在拦截器里 await，后面的 transformRequest 才能同步拿到密钥。
-    await ensureSecSession()
-    const keyId = currentKeyId()
-    if (keyId) {
-      config.headers['X-Sec-Ver'] = '2'
-      config.headers['X-Key-Id'] = keyId
+    const session = await ensureSecSession();
+    config.transportSession = session;
+    config.headers['X-Key-Id'] = session.id;
+    if (config.__rawData === undefined) config.__rawData = config.data;
+    const raw = config.__rawData;
+    if (raw !== undefined && raw !== null && !(raw instanceof FormData)) {
+      config.data = session.encrypt(typeof raw === 'string' ? raw : JSON.stringify(raw));
     }
-    // 留一份未加密的报文：会话密钥失效需要重发时，得用新密钥重新加密，
-    // 而 config.data 此刻之后就会被 transformRequest 换成密文字符串。
-    if (config.__rawData === undefined) config.__rawData = config.data
 
     let token: string = localStorage.getItem("access_token") ? localStorage.getItem("access_token") : "" //此处换成自己获取回来的token，通常存在在cookie或者store里面
     if (token) {
@@ -179,12 +164,6 @@ instance.interceptors.request.use(
       config.headers['X-Token'] = token
       //config.headers.Authorization =  + token
     }
-    /*if(config.headers['Content-Type'] !=undefined && config.headers['Content-Type']=="application/json" ){
-      data = JSON.stringify(config.data)
-
-      config.data = AesEncrypt(data) // 加密请求参数
-    }
-    console.log("request",config)*/
     config.headers['X-Request-Time'] = Math.floor(Date.now() / 1000).toString()
     config.headers['X-Request-Id'] = uuidv4()
     // 未显式指定超时的请求，按当前 localStorage 配置动态套用（0/未设都视为未指定）；
@@ -197,33 +176,25 @@ instance.interceptors.request.use(
   error => {
     // Do something with request error
     console.log("出错啦", error) // for debug
-    Promise.reject(error)
+    return Promise.reject(error)
   }
 )
 instance.interceptors.response.use(
-  (response) => {
+  async (response) => {
     if (response.status === 200) {
-      const { data } = response;
+      let { data } = response;
+      if (data instanceof Blob) {
+        if (!data.type.includes('json')) return data;
+        data = JSON.parse(await data.text());
+      }
+      const session = response.config.transportSession!;
       if (data.code === CODE.REQUEST_SUCCESS) {
-        // v2 报文优先；服务端会话失效时会回落 legacy，这里同样兜底解一次
-        let tmpSrcContent = secDecrypt(data.data)
-        if (tmpSrcContent === null) {
-          if (isSecPayload(data.data)) {
-            // 是 v2 报文但本地解不开(keyid 对不上)：丢掉密钥下次重新握手
-            resetSecSession()
-            return data;
-          }
-          tmpSrcContent = AesDecrypt(data.data)
-        }
-        data.data = JSON.parse(tmpSrcContent)
+        data.data = JSON.parse(session.decrypt(data.data));
         return data;
       } else {
-        if (response.config.decodeErrorData && typeof data.data === 'string') {
-          try {
-            const decoded = secDecrypt(data.data);
-            if (decoded !== null) data.data = JSON.parse(decoded);
-            else if (!isSecPayload(data.data)) data.data = JSON.parse(AesDecrypt(data.data));
-          } catch { /* Keep the original failure message if its details cannot be decoded. */ }
+        if (response.config.decodeErrorData && data.data) {
+          try { data.data = JSON.parse(session.decrypt(data.data)); }
+          catch { data.data = undefined; }
         }
         if (data.code === CODE.NEED_REHANDSHAKE) {
           // 服务端没有本次会话密钥(多为重启或过期)：重新握手后重发这一条请求。
@@ -232,8 +203,8 @@ instance.interceptors.response.use(
           if (!cfg.__secRetried) {
             cfg.__secRetried = true
             cfg.data = cfg.__rawData
-            resetSecSession()
-            return ensureSecSession().then(() => instance.request(cfg))
+            invalidateSecSession(session.id);
+            return instance.request(cfg);
           }
           console.log("会话密钥重新握手后仍不可用")
         }
@@ -271,6 +242,7 @@ instance.interceptors.response.use(
           router.replace({ path: '/login' })
         }
       }
+      if (response.config.responseType === 'blob') throw new Error(data.msg || '下载失败');
       return data;
     }
   },

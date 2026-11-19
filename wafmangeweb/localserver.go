@@ -176,10 +176,10 @@ func logExportTransportLimit() gin.HandlerFunc {
 func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 
 	PublicRouterGroup := r.Group("")
-	PublicRouterGroup.Use(middleware.SecApi(), middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.ReplayProtect())
-	router.PublicApiGroupApp.InitLoginRouter(PublicRouterGroup)
+	PublicRouterGroup.Use(middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.ReplayProtect())
+	router.PublicApiGroupApp.InitLoginRouter(PublicRouterGroup.Group("", middleware.SecApi()))
 	router.PublicApiGroupApp.InitSecKeyRouter(PublicRouterGroup)
-	router.ApiGroupApp.InitAdminTitlesPublicRouter(PublicRouterGroup)
+	router.ApiGroupApp.InitAdminTitlesPublicRouter(PublicRouterGroup.Group("", middleware.SecApi()))
 	dashboardScreenApi := &api.WafDashboardScreenApi{}
 	PublicRouterGroup.GET("/api/v1/public/dashboard-share", dashboardScreenApi.PublicShare)
 
@@ -187,9 +187,7 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 	RouterGroup.Use(logExportTransportLimit(), middleware.Auth(), middleware.ReplayProtect(), middleware.OpenApiLogMiddleware(), middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.SecApi(), middleware.GinGlobalExceptionMiddleWare())
 	{
 		// 共享/运维类接口：任意已登录角色可访问
-		router.ApiGroupApp.InitHostRouter(RouterGroup)
 		router.InitPipelineRouter(RouterGroup)
-		router.ApiGroupApp.InitHostGroupRouter(RouterGroup)
 		router.ApiGroupApp.InitLogRouter(RouterGroup)
 		router.ApiGroupApp.InitEngineRouter(RouterGroup)
 		router.ApiGroupApp.InitStatRouter(RouterGroup)
@@ -205,20 +203,14 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 		router.ApiGroupApp.InitWafCommonRouter(RouterGroup)
 		router.ApiGroupApp.InitOneKeyModRouter(RouterGroup)
 		router.ApiGroupApp.InitLicenseRouter(RouterGroup)
-		router.ApiGroupApp.InitLoadBalanceRouter(RouterGroup)
 		router.ApiGroupApp.InitSslConfigRouter(RouterGroup)
 		router.ApiGroupApp.InitBatchTaskRouter(RouterGroup)
 		router.ApiGroupApp.InitSslOrderRouter(RouterGroup)
 		router.ApiGroupApp.InitWafSslExpireRouter(RouterGroup)
-		router.ApiGroupApp.InitWafHttpAuthBaseRouter(RouterGroup)
-		router.ApiGroupApp.InitWafHttpAuthSessionRouter(RouterGroup)
 		router.ApiGroupApp.InitWafTaskRouter(RouterGroup)
-		router.ApiGroupApp.InitWafBlockingPageRouter(RouterGroup)
 		router.ApiGroupApp.InitAnalysisRouter(RouterGroup)
 		router.ApiGroupApp.InitWafPrivateInfoRouter(RouterGroup)
 		router.ApiGroupApp.InitWafPrivateGroupRouter(RouterGroup)
-		router.ApiGroupApp.InitWafCacheRuleRouter(RouterGroup)
-		router.ApiGroupApp.InitWafTamperRuleRouter(RouterGroup)
 		router.ApiGroupApp.InitWafTunnelRouter(RouterGroup)
 		router.ApiGroupApp.InitWafVpConfigRouter(RouterGroup)
 		router.ApiGroupApp.InitWafFileRouter(RouterGroup)
@@ -236,7 +228,6 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 		router.ApiGroupApp.InitLogFileWriteRouter(RouterGroup)
 		router.ApiGroupApp.InitIPLocationRouter(RouterGroup)
 		router.ApiGroupApp.InitWafDataRetentionRouter(RouterGroup)
-		router.ApiGroupApp.InitWafHostPathRuleRouter(RouterGroup)
 		// 界面偏好：按登录账号隔离（账号归属即授权边界），任意已登录角色均可存取本人的界面偏好
 		router.ApiGroupApp.InitWafUIPreferenceRouter(RouterGroup)
 
@@ -251,25 +242,12 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 		securityAdminGroup.Use(middleware.RequireRole(enums.ROLE_SECURITY_ADMIN))
 		{
 			router.ApiGroupApp.InitRuleRouter(securityAdminGroup)
-			router.ApiGroupApp.InitAllowIpRouter(securityAdminGroup)
-			router.ApiGroupApp.InitAllowUrlRouter(securityAdminGroup)
-			router.ApiGroupApp.InitLdpUrlRouter(securityAdminGroup)
-			router.ApiGroupApp.InitAntiCCRouter(securityAdminGroup)
-			router.ApiGroupApp.InitAntiCCRuleRouter(securityAdminGroup)
-			router.ApiGroupApp.InitIPFailureRouter(securityAdminGroup)
-			router.ApiGroupApp.InitRuleBanRouter(securityAdminGroup)
-			router.ApiGroupApp.InitBlockIpRouter(securityAdminGroup)
 			// IP组是黑/白名单与自定义规则共用的防护策略资源，与它们同属安全管理员域
 			router.ApiGroupApp.InitIPGroupRouter(securityAdminGroup)
 			router.ApiGroupApp.InitIPGroupItemRouter(securityAdminGroup)
-			router.ApiGroupApp.InitBlockUrlRouter(securityAdminGroup)
-			router.ApiGroupApp.InitSensitiveRouter(securityAdminGroup)
 			router.ApiGroupApp.InitWafOwaspRouter(securityAdminGroup)
 			// 统一访问认证：账号、策略配置、在线会话都是访问控制决策，属安全管理员域
 			// （它的审计日志归审计管理员，见下方 auditAdminGroup）
-			router.ApiGroupApp.InitAccessAccountRouter(securityAdminGroup)
-			router.ApiGroupApp.InitAccessConfigRouter(securityAdminGroup)
-			router.ApiGroupApp.InitAccessSessionRouter(securityAdminGroup)
 		}
 
 		// === 审计管理员域：操作/账号审计日志（只读，独立审计其余两员）===
@@ -294,13 +272,12 @@ func (web *WafWebManager) RegisterRoutes(r *gin.Engine) {
 
 		// 导出任务下载凭短效票据访问：仍走管理端共有安全链，常规Auth由service核验票据并重查账号。
 		exportDownloadGroup := r.Group("")
-		exportDownloadGroup.Use(middleware.SecApi(), middleware.ReplayProtect(), middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.GinGlobalExceptionMiddleWare())
+		exportDownloadGroup.Use(middleware.ReplayProtect(), middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.GinGlobalExceptionMiddleWare())
 		exportDownloadGroup.GET("/api/v1/waflog/exports/:id/download", api.WafLogExportAPI{}.Download)
 	}
 
 	// 仅允许后台 Token 登录访问，拒绝 API Key 访问（安全敏感接口）
 	// 整组归属「系统管理员域」：账户管理/OTP/开放平台Key/SQL查询/应用管理均为系统级敏感操作
-	// superAdmin 兜底放行；空角色(历史账号)经 NormalizeRole 视为 superAdmin，向后兼容
 	TokenOnlyRouterGroup := r.Group("")
 	TokenOnlyRouterGroup.Use(middleware.TokenOnlyAuth(), middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), middleware.ReplayProtect(), middleware.IPWhitelist(), middleware.DomainWhitelist(), middleware.SecApi(), middleware.GinGlobalExceptionMiddleWare())
 	{
@@ -377,7 +354,7 @@ func (web *WafWebManager) cors() gin.HandlerFunc {
 		if origin != "" && isCorsOriginAllowed(origin) {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, UPDATE")
-			c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization,X-Token,Remote-Waf-User-Id,OPEN-X-Token,X-Login-Type,X-Mobile-Token,X-API-Key,X-Request-Time,X-Request-Id,X-APP-OP-PASSWORD,X-Sec-Ver,X-Key-Id")
+			c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization,X-Token,Remote-Waf-User-Id,OPEN-X-Token,X-Login-Type,X-Mobile-Token,X-API-Key,X-Request-Time,X-Request-Id,X-APP-OP-PASSWORD,X-Key-Id")
 			c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Cache-Control, Content-Language, Content-Type")
 			//允许客户端传递校验信息比如 cookie
 			c.Header("Access-Control-Allow-Credentials", "true")

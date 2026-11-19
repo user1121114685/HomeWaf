@@ -3,6 +3,7 @@ package api
 import (
 	"HomeWaf/global"
 	"HomeWaf/internal/licensing"
+	"HomeWaf/internal/transporttest"
 	"HomeWaf/wafreg"
 	"HomeWaf/wafsec"
 	"bytes"
@@ -49,6 +50,7 @@ func TestSignedLicenseImportBoundToSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	keyID := transporttest.Session(t)
 	call := func(token string, upload []byte) int {
 		t.Helper()
 		var body bytes.Buffer
@@ -68,6 +70,7 @@ func TestSignedLicenseImportBoundToSession(t *testing.T) {
 		c.Request = httptest.NewRequest("POST", "/api/v1/license/import-test", &body)
 		c.Request.Header.Set("Content-Type", contentType)
 		c.Request.Header.Set("X-Token", token)
+		c.Request.Header.Set("X-Key-Id", keyID)
 		c.Set("loginAccount", "fixture-admin")
 		api := WafLicenseApi{}
 		if upload != nil {

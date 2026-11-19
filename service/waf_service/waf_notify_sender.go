@@ -217,30 +217,17 @@ func (receiver *WafNotifySenderService) deliverToChannel(channel model.NotifyCha
 	case "email":
 		notifier, notifierErr := email.NewEmailNotifier(channel.ConfigJSON)
 		if notifierErr != nil {
-			err = notifierErr
-		} else {
-			// 关键：支持订阅级别的收件人配置（向后兼容）
-			if subscription.Recipients != "" {
-				// 优先使用订阅中配置的收件人
-				recipientList := strings.Split(subscription.Recipients, ",")
-				var trimmedRecipients []string
-				for _, r := range recipientList {
-					trimmed := strings.TrimSpace(r)
-					if trimmed != "" {
-						trimmedRecipients = append(trimmedRecipients, trimmed)
-					}
-				}
-				if len(trimmedRecipients) > 0 {
-					notifier.SetRecipients(trimmedRecipients)
-					recipients = strings.Join(trimmedRecipients, ", ") // 记录实际收件人
-				}
-			} else {
-				// 使用渠道默认收件人（从notifier获取）
-				recipients = strings.Join(notifier.ToEmails, ", ")
-			}
-			// 如果订阅中没有配置收件人，则使用渠道配置中的收件人（向后兼容）
-			err = notifier.SendMarkdown(title, content)
+			return "", notifierErr
 		}
+		// 订阅可覆盖渠道的默认收件人，发送日志使用最终投递名单。
+		var override []string
+		for address := range strings.SplitSeq(subscription.Recipients, ",") {
+			if address = strings.TrimSpace(address); address != "" {
+				override = append(override, address)
+			}
+		}
+		notifier.SetRecipients(override)
+		return strings.Join(notifier.ToEmails, ", "), notifier.SendMarkdown(title, content)
 	case "webhook":
 		// 地址/方法/请求头/报文模板全在 ConfigJSON 里，SSRF 校验在 notifier 内部做（构造与发送各一次）
 		notifier, notifierErr := webhook.NewWebhookNotifier(channel.ConfigJSON)

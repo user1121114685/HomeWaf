@@ -4,6 +4,7 @@ package router
 
 import (
 	"HomeWaf/global"
+	"HomeWaf/internal/transporttest"
 	"HomeWaf/middleware"
 	"HomeWaf/wafsec"
 	"encoding/json"
@@ -21,14 +22,9 @@ import (
 const appFeatureStatusPath = "/api/v1/application/app/feature_status"
 
 func TestAppFeatureStatusAndDisabledList(t *testing.T) {
-	priorEnabled, priorLegacy, priorKey := global.GWAF_CAN_APP_MANAGE, global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY, global.GWAF_COMMUNICATION_KEY
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
-	global.GWAF_COMMUNICATION_KEY = []byte("0123456789abcdef0123456789abcdef")
-	t.Cleanup(func() {
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
-			global.GWAF_CAN_APP_MANAGE, cfg.GCONFIG_COMM_LEGACY_KEY, global.GWAF_COMMUNICATION_KEY = priorEnabled, priorLegacy, priorKey
-		})
-	})
+	priorEnabled := global.GWAF_CAN_APP_MANAGE
+	t.Cleanup(func() { global.GWAF_CAN_APP_MANAGE = priorEnabled })
+	keyID := transporttest.Session(t)
 
 	r := gin.New()
 	new(WafAppRouter).InitWafAppRouter(r.Group(""))
@@ -36,7 +32,9 @@ func TestAppFeatureStatusAndDisabledList(t *testing.T) {
 		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
 			global.GWAF_CAN_APP_MANAGE = enabled
 			rec := httptest.NewRecorder()
-			r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, appFeatureStatusPath, nil))
+			req := httptest.NewRequest(http.MethodGet, appFeatureStatusPath, nil)
+			req.Header.Set("X-Key-Id", keyID)
+			r.ServeHTTP(rec, req)
 			var reply struct {
 				Code int    `json:"code"`
 				Data string `json:"data"`
@@ -44,7 +42,7 @@ func TestAppFeatureStatusAndDisabledList(t *testing.T) {
 			if err := json.Unmarshal(rec.Body.Bytes(), &reply); err != nil || rec.Code != http.StatusOK || reply.Code != 0 {
 				t.Fatalf("feature status response=%s status=%d err=%v", rec.Body.String(), rec.Code, err)
 			}
-			plain, err := wafsec.AesDecrypt(reply.Data, global.GWAF_COMMUNICATION_KEY)
+			plain, _, err := wafsec.TransportDecrypt(reply.Data)
 			if err != nil {
 				t.Fatal(err)
 			}

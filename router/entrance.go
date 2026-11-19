@@ -1,7 +1,6 @@
 package router
 
 type ApiGroup struct {
-	HostRouter
 	LogRouter
 	RuleRouter
 	EngineRouter
@@ -9,12 +8,7 @@ type ApiGroup struct {
 	AllowIpRouter
 	AllowUrlRouter
 	LdpUrlRouter
-	AntiCCRouter
-	AntiCCRuleRouter
-	IPFailureRouter
-	RuleBanRouter
 	BlockIpRouter
-	HostGroupRouter
 	IPGroupRouter
 	AccessAccountRouter
 	AccessConfigRouter
@@ -42,7 +36,6 @@ type ApiGroup struct {
 	WafHttpAuthBaseRouter
 	WafHttpAuthSessionRouter
 	WafTaskRouter
-	WafBlockingPageRouter
 	WafOtpRouter
 	AnalysisRouter
 	WafPrivateInfoRouter

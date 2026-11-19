@@ -3,7 +3,6 @@ package wafmangeweb
 import (
 	"HomeWaf/api"
 	"HomeWaf/global"
-	"HomeWaf/innerbean"
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"HomeWaf/model"
 	"HomeWaf/model/request"
@@ -37,7 +36,7 @@ func TestMCPHTTPPermissionsPersistenceAndRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = db.AutoMigrate(&model.OPlatformKey{}, &model.OPlatformLog{}, &model.PortConfig{}, &model.ConfigTemplate{}, &model.GateUser{}, &model.GateSession{}, &model.Hosts{}, &model.ShareDb{}, &model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{}, &innerbean.WebLog{}, &model.PipelineLog{}); err != nil {
+	if err = db.AutoMigrate(&model.OPlatformKey{}, &model.OPlatformLog{}, &model.PortConfig{}, &model.ConfigTemplate{}, &model.GateUser{}, &model.GateSession{}, &model.ShareDb{}, &model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{}, &model.PipelineLog{}); err != nil {
 		t.Fatal(err)
 	}
 	oldDB, oldLog, oldPorts, oldService := global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, wafpipeline.Ports, waf_service.WafPipelineServiceApp
@@ -190,9 +189,23 @@ func TestMCPHTTPPermissionsPersistenceAndRuntime(t *testing.T) {
 		t.Fatal("targeted service read lost revision")
 	}
 	logID := "a1234567-1234-4234-8234-123456789abc"
-	entry := innerbean.WebLog{REQ_UUID: logID, HOST_CODE: "pipeline-45129", HOST: "example.test", URL: "/login?id=1%20UNION%20SELECT%201", METHOD: "POST", SRC_IP: "192.0.2.23", HEADER: "User-Agent: sqlmap\r\nAuthorization: Bearer PRIVATE-MCP-FIXTURE", BODY: `{"search":"1 UNION SELECT password FROM users--","password":"PRIVATE-LOGIN-FIXTURE"}`, CONTENT_LENGTH: 90, STATUS_CODE: 403, RULE: "sqli", ACTION: "deny", CREATE_TIME: time.Now().Format("2006-01-02 15:04:05"), UNIX_ADD_TIME: time.Now().Unix(), TenantId: global.GWAF_TENANT_ID, USER_CODE: global.GWAF_USER_CODE}
-	if err = db.Create(&entry).Error; err != nil {
-		t.Fatal(err)
+	now := time.Now()
+	entry := model.LogNarrow{
+		ReqUUID: logID, HostCode: "pipeline-45129", Host: "example.test",
+		URL: "/login?id=1%20UNION%20SELECT%201", Method: "POST", SRC_IP: "192.0.2.23",
+		CONTENT_LENGTH: 90, STATUS_CODE: 403, RULE: "sqli", ACTION: "deny",
+		CREATE_TIME: now.Format("2006-01-02 15:04:05"), UNIX_ADD_TIME: now.Unix(),
+		TenantId: global.GWAF_TENANT_ID, UserCode: global.GWAF_USER_CODE,
+	}
+	payload := model.EventPayload{
+		ReqUUID: logID, HostCode: entry.HostCode, TenantId: entry.TenantId, UserCode: entry.UserCode, Kind: "event",
+		HEADER: "User-Agent: sqlmap\r\nAuthorization: Bearer PRIVATE-MCP-FIXTURE",
+		BODY:   `{"search":"1 UNION SELECT password FROM users--","password":"PRIVATE-LOGIN-FIXTURE"}`,
+	}
+	for _, row := range []any{&model.AccessLog{LogNarrow: entry}, &model.SecurityEvent{LogNarrow: entry}, &payload} {
+		if err = db.Create(row).Error; err != nil {
+			t.Fatal(err)
+		}
 	}
 	logResult := call(readKey, "log_detail", map[string]any{"req_uuid": logID, "current_db_name": wafdb.LiveLogName()}, false)
 	logWire, _ := json.Marshal(logResult)
@@ -205,26 +218,9 @@ func TestMCPHTTPPermissionsPersistenceAndRuntime(t *testing.T) {
 		t.Fatal("log credential leaked")
 	}
 	call(readKey, "log_detail", map[string]any{"req_uuid": "a1234567-1234-4234-8234-000000000000"}, true)
-	// Exercise startup on a pre-retirement persisted configuration, not only
-	// fresh DTOs. Legacy AI fields must not take an existing service offline.
-	wire, _ = json.Marshal(persisted)
-	var previousConfig map[string]any
-	_ = json.Unmarshal(wire, &previousConfig)
-	previousRules := previousConfig["policy"].(map[string]any)["ruleset"].(map[string]any)
-	previousRules["ai"] = "block"
-	previousRules["ai_scope"] = map[string]any{"paths": []string{"/"}}
-	wire, _ = json.Marshal(previousConfig)
-	if err = db.Model(&model.PortConfig{}).Where("port = ?", persisted.Port).Update("config_json", string(wire)).Error; err != nil {
-		t.Fatal(err)
-	}
 	wafpipeline.Ports = wafpipeline.NewRegistry[wafpipeline.Snapshot](100)
 	if err = waf_service.WafPipelineServiceApp.Load(); err != nil {
-		t.Fatalf("upgrade failed to restore existing service: %v", err)
-	}
-	listedConfigs := call(readKey, "services_list", map[string]any{}, false)
-	wire, _ = json.Marshal(listedConfigs)
-	if strings.Contains(string(wire), `"ai_scope"`) {
-		t.Fatal("retired AI settings still exposed after upgrade")
+		t.Fatalf("reload saved service: %v", err)
 	}
 	for _, path := range []string{"/allowed", "/blocked"} {
 		snap, ok := wafpipeline.Ports.Get(persisted.Port)
@@ -259,7 +255,7 @@ func TestMCPHTTPPermissionsPersistenceAndRuntime(t *testing.T) {
 			t.Fatal("raw credentials/config stored in MCP audit")
 		}
 		if row.MCPResult != "" {
-			result, decryptErr := wafsec.DataDecrypt(row.MCPResult, nil)
+			result, decryptErr := wafsec.DataDecrypt(row.MCPResult)
 			if decryptErr != nil || result == "" {
 				t.Fatalf("MCP result was not stored as decryptable content: %v", decryptErr)
 			}

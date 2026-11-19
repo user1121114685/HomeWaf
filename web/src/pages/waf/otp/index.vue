@@ -66,8 +66,8 @@ import {defineComponent} from 'vue';
     prefix
   } from '@/config/global';
   import {
-    allhost
-  } from '@/apis/host';
+    listServices
+  } from '@/apis/services';
 
   import {
     wafOtpInitApi,wafOtpBindApi,wafOtpUnBindApi
@@ -197,7 +197,7 @@ import {defineComponent} from 'vue';
       },
       loadHostList() {
         return new Promise((resolve, reject) => {
-          allhost()
+          listServices()
             .then((res) => {
               let resdata = res;
               console.log(resdata);

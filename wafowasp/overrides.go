@@ -289,9 +289,6 @@ func (s *OverrideStore) Dir() string {
 // 行为：
 //   - samwaf/before/00-samwaf-base.conf（Layer 2）：每次调用均重写，确保 HomeWaf 产品默认值随二进制更新。
 //   - overrides/05-user-vars.conf（Layer 3）：仅首次（registry 缺失时）写入；后续由用户操作写入。
-//   - 兼容迁移：若发现旧版 overrides/samwaf_base.json，自动移到 samwaf/samwaf_base.json。
-//   - 兼容迁移：若发现旧版 samwaf/00-samwaf-base.conf，删除（会在 samwaf/before/ 重新生成）。
-//   - 兼容迁移：若发现旧版 overrides/00-tuning.conf，自动重命名为 overrides/05-user-vars.conf。
 func (s *OverrideStore) EnsureDirAndDefaults() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -306,30 +303,9 @@ func (s *OverrideStore) EnsureDirAndDefaults() error {
 		return fmt.Errorf("mkdir samwaf/before: %w", err)
 	}
 
-	// 兼容迁移：旧版将 samwaf_base.json 放在 overrides/，新版移到 samwaf/。
-	oldBaseJSON := filepath.Join(s.dir, SamWafBaseJSONFile)
-	newBaseJSON := filepath.Join(s.samwafDir, SamWafBaseJSONFile)
-	if _, err := os.Stat(oldBaseJSON); err == nil {
-		if _, err2 := os.Stat(newBaseJSON); os.IsNotExist(err2) {
-			_ = os.Rename(oldBaseJSON, newBaseJSON)
-		} else {
-			_ = os.Remove(oldBaseJSON)
-		}
-	}
-	// 旧版 overrides/00-samwaf-base.conf 不再在此目录生成，清理占位。
-	oldOverridesConf := filepath.Join(s.dir, SamWafBaseConfFile)
-	if _, err := os.Stat(oldOverridesConf); err == nil {
-		_ = os.Remove(oldOverridesConf)
-	}
-	// 旧版 samwaf/00-samwaf-base.conf（中间迁移路径），现改为 samwaf/before/，删除旧文件。
-	oldSamwafConf := filepath.Join(s.samwafDir, SamWafBaseConfFile)
-	if _, err := os.Stat(oldSamwafConf); err == nil {
-		_ = os.Remove(oldSamwafConf)
-	}
-
 	// Layer 2：从 samwaf/samwaf_base.json 读取配置（不存在时用出厂默认值），生成 samwaf/before/00-samwaf-base.conf。
 	// samwaf_base.json 可由 API 修改，因此每次启动只重新生成 .conf 文件而不覆盖 .json。
-	baseJSONPath := newBaseJSON
+	baseJSONPath := filepath.Join(s.samwafDir, SamWafBaseJSONFile)
 	baseCfg, _ := loadBaseConfigLocked(baseJSONPath)
 	// 首次运行：写入出厂默认值到 samwaf/samwaf_base.json
 	if _, err := os.Stat(baseJSONPath); os.IsNotExist(err) {
@@ -342,17 +318,7 @@ func (s *OverrideStore) EnsureDirAndDefaults() error {
 		return fmt.Errorf("write %s: %w", SamWafBaseConfFile, err)
 	}
 
-	// 兼容迁移：旧版使用 00-tuning.conf，自动重命名为 05-user-vars.conf。
-	oldTuning := filepath.Join(s.dir, "00-tuning.conf")
 	newTuning := filepath.Join(s.dir, OverrideTuningFile)
-	if _, err := os.Stat(oldTuning); err == nil {
-		if _, err2 := os.Stat(newTuning); os.IsNotExist(err2) {
-			_ = os.Rename(oldTuning, newTuning)
-		} else {
-			// 两者都存在（异常情况）：保留新文件，删除旧文件。
-			_ = os.Remove(oldTuning)
-		}
-	}
 
 	regPath := filepath.Join(s.dir, OverrideRegistryFile)
 	_, statErr := os.Stat(regPath)

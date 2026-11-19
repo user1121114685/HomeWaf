@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 const origin = process.env.SCREEN_TEST_ORIGIN || 'http://127.0.0.1:3001';
 const dir = new URL('../../artifacts/', import.meta.url);
 fs.mkdirSync(dir, { recursive: true });
@@ -107,9 +107,10 @@ async function mock(context) {
     return route.abort();
   });
   await context.route('**/api/**', async (route) => {
+    if (await handleTransportHandshake(route)) return;
     const req = route.request(),
       path = new URL(req.url()).pathname.split('/api/v1/')[1];
-    if (path.includes('handshake')) return route.fulfill({ json: { code: 1, msg: 'test legacy transport' } });
+
     let data = {};
     if (path === 'public/dashboard-share') {
       if (req.headers()['x-token']) throw new Error('Shared screen sent an admin token');
@@ -123,12 +124,12 @@ async function mock(context) {
       data = snapshot();
     }
     if (path === 'dashboard/target') {
-      target = JSON.parse(AesDecrypt(req.postData()));
+      target = JSON.parse(routeSession(route).decrypt(req.postData()));
       data = target;
     }
     if (path === 'dashboard/shares' && req.method() === 'GET') data = shares;
     if (path === 'dashboard/shares' && req.method() === 'POST') {
-      const body = JSON.parse(AesDecrypt(req.postData()));
+      const body = JSON.parse(routeSession(route).decrypt(req.postData()));
       const share = {
         id: 'a'.repeat(32),
         label: body.label,
@@ -144,7 +145,7 @@ async function mock(context) {
       revoked = true;
       shares[0].revoked_at = Date.now();
     }
-    return route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)) } });
+    return route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)) } });
   });
   await context.routeWebSocket('**/api/**', (ws) => ws.close());
 }

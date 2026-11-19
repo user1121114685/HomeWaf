@@ -1,13 +1,10 @@
 package waf_service
 
 import (
-	"HomeWaf/common/zlog"
 	"fmt"
 	"strings"
 
 	"HomeWaf/global"
-	"HomeWaf/model"
-	"HomeWaf/utils"
 	"HomeWaf/wafpipeline"
 )
 
@@ -50,46 +47,22 @@ func GetSSLCertificateTargets() ([]SSLCertificateTarget, error) {
 		return nil, fmt.Errorf("配置数据库不可用")
 	}
 	targets := []SSLCertificateTarget{}
-	seen := map[string]bool{}
-	if global.GWAF_LOCAL_DB.Migrator().HasTable(&model.PortConfig{}) {
-		configs, err := WafPipelineServiceApp.List()
-		if err != nil {
-			return nil, err
-		}
-		for _, config := range configs {
-			code := pipelineCertificateCode(config)
-			names := append([]string{}, config.HostNames...)
-			for _, route := range config.Routes {
-				names = append(names, route.Hosts...)
-			}
-			name := strings.TrimSpace(config.Name)
-			if name == "" {
-				name = "未命名服务"
-			}
-			targets = append(targets, SSLCertificateTarget{Code: code, Label: fmt.Sprintf("%s · %s :%d", name, strings.ToUpper(config.Protocol), config.Port), Source: "pipeline", Port: int(config.Port), Protocol: config.Protocol, Domains: certificateDomains(names...), HTTP01Ready: config.Port == 80 && config.Protocol == "http" && config.ListenEnabled && config.Policy.Access.Enabled})
-			seen[code] = true
-		}
-	}
-	var hosts []model.Hosts
-	err := global.GWAF_LOCAL_DB.Select("Id", "Code", "Host", "Port", "Nickname", "GLOBAL_HOST", "BindMoreHost", "BindMorePort", "PortListensJSON", "Ssl", "AutoJumpHTTPS", "START_STATUS").Where("global_host <> ?", 1).Find(&hosts).Error
+
+	configs, err := WafPipelineServiceApp.List()
 	if err != nil {
 		return nil, err
 	}
-	for _, host := range hosts {
-		if host.Code == "" || seen[host.Code] {
-			continue
+	for _, config := range configs {
+		code := pipelineCertificateCode(config)
+		names := append([]string{}, config.HostNames...)
+		for _, route := range config.Routes {
+			names = append(names, route.Hosts...)
 		}
-		protocol := "http"
-		if host.Ssl == 1 {
-			protocol = "https"
+		name := strings.TrimSpace(config.Name)
+		if name == "" {
+			name = "未命名服务"
 		}
-		ready := false
-		for _, listen := range utils.ResolveHostListens(host) {
-			if listen.Port == 80 && listen.Protocol == "http" {
-				ready = true
-			}
-		}
-		targets = append(targets, SSLCertificateTarget{Code: host.Code, Label: host.DisplayName(), Source: "host", Port: host.Port, Protocol: protocol, Domains: certificateDomains(host.Host, host.BindMoreHost), HTTP01Ready: ready})
+		targets = append(targets, SSLCertificateTarget{Code: code, Label: fmt.Sprintf("%s · %s :%d", name, strings.ToUpper(config.Protocol), config.Port), Source: "pipeline", Port: int(config.Port), Protocol: config.Protocol, Domains: certificateDomains(names...), HTTP01Ready: config.Port == 80 && config.Protocol == "http" && config.ListenEnabled && config.Policy.Access.Enabled})
 	}
 	return targets, nil
 }
@@ -140,45 +113,4 @@ func ValidateSSLCertificateTarget(code, method, domains string) error {
 		}
 	}
 	return nil
-}
-
-// Include native services with managed certificates even when they are HTTP drafts.
-// Manual PEM replacement clears TLSBindings and therefore opts out of auto-renewal.
-func GetSSLRenewalHosts() ([]model.Hosts, error) {
-	hosts, _, err := WafHostServiceApp.GetAllSSLBindHost()
-	if err != nil {
-		return nil, err
-	}
-	if !global.GWAF_LOCAL_DB.Migrator().HasTable(&model.PortConfig{}) {
-		return hosts, nil
-	}
-	var ports []int
-	if err := global.GWAF_LOCAL_DB.Model(&model.PortConfig{}).Limit(wafpipeline.Ports.Limit()).Pluck("port", &ports).Error; err != nil {
-		return nil, err
-	}
-	for _, port := range ports {
-		var row model.PortConfig
-		if err := global.GWAF_LOCAL_DB.First(&row, "port = ?", port).Error; err != nil {
-			zlog.Warn(fmt.Sprintf("端口 %d 的证书续期配置无法读取，已跳过", port))
-			continue
-		}
-		snapshot, err := decodePort(row)
-		if err != nil {
-			zlog.Warn(fmt.Sprintf("端口 %d 的证书续期配置无效，已跳过", port))
-			continue
-		}
-		if managedCertificateID(snapshot.Secrets) == "" {
-			continue
-		}
-		name := snapshot.Config.Name
-		if len(snapshot.Config.HostNames) > 0 {
-			name = snapshot.Config.HostNames[0]
-		}
-		host := model.Hosts{Code: pipelineCertificateCode(snapshot.Config), Host: name, Port: row.Port}
-		if snapshot.Config.Protocol == "https" {
-			host.Ssl = 1
-		}
-		hosts = append(hosts, host)
-	}
-	return hosts, nil
 }

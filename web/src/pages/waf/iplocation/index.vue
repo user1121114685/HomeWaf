@@ -289,9 +289,7 @@
             </hw-button>
             <!-- 上传带上 key，后端据此确定落盘文件名，不再靠扩展名猜是哪个库 -->
             <hw-upload
-              :action="uploadUrl"
-              :headers="uploadHeaders"
-              :data="{ type: row.upload_type, key: row.key }"
+              :request-method="(file) => uploadIPDBApi(file.raw, row.upload_type, row.key)"
               :before-upload="beforeUpload"
               @success="handleUploadSuccess"
               @fail="handleUploadFail"
@@ -371,9 +369,7 @@ import {defineComponent} from 'vue';
 
 import { MessagePlugin, DialogPlugin } from '@/ui';
 import { HelpCircleIcon } from '@/ui/icons';
-import { getIPDBStatusApi, getIPDBConfigApi, saveIPDBConfigApi, reloadIPDBApi, testIPLookupApi, checkIPDBUpgradeApi, applyIPDBUpgradeApi, getIPDBUpgradeProgressApi, cancelIPDBUpgradeApi } from '@/apis/iplocation';
-import { getBaseUrl } from '@/utils/usuallytool';
-import { v4 as uuidv4 } from 'uuid';
+import { uploadIPDBApi, getIPDBStatusApi, getIPDBConfigApi, saveIPDBConfigApi, reloadIPDBApi, testIPLookupApi, checkIPDBUpgradeApi, applyIPDBUpgradeApi, getIPDBUpgradeProgressApi, cancelIPDBUpgradeApi } from '@/apis/iplocation';
 
 export default defineComponent({
   name: 'IPLocation',
@@ -483,8 +479,6 @@ export default defineComponent({
         { colKey: 'remote', title: this.$t('page.iplocation.col_remote_source'), width: 220 },
         { colKey: 'action', title: this.$t('page.iplocation.download_col_action'), width: 240 },
       ],
-      uploadUrl: '',
-      uploadHeaders: {},
       testIP: '',
       testResult: null,
       formatColumns: [
@@ -562,10 +556,6 @@ export default defineComponent({
   mounted() {
     this.loadStatus();
     this.loadConfig();
-    const baseUrl = getBaseUrl();
-    this.uploadUrl = baseUrl + '/iplocation/upload';
-    const token = localStorage.getItem('access_token');
-    this.uploadHeaders = { 'X-Token': token || '' };
     // 下载跑在服务端，用户可能中途离开页面又回来，这里把进度接回去（只查本地状态，不联网）
     this.resumeProgressIfRunning();
     // 合并单页后没有「切到文件页」这个触发点了，进来就异步拉一次清单，
@@ -971,9 +961,8 @@ export default defineComponent({
     },
     // 前端只做粗筛（后缀在三种之内），精确的"这个槽位只收哪种后缀"由后端按 key 严格校验，
     // 因为只有后端知道该 key 对应哪个文件名，前端放宽也不会传错位置。
+    uploadIPDBApi,
     beforeUpload(file) {
-      this.uploadHeaders['X-Request-Time'] = Math.floor(Date.now() / 1000).toString();
-      this.uploadHeaders['X-Request-Id'] = uuidv4();
       const isValid = file.name.endsWith('.xdb') || file.name.endsWith('.mmdb') || file.name.endsWith('.ipdb');
       if (!isValid) MessagePlugin.error(this.$t('page.iplocation.invalid_file_type'));
       return isValid;

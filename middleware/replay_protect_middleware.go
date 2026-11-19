@@ -47,9 +47,8 @@ func ReplayProtect() gin.HandlerFunc {
 		tsStr := c.GetHeader(replayTimeHeader)
 		nonce := c.GetHeader(replayNonceHeader)
 		if tsStr == "" || nonce == "" {
-			// 日志下载走 window.open，浏览器带不了自定义头，时间戳与 nonce 只能放查询串
-			// （与 extractTokenStr 对同一路径的特判保持一致；仅限这条路径，其余接口仍只认头）
-			if c.Request.URL.Path == "/api/v1/waflog/attack/download" || isLogExportDownloadPath(c.Request.URL.Path) {
+			// 短效票据下载通过 window.open 发起，浏览器只能把时间戳与 nonce 放在查询串。
+			if isLogExportDownloadPath(c.Request.URL.Path) {
 				if tsStr == "" {
 					tsStr = c.Query(replayTimeHeader)
 				}

@@ -6,17 +6,13 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/utils"
 	"bytes"
-	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -34,46 +30,26 @@ const (
 )
 
 var (
-	ErrHashMismatch       = errors.New("new file hash mismatch after patch")
+	ErrHashMismatch       = errors.New("release archive SHA256 mismatch")
 	ErrNoPublishedRelease = errors.New("HomeWaf 更新源尚未发布可用版本")
 	ErrUnversionedBuild   = errors.New("当前开发构建没有可比较的发布版本，请使用构建脚本或指定 HOMEWAF_VERSION")
 
 	defaultHTTPRequester = HTTPRequester{}
 )
 
-// Updater is the configuration and runtime data for doing an update.
-//
-// Note that ApiURL, BinURL and DiffURL should have the same value if all files are available at the same location.
-//
-// Example:
-//
-//	updater := &selfupdate.Updater{
-//		CurrentVersion: version,
-//		ApiURL:         "http://updates.yourdomain.com/",
-//		BinURL:         "http://updates.yourdownmain.com/",
-//		DiffURL:        "http://updates.yourdomain.com/",
-//		Dir:            "update/",
-//		CmdName:        "myapp", // app name
-//	}
-//	if updater != nil {
-//		go updater.BackgroundRun()
-//	}
+// Updater downloads a verified release archive and hands it to the running supervisor.
 type Updater struct {
-	CurrentVersion string    // Currently running version. `dev` is a special version here and will cause the updater to never update.
-	ApiURL         string    // Base URL for API requests (JSON files).
-	CmdName        string    // Command name is appended to the ApiURL like http://apiurl/CmdName/. This represents one binary.
-	BinURL         string    // Base URL for full binary downloads.
-	DiffURL        string    // Base URL for diff downloads.
-	ArchiveSHA256  string    // Publisher asset digest, required before extraction.
-	BinGithubURL   string    // Base URL for full binary downloads.
-	Dir            string    // Directory to store selfupdate state.
-	ForceCheck     bool      // Check for update regardless of cktime timestamp
-	CheckTime      int       // Time in hours before next check
-	RandomizeTime  int       // Time in hours to randomize with CheckTime
-	Requester      Requester // Optional parameter to override existing HTTP request handler
-	Info           struct {
+	CurrentVersion string // Currently running version. `dev` is a special version here and will cause the updater to never update.
+
+	ArchiveSHA256 string    // Publisher asset digest, required before extraction.
+	BinGithubURL  string    // Base URL for full binary downloads.
+	Dir           string    // Directory to store selfupdate state.
+	ForceCheck    bool      // Check for update regardless of cktime timestamp
+	CheckTime     int       // Time in hours before next check
+	RandomizeTime int       // Time in hours to randomize with CheckTime
+	Requester     Requester // Optional parameter to override existing HTTP request handler
+	Info          struct {
 		Version string
-		Sha256  []byte
 		Desc    string
 	}
 	OnSuccessfulUpdate func() // Optional function to run after an update has successfully taken place
@@ -211,7 +187,7 @@ func (u *Updater) UpdateAvailableWithChannel(channel string) (bool, string, stri
 	//渠道选择
 	if channel == "" || channel == "official" {
 		// 这里只是版本检查，不属于升级流程，不打进度点
-		err = u.fetchInfo()
+		err = u.fetchReleaseInfo(global.GUPDATE_RELEASE_URL, false)
 		if err != nil {
 			return false, "", "", err
 		}
@@ -250,73 +226,7 @@ func (u *Updater) UpdateAvailable() (bool, string, string, error) {
 }
 
 // Update initiates the self update process
-func (u *Updater) Update() error {
-	if !semver.IsValid(normalizedVersion(u.CurrentVersion)) {
-		return ErrUnversionedBuild
-	}
-	if u.ApiURL == "" {
-		return u.updateRelease(false)
-	}
-	path, err := os.Executable()
-	if err != nil {
-		return err
-	}
-
-	if resolvedPath, err := filepath.EvalSymlinks(path); err == nil {
-		path = resolvedPath
-	}
-
-	// go fetch latest updates manifest
-	u.Tracker.StageStart(StageManifest)
-	err = u.fetchInfo()
-	if err != nil {
-		return err
-	}
-
-	// 检测是新版本才更新，否则不更新
-	cmp := semver.Compare(normalizedVersion(u.Info.Version), normalizedVersion(u.CurrentVersion))
-	if cmp <= 0 {
-		return nil
-	}
-	u.Tracker.StageDone(StageManifest, u.Info.Version)
-
-	old, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer old.Close()
-
-	// if patch failed grab the full new bin
-	bin, err := u.fetchAndVerifyFullBin()
-	if err != nil {
-		if err == ErrHashMismatch {
-			log.Println("update: hash mismatch from full binary")
-		} else {
-			log.Println("update: fetching full binary,", err)
-		}
-		return err
-	}
-
-	// close the old binary before installing because on windows
-	// it can't be renamed if a handle to the file is still open
-	old.Close()
-
-	u.Tracker.StageStart(StageExtract)
-	err, errRecover := fromStreamWithTracker(bytes.NewBuffer(bin), u.Tracker)
-	if errRecover != nil {
-		return fmt.Errorf("update and recovery errors: %q %q", err, errRecover)
-	}
-	if err != nil {
-		return err
-	}
-
-	// update was successful, run func if set
-	if u.OnSuccessfulUpdate != nil {
-		u.OnSuccessfulUpdate()
-	}
-
-	return nil
-}
+func (u *Updater) Update() error { return u.updateRelease(false) }
 
 // UpdateWithChannel 通过渠道来检测
 func (u *Updater) UpdateWithChannel(channel string) error {
@@ -391,10 +301,7 @@ func (u *Updater) updateRelease(beta bool) error {
 	// 根据文件类型和平台解压并获取正确的可执行文件
 	var binPath string
 
-	if strings.HasSuffix(u.BinGithubURL, ".exe") {
-		//使用win7内核
-		binPath = tempFile
-	} else if strings.HasSuffix(u.BinGithubURL, ".zip") {
+	if strings.HasSuffix(u.BinGithubURL, ".zip") {
 		// 情况 1: 从 ZIP 中提取 HomeWaf64.exe
 		err = utils.Unzip(tempFile, tempDir)
 		if err != nil {
@@ -498,66 +405,6 @@ func fromStreamWithTracker(updateWith io.Reader, tracker *ProgressTracker) (err 
 	return err, errRecover
 }
 
-// fetchInfo fetches the update JSON manifest at u.ApiURL/appname/platform.json?v=currentVersion
-// and updates u.Info.
-func (u *Updater) fetchInfo() error {
-	if u.ApiURL == "" {
-		return u.fetchReleaseInfo(global.GUPDATE_RELEASE_URL, false)
-	}
-	r, err := u.fetch(u.ApiURL + url.QueryEscape(u.CmdName) + "/" + url.QueryEscape(plat) + ".json?" + ClientQuery())
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-	err = json.NewDecoder(io.LimitReader(r, 2<<20)).Decode(&u.Info)
-	if err != nil {
-		return err
-	}
-	if !semver.IsValid(normalizedVersion(u.Info.Version)) {
-		return errors.New("更新清单中的版本号无效")
-	}
-	if len(u.Info.Sha256) != sha256.Size {
-		return errors.New("bad cmd hash in info")
-	}
-	return nil
-}
-
-func (u *Updater) fetchAndVerifyFullBin() ([]byte, error) {
-	u.Tracker.StageStart(StageDownload)
-	bin, err := u.fetchBin()
-	if err != nil {
-		return nil, err
-	}
-	u.Tracker.StageDone(StageDownload, "")
-
-	u.Tracker.StageStart(StageVerify)
-	verified := verifySha(bin, u.Info.Sha256)
-	if !verified {
-		return nil, ErrHashMismatch
-	}
-	u.Tracker.StageDone(StageVerify, "SHA256 校验通过")
-	return bin, nil
-}
-
-func (u *Updater) fetchBin() ([]byte, error) {
-	r, size, err := u.fetchSized(u.BinURL + url.QueryEscape(u.CmdName) + "/" + url.QueryEscape(u.Info.Version) + "/" + url.QueryEscape(plat) + ".gz")
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-	// 计数放在 gzip 之外：Content-Length 是压缩包大小，两者口径要一致
-	body := newProgressReader(r, u.Tracker, size)
-	buf := new(bytes.Buffer)
-	gz, err := gzip.NewReader(body)
-	if err != nil {
-		return nil, err
-	}
-	if _, err = io.Copy(buf, gz); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
 // fetchSized 在 fetch 基础上带出 Content-Length，用于下载进度百分比。
 // Requester 未实现 SizedRequester 时长度返回 0，界面退化为只显示已下载字节。
 func (u *Updater) fetchSized(url string) (io.ReadCloser, int64, error) {
@@ -601,12 +448,6 @@ func readTime(path string) time.Time {
 		return time.Now().Add(1000 * time.Hour)
 	}
 	return t
-}
-
-func verifySha(bin []byte, sha []byte) bool {
-	h := sha256.New()
-	h.Write(bin)
-	return bytes.Equal(h.Sum(nil), sha)
 }
 
 func writeTime(path string, t time.Time) bool {

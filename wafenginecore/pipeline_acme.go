@@ -4,33 +4,34 @@ import (
 	"HomeWaf/wafacme"
 	"HomeWaf/wafpipeline"
 	"net/url"
+	"slices"
 	"strings"
 )
 
 func PipelineCertificateChallenge(s *wafpipeline.Snapshot, c *wafpipeline.RequestContext) (string, bool) {
 	r := c.Request
 	token := acmeChallengeToken(r)
-	if token == "" {
+	source := s.Config.HostCode
+	if token == "" || source == "" {
 		return "", false
 	}
-	u, err := url.Parse("http://" + r.Host)
-	if err != nil {
+	host := strings.TrimSuffix((&url.URL{Host: r.Host}).Hostname(), ".")
+	if host == "" || strings.Contains(host, "*") {
 		return "", false
 	}
-	source := s.Config.ACMEHosts[strings.ToLower(u.Hostname())]
-	if source == "" && s.Config.HostCode != "" {
-		names := append([]string{}, s.Config.HostNames...)
+	matches := func(name string) bool {
+		return strings.EqualFold(strings.TrimSuffix(name, "."), host)
+	}
+	allowed := slices.ContainsFunc(s.Config.HostNames, matches)
+	if !allowed {
 		for _, route := range s.Config.Routes {
-			names = append(names, route.Hosts...)
-		}
-		for _, name := range names {
-			if strings.EqualFold(strings.TrimSuffix(name, "."), strings.TrimSuffix(u.Hostname(), ".")) {
-				source = s.Config.HostCode
+			if slices.ContainsFunc(route.Hosts, matches) {
+				allowed = true
 				break
 			}
 		}
 	}
-	if source == "" {
+	if !allowed {
 		return "", false
 	}
 	if c.DryRun {

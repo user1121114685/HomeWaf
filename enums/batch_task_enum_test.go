@@ -6,12 +6,12 @@ import "testing"
 // 表现为"任务像成功一样什么都没做"或"走进远端拉取分支"。
 
 func TestIsValidBatchType(t *testing.T) {
-	for _, v := range []string{BATCHTASK_IPALLOW, BATCHTASK_IPDENY, BATCHTASK_IPGROUP, BATCHTASK_SENSITIVE} {
+	for _, v := range []string{BATCHTASK_IPGROUP, BATCHTASK_SENSITIVE} {
 		if !IsValidBatchType(v) {
 			t.Fatalf("%q 应为合法任务类型", v)
 		}
 	}
-	for _, v := range []string{"", " ", "IPDENY", "ipdeny ", "rule", "../etc", "sensitive;drop"} {
+	for _, v := range []string{"", " ", "IPDENY", "ipdeny", "ipdeny ", "ipallow", "rule", "../etc", "sensitive;drop"} {
 		if IsValidBatchType(v) {
 			t.Fatalf("%q 必须被拒", v)
 		}
@@ -19,13 +19,12 @@ func TestIsValidBatchType(t *testing.T) {
 }
 
 func TestIsValidBatchSourceType(t *testing.T) {
-	// remote 是两个前端在用的值，url 是模型注释里的历史写法，都必须认
-	for _, v := range []string{BATCHTASK_SOURCETYPE_LOCAL, BATCHTASK_SOURCETYPE_REMOTE, BATCHTASK_SOURCETYPE_URL} {
+	for _, v := range []string{BATCHTASK_SOURCETYPE_LOCAL, BATCHTASK_SOURCETYPE_REMOTE} {
 		if !IsValidBatchSourceType(v) {
 			t.Fatalf("%q 应为合法来源类型", v)
 		}
 	}
-	for _, v := range []string{"", "LOCAL", "file", "ftp", "local "} {
+	for _, v := range []string{"", "LOCAL", "url", "file", "ftp", "local "} {
 		if IsValidBatchSourceType(v) {
 			t.Fatalf("%q 必须被拒", v)
 		}
@@ -36,8 +35,7 @@ func TestIsBatchLocalSource(t *testing.T) {
 	if !IsBatchLocalSource(BATCHTASK_SOURCETYPE_LOCAL) {
 		t.Fatal("local 应判定为本地来源")
 	}
-	// 非 local 一律按远端处理，与执行侧分支保持一致
-	for _, v := range []string{BATCHTASK_SOURCETYPE_REMOTE, BATCHTASK_SOURCETYPE_URL, "", "LOCAL"} {
+	for _, v := range []string{BATCHTASK_SOURCETYPE_REMOTE, "", "LOCAL"} {
 		if IsBatchLocalSource(v) {
 			t.Fatalf("%q 不应判定为本地来源", v)
 		}

@@ -95,7 +95,7 @@ type DBDialect interface {
 	// exactly once in the result on every engine, so the caller's argument list is
 	// identical across dialects.
 	//
-	// Not every table has a primary key (innerbean.WebLog / web_logs has none), so
+	// The caller supplies predicates without a common primary key, so
 	// this cannot key off an id column and must use each engine's physical row handle:
 	//   SQLite:     DELETE FROM t WHERE rowid IN (SELECT rowid FROM t WHERE <where> LIMIT n)
 	//   PostgreSQL: DELETE FROM t WHERE ctid  IN (SELECT ctid  FROM t WHERE <where> LIMIT n)
@@ -116,7 +116,7 @@ type DBDialect interface {
 	//   PostgreSQL: INSERT INTO t (cols) VALUES (...),(...) ON CONFLICT DO NOTHING
 	// quotedCols and rowPlaceholders are pre-built, already-quoted SQL fragments.
 	// Note: with no unique key there is nothing to conflict on, so this degrades to a
-	// plain INSERT (web_logs has no primary key on any engine).
+	// plain INSERT.
 	InsertIgnoreSQL(table, quotedCols, rowPlaceholders string) string
 
 	// UpsertExcludedRef returns how the conflict branch of an upsert refers to the
@@ -142,13 +142,8 @@ type DBDialect interface {
 	// for server databases (MySQL: RENAME TABLE; MSSQL: sp_rename).
 	RenameTable(db *gorm.DB, src, dst string) error
 
-	// ShardSwapTable atomically archives liveTable to archiveTable and leaves an
-	// empty liveTable in place (same structure + indexes), used for log table
-	// sharding on server databases.
-	//   MySQL: CREATE TABLE <live>_tmp LIKE <live>; RENAME TABLE <live> TO <archive>, <live>_tmp TO <live>
-	// File-based databases (SQLite) shard via OS-level file rename instead and
-	// return an error here ("not supported").
-	ShardSwapTable(db *gorm.DB, liveTable, archiveTable string) error
+	// RotateLogTables archives all log tiers together and recreates their live tables.
+	RotateLogTables(db *gorm.DB, tables []string, suffix string) error
 
 	// CreatePartition creates an empty time partition of baseTable, cloning its
 	// structure and indexes. partTable must be named "<baseTable>_<period>".

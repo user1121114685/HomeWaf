@@ -457,7 +457,7 @@ func parseAccessTime(s string) (time.Time, error) {
 
 // encryptAccessSecret / decryptAccessSecret 走与 CDN 凭证一致的每实例 DEK 通道
 // （见 waf_cdn_ip_service.go 的 encCred/decCred）。TOTP 密钥、rq 签名密钥都用它，
-// 保证这些东西在库里是密文，且 API 层永远不回显。写入产出 swk1 新格式；读取兼容旧密文。
+// 保证这些东西在库里是密文，且 API 层永远不回显。只接受 swk1 密文。
 func encryptAccessSecret(plain string) (string, error) {
 	if strings.TrimSpace(plain) == "" {
 		return "", nil
@@ -474,7 +474,7 @@ func decryptAccessSecret(enc string) string {
 	if strings.TrimSpace(enc) == "" {
 		return ""
 	}
-	b, err := wafsec.DataDecrypt(enc, global.GWAF_COMMUNICATION_KEY)
+	b, err := wafsec.DataDecrypt(enc)
 	if err != nil {
 		zlog.Error("统一访问认证密钥解密失败", err.Error())
 		return ""

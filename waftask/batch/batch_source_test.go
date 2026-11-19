@@ -40,7 +40,7 @@ func writeFile(t *testing.T, dir, name, content string) string {
 
 func localTask(source string) model.BatchTask {
 	return model.BatchTask{
-		BatchType:          enums.BATCHTASK_IPDENY,
+		BatchType:          enums.BATCHTASK_IPGROUP,
 		BatchSourceType:    enums.BATCHTASK_SOURCETYPE_LOCAL,
 		BatchSource:        source,
 		BatchExecuteMethod: enums.BATCHTASK_EXECUTEMETHODAPPEND,
@@ -49,7 +49,7 @@ func localTask(source string) model.BatchTask {
 
 func remoteTask(source string) model.BatchTask {
 	return model.BatchTask{
-		BatchType:          enums.BATCHTASK_IPDENY,
+		BatchType:          enums.BATCHTASK_IPGROUP,
 		BatchSourceType:    enums.BATCHTASK_SOURCETYPE_REMOTE,
 		BatchSource:        source,
 		BatchExecuteMethod: enums.BATCHTASK_EXECUTEMETHODAPPEND,
@@ -205,7 +205,7 @@ func TestProcessBatchTask_非法来源类型被拒(t *testing.T) {
 
 	task := localTask(p)
 	task.BatchSourceType = "file" // 存量库里可能留着的非法值
-	err := ProcessBatchTask(task, &IPDenyProcessor{}, BatchProcessorConfig{BatchSize: 10, LogPrefix: "test"})
+	err := ProcessBatchTask(task, &IPGroupProcessor{}, BatchProcessorConfig{BatchSize: 10, LogPrefix: "test"})
 	if err == nil {
 		t.Fatal("非法来源类型必须报错")
 	}
@@ -239,7 +239,7 @@ func TestProcessBatchTask_非法执行方式被拒(t *testing.T) {
 
 	task := localTask(p)
 	task.BatchExecuteMethod = "sync" // 存量库里可能留着的非法值
-	err := ProcessBatchTask(task, &IPDenyProcessor{}, BatchProcessorConfig{BatchSize: 10, LogPrefix: "test"})
+	err := ProcessBatchTask(task, &IPGroupProcessor{}, BatchProcessorConfig{BatchSize: 10, LogPrefix: "test"})
 	if err == nil {
 		t.Fatal("非法执行方式必须报错，而不是静默什么都不做")
 	}
@@ -249,7 +249,7 @@ func TestProcessBatchTask_非法执行方式被拒(t *testing.T) {
 
 	// 来源被拒时同样要报错，且必须在碰数据库之前就返回
 	bad := localTask(filepath.Join(t.TempDir(), "outside.txt"))
-	if err = ProcessBatchTask(bad, &IPDenyProcessor{}, BatchProcessorConfig{BatchSize: 10, LogPrefix: "test"}); err == nil {
+	if err = ProcessBatchTask(bad, &IPGroupProcessor{}, BatchProcessorConfig{BatchSize: 10, LogPrefix: "test"}); err == nil {
 		t.Fatal("越界来源必须报错")
 	}
 }

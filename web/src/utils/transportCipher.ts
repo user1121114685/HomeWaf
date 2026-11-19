@@ -32,4 +32,43 @@ const seal = Object.assign(
     },
   },
 );
-export default { randomBytes, box: { keyPair: () => x25519.keygen(), before }, secretbox: seal };
+export const transportKeyPair = () => x25519.keygen();
+
+export function toBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+export function fromBase64(value: string): Uint8Array {
+  return Uint8Array.from(atob(value), (byte) => byte.charCodeAt(0));
+}
+
+export class TransportSession {
+  readonly id: string;
+  #key: Uint8Array;
+
+  constructor(id: string, peerPublicKey: Uint8Array, secretKey: Uint8Array) {
+    if (!/^[A-Za-z0-9_-]+$/.test(id) || peerPublicKey.length !== 32) throw new Error('无效的管理会话');
+    this.id = id;
+    this.#key = before(peerPublicKey, secretKey);
+  }
+
+  encrypt(plain: string): string {
+    const nonce = randomBytes(24);
+    const cipher = seal(new TextEncoder().encode(plain), nonce, this.#key);
+    const payload = new Uint8Array(nonce.length + cipher.length);
+    payload.set(nonce);
+    payload.set(cipher, nonce.length);
+    return `swt2:${this.id}:${toBase64(payload)}`;
+  }
+
+  decrypt(encrypted: string): string {
+    const prefix = `swt2:${this.id}:`;
+    if (typeof encrypted !== 'string' || !encrypted.startsWith(prefix)) throw new Error('管理响应的会话标识无效');
+    const payload = fromBase64(encrypted.slice(prefix.length));
+    const plain = seal.open(payload.subarray(24), payload.subarray(0, 24), this.#key);
+    if (!plain) throw new Error('管理响应校验失败');
+    return new TextDecoder('utf-8', { fatal: true }).decode(plain);
+  }
+}

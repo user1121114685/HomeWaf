@@ -147,7 +147,7 @@ func NewBuilder(ctx context.Context, o Options) (*Builder, error) {
 	if b.manifest.Consistency == "" {
 		b.manifest.Consistency = "per-source snapshot; not a global snapshot"
 	}
-	b.manifest.Notes = append(b.manifest.Notes, "Only access_log and security_event; event_payload and legacy web_logs excluded.", "Deduplication is per table and req_uuid; first source wins; differing rows counted as conflicts.", "Integer fields use signed 64-bit JSON numbers; consumers must preserve precision.")
+	b.manifest.Notes = append(b.manifest.Notes, "Includes access_log and security_event summaries only.", "Deduplication is per table and req_uuid; first source wins; differing rows counted as conflicts.", "Integer fields use signed 64-bit JSON numbers; consumers must preserve precision.")
 	if o.Format == "csv" {
 		b.manifest.Notes = append(b.manifest.Notes, "CSV NULL and empty string both use empty cells; formula-like text (including leading whitespace/control characters) is prefixed with an apostrophe; long identifiers and timestamps are text.")
 	}

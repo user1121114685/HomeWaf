@@ -41,10 +41,3 @@ export function wafRestoreOneKeyModApi(params: any = {}) {
   })
 }
 //解析nginx配置为待添加主机候选（source: text 粘贴 / scan 扫描目录）
-export function wafParseNginxApi(params: any = {}) {
-  return request({
-    url: '/wafhost/onekeymod/parseNginx',
-    method: 'post',
-    data: params
-  })
-}

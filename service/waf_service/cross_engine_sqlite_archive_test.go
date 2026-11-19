@@ -2,16 +2,11 @@
 
 //go:build crossdb
 
-// SQLite 历史分区：只读打开、按数据选层、缺失标注。
-//
-// 分层改造边界切出来的分片（以及被旧版打开过、跑过迁移的归档）同时有 web_logs 数据与空的新表，
-// 按「表在不在」选层会读到空表——下拉里标着有数据、选中却一条都查不到。
-// 分片登记还在而文件已不在时，要标出来，不能在原位置建出空库，也不能回落到实时库。
+// SQLite archives are read-only; missing archives remain visible in query metadata.
 package waf_service
 
 import (
 	"HomeWaf/customtype"
-	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
@@ -46,26 +41,30 @@ func runSQLiteArchiveCases(t *testing.T, core, logdb *gorm.DB) {
 	}
 	tag := sfx()
 	hostCode := "arch_" + tag
-	polluted := "local_log_" + keyMid + ".db"
+	archive := "local_log_" + keyMid + ".db"
 	missing := "local_log_" + keyOld + ".db"
 
-	// 被污染的归档：web_logs 3 行（其中 1 行是拦截），新三表存在但为空
-	path := filepath.Join("data", polluted)
+	// 归档三条访问，其中一条安全事件
+	path := filepath.Join("data", archive)
 	adb, err := gorm.Open(sqlitedriver.Open(path), silentCfg)
 	fatalIf(t, err)
-	fatalIf(t, adb.AutoMigrate(&innerbean.WebLog{}, &model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{}))
+	fatalIf(t, adb.AutoMigrate(&model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{}))
 	for i := 0; i < 3; i++ {
 		at := midAt.Add(-time.Duration(i+1) * time.Minute)
 		action, rule := "放行", ""
 		if i == 0 {
 			action, rule = "阻止", "sqli"
 		}
-		fatalIf(t, adb.Create(&innerbean.WebLog{
-			REQ_UUID: fmt.Sprintf("arch_%s_%d", tag, i), TenantId: xtestTenant, USER_CODE: xtestUser,
-			HOST_CODE: hostCode, ACTION: action, RULE: rule, SRC_IP: "203.0.113.9",
+		narrow := model.LogNarrow{
+			ReqUUID: fmt.Sprintf("arch_%s_%d", tag, i), TenantId: xtestTenant, UserCode: xtestUser,
+			HostCode: hostCode, ACTION: action, RULE: rule, SRC_IP: "203.0.113.9",
 			UNIX_ADD_TIME: at.UnixMilli(), CREATE_TIME: at.Format("2006-01-02 15:04:05"),
 			Day: at.Year()*10000 + int(at.Month())*100 + at.Day(),
-		}).Error)
+		}
+		fatalIf(t, adb.Create(&model.AccessLog{LogNarrow: narrow}).Error)
+		if i == 0 {
+			fatalIf(t, adb.Create(&model.SecurityEvent{LogNarrow: narrow}).Error)
+		}
 	}
 	if s, e := adb.DB(); e == nil {
 		_ = s.Close()
@@ -87,11 +86,11 @@ func runSQLiteArchiveCases(t *testing.T, core, logdb *gorm.DB) {
 			Cnt:         cnt,
 		}).Error)
 	}
-	register(polluted, midAt, 3)
+	register(archive, midAt, 3)
 	register(missing, oldAt, 5)
 	InvalidateShardCounts()
 	defer func() {
-		wafdb.CloseManualLogDb(polluted)
+		wafdb.CloseManualLogDb(archive)
 		core.Where("id like ?", "arch_"+tag+"%").Delete(&model.ShareDb{})
 		InvalidateShardCounts()
 	}()
@@ -108,13 +107,13 @@ func runSQLiteArchiveCases(t *testing.T, core, logdb *gorm.DB) {
 		return r
 	}
 
-	t.Run("被污染的归档按 web_logs 读", func(t *testing.T) {
-		rows, total, _, err := WafLogServiceApp.GetListApiWithMeta(req(polluted, "access"))
+	t.Run("归档按访问与安全事件分别读取", func(t *testing.T) {
+		rows, total, _, err := WafLogServiceApp.GetListApiWithMeta(req(archive, "access"))
 		fatalIf(t, err)
 		if total != 3 || len(rows) != 3 {
 			t.Fatalf("访问日志视图应读到 3 行，实际 total=%d rows=%d", total, len(rows))
 		}
-		_, total, _, err = WafLogServiceApp.GetListApiWithMeta(req(polluted, "event"))
+		_, total, _, err = WafLogServiceApp.GetListApiWithMeta(req(archive, "event"))
 		fatalIf(t, err)
 		if total != 1 {
 			t.Fatalf("安全事件视图应读到 1 行拦截，实际 %d", total)
@@ -125,7 +124,7 @@ func runSQLiteArchiveCases(t *testing.T, core, logdb *gorm.DB) {
 		rows, total, meta, err := WafLogServiceApp.GetListApiWithMeta(req(AutoShard, "access"))
 		fatalIf(t, err)
 		if total != 3 || len(rows) != 3 {
-			t.Fatalf("应只读到被污染归档里的 3 行，实际 total=%d rows=%d", total, len(rows))
+			t.Fatalf("应只读到归档里的 3 行，实际 total=%d rows=%d", total, len(rows))
 		}
 		var got *LogShardIssue
 		for i := range meta.Issues {
@@ -156,17 +155,17 @@ func runSQLiteArchiveCases(t *testing.T, core, logdb *gorm.DB) {
 		fatalIf(t, err)
 		seen := map[string]bool{}
 		for _, s := range list {
-			if s.FileName == polluted || s.FileName == missing {
+			if s.FileName == archive || s.FileName == missing {
 				seen[s.FileName] = s.Missing
 			}
 		}
-		if len(seen) != 2 || seen[polluted] || !seen[missing] {
+		if len(seen) != 2 || seen[archive] || !seen[missing] {
 			t.Fatalf("应只有缺失的那一个标 missing，实际 %+v", seen)
 		}
 	})
 
 	t.Run("归档文件未被改动", func(t *testing.T) {
-		wafdb.CloseManualLogDb(polluted)
+		wafdb.CloseManualLogDb(archive)
 		after, err := os.Stat(path)
 		fatalIf(t, err)
 		if after.Size() != before.Size() || !after.ModTime().Equal(before.ModTime()) {

@@ -15,9 +15,8 @@ func (receiver *LogRouter) InitLogRouter(group *gin.RouterGroup) {
 	logApi := api.APIGroupAPP.WafLogAPi
 	wafLogRouter := group.Group("")
 
+	wafLogRouter.GET("/api/v1/waflog/services", api.LogServices)
 	wafLogRouter.POST("/api/v1/waflog/attack/list", logApi.GetListApi)
-	wafLogRouter.GET("/api/v1/waflog/attack/export", logApi.ExportDBApi)
-	wafLogRouter.GET("/api/v1/waflog/attack/download", logApi.DownloadApi)
 	wafLogRouter.GET("/api/v1/waflog/attack/detail", logApi.GetDetailApi)
 	wafLogRouter.GET("/api/v1/waflog/attack/allsharedb", logApi.GetAllShareDbApi)
 	wafLogRouter.POST("/api/v1/waflog/attack/shard/del", logApi.DelShardApi)

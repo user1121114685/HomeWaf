@@ -118,7 +118,7 @@ type dbMigrateResult struct {
 // ===========================================================================
 
 var migrateSkipTables = map[string]bool{
-	"migrations":            true, // gormigrate internal
+	storageFormatTable:      true, // created by the target schema
 	"_migration_checkpoint": true, // this tool's own table
 }
 
@@ -273,8 +273,7 @@ func (t *MigrateTool) run() error {
 		}
 		tblCnt, rowCnt, surveyErr := t.surveySource(p)
 		if surveyErr != nil {
-			fmt.Printf("  %-8s  %-30s  %8s  %12s\n", p.srcLabel, desc, "?", "读取失败")
-			continue
+			return fmt.Errorf("读取源数据库 %s 失败: %w", desc, surveyErr)
 		}
 		fmt.Printf("  %-8s  %-30s  %8d  %12d\n", p.srcLabel, desc, tblCnt, rowCnt)
 		totalTables += tblCnt
@@ -307,6 +306,9 @@ func (t *MigrateTool) run() error {
 	t.cpDB = coreDB
 
 	if !t.opts.DryRun {
+		if err := ensureStorageFormat(coreDB); err != nil {
+			return err
+		}
 		if err := coreDB.AutoMigrate(&MigrationCheckpoint{}); err != nil {
 			return fmt.Errorf("创建 checkpoint 表失败: %w", err)
 		}
@@ -581,6 +583,9 @@ func (t *MigrateTool) surveySource(p migPair) (int64, int64, error) {
 		}
 	}()
 
+	if err := validateStorageFormat(db); err != nil {
+		return 0, 0, err
+	}
 	tables, err := t.srcDia.ListTables(db)
 	if err != nil {
 		return 0, 0, err

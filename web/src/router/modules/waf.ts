@@ -53,12 +53,6 @@ export default [
         component: () => import('@/pages/waf/pipeline/ServicePunishmentsPage.vue'),
         meta: { title: '当前处罚', hidden: true, keepAlive: false, roleCode: 'WafHost' },
       },
-      {
-        path: 'legacy-sources',
-        name: 'LegacyWafHosts',
-        component: () => import('@/pages/waf/host/index.vue'),
-        meta: { title: 'menu.host.host_title', hidden: true, keepAlive: false, roleCode: 'WafHost' },
-      },
     ],
   },
 
@@ -73,12 +67,6 @@ export default [
         name: 'WafHost',
         redirect: '/waf-pipeline/ports',
         meta: { title: 'menu.host.host_title', hidden: true },
-      },
-      {
-        path: 'website-diagnostic',
-        name: 'WebsiteDiagnostic',
-        component: () => import('@/pages/waf/host/diagnostic.vue'),
-        meta: { title: 'page.host.diagnostic.title', hidden: true, keepAlive: false, roleCode: 'WafHost' },
       },
       {
         path: 'wafrule',
@@ -184,28 +172,10 @@ export default [
         meta: { title: 'menu.host.ssl_expire' },
       },
       {
-        path: 'wafBlockingPagelist',
-        name: 'WafBlockingPagelist',
-        component: () => import('@/pages/waf/bLocking_page/index.vue'),
-        meta: { title: 'menu.host.blocking_page' },
-      },
-      {
         path: 'wafIPBan',
         name: 'WafIPBan',
         component: () => import('@/pages/waf/ip_ban/index.vue'),
         meta: { title: 'menu.host.ip_ban', keepAlive: false },
-      },
-      {
-        path: 'wafIPFailure',
-        name: 'WafIPFailure',
-        redirect: (to) => ({ name: 'WafIPBan', query: { ...to.query, source: 'failure' }, hash: to.hash }),
-        meta: { title: 'menu.host.ip_ban', hidden: true },
-      },
-      {
-        path: 'wafRuleBan',
-        name: 'WafRuleBan',
-        redirect: (to) => ({ name: 'WafIPBan', query: { ...to.query, source: 'rule' }, hash: to.hash }),
-        meta: { title: 'menu.host.ip_ban', hidden: true },
       },
       {
         path: 'wafFirewallIPBlock',

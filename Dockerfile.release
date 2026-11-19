@@ -12,5 +12,5 @@ COPY docker-dist/${TARGETARCH}/homewaf /app/homewaf
 COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md /app/
 COPY LICENSES /app/LICENSES
 VOLUME ["/app/conf", "/app/data", "/app/.homewaf-keys", "/app/logs", "/app/ssl"]
-EXPOSE 26666 80 443 443/udp
+EXPOSE 26666 80 443
 ENTRYPOINT ["/app/homewaf"]

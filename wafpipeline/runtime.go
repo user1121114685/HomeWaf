@@ -113,7 +113,7 @@ func (r *Runtime) Prepare(s *Snapshot) error {
 			return Verdict{Action: Continue, Reason: "host_allowed"}, nil
 		}})
 	}
-	if len(s.Config.ACMEHosts) > 0 && r.CertificateChallenge != nil {
+	if s.Config.Port == 80 && s.Config.Protocol == "http" && s.Config.HostCode != "" && r.CertificateChallenge != nil {
 		steps = append(steps, Step{Number: 2, Name: "certificate_challenge", Inspect: func(c *RequestContext) (Verdict, error) {
 			if value, ok := r.CertificateChallenge(s, c); ok {
 				c.Values["certificate_challenge"] = value
@@ -141,9 +141,6 @@ func (r *Runtime) Prepare(s *Snapshot) error {
 	}
 	if s.Config.Policy.Network.MaxProxyHops > 0 {
 		steps = append(steps, proxyLoopStep(s))
-	}
-	for i := range steps {
-		steps[i] = captureDeniedStep(s, steps[i])
 	}
 	p, err := New(steps, r.Sink)
 	if err != nil {

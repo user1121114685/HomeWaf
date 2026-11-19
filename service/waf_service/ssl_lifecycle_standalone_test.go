@@ -12,7 +12,7 @@ import (
 
 func TestCertificateLifecycleStandaloneIssueRenewAndRetry(t *testing.T) {
 	db := setupSslExportTestDB(t)
-	for _, entity := range []any{&model.Hosts{}, &model.PrivateInfo{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}, &model.CertificateDelivery{}} {
+	for _, entity := range []any{&model.PrivateInfo{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}, &model.CertificateDelivery{}} {
 		if err := db.AutoMigrate(entity); err != nil {
 			t.Fatal(err)
 		}

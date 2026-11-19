@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 import { serializeHurricaneCredentials } from '../src/pages/waf/sslorder/hurricane.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -101,22 +101,17 @@ await context.route('https://app.zerossl.com/developer', (route) =>
   route.fulfill({ contentType: 'text/html', body: '<title>ZeroSSL developer fixture</title>' }),
 );
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const request = route.request(),
     url = new URL(request.url());
   const endpoint = url.pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '成功' } });
-  const fail = (msg) => route.fulfill({ json: { code: -1, data: AesEncrypt('{}'), msg } });
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '成功' } });
+  const fail = (msg) => route.fulfill({ json: { code: -1, data: routeSession(route).encrypt('{}'), msg } });
+  if (endpoint === 'sysinfo/checkversion')
     return fail('Isolated fixture');
   let input = {};
   if (request.postData()) {
-    try {
-      input = JSON.parse(AesDecrypt(request.postData()));
-    } catch {
-      try {
-        input = JSON.parse(request.postData());
-      } catch {}
-    }
+    input = JSON.parse(routeSession(route).decrypt(request.postData()));
   }
   if (endpoint === 'wafhost/sslorder/zerossl/account') {
     if (request.method() === 'GET') return failZeroSSLStatus ? fail('认证状态读取失败') : ok(zeroSSLAccount);
@@ -185,18 +180,7 @@ await context.route('**/api/**', async (route) => {
     writes.push({ endpoint, input });
     return ok({});
   }
-  if (endpoint === 'wafhost/host/allhost') return ok([{ value: 'global', label: '全局网站:0', global_host: 1 }]);
-  if (endpoint === 'wafhost/host/alldomainbyhostcode')
-    return ok([{ label: 'example.com' }, { label: '*.example.com' }]);
-  if (endpoint === 'wafhost/host/detail')
-    return ok({
-      id: 'nas',
-      code: 'nas',
-      host: 'example.com',
-      port: 8443,
-      ssl: 1,
-      port_listens_json: '[{"port":8443,"protocol":"https"}]',
-    });
+  if (endpoint === 'waflog/services') return ok([{ value: 'global', label: '全局网站:0', global_host: 1 }]);
   if (endpoint === 'wafhost/caserverinfo/list' || endpoint === 'wafhost/ca_server_info/list')
     return ok({
       list: [

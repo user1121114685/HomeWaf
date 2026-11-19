@@ -39,11 +39,11 @@ func TestCheckTaskInput_非法枚举被拒(t *testing.T) {
 	}{
 		{"任务类型为空", "", enums.BATCHTASK_SOURCETYPE_LOCAL, enums.BATCHTASK_TRIGGERTYPE_MANUAL, enums.BATCHTASK_EXECUTEMETHODAPPEND, ok},
 		{"任务类型未知", "rule", enums.BATCHTASK_SOURCETYPE_LOCAL, enums.BATCHTASK_TRIGGERTYPE_MANUAL, enums.BATCHTASK_EXECUTEMETHODAPPEND, ok},
-		{"来源类型未知", enums.BATCHTASK_IPDENY, "ftp", enums.BATCHTASK_TRIGGERTYPE_MANUAL, enums.BATCHTASK_EXECUTEMETHODAPPEND, ok},
-		{"触发类型未知", enums.BATCHTASK_IPDENY, enums.BATCHTASK_SOURCETYPE_LOCAL, "auto", enums.BATCHTASK_EXECUTEMETHODAPPEND, ok},
-		{"执行方式未知", enums.BATCHTASK_IPDENY, enums.BATCHTASK_SOURCETYPE_LOCAL, enums.BATCHTASK_TRIGGERTYPE_MANUAL, "sync", ok},
-		{"执行方式为空", enums.BATCHTASK_IPDENY, enums.BATCHTASK_SOURCETYPE_LOCAL, enums.BATCHTASK_TRIGGERTYPE_MANUAL, "", ok},
-		{"来源为空", enums.BATCHTASK_IPDENY, enums.BATCHTASK_SOURCETYPE_LOCAL, enums.BATCHTASK_TRIGGERTYPE_MANUAL, enums.BATCHTASK_EXECUTEMETHODAPPEND, "  "},
+		{"来源类型未知", enums.BATCHTASK_IPGROUP, "ftp", enums.BATCHTASK_TRIGGERTYPE_MANUAL, enums.BATCHTASK_EXECUTEMETHODAPPEND, ok},
+		{"触发类型未知", enums.BATCHTASK_IPGROUP, enums.BATCHTASK_SOURCETYPE_LOCAL, "auto", enums.BATCHTASK_EXECUTEMETHODAPPEND, ok},
+		{"执行方式未知", enums.BATCHTASK_IPGROUP, enums.BATCHTASK_SOURCETYPE_LOCAL, enums.BATCHTASK_TRIGGERTYPE_MANUAL, "sync", ok},
+		{"执行方式为空", enums.BATCHTASK_IPGROUP, enums.BATCHTASK_SOURCETYPE_LOCAL, enums.BATCHTASK_TRIGGERTYPE_MANUAL, "", ok},
+		{"来源为空", enums.BATCHTASK_IPGROUP, enums.BATCHTASK_SOURCETYPE_LOCAL, enums.BATCHTASK_TRIGGERTYPE_MANUAL, enums.BATCHTASK_EXECUTEMETHODAPPEND, "  "},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -62,11 +62,11 @@ func TestCheckTaskInput_合法输入通过(t *testing.T) {
 	}
 	svc := WafBatchServiceApp
 
-	if err := svc.checkTaskInput(enums.BATCHTASK_IPDENY, enums.BATCHTASK_SOURCETYPE_LOCAL,
+	if err := svc.checkTaskInput(enums.BATCHTASK_IPGROUP, enums.BATCHTASK_SOURCETYPE_LOCAL,
 		enums.BATCHTASK_TRIGGERTYPE_CRON, enums.BATCHTASK_EXECUTEMETHODAPPEND, p); err != nil {
 		t.Fatalf("允许目录内的本地来源应通过，实际: %v", err)
 	}
-	if err := svc.checkTaskInput(enums.BATCHTASK_IPDENY, enums.BATCHTASK_SOURCETYPE_REMOTE,
+	if err := svc.checkTaskInput(enums.BATCHTASK_IPGROUP, enums.BATCHTASK_SOURCETYPE_REMOTE,
 		enums.BATCHTASK_TRIGGERTYPE_CRON, enums.BATCHTASK_EXECUTEMETHODOVERWRITE, "https://8.8.8.8/list.txt"); err != nil {
 		t.Fatalf("公网来源地址应通过，实际: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestCheckTaskInput_越界来源与内网地址被拒(t *testing.T) {
 	svc := WafBatchServiceApp
 
 	// 本地：允许目录之外
-	err := svc.checkTaskInput(enums.BATCHTASK_IPDENY, enums.BATCHTASK_SOURCETYPE_LOCAL,
+	err := svc.checkTaskInput(enums.BATCHTASK_IPGROUP, enums.BATCHTASK_SOURCETYPE_LOCAL,
 		enums.BATCHTASK_TRIGGERTYPE_MANUAL, enums.BATCHTASK_EXECUTEMETHODAPPEND, filepath.Join(t.TempDir(), "x.txt"))
 	if err == nil {
 		t.Fatal("允许目录之外的本地来源必须被拒")
@@ -90,7 +90,7 @@ func TestCheckTaskInput_越界来源与内网地址被拒(t *testing.T) {
 		"http://169.254.169.254/latest/meta-data/",
 		"file:///etc/passwd",
 	} {
-		if err = svc.checkTaskInput(enums.BATCHTASK_IPDENY, enums.BATCHTASK_SOURCETYPE_REMOTE,
+		if err = svc.checkTaskInput(enums.BATCHTASK_IPGROUP, enums.BATCHTASK_SOURCETYPE_REMOTE,
 			enums.BATCHTASK_TRIGGERTYPE_MANUAL, enums.BATCHTASK_EXECUTEMETHODAPPEND, u); err == nil {
 			t.Fatalf("地址 %q 必须被拒", u)
 		} else if !strings.Contains(err.Error(), "不被允许") {

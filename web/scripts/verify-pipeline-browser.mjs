@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const root=fileURLToPath(new URL('../..',import.meta.url));
 const source=JSON.parse(execFileSync('go',['run','./scripts/pipeline-fixtures'],{cwd:root,encoding:'utf8',env:{...process.env,CGO_ENABLED:'0',GOPROXY:process.env.GOPROXY||'off',GOSUMDB:process.env.GOSUMDB||'off'}}));
@@ -26,11 +26,12 @@ await context.addInitScript(()=>{localStorage.setItem('access_token','isolated-p
 await context.routeWebSocket('**/api/**',ws=>ws.close());
 function resultFor(config){const blocked=!config.policy.access.enabled||config.policy.ip_group.unlisted_action==='deny';const gate=config.policy.gate.enabled||config.policy.gate.require_token;return {req_id:'ui-preview',verdict:{action:blocked?'deny':gate?'challenge':'allow',stage:blocked?1:gate?3:5,reason:blocked?'access_policy':gate?'auth_required':'passed'},trace:[{stage:1,check:'access_switch',elapsed_us:2,verdict:{action:'continue',reason:'access_enabled'}},{stage:2,check:'ip_group',elapsed_us:2,verdict:{action:'continue',reason:'ip:unlisted'}},{stage:3,check:'auth_gate',elapsed_us:3,verdict:{action:gate?'challenge':'continue',reason:gate?'auth_required':'gate_disabled'}}]}}
 await context.route('**/api/**',async route=>{
+  if (await handleTransportHandshake(route)) return;
   const req=route.request(),url=new URL(req.url()),endpoint=url.pathname.split('/api/v1/')[1]||'';
-  if(endpoint.includes('handshake')||endpoint==='public/seckey'||endpoint==='sysinfo/checkversion')return route.fulfill({json:{code:1,msg:'Isolated UI fixture'}});
-  let input={};if(req.postData()){try{input=JSON.parse(AesDecrypt(req.postData()))}catch{try{input=JSON.parse(req.postData())}catch{}}}
-  const ok=data=>route.fulfill({json:{code:0,data:AesEncrypt(JSON.stringify(data)),msg:''}});
-  const fail=msg=>route.fulfill({json:{code:1,msg,data:AesEncrypt(JSON.stringify({}))}});
+  if(endpoint==='sysinfo/checkversion')return route.fulfill({json:{code:1,msg:'Isolated UI fixture'}});
+  const input = req.postData() ? JSON.parse(routeSession(route).decrypt(req.postData())) : {};
+  const ok=data=>route.fulfill({json:{code:0,data:routeSession(route).encrypt(JSON.stringify(data)),msg:''}});
+  const fail=msg=>route.fulfill({json:{code:1,msg,data:routeSession(route).encrypt(JSON.stringify({}))}});
   const p=Number(url.searchParams.get('port')||input.port||input.config?.port);
   if(endpoint==='iplocation/status')return ok({ipv4_file_size:11122714,ipv6_file_size:37283761,ipv4_builtin:true,ipv6_builtin:true});
   if(endpoint==='wafhost/ipgroup/options')return ok(clone(ipGroups));

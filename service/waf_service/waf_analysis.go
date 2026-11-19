@@ -38,19 +38,18 @@ func (receiver *WafAnalysisService) StatAnalysisDayCountryRangeApi(req request.W
 
 // AnalysisSpiderApi 爬虫分析
 // 数据源是 access_log（分层后所有请求的窄行都在这里）；今天它也只看实时库，
-// 与改造前只读 live web_logs 的口径一致。
 func (receiver *WafAnalysisService) AnalysisSpiderApi(req request.WafAnalysisSpiderReq) []response2.WafAnalysisSpiderResp {
 	var CountOfRange []response2.WafAnalysisSpiderResp
 	if req.Host == "" {
 		global.GWAF_LOCAL_LOG_DB.Model(&model.AccessLog{}).Where("day between ? and ? and  is_bot=1 ",
-			req.StartDay, req.EndDay).Select(" guest_id_entification as Name ,count(1) as Value").
-			Group("guest_id_entification").Order("count(1) desc").Scan(&CountOfRange)
+			req.StartDay, req.EndDay).Select(" guest_identification as Name ,count(1) as Value").
+			Group("guest_identification").Order("count(1) desc").Scan(&CountOfRange)
 
 	} else {
 		global.GWAF_LOCAL_LOG_DB.Model(&model.AccessLog{}).Where("day between ? and ? and  is_bot=1 and host_code = ? ",
 			req.StartDay, req.EndDay, req.Host).
-			Select(" guest_id_entification as Name ,count(1) as Value").
-			Group("guest_id_entification").Order("count(1) desc").Scan(&CountOfRange)
+			Select(" guest_identification as Name ,count(1) as Value").
+			Group("guest_identification").Order("count(1) desc").Scan(&CountOfRange)
 	}
 	return CountOfRange
 }

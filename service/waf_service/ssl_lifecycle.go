@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"net/mail"
 	"strings"
 	"time"
@@ -51,83 +50,6 @@ func newCertificatePolicy(c model.SslConfig, o model.SslOrder, targetID string) 
 		IssuanceContext: contextFromOrder(o), Fingerprint: CertificateFingerprint(c.CertContent), Status: "idle", LastOrderID: o.Id, LastSuccessID: o.Id, LastSuccessAt: o.UPDATE_TIME}
 }
 
-// Migration only adopts exact certificate material and an existing service
-// binding. Conflicting policies are never resolved by choosing a random order.
-func MigrateCertificatePolicies() error {
-	if !CertificateLifecycleAvailable() {
-		return nil
-	}
-	db := global.GWAF_LOCAL_DB
-	var certs []model.SslConfig
-	if err := db.Find(&certs).Error; err != nil {
-		return err
-	}
-	for _, c := range certs {
-		var existing model.SslRenewalPolicy
-		err := db.First(&existing, "id = ?", c.Id).Error
-		if err == nil {
-			continue
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-		if c.AutoLoadPath != 0 {
-			continue
-		}
-		fp := CertificateFingerprint(c.CertContent)
-		if fp == "" {
-			continue
-		}
-		bindings, err := CertificateBindings(db, c.Id)
-		if err != nil {
-			return err
-		}
-		codes := []string{}
-		for _, b := range bindings {
-			if b.Code != "" {
-				codes = append(codes, b.Code)
-			}
-		}
-		if len(codes) == 0 {
-			continue
-		}
-		var orders []model.SslOrder
-		if err := db.Where("host_code IN ? AND apply_status = ?", codes, "success").Order("create_time desc").Find(&orders).Error; err != nil {
-			return err
-		}
-		candidates := []model.SslOrder{}
-		seen := map[string]bool{}
-		for _, o := range orders {
-			if seen[o.HostCode] {
-				continue
-			}
-			seen[o.HostCode] = true
-			if CertificateFingerprint(string(o.ResultCertificate)) == fp && certificateBoundToSource(bindings, o.HostCode) {
-				candidates = append(candidates, o)
-			}
-		}
-		if len(candidates) == 0 {
-			continue
-		}
-		p := newCertificatePolicy(c, candidates[0], certificateTargetID(bindings, candidates[0].HostCode))
-		for _, o := range candidates[1:] {
-			q := newCertificatePolicy(c, o, "")
-			if q.ApplyPlatform != p.ApplyPlatform || q.ApplyMethod != p.ApplyMethod || q.ApplyDNS != p.ApplyDNS || q.CredentialGroup != p.CredentialGroup || q.Enabled != p.Enabled || q.ApplyEmail != p.ApplyEmail || q.SkipDNSVerify != p.SkipDNSVerify || certificateIdentityNames(q.ApplyDomain) != certificateIdentityNames(p.ApplyDomain) {
-				p.Status, p.Enabled, p.LastError = "unresolved", false, "相同证书存在不同续期配置，请在续期设置中选择来源后确认"
-			}
-		}
-		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&p).Error; err != nil {
-			return err
-		}
-		for _, o := range candidates {
-			if err := db.Model(&model.SslOrder{}).Where("id = ? AND (certificate_id = ? OR certificate_id IS NULL)", o.Id, "").Update("certificate_id", c.Id).Error; err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 type CertificatePolicyEdit struct {
 	ID            string `json:"id" binding:"required,max=64"`
 	Version       uint64 `json:"version" binding:"required"`
@@ -137,8 +59,6 @@ type CertificatePolicyEdit struct {
 	Email         string `json:"apply_email" binding:"required,email,max=255"`
 	Group         string `json:"private_group_name" binding:"max=255"`
 	SkipDNSVerify int64  `json:"skip_dns_verify"`
-	SourceOrderID string `json:"source_order_id" binding:"omitempty,max=64"`
-	ConfirmSource bool   `json:"confirm_source"`
 }
 
 var ErrCertificateConflict = errors.New("续期设置已被其他操作修改，请重新读取后再保存")
@@ -150,39 +70,6 @@ func SaveCertificatePolicy(req CertificatePolicyEdit) (model.SslRenewalPolicy, e
 	}
 	if req.Version != p.Version {
 		return p, ErrCertificateConflict
-	}
-	if p.Status == "unresolved" && !req.ConfirmSource {
-		return p, errors.New("请核对当前显示的服务、CA 和凭据并确认采用此来源")
-	}
-	if p.Status == "unresolved" {
-		var c model.SslConfig
-		if err := global.GWAF_LOCAL_DB.First(&c, "id = ?", p.Id).Error; err != nil {
-			return p, err
-		}
-		sources, err := certificatePolicySources(c)
-		if err != nil {
-			return p, err
-		}
-		matched := false
-		for _, source := range sources {
-			if source.ID == req.SourceOrderID {
-				var order model.SslOrder
-				if err := global.GWAF_LOCAL_DB.First(&order, "id = ?", source.ID).Error; err != nil {
-					return p, err
-				}
-				bindings, err := CertificateBindings(global.GWAF_LOCAL_DB, c.Id)
-				if err != nil {
-					return p, err
-				}
-				chosen := newCertificatePolicy(c, order, certificateTargetID(bindings, order.HostCode))
-				p.HostCode, p.TargetID, p.ApplyPlatform, p.ApplyDomain, p.IssuanceContext = chosen.HostCode, chosen.TargetID, chosen.ApplyPlatform, chosen.ApplyDomain, chosen.IssuanceContext
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return p, errors.New("请选择与当前证书及服务绑定一致的签发来源")
-		}
 	}
 	if _, err := mail.ParseAddress(req.Email); err != nil {
 		return p, errors.New("申请邮箱无效")
@@ -223,11 +110,6 @@ func SaveCertificatePolicy(req CertificatePolicyEdit) (model.SslRenewalPolicy, e
 		}
 		if result.RowsAffected != 1 {
 			return ErrCertificateConflict
-		}
-		if req.SourceOrderID != "" {
-			if err := tx.Model(&p).Select("HostCode", "TargetID", "ApplyPlatform", "ApplyDomain", "IssuanceContext").Updates(&p).Error; err != nil {
-				return err
-			}
 		}
 		// Only queued automatic work can be cancelled. An already-claimed order
 		// keeps its immutable snapshot; a strategy update does not misrepresent undo.
@@ -272,11 +154,11 @@ func certificateDisplayState(c model.SslConfig, now time.Time) string {
 type CertificateView struct {
 	Fingerprint string `json:"fingerprint"`
 	model.SslConfig
-	Sources      []CertificatePolicySource `json:"sources,omitempty"`
-	Bindings     []CertificateBinding      `json:"bindings"`
-	Policy       *model.SslRenewalPolicy   `json:"renewal"`
-	Validity     string                    `json:"validity"`
-	UpdateMethod string                    `json:"update_method"`
+
+	Bindings     []CertificateBinding    `json:"bindings"`
+	Policy       *model.SslRenewalPolicy `json:"renewal"`
+	Validity     string                  `json:"validity"`
+	UpdateMethod string                  `json:"update_method"`
 }
 
 func CertificateDetail(id string) (CertificateView, error) {
@@ -296,13 +178,6 @@ func CertificateDetail(id string) (CertificateView, error) {
 	var p model.SslRenewalPolicy
 	if err := db.First(&p, "id = ?", id).Error; err == nil {
 		v.Policy = &p
-		if p.Status == "unresolved" {
-			sources, err := certificatePolicySources(c)
-			if err != nil {
-				return v, err
-			}
-			v.Sources = sources
-		}
 		if p.Status != "manual" {
 			v.UpdateMethod = "managed"
 		}
@@ -366,7 +241,7 @@ func CertificateList(req CertificateListQuery) ([]CertificateView, int, error) {
 		if req.Attention {
 			attention := v.Validity != "valid" || strings.Contains(c.ExportStatus, "失败")
 			if v.Policy != nil {
-				attention = attention || v.Policy.Status == "blocked" || v.Policy.Status == "retry_wait" || v.Policy.Status == "unresolved"
+				attention = attention || v.Policy.Status == "blocked" || v.Policy.Status == "retry_wait"
 			}
 			if !attention {
 				continue
@@ -391,48 +266,3 @@ func certificatePolicyOrder(p model.SslRenewalPolicy) model.SslOrder {
 		ApplyMethod: p.ApplyMethod, ApplyDns: p.ApplyDNS, ApplyEmail: p.ApplyEmail, PrivateGroupName: p.CredentialGroup, SkipDNSVerify: p.SkipDNSVerify, AutoRenew: &enabled}
 }
 func certificateError(err error) error { return fmt.Errorf("证书操作失败：%w", err) }
-
-type CertificatePolicySource struct {
-	ID            string `json:"id"`
-	HostCode      string `json:"host_code"`
-	Platform      string `json:"apply_platform"`
-	Method        string `json:"apply_method"`
-	DNS           string `json:"apply_dns"`
-	Group         string `json:"private_group_name"`
-	Email         string `json:"apply_email"`
-	SkipDNSVerify int64  `json:"skip_dns_verify"`
-	Enabled       bool   `json:"enabled"`
-}
-
-func certificatePolicySources(c model.SslConfig) ([]CertificatePolicySource, error) {
-	bindings, err := CertificateBindings(global.GWAF_LOCAL_DB, c.Id)
-	if err != nil {
-		return nil, err
-	}
-	codes := []string{}
-	for _, b := range bindings {
-		if b.Code != "" {
-			codes = append(codes, b.Code)
-		}
-	}
-	result := []CertificatePolicySource{}
-	if len(codes) == 0 {
-		return result, nil
-	}
-	var orders []model.SslOrder
-	if err := global.GWAF_LOCAL_DB.Where("host_code IN ? AND apply_status = ?", codes, "success").Order("create_time desc").Find(&orders).Error; err != nil {
-		return nil, err
-	}
-	seen := map[string]bool{}
-	for _, o := range orders {
-		if seen[o.HostCode] {
-			continue
-		}
-		seen[o.HostCode] = true
-		if CertificateFingerprint(string(o.ResultCertificate)) != CertificateFingerprint(c.CertContent) {
-			continue
-		}
-		result = append(result, CertificatePolicySource{o.Id, o.HostCode, o.ApplyPlatform, o.ApplyMethod, o.ApplyDns, o.PrivateGroupName, o.ApplyEmail, o.SkipDNSVerify, o.AutoRenewEnabled()})
-	}
-	return result, nil
-}

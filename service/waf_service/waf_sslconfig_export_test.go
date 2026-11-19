@@ -43,7 +43,7 @@ func setupSslExportTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("打开测试库失败: %v", err)
 	}
-	if err := db.AutoMigrate(&model.SslConfig{}, &model.Hosts{}, &model.SslOrderLog{}); err != nil {
+	if err := db.AutoMigrate(&model.SslConfig{}, &model.PortConfig{}, &model.SslOrderLog{}); err != nil {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
 	oldDB, oldTenant, oldUser := global.GWAF_LOCAL_DB, global.GWAF_TENANT_ID, global.GWAF_USER_CODE
@@ -376,7 +376,7 @@ func TestExport_证书夹不存在时报错不panic(t *testing.T) {
 	}
 }
 
-func TestExport_编辑接口不传导出字段时保持原值(t *testing.T) {
+func TestExport_编辑接口空导出字段时清除原值(t *testing.T) {
 	setupSslExportTestDB(t)
 	dir := t.TempDir()
 	certFile := filepath.Join(dir, "a.crt")
@@ -384,28 +384,15 @@ func TestExport_编辑接口不传导出字段时保持原值(t *testing.T) {
 
 	id, _, _ := addSslConfigForExport(t, "keep.example.com", certFile, keyFile)
 
-	// 老前端不认识 export_* 字段，传 nil，此时不能把用户已配好的导出路径清空
+	// 当前编辑请求显式提交空路径时，应关闭原有导出目标。
 	newCert, newKey := genExportTestCert(t, "keep2.example.com")
 	if err := WafSslConfigServiceApp.ModifyApi(request.SslConfigEditReq{
-		Id: id, CertContent: newCert, KeyContent: newKey,
+		Id: id, CertContent: newCert, KeyContent: newKey, AutoLoadPath: new(1), ExportCertPath: new(string), ExportKeyPath: new(string),
 	}); err != nil {
 		t.Fatalf("编辑失败: %v", err)
 	}
 	got := WafSslConfigServiceApp.GetDetailInner(id)
-	if got.ExportCertPath != certFile || got.ExportKeyPath != keyFile {
-		t.Fatalf("旧前端编辑后导出配置被清空了: %+v", got)
-	}
-
-	// 显式传空串则是用户主动关闭导出
-	empty := ""
-	if err := WafSslConfigServiceApp.ModifyApi(request.SslConfigEditReq{
-		Id: id, CertContent: newCert, KeyContent: newKey,
-		ExportCertPath: &empty, ExportKeyPath: &empty,
-	}); err != nil {
-		t.Fatalf("编辑失败: %v", err)
-	}
-	got = WafSslConfigServiceApp.GetDetailInner(id)
 	if got.ExportCertPath != "" || got.ExportKeyPath != "" {
-		t.Fatalf("显式传空串应关闭导出: %+v", got)
+		t.Fatalf("空路径未清除导出配置: %+v", got)
 	}
 }

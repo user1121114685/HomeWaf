@@ -20,7 +20,7 @@
       <ElButton :loading="loading || loadingServices" :disabled="busy" @click="refresh">刷新处罚记录</ElButton>
     </div>
     <p class="editor-context">
-      这里显示服务的封禁、蜜罐、连接丢弃与端口锁定。共享封禁会影响多个服务；配置名单与当前处罚是不同对象。
+      这里显示当前端口的来源封禁与群晖登录锁定。
     </p>
     <ElAlert v-if="error" :title="error" type="error" :closable="false" class="space" />
     <p v-if="loadingServices" role="status">正在读取服务范围…</p>
@@ -43,11 +43,6 @@
       <ElTableColumn label="来源 / 网段" min-width="155">
         <template #default="{ row }">{{ row.kind === 'synology_login_lockdown' ? '所有 DSM 用户' : row.prefix }}</template>
       </ElTableColumn>
-      <ElTableColumn label="作用域" min-width="115"
-        ><template #default="{ row }">{{
-          row.scope === 'global' ? '多个服务共享' : '当前服务'
-        }}</template></ElTableColumn
-      >
       <ElTableColumn label="触发原因" min-width="180">
         <template #default="{ row }">{{ reason(row) }}</template>
       </ElTableColumn>
@@ -88,7 +83,7 @@
       <article v-for="row in rows" :key="row.id">
         <header>
           <ElTag :type="row.kind === 'ban' ? 'danger' : 'warning'">{{ kinds[row.kind] || row.kind }}</ElTag
-          ><span>{{ row.scope === 'global' ? '多个服务共享' : '当前服务' }}</span>
+          >
         </header>
         <strong>{{ row.kind === 'synology_login_lockdown' ? '所有 DSM 用户' : row.prefix || `端口 ${effectivePort}` }}</strong>
         <dl>
@@ -228,7 +223,7 @@ async function manage(row: any, action: string) {
       whitelist: '加入当前服务 trusted 名单并释放',
     }[action];
     await ElMessageBox.confirm(
-      `${label}：${row.prefix || '端口 ' + port}（当前服务 :${port}）。${row.scope === 'global' ? '这是共享记录，修改或释放会同时影响其他服务。' : ''}${action === 'whitelist' ? '可信名单仅写入当前服务；IP/地域黑名单与访问总开关仍然有效。' : ''}`,
+      `${label}：${row.prefix || '端口 ' + port}（当前服务 :${port}）。${action === 'whitelist' ? '可信名单仅写入当前服务，IP/地域黑名单与访问总开关仍然有效。' : ''}`,
       '确认处罚操作',
       { type: 'warning', confirmButtonText: '确认操作', cancelButtonText: '取消' },
     );

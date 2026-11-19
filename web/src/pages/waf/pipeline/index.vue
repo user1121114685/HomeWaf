@@ -171,7 +171,7 @@
               ></template
             ></ElTableColumn
           >
-          <template #empty><p>尚无独立端口。可新建端口，或在下方将现有业务迁入五步配置。</p></template>
+          <template #empty><p>尚无服务。新建服务以配置监听端口和上游。</p></template>
         </ElTable>
         <p class="muted">
           今日计数按服务器本地日期重置，每2秒持久化；异常掉电可能丢失尚未落盘的增量。封禁数含共享记录，trusted仍可豁免。
@@ -187,8 +187,6 @@
           ><span>日志丢弃：{{ dropped(overview.log_queue) }}</span>
         </div>
       </details>
-      <ElAlert v-if="legacyError" :title="legacyError" type="warning" :closable="false" class="space" />
-      <LegacyMigration :sources="legacyPorts" @imported="refresh" />
     </template>
     <template v-else-if="page === 'templates' && loaded">
       <div class="table-toolbar">
@@ -490,12 +488,8 @@ import {
 import PortEditor from './PortEditor.vue';
 import Trace from './Trace.vue';
 import { serviceReturnPath } from './diagnostics';
-import LegacyMigration from './LegacyMigration.vue';
 import ServiceCards from './ServiceCards.vue';
 import { ArrowRight, Connection, MoreFilled, Search } from '@element-plus/icons-vue';
-import type { LegacyPortSummary } from './model';
-const legacyPorts = ref<LegacyPortSummary[]>([]),
-  legacyError = ref('');
 const route = useRoute(),
   router = useRouter();
 const page = ref(route.name === 'WafPipelineTemplates' ? 'templates' : 'ports');
@@ -601,19 +595,13 @@ async function run(work: () => Promise<void>) {
   }
 }
 async function loadData() {
-  const [data, tpls, legacy] = await Promise.all([
+  const [data, tpls] = await Promise.all([
     pipelineGet('overview'),
     pipelineGet<PolicyTemplate[]>('templates'),
-    pipelineGet<LegacyPortSummary[]>('migration/legacy').then(
-      (data) => ({ data, error: '' }),
-      (error) => ({ data: [], error: error.message || '现有业务端口读取失败，请刷新重试' }),
-    ),
   ]);
   Object.assign(overview, data);
   templates.value = tpls || [];
   loaded.value = true;
-  legacyPorts.value = legacy.data;
-  legacyError.value = legacy.error;
   portsTable.value?.clearSelection();
   selected.value = [];
 }

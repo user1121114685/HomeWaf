@@ -5,8 +5,6 @@ package api
 import "HomeWaf/service/waf_service"
 
 type APIGroup struct {
-	WafHostAPi
-	WafHostGroupApi
 	WafStatApi
 	WafLogAPi
 	WafRuleAPi
@@ -14,10 +12,6 @@ type APIGroup struct {
 	WafAllowIpApi
 	WafAllowUrlApi
 	WafLdpUrlApi
-	WafAntiCCApi
-	WafAntiCCRuleApi
-	WafIPFailureApi
-	WafRuleBanApi
 	WafBlockIpApi
 	WafIPGroupApi
 	WafAccessAccountApi
@@ -47,7 +41,6 @@ type APIGroup struct {
 	WafHttpAuthBaseApi
 	WafHttpAuthSessionApi
 	WafTaskApi
-	WafBlockingPageApi
 	WafOtpApi
 	WafAnalysisApi
 	WafPrivateInfoApi
@@ -86,7 +79,6 @@ type APIGroup struct {
 
 var APIGroupAPP = new(APIGroup)
 var (
-	wafHostService        = waf_service.WafHostServiceApp
 	wafLogService         = waf_service.WafLogServiceApp
 	wafIPWatchlistService = waf_service.WafIPWatchlistServiceApp
 	wafStatService        = waf_service.WafStatServiceApp
@@ -94,16 +86,10 @@ var (
 	wafIpAllowService     = waf_service.WafWhiteIpServiceApp
 	wafUrlAllowService    = waf_service.WafWhiteUrlServiceApp
 	wafLdpUrlService      = waf_service.WafLdpUrlServiceApp
-	wafAntiCCService      = waf_service.WafAntiCCServiceApp
-	wafAntiCCRuleService  = waf_service.WafAntiCCRuleServiceApp
-	wafRuleBanService     = waf_service.WafRuleBanServiceApp
-	wafCCEmergencyService = waf_service.WafCCEmergencyServiceApp
-	wafCCThresholdService = waf_service.WafCCThresholdServiceApp
 
 	wafIpBlockService  = waf_service.WafBlockIpServiceApp
 	wafUrlBlockService = waf_service.WafBlockUrlServiceApp
 
-	wafHostGroupService     = waf_service.WafHostGroupServiceApp
 	wafIPGroupService       = waf_service.WafIPGroupServiceApp
 	wafAccessAccountService = waf_service.WafAccessAccountServiceApp
 	wafAccessConfigService  = waf_service.WafAccessConfigServiceApp
@@ -141,13 +127,10 @@ var (
 
 	wafTaskService = waf_service.WafTaskServiceApp
 
-	wafBlockingPageService = waf_service.WafBlockingPageServiceApp
-
 	wafOtpService = waf_service.WafOtpServiceApp
 
 	wafAnalysisService     = waf_service.WafAnalysisServiceApp
 	wafAnalysisViewService = waf_service.WafAnalysisViewServiceApp
-
 
 	wafPrivateInfoService  = waf_service.WafPrivateInfoServiceApp
 	wafPrivateGroupService = waf_service.WafPrivateGroupServiceApp

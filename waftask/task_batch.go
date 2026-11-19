@@ -55,10 +55,6 @@ func BatchTask() {
 // 而手工执行接口照样返回"成功"，运维完全看不出任务其实从未运行。
 func ExecuteBatchTask(task model.BatchTask) error {
 	switch task.BatchType {
-	case enums.BATCHTASK_IPALLOW:
-		return IPAllowBatch(task)
-	case enums.BATCHTASK_IPDENY:
-		return IPDenyBatch(task)
 	case enums.BATCHTASK_IPGROUP:
 		return IPGroupBatch(task)
 	case enums.BATCHTASK_SENSITIVE:
@@ -91,26 +87,6 @@ func AuditBatchTaskRun(task model.BatchTask, accountName, clientIP string, runEr
 		Result:      result,
 		Message:     detail,
 	})
-}
-
-// IPAllowBatch 白名单IP批量处理
-func IPAllowBatch(task model.BatchTask) error {
-	processor := &batch.IPAllowProcessor{}
-	config := batch.BatchProcessorConfig{
-		BatchSize: 1000,
-		LogPrefix: "BatchTask-IPAllowBatch",
-	}
-	return batch.ProcessBatchTask(task, processor, config)
-}
-
-// IPDenyBatch 黑名单IP批量处理
-func IPDenyBatch(task model.BatchTask) error {
-	processor := &batch.IPDenyProcessor{}
-	config := batch.BatchProcessorConfig{
-		BatchSize: 1000,
-		LogPrefix: "BatchTask-IPDenyBatch",
-	}
-	return batch.ProcessBatchTask(task, processor, config)
 }
 
 // IPGroupBatch IP组条目批量处理。

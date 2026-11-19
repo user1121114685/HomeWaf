@@ -238,6 +238,8 @@ func ResetForTest() {
 	activeUntil.Store(0)
 	sentinelUntil.Store(0)
 	sentinelCheckedAt.Store(time.Now().Unix())
+	diskWindow.Store(0)
+	diskCount.Store(0)
 	tokens.Range(func(k, _ any) bool {
 		tokens.Delete(k)
 		return true

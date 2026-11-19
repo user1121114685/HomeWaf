@@ -3,7 +3,6 @@ package wafupdate
 import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/global"
-	"HomeWaf/utils"
 	"errors"
 	"os"
 	"path/filepath"
@@ -13,15 +12,6 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// ManifestURL is empty when the official channel uses GitHub Releases.
-func ManifestURL() string {
-	root := global.GUPDATE_VERSION_URL
-	if root != "" && (global.GWAF_RUNTIME_WIN7_VERSION == "true" || utils.IsSupportedWindows7Version()) {
-		return root + "win7/"
-	}
-	return root
-}
-
 type ReleaseCheck struct {
 	Current, Version, Description, Channel string
 	Notes                                  []ReleaseNote
@@ -30,7 +20,7 @@ type ReleaseCheck struct {
 }
 
 type checkSource struct {
-	Current, Manifest, Release, Beta string
+	Current, Release, Beta string
 }
 
 type checkSnapshot struct {
@@ -52,7 +42,7 @@ var SoftwareReleases = new(ReleaseMonitor)
 func NewReleaseMonitor(dataDir string) *ReleaseMonitor { return &ReleaseMonitor{dir: dataDir} }
 
 func currentCheckSource() checkSource {
-	source := checkSource{Current: global.GWAF_RELEASE_VERSION, Manifest: ManifestURL(), Release: global.GUPDATE_RELEASE_URL}
+	source := checkSource{Current: global.GWAF_RELEASE_VERSION, Release: global.GUPDATE_RELEASE_URL}
 	if global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION == 1 {
 		source.Beta = global.GUPDATE_GITHUB_VERSION_URL
 	}
@@ -106,7 +96,7 @@ func (m *ReleaseMonitor) Check(cached bool) (ReleaseCheck, error) {
 }
 
 func (s checkSource) check() (ReleaseCheck, error) {
-	u := &Updater{CurrentVersion: s.Current, ApiURL: s.Manifest, CmdName: "homewaf_update", Requester: &releaseMetadataRequester}
+	u := &Updater{CurrentVersion: s.Current, Requester: &releaseMetadataRequester}
 	result := ReleaseCheck{Current: s.Current, Channel: "official", Message: "当前已是最新版本"}
 	available, version, desc, err := u.UpdateAvailable()
 	if errors.Is(err, ErrUnversionedBuild) {

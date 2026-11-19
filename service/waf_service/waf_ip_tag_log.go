@@ -357,48 +357,25 @@ func (receiver *WafLogService) DeleteTagByNameApi(tagName string, deleteLogs boo
 	// 2. 如果需要删除关联的日志数据
 	if deleteLogs {
 		batchSize := 1000 // 每批删除1000条
-		// 分层后事件行在 security_event，报文按 req_uuid 跟着删；
-		// 存量 web_logs（不再写入、尚在保留期内的部分）照旧按老路径清。
-		if dialect.Get().TableExists(global.GWAF_LOCAL_LOG_DB, model.SecurityEventTableName) {
-			for {
-				var ids []string
-				if err := global.GWAF_LOCAL_LOG_DB.Model(&model.SecurityEvent{}).
-					Where("tenant_id=? AND user_code=? AND rule=?", global.GWAF_TENANT_ID, global.GWAF_USER_CODE, tagName).
-					Limit(batchSize).Pluck("req_uuid", &ids).Error; err != nil {
-					return fmt.Errorf("查询关联安全事件失败: %v", err)
-				}
-				if len(ids) == 0 {
-					break
-				}
-				global.GWAF_LOCAL_LOG_DB.Where("req_uuid in ?", ids).Delete(&model.EventPayload{})
-				if err := global.GWAF_LOCAL_LOG_DB.Where("req_uuid in ?", ids).Delete(&model.SecurityEvent{}).Error; err != nil {
-					return fmt.Errorf("删除关联安全事件失败: %v", err)
-				}
-				time.Sleep(10 * time.Millisecond)
-			}
-		}
-		// 使用批量删除，避免内存溢出
-		// 每次删除一批数据，直到全部删除完成
 		for {
-			// 分批删除日志。web_logs 无主键，只能走各引擎的物理行标识（rowid/ctid），
-			// MySQL 两者都没有则退化成 DELETE ... LIMIT —— 统一交给方言层构造。
-			deleteLogQuery := dialect.Get().BatchDeleteSQL(
-				"web_logs", "tenant_id=? AND user_code=? AND rule=?", batchSize,
-			)
-			result := global.GWAF_LOCAL_LOG_DB.Exec(deleteLogQuery, global.GWAF_TENANT_ID, global.GWAF_USER_CODE, tagName)
-
-			if result.Error != nil {
-				return fmt.Errorf("删除关联日志数据失败: %v", result.Error)
+			var ids []string
+			if err := global.GWAF_LOCAL_LOG_DB.Model(&model.SecurityEvent{}).
+				Where("tenant_id=? AND user_code=? AND rule=?", global.GWAF_TENANT_ID, global.GWAF_USER_CODE, tagName).
+				Limit(batchSize).Pluck("req_uuid", &ids).Error; err != nil {
+				return fmt.Errorf("查询关联安全事件失败: %v", err)
 			}
-
-			// 如果本批没有删除任何记录，说明已经删除完毕
-			if result.RowsAffected == 0 {
+			if len(ids) == 0 {
 				break
 			}
-
-			// 短暂休眠，避免长时间占用数据库
+			if err := global.GWAF_LOCAL_LOG_DB.Where("req_uuid in ?", ids).Delete(&model.EventPayload{}).Error; err != nil {
+				return fmt.Errorf("删除关联报文失败: %w", err)
+			}
+			if err := global.GWAF_LOCAL_LOG_DB.Where("req_uuid in ?", ids).Delete(&model.SecurityEvent{}).Error; err != nil {
+				return fmt.Errorf("删除关联安全事件失败: %v", err)
+			}
 			time.Sleep(10 * time.Millisecond)
 		}
+
 	}
 
 	return nil

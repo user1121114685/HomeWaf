@@ -86,7 +86,7 @@ func TestCertificateEditorValidationAndSaveResult(t *testing.T) {
 		{"mismatched private key", cert, otherKey, "key_content"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := call(request.SslConfigEditReq{Id: id, CertContent: tc.cert, KeyContent: tc.key})
+			got := call(request.SslConfigEditReq{Id: id, CertContent: tc.cert, KeyContent: tc.key, AutoLoadPath: new(0), ExportCertPath: new(string), ExportKeyPath: new(string)})
 			if got.Code == 0 || got.Data.FieldErrors[tc.field] == "" || got.Msg != got.Data.FieldErrors[tc.field] {
 				t.Fatalf("expected an actionable field error: %+v", got)
 			}
@@ -98,7 +98,7 @@ func TestCertificateEditorValidationAndSaveResult(t *testing.T) {
 	}
 	disabled := 0
 	crtPath, keyPath := filepath.Join(t.TempDir(), "read.crt"), filepath.Join(t.TempDir(), "read.key")
-	got := call(request.SslConfigEditReq{Id: id, CertContent: cert, KeyContent: key, AutoLoadPath: &disabled, CertPath: crtPath, KeyPath: keyPath})
+	got := call(request.SslConfigEditReq{Id: id, CertContent: cert, KeyContent: key, AutoLoadPath: &disabled, CertPath: crtPath, KeyPath: keyPath, ExportCertPath: new(string), ExportKeyPath: new(string)})
 	if got.Code != 0 || got.Data.ExportFailed {
 		t.Fatalf("save failed: %+v", got)
 	}
@@ -114,13 +114,19 @@ func TestCertificateEditorValidationAndSaveResult(t *testing.T) {
 		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_SSL_EXPORT_ALLOWED_DIRS = oldAllowed })
 	})
 	exportPath := filepath.Join(t.TempDir(), "denied.crt")
-	got = call(request.SslConfigEditReq{Id: id, CertContent: cert, KeyContent: key, AutoLoadPath: &disabled, CertPath: crtPath, KeyPath: keyPath, ExportCertPath: &exportPath})
+	got = call(request.SslConfigEditReq{Id: id, CertContent: cert, KeyContent: key, AutoLoadPath: &disabled, CertPath: crtPath, KeyPath: keyPath, ExportCertPath: &exportPath, ExportKeyPath: new(string)})
 	if got.Code != 0 || !got.Data.ExportFailed || !strings.Contains(got.Msg, "导出失败") {
 		t.Fatalf("partial export failure was not distinguished: %+v", got)
 	}
 	saved = waf_service.WafSslConfigServiceApp.GetDetailInner(id)
 	if saved.ExportCertPath != exportPath || saved.KeyContent != key {
 		t.Fatal("export failure lost saved configuration")
+	}
+	if missing := call(request.SslConfigEditReq{Id: id, CertContent: cert, KeyContent: key}); missing.Code == 0 {
+		t.Fatal("certificate edit accepted missing file settings")
+	}
+	if waf_service.WafSslConfigServiceApp.GetDetailInner(id).ExportCertPath != exportPath {
+		t.Fatal("incomplete edit cleared the saved export path")
 	}
 	other := waf_service.WafSslConfigServiceApp.GetDetailInner(otherID)
 	if other.CertContent != otherCert || other.KeyContent != otherPairKey || other.ExportCertPath != "" {

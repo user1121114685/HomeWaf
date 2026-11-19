@@ -95,16 +95,11 @@
                   <button type="button" v-if="hit.source === 'threat_ip'" class="ipl-exclude-link" @click="openExclude(hit)">
                     {{ $t('common.ip_lookup.exclude_btn') }}
                   </button>
-                  <hw-button
-                    v-if="hit.source === 'rule_ban'"
-                    theme="primary"
-                    variant="text"
-                    size="small"
-                    :loading="ruleBanRemoving"
-                    @click="confirmRemoveRuleBan"
-                  >
-                    {{ $t('common.ip_lookup.rule_ban_remove') }}
-                  </hw-button>
+                  <RouterLink
+                    v-if="hit.source === 'service_ban' && hit.port"
+                    :to="{ name: 'WafIPBan', query: { port: hit.port } }"
+                    @click="visible = false"
+                  >{{ $t('common.ip_lookup.manage_service_ban') }}</RouterLink>
                   <span class="ipl-effect">{{ effectText(hit.effect) }}</span>
                 </div>
                 <div v-if="hit.detail" class="ipl-detail">{{ hit.detail }}</div>
@@ -223,15 +218,8 @@ import {
   ErrorCircleFilledIcon,
 } from '@/ui/icons';
 import { wafIPLookupApi } from '@/apis/iplookup';
-import { wafIPWhiteAddApi } from '@/apis/ipwhite';
-import { wafIPBlockAddApi } from '@/apis/ipblock';
-import { allhost } from '@/apis/host';
+import { addServiceIPRule, listServices } from '@/apis/services';
 import { wafThreatIPExcludeAddApi } from '@/apis/threatip';
-import { wafRuleBanRemoveBanIpApi } from '@/apis/rule_ban';
-
-// 全局站点在库里就是一条 host="全局网站"、port=0 的普通记录，code 是 uuid。
-// 全站其它页面(anticc / host / SpiderActive)也是按这个字面量认的，保持一致。
-const GLOBAL_HOST_NAME = '全局网站:0';
 
 export default defineComponent({
   name: 'IpLookup',
@@ -263,7 +251,6 @@ export default defineComponent({
       // 全局网站在库里是一条普通站点记录，code 是 uuid。
       // global.GWAF_GLOBAL_HOST_CODE 那个 "0" 是引擎路由表的 key，不是数据库 code，
       // 直接拿 "0" 提交会存出一条不属于任何站点的死数据
-      globalHostCode: '',
       // '' = 只显示按钮；'allow'/'block' = 展开对应表单
       actionMode: '',
       allowLoading: false,
@@ -271,7 +258,6 @@ export default defineComponent({
       // null = 收起；对象 = 展开威胁情报误报排除表单
       excludeForm: null,
       excludeSaving: false,
-      ruleBanRemoving: false,
     };
   },
   computed: {
@@ -280,7 +266,7 @@ export default defineComponent({
     groups() {
       return [
         { key: 'list', label: this.$t('common.ip_lookup.step_list'), sources: ['ip_white', 'ip_black', 'ip_group', 'log_exclude'] },
-        { key: 'ban', label: this.$t('common.ip_lookup.step_ban'), sources: ['ip_failure', 'cc_ban', 'rule_ban', 'firewall'] },
+        { key: 'ban', label: this.$t('common.ip_lookup.step_ban'), sources: ['ip_failure', 'service_ban', 'firewall'] },
         { key: 'threat', label: this.$t('common.ip_lookup.step_threat'), sources: ['threat_ip'] },
         { key: 'cdn', label: this.$t('common.ip_lookup.step_cdn'), sources: ['cdn'] },
       ];
@@ -289,15 +275,14 @@ export default defineComponent({
     verdict() {
       const hits = this.result.hits || [];
       const allowed = hits.some((h) => h.effect === 'allow');
-      // 白名单只在 WAF 层生效。系统防火墙那层还拦着的时候不能报「会被放行」，
-      // 否则用户刚加完白看到绿字，实际还是连不上
-      if (allowed && this.systemLayerBlocked) {
+      const blocked = hits.some((h) => h.effect === 'block');
+      if (allowed && blocked) {
         return { theme: 'warning', text: this.$t('common.ip_lookup.verdict_partial') };
       }
       if (allowed) {
         return { theme: 'success', text: this.$t('common.ip_lookup.verdict_allow') };
       }
-      if (hits.some((h) => h.effect === 'block')) {
+      if (blocked) {
         return { theme: 'danger', text: this.$t('common.ip_lookup.verdict_block') };
       }
       return { theme: 'warning', text: this.$t('common.ip_lookup.verdict_none') };
@@ -409,35 +394,6 @@ export default defineComponent({
         }, 600);
       });
     },
-    confirmRemoveRuleBan() {
-      if (this.ruleBanRemoving) return;
-      const ip = this.result.ip;
-      const dialog = this.$dialog.confirm({
-        header: this.$t('common.ip_lookup.rule_ban_remove'),
-        body: this.$t('common.ip_lookup.rule_ban_remove_confirm', { ip }),
-        zIndex: this.zIndex + 1,
-        onConfirm: () => {
-          if (this.ruleBanRemoving) return;
-          this.ruleBanRemoving = true;
-          return wafRuleBanRemoveBanIpApi({ ip })
-            .then((res) => {
-              if (res.code === 0) {
-                this.$message.success(res.msg);
-                dialog.destroy();
-                if (this.visible && this.result.ip === ip) this.doQuery();
-              } else {
-                this.$message.error(res.msg);
-              }
-            })
-            .catch(() => {
-              this.$message.error(this.$t('common.ip_lookup.rule_ban_remove_failed'));
-            })
-            .finally(() => {
-              this.ruleBanRemoving = false;
-            });
-        },
-      });
-    },
     effectTheme(effect) {
       if (effect === 'allow') return 'success';
       if (effect === 'block') return 'danger';
@@ -490,7 +446,7 @@ export default defineComponent({
     openActionForm(mode) {
       this.actionMode = mode;
       this.allowForm = {
-        host_code: this.globalHostCode,
+        host_code: '',
         remarks: this.buildReason(mode),
       };
       this.loadHostDic();
@@ -508,27 +464,13 @@ export default defineComponent({
       return this.$t('common.ip_lookup.allow_reason_tpl', { date: day, from: from || '-' });
     },
     loadHostDic() {
-      if (Object.keys(this.hostDic).length) {
-        if (!this.allowForm.host_code) this.allowForm.host_code = this.globalHostCode;
-        return;
-      }
       this.hostLoading = true;
-      allhost({})
+      listServices()
         .then((res) => {
-          if (res.code !== 0) return;
-          const dic = {};
-          let globalCode = '';
-          (res.data || []).forEach((item) => {
-            dic[item.value] = item.label;
-            // 全局站点认 pre_host（域名:端口），它就是引擎里的 GWAF_GLOBAL_HOST_NAME。
-            // 认 label 不行：label 会被昵称/备注拼进去
-            if (item.pre_host === GLOBAL_HOST_NAME) globalCode = item.value;
-          });
-          this.hostDic = dic;
-          this.globalHostCode = globalCode;
-          // 默认落在全局站点；万一没找到就留空，让用户自己选，不瞎猜一个
-          if (!this.allowForm.host_code) this.allowForm.host_code = globalCode;
+          if (res.code !== 0) throw new Error(res.msg);
+          this.hostDic = Object.fromEntries(res.data.map(item => [item.value, item.label]));
         })
+        .catch(error => { this.hostDic = {}; this.$message.error(error.message || '服务列表读取失败'); })
         .finally(() => {
           this.hostLoading = false;
         });
@@ -544,29 +486,15 @@ export default defineComponent({
         return;
       }
 
-      const block = this.isBlockMode;
-      // 黑名单已统一为纯 WAF 层，不再下发 target_layer
-      const payload = {
-        host_code: this.allowForm.host_code,
-        ip: this.result.ip,
-        remarks,
-        ip_type: 'ip',
-        group_code: '',
-      };
-
+      if (this.allowLoading) return;
       this.allowLoading = true;
-      (block ? wafIPBlockAddApi(payload) : wafIPWhiteAddApi(payload))
-        .then((res) => {
-          if (res.code === 0) {
-            this.$message.success(res.msg);
-            this.actionMode = '';
-            // 加完立刻重查一次，让用户自己看到结论变了，
-            // 而不是只收到一句"添加成功"然后半信半疑
-            this.doQuery();
-          } else {
-            this.$message.warning(res.msg);
-          }
+      addServiceIPRule(this.allowForm.host_code, this.isBlockMode ? 'deny' : 'allow', this.result.ip, remarks)
+        .then(message => {
+          this.$message.success(message);
+          this.actionMode = '';
+          this.doQuery();
         })
+        .catch(error => this.$message.error(error.message))
         .finally(() => {
           this.allowLoading = false;
         });

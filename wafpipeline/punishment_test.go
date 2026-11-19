@@ -2,14 +2,12 @@ package wafpipeline
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
 	"net/netip"
 	"runtime"
 	"sort"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -37,8 +35,6 @@ func attachPunisher(t *testing.T, f *proxyFixture, p *Punisher, checks *atomic.I
 	}
 	f.update(t, func(s *Snapshot) {
 		s.Config.Policy.Network.TrustedProxies = []string{"127.0.0.1/32"}
-		s.Config.Policy.Honeypot.Enabled = true
-		s.Config.Policy.Honeypot.MaxDelayMillis = 0
 	})
 }
 func penaltyRequest(t *testing.T, f *proxyFixture, ip, path string) int {
@@ -50,7 +46,7 @@ func penaltyEvent(p *Punisher, port string, ip string, severity Severity, catego
 	p.Drain(256)
 }
 
-func TestPunishmentCriticalExpiryRepeatSharingAndTrusted(t *testing.T) {
+func TestPunishmentCriticalExpiryRepeatPortScopeAndTrusted(t *testing.T) {
 	p := NewPunisher()
 	now := time.Now()
 	p.Now = func() time.Time { return now }
@@ -74,24 +70,25 @@ func TestPunishmentCriticalExpiryRepeatSharingAndTrusted(t *testing.T) {
 	if penaltyRequest(t, a, ip, "/ok") != 403 || checksA.Load() != checks || a.requests.Load() != 0 {
 		t.Fatal("ban did not short-circuit detection")
 	}
-	if penaltyRequest(t, b, ip, "/ok") != 403 || b.requests.Load() != 0 {
-		t.Fatal("global ban not shared")
+	if penaltyRequest(t, b, ip, "/ok") != 204 || b.requests.Load() != 1 {
+		t.Fatal("automatic ban crossed port scope")
 	}
-	b.update(t, func(s *Snapshot) {
+	a.update(t, func(s *Snapshot) {
 		s.Config.Policy.IPGroup.Entries = []IPEntry{{ID: "trusted", Type: "allow", Trust: "trusted", Value: ip}}
 	})
-	if penaltyRequest(t, b, ip, "/ok") != 204 || b.requests.Load() != 1 {
+	if penaltyRequest(t, a, ip, "/ok") != 204 || a.requests.Load() != 1 {
 		t.Fatal("shared ban overrides trusted")
 	}
-	b.update(t, func(s *Snapshot) {
+	a.update(t, func(s *Snapshot) {
 		s.Config.Policy.IPGroup.Entries = append(s.Config.Policy.IPGroup.Entries, IPEntry{ID: "deny", Type: "deny", Value: ip})
 	})
-	if penaltyRequest(t, b, ip, "/ok") != 403 || b.requests.Load() != 1 {
+	if penaltyRequest(t, a, ip, "/ok") != 403 || a.requests.Load() != 1 {
 		t.Fatal("custom deny did not override trusted")
 	}
 	now = now.Add(time.Hour + time.Second)
 	p.Drain(0)
-	if penaltyRequest(t, a, ip, "/ok") != 204 || a.requests.Load() != 1 {
+	a.update(t, func(s *Snapshot) { s.Config.Policy.IPGroup.Entries = nil })
+	if penaltyRequest(t, a, ip, "/ok") != 204 || a.requests.Load() != 2 {
 		t.Fatal("expired ban did not release")
 	}
 	penaltyEvent(p, port, ip, Critical, "rce", "again")
@@ -121,164 +118,10 @@ func TestPunishmentCriticalExpiryRepeatSharingAndTrusted(t *testing.T) {
 	}
 }
 
-func TestPunishmentLockdownIsolationCooldownAndRestore(t *testing.T) {
-	p := NewPunisher()
-	now := time.Now()
-	p.Now = func() time.Time { return now }
-	p.start = now
-	a := newProxyFixture(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }, false)
-	b := newProxyFixture(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }, false)
-	var ca, cb atomic.Int64
-	attachPunisher(t, a, p, &ca)
-	attachPunisher(t, b, p, &cb)
-	a.update(t, func(s *Snapshot) {
-		s.Config.Policy.HitPolicy.Lockdown.Enabled = true
-		s.Config.Policy.IPGroup.Entries = []IPEntry{{ID: "trusted", Type: "allow", Trust: "trusted", Value: "198.51.100.99"}}
-	})
-	port := PortID(a.current.Load().Config.Port)
-	for i := 1; i <= 5; i++ {
-		penaltyEvent(p, port, fmt.Sprintf("198.51.100.%d", i), High, "sqli", fmt.Sprint(i))
-	}
-	if !p.Locked(port) || penaltyRequest(t, a, "198.51.100.90", "/ok") != 503 || a.requests.Load() != 0 {
-		t.Fatal("lockdown not enforced")
-	}
-	if penaltyRequest(t, a, "198.51.100.99", "/ok") != 204 || a.requests.Load() != 1 {
-		t.Fatal("lockdown blocked trusted")
-	}
-	if penaltyRequest(t, b, "198.51.100.90", "/ok") != 204 || b.requests.Load() != 1 {
-		t.Fatal("lockdown crossed ports")
-	}
-	var saved []PunishmentRecord
-	p.Persist = func(rows []PunishmentRecord) error { saved = append([]PunishmentRecord(nil), rows...); return nil }
-	if err := p.Flush(); err != nil {
-		t.Fatal(err)
-	}
-	restored := NewPunisher()
-	restored.Now = p.Now
-	restored.Lookup = p.Lookup
-	if err := restored.Restore(saved); err != nil || !restored.Locked(port) {
-		t.Fatalf("restore failed: %v", err)
-	}
-	var id string
-	for _, r := range p.Records(port) {
-		if r.Kind == "lockdown" {
-			id = r.ID
-		}
-	}
-	if err := p.Manage(port, id, "release"); err != nil {
-		t.Fatal(err)
-	}
-	for i := 11; i <= 15; i++ {
-		penaltyEvent(p, port, fmt.Sprintf("198.51.100.%d", i), High, "sqli", fmt.Sprint(i))
-	}
-	if p.Locked(port) {
-		t.Fatal("manual release lacked cooldown")
-	}
-	if err := p.Flush(); err != nil {
-		t.Fatal(err)
-	}
-	restored = NewPunisher()
-	restored.Now = p.Now
-	restored.Lookup = p.Lookup
-	restored.start = now
-	if err := restored.Restore(saved); err != nil {
-		t.Fatal(err)
-	}
-	for i := 21; i <= 25; i++ {
-		penaltyEvent(restored, port, fmt.Sprintf("198.51.100.%d", i), High, "sqli", fmt.Sprint(i))
-	}
-	if restored.Locked(port) {
-		t.Fatal("restart lost cooldown")
-	}
-	now = now.Add(61 * time.Second)
-	p.Drain(0)
-	for i := 31; i <= 35; i++ {
-		penaltyEvent(p, port, fmt.Sprintf("198.51.100.%d", i), High, "sqli", fmt.Sprint(i))
-	}
-	if !p.Locked(port) {
-		t.Fatal("post-cooldown lock missing")
-	}
-	now = now.Add(601 * time.Second)
-	p.Drain(0)
-	if p.Locked(port) {
-		t.Fatal("lock did not expire")
-	}
-}
-
-func TestRealLoginFailuresHoneypotReleaseAndEscalation(t *testing.T) {
-	f := newGateFixture(t, NewGateStore(), "basic", "correct-family-password")
-	p := NewPunisher()
-	p.Lookup = func(id string) *Snapshot {
-		if id == PortID(f.snap.Config.Port) {
-			return f.snap
-		}
-		return nil
-	}
-	f.snap.Config.Policy.Network.TrustedProxies = []string{"127.0.0.1/32"}
-	f.snap.Config.Policy.Honeypot.Enabled = true
-	f.snap.Config.Policy.Honeypot.MaxDelayMillis = 0
-	f.runtime.Sink = p
-	f.runtime.State = p
-	h := NewHoneyHandler()
-	old := f.runtime.Respond
-	f.runtime.Respond = func(s *Snapshot, c *RequestContext, w http.ResponseWriter, v Verdict) bool {
-		return h.Respond(s, c, w, v) || old(s, c, w, v)
-	}
-	if err := f.runtime.Prepare(f.snap); err != nil {
-		t.Fatal(err)
-	}
-	ip := "198.51.100.48"
-	port := PortID(f.snap.Config.Port)
-	call := func(method, path, password string) int {
-		r, _ := http.NewRequest(method, f.server.URL+path, strings.NewReader("username=owner&password=honey-secret"))
-		r.Header.Set("X-Forwarded-For", ip)
-		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		if password != "" {
-			r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte("owner:"+password)))
-		}
-		response, err := f.server.Client().Do(r)
-		if err != nil {
-			t.Fatal(err)
-		}
-		response.Body.Close()
-		p.Drain(256)
-		return response.StatusCode
-	}
-	for range 5 {
-		if call("GET", "/private", "incorrect-family-password") != 401 {
-			t.Fatal("failed login response changed")
-		}
-	}
-	if !p.InHoneypot(port, netip.MustParseAddr(ip)) || call("GET", "/private", "") != 200 || f.hits.Load() != 0 {
-		t.Fatal("honeypot failed or reached upstream")
-	}
-	for _, r := range p.Records(port) {
-		if r.Kind == "honeypot" {
-			if err := p.Manage(port, r.ID, "release"); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	if call("GET", "/private", "correct-family-password") != 200 || f.hits.Load() != 1 {
-		t.Fatal("legitimate user did not recover after release")
-	}
-	for range 3 {
-		call("GET", "/private", "admin")
-	}
-	if !p.InHoneypot(port, netip.MustParseAddr(ip)) {
-		t.Fatal("weak password threshold missing")
-	}
-	call("POST", "/admin", "")
-	if p.BanReason(port, netip.MustParseAddr(ip)) == "" || f.hits.Load() != 1 {
-		t.Fatal("honeypot submission did not escalate or leaked upstream")
-	}
-}
-
 func TestMillionSourceCountersStayBoundedAndPreserveOtherPort(t *testing.T) {
 	p := NewPunisher()
 	policy := DefaultPolicy()
 	policy.HitPolicy.High.Count = 100
-	policy.Honeypot.Enabled = true
 	s := &Snapshot{Config: PortConfig{Port: 5000, Policy: policy}}
 	other := &Snapshot{Config: PortConfig{Port: 5001, Policy: policy}}
 	p.Lookup = func(id string) *Snapshot {
@@ -318,35 +161,11 @@ func TestMillionSourceCountersStayBoundedAndPreserveOtherPort(t *testing.T) {
 func TestIPv6AggregationPortScopeAndObservationSignals(t *testing.T) {
 	p := NewPunisher()
 	policy := DefaultPolicy()
-	policy.HitPolicy.BanScope = "port"
-	policy.Honeypot.Enabled = true
-	policy.HitPolicy.ResponseSignals = true
 	s := &Snapshot{Config: PortConfig{Port: 5000, Policy: policy}}
 	p.Lookup = func(id string) *Snapshot { return s }
 	penaltyEvent(p, "port:5000", "2001:db8:1:2::a", Critical, "rce", "a")
 	if p.BanReason("port:5000", netip.MustParseAddr("2001:db8:1:2::b")) == "" || p.BanReason("port:5001", netip.MustParseAddr("2001:db8:1:2::b")) != "" {
 		t.Fatal("IPv6 prefix or port scope incorrect")
-	}
-	for i := 0; i < 30; i++ {
-		p.Submit(HitEvent{PortID: "port:5000", ClientIP: netip.MustParseAddr("198.51.100.51"), Category: "response_5xx", Severity: Low, Observe: true, ReqID: fmt.Sprint(i)})
-	}
-	p.Drain(256)
-	if p.InHoneypot("port:5000", netip.MustParseAddr("198.51.100.51")) {
-		t.Fatal("upstream outage punished a person")
-	}
-	for i := 0; i < 20; i++ {
-		p.Submit(HitEvent{PortID: "port:5000", ClientIP: netip.MustParseAddr("198.51.100.52"), Category: "response_404", Severity: Low, Path: "/same", ReqID: fmt.Sprint(i)})
-	}
-	p.Drain(256)
-	if p.InHoneypot("port:5000", netip.MustParseAddr("198.51.100.52")) {
-		t.Fatal("repeated same 404 counted as distinct paths")
-	}
-	for i := 0; i < 20; i++ {
-		p.Submit(HitEvent{PortID: "port:5000", ClientIP: netip.MustParseAddr("198.51.100.52"), Category: "response_404", Severity: Low, Path: fmt.Sprint("/path/", i), ReqID: fmt.Sprint("n", i)})
-	}
-	p.Drain(256)
-	if !p.InHoneypot("port:5000", netip.MustParseAddr("198.51.100.52")) {
-		t.Fatal("distinct 404 threshold missing")
 	}
 }
 

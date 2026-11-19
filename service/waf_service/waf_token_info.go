@@ -9,6 +9,7 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
+	"errors"
 	"time"
 )
 
@@ -27,6 +28,9 @@ var WafTokenInfoServiceApp = new(WafTokenInfoService)
 // 同时 Create 的错误必须返回给调用方：插入失败时旧写法返回零值结构体，
 // 登录接口照样回「登录成功」但 access_token 是空串，同样是无日志的死循环。
 func (receiver *WafTokenInfoService) AddApiWithFingerprintAndType(loginAccount string, AccessToken string, LoginIp string, deviceFingerprint string, loginType string, role string) (*model.TokenInfo, error) {
+	if !enums.IsValidRole(role) {
+		return nil, errors.New("账号角色无效")
+	}
 
 	var bean = &model.TokenInfo{
 		BaseOrm: baseorm.BaseOrm{
@@ -41,7 +45,7 @@ func (receiver *WafTokenInfoService) AddApiWithFingerprintAndType(loginAccount s
 		LoginIp:           LoginIp,
 		DeviceFingerprint: deviceFingerprint,
 		LoginType:         loginType,
-		Role:              enums.NormalizeRole(role),
+		Role:              role,
 	}
 	if err := global.GWAF_LOCAL_DB.Create(bean).Error; err != nil {
 		return nil, err
@@ -115,7 +119,7 @@ func (receiver *WafTokenInfoService) ReloadAllValidTokensToCache() error {
 		expireTime := time.Time(token.UPDATE_TIME).Add(time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES) * time.Minute)
 
 		// 如果token没有过期，则重新加载到缓存中
-		if expireTime.After(now) {
+		if expireTime.After(now) && enums.IsValidRole(token.Role) {
 			// 将token信息存入缓存
 			// 用 SetWithTTlRenewTime：管理端热重启(WatchRestartSignal)会在进程存活的情况下再次走到这里，
 			// 此时缓存里的 key 还在，SetWithTTl 会沿用原 createTime，等于把已经续过期的令牌拉回

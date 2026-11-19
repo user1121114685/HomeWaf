@@ -97,7 +97,7 @@
           <td data-label="操作">
             <div class="certificate-actions">
               <ElButton
-                v-if="row.renewal && !['unresolved', 'manual'].includes(row.renewal.status)"
+                v-if="row.renewal && row.renewal.status !== 'manual'"
                 text
                 type="primary"
                 @click="openRenewal(row)"

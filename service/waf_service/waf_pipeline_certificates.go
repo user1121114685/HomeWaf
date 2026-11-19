@@ -160,7 +160,7 @@ func (s *WafPipelineService) RefreshSourceCertificates() error {
 	if err != nil {
 		return err
 	}
-	if !db.Migrator().HasTable(&model.PortConfig{}) || !db.Migrator().HasTable(&model.Hosts{}) {
+	if !db.Migrator().HasTable(&model.PortConfig{}) {
 		return nil
 	}
 	var rows []model.PortConfig
@@ -180,22 +180,16 @@ func (s *WafPipelineService) RefreshSourceCertificates() error {
 				failures = append(failures, errors.New("invalid persisted certificate binding"))
 				continue
 			}
-			var certificate, privateKey string
-			if strings.HasPrefix(code, certificateSourcePrefix) {
-				var source model.SslConfig
-				if err := db.Where("id = ? AND user_code = ? AND tenant_id = ?", strings.TrimPrefix(code, certificateSourcePrefix), row.USER_CODE, row.Tenant_ID).First(&source).Error; err != nil {
-					failures = append(failures, err)
-					continue
-				}
-				certificate, privateKey = source.CertContent, source.KeyContent
-			} else {
-				var host model.Hosts
-				if err := db.Where("code = ? AND user_code = ? AND tenant_id = ?", code, row.USER_CODE, row.Tenant_ID).First(&host).Error; err != nil {
-					failures = append(failures, err)
-					continue
-				}
-				certificate, privateKey = host.Certfile, host.Keyfile
+			if !strings.HasPrefix(code, certificateSourcePrefix) {
+				failures = append(failures, errors.New("invalid certificate resource binding"))
+				continue
 			}
+			var source model.SslConfig
+			if err := db.Where("id = ? AND user_code = ? AND tenant_id = ?", strings.TrimPrefix(code, certificateSourcePrefix), row.USER_CODE, row.Tenant_ID).First(&source).Error; err != nil {
+				failures = append(failures, err)
+				continue
+			}
+			certificate, privateKey := source.CertContent, source.KeyContent
 			if pairs[index].Certificate == certificate && pairs[index].PrivateKey == privateKey {
 				continue
 			}

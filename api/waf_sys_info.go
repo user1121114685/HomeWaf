@@ -149,9 +149,8 @@ func (w *WafSysInfoApi) SysRuntimeInfoApi(c *gin.Context) {
 		KernelVersion:   detail.KernelVersion,
 		KernelArch:      detail.KernelArch,
 
-		IsWindows:      detail.IsWindows,
-		IsWin7Build:    global.GWAF_RUNTIME_WIN7_VERSION == "true",
-		IsWin7Kernel:   detail.IsWin7Kernel,
+		IsWindows: detail.IsWindows,
+
 		Container:      detail.Container,
 		InKubernetes:   detail.InKubernetes,
 		IsWSL:          detail.IsWSL,
@@ -260,7 +259,7 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 		response.FailWithMessage("无效的更新渠道", c)
 		return
 	}
-	if (channel == "official" && global.GUPDATE_VERSION_URL == "" && global.GUPDATE_RELEASE_URL == "") || (channel == "github" && global.GUPDATE_GITHUB_VERSION_URL == "") {
+	if (channel == "official" && global.GUPDATE_RELEASE_URL == "") || (channel == "github" && global.GUPDATE_GITHUB_VERSION_URL == "") {
 		response.FailWithMessage("所选 HomeWaf 更新渠道已禁用，请配置对应更新源", c)
 		return
 	}
@@ -268,7 +267,6 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 		response.FailWithMessage("正在升级中...请在消息等待结果", c)
 		return
 	}
-	remoteURL := wafupdate.ManifestURL()
 	// 容器环境默认拦截应用内升级：
 	// 容器里的程序文件位于镜像可写层，升级只在本次容器生命周期内有效；容器一旦重建
 	// (docker compose up -d / 换镜像 / 重装宿主) 就会回退成镜像自带的旧版本，
@@ -301,12 +299,9 @@ func (w *WafSysInfoApi) UpdateApi(c *gin.Context) {
 
 	updater := &wafupdate.Updater{
 		CurrentVersion: global.GWAF_RELEASE_VERSION, // Manually update the const, or set it using `go build -ldflags="-X main.VERSION=<newver>" -o hello-updater src/hello-updater/main.go`
-		ApiURL:         remoteURL,                   // The server hosting `$CmdName/$GOOS-$ARCH.json` which contains the checksum for the binary
-		BinURL:         remoteURL,                   // The server hosting the zip file containing the binary application which is a fallback for the patch method
-		DiffURL:        remoteURL,                   // The server hosting the binary patch diff for incremental updates
-		Dir:            "tmp_update/",               // The directory created by the app when run which stores the cktime file
-		CmdName:        "homewaf_update",            // The app name which is appended to the ApiURL to look for an update
-		//ForceCheck:     true,                     // For this example, always check for an update unless the version is "dev"
+
+		Dir: "tmp_update/", // The directory created by the app when run which stores the cktime file
+
 		Tracker: tracker,
 	}
 	updater.OnSuccessfulUpdate = func() {

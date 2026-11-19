@@ -36,7 +36,7 @@ func TaskDelayInfo() {
 					MessageUnReadStatus: true,
 				}
 				//发送websocket：走会话管理器统一出口，内部按连接加锁 + 写超时；
-				//报文按连接各自的会话密钥组装（v2 连接一份，旧连接回落 legacy）
+				// 按每条连接各自的会话密钥组装报文。
 				sendSuccess := global.GWebSocket.BroadcastBuild(websocket.MessageText, func(keyID string) ([]byte, error) {
 					msgBytes, err := wsmsg.Build(keyID, dataPacket, cmdType)
 					if err != nil {

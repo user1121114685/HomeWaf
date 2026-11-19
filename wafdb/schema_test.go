@@ -10,37 +10,62 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func TestSSLOrderAdditiveSchemaPreservesPendingDuplicates(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "legacy-orders.db")), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
-	if err != nil {
-		t.Fatal(err)
+func TestStorageFormatRejectsUnmarkedDatabases(t *testing.T) {
+	for name, init := range map[string]func(*gorm.DB) error{"core": InitializeCoreSchema, "log": InitializeLogSchema, "stats": InitializeStatsSchema} {
+		t.Run(name, func(t *testing.T) {
+			db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "existing.db")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn, err := db.DB()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			if err := db.Exec("CREATE TABLE operator_data (value INTEGER NOT NULL)").Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := db.Exec("INSERT INTO operator_data VALUES (17)").Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := init(db); err == nil {
+				t.Fatal("accepted an existing database")
+			}
+			tables, err := db.Migrator().GetTables()
+			if err != nil || len(tables) != 1 || tables[0] != "operator_data" {
+				t.Fatalf("schema changed: %v %v", tables, err)
+			}
+			var value int
+			if err := db.Raw("SELECT value FROM operator_data").Scan(&value).Error; err != nil || value != 17 {
+				t.Fatal("existing data changed", err)
+			}
+		})
 	}
-	conn, _ := db.DB()
-	defer conn.Close()
-	if err := db.Exec("CREATE TABLE ssl_orders (id text PRIMARY KEY, host_code text, apply_status text, tenant_id text, user_code text)").Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Exec("INSERT INTO ssl_orders (id, host_code, apply_status) VALUES ('a','nas','submitted'), ('b','nas','submitted')").Error; err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < 2; i++ {
-		if err := InitializeCoreSchema(db); err != nil {
-			t.Fatal(err)
-		}
-	}
-	var count int64
-	if err := db.Table("ssl_orders").Where("apply_status = ?", "submitted").Count(&count).Error; err != nil || count != 2 {
-		t.Fatalf("migration changed pending history: %d %v", count, err)
-	}
-	for _, field := range []string{"RequestID", "ActiveKey", "SubmissionHash", "RenewFrom", "Progress"} {
-		if !db.Migrator().HasColumn(&model.SslOrder{}, field) {
-			t.Errorf("missing %s", field)
-		}
-	}
-	for _, index := range []string{"uni_ssl_order_request", "uni_ssl_order_active"} {
-		if !db.Migrator().HasIndex(&model.SslOrder{}, index) {
-			t.Errorf("missing %s", index)
-		}
+}
+
+func TestStorageFormatRejectsInvalidMarkers(t *testing.T) {
+	for name, ddl := range map[string]string{
+		"missing version":     "CREATE TABLE " + storageFormatTable + " (format INTEGER NOT NULL)",
+		"unsupported version": "CREATE TABLE " + storageFormatTable + " (version INTEGER PRIMARY KEY); INSERT INTO " + storageFormatTable + " (version) VALUES (2)",
+		"duplicate versions":  "CREATE TABLE " + storageFormatTable + " (version INTEGER NOT NULL); INSERT INTO " + storageFormatTable + " (version) VALUES (3), (3)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "invalid.db")), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn, err := db.DB()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			if err := db.Exec(ddl).Error; err != nil {
+				t.Fatal(err)
+			}
+			if err := ensureStorageFormat(db); err == nil {
+				t.Fatal("accepted an invalid format marker")
+			}
+		})
 	}
 }
 
@@ -64,10 +89,13 @@ func TestFreshSchemaAndRestartPreserveUserSettings(t *testing.T) {
 		}
 	}
 	initialize()
+	if !db.Migrator().HasTable(&model.PortConfig{}) {
+		t.Fatal("missing native port configuration")
+	}
 	if db.Migrator().HasTable("migrations") {
 		t.Fatal("fresh installation replayed historical migrations")
 	}
-	for _, table := range []string{"hosts", "anti_cc_rules", "access_account", "dashboard_share", "log_export_task"} {
+	for _, table := range []string{"dashboard_share", "log_export_task"} {
 		if !db.Migrator().HasTable(table) {
 			t.Errorf("missing current table %s", table)
 		}
@@ -84,7 +112,7 @@ func TestFreshSchemaAndRestartPreserveUserSettings(t *testing.T) {
 	}
 	initialize()
 	var count int64
-	if err := db.Model(&model.Task{}).Count(&count).Error; err != nil || count != 29 {
+	if err := db.Model(&model.Task{}).Count(&count).Error; err != nil || count != 25 {
 		t.Fatalf("default tasks duplicated or missing: %d, %v", count, err)
 	}
 	if err := db.First(&task, "id = ?", task.Id).Error; err != nil || task.TaskValue != 123 {

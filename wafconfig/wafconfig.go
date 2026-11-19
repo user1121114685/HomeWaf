@@ -285,19 +285,6 @@ func LoadAndInitConfig() {
 		configChanged = true
 	}
 
-	//是否保留 legacy 传输通道。默认 true：旧独立前端、旧移动端 App、被浏览器强缓存的旧
-	//bundle 都还在用内置密钥的 CBC 报文，关掉它们就会话不通。确认这些客户端都已升级后
-	//可手动置 false，此时没有会话密钥的请求会收到明确的重新握手信号而不是一段解不开的密文。
-	//收紧永远是运营方的主动行为——任何版本都不得自动翻转这个默认值。
-	if config.IsSet("security.comm_legacy_key") {
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
-			cfg.GCONFIG_COMM_LEGACY_KEY = config.GetBool("security.comm_legacy_key")
-		})
-	} else {
-		config.Set("security.comm_legacy_key", global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY)
-		configChanged = true
-	}
-
 	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
 		cfg.NginxConfigRoot = config.GetString("security.nginx_config_root")
 	})

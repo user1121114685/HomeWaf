@@ -3,8 +3,6 @@ package main
 import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/global"
-	"HomeWaf/globalobj"
-	"HomeWaf/model"
 	"HomeWaf/plugin/manager"
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
@@ -12,10 +10,8 @@ import (
 	"HomeWaf/wafenginecore/ipset"
 	"HomeWaf/wafhostguard"
 	"HomeWaf/wafpipeline"
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/netip"
 	"os"
@@ -62,9 +58,6 @@ func initializePortPipeline() {
 	pluginPool := manager.NewPipelinePluginPool(pluginLimit)
 	wafpipeline.Live.PluginPrepare = pluginPool.Prepare
 	wafpipeline.Live.PluginStats = pluginPool.Stats
-	if pm := globalobj.GWAF_RUNTIME_OBJ_PLUGIN_MANAGER; pm != nil {
-		waf_service.WafPipelineServiceApp.LegacyPlugins = pm.PipelineProfiles
-	}
 	stateService := waf_service.WafPipelineStateServiceApp
 	if err := stateService.LoadMetrics(); err != nil {
 		zlog.Error("端口每日计数加载失败", err.Error())
@@ -86,7 +79,7 @@ func initializePortPipeline() {
 	}
 	wafpipeline.Live.OnResult = func(s *wafpipeline.Snapshot, c *wafpipeline.RequestContext, result wafpipeline.Result) {
 		stateService.LogResult(s, c, result)
-		globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.RecordPipelineWebLog(s, c, result)
+		wafenginecore.RecordPipelineWebLog(s, c, result)
 	}
 	honey := wafpipeline.NewHoneyHandler()
 	gateStore := waf_service.WafPipelineGateServiceApp.Store
@@ -102,9 +95,6 @@ func initializePortPipeline() {
 	rules := wafpipeline.NewRulesA(gate)
 	bots := wafpipeline.NewBOTCache()
 	rules.BotIdentity = bots.Lookup
-	if os.Getenv("HOMEWAF_LEGACY_BOT_DNS") == "1" && globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE != nil {
-		globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.BotIdentity = bots.Lookup
-	}
 	detectors := wafpipeline.DefaultRuleEngine()
 	crs := &wafpipeline.CRSProvider{Root: filepath.Join(utils.GetCurrentDir(), "data", "owasp")}
 	wafpipeline.Live.RulePrepare = func(s *wafpipeline.Snapshot) error {
@@ -119,27 +109,10 @@ func initializePortPipeline() {
 	forwarder.SecureCookie = wafenginecore.PipelineSecureCookie
 	tamperService := waf_service.WafPipelineTamperServiceApp
 	forwarder.CaptureTamper = tamperService.Capture
-	waf_service.WafPipelineServiceApp.NormalizeBaseline = func(body []byte, contentType, encoding string) ([]byte, string, error) {
-		resp := &http.Response{Header: http.Header{"Content-Type": []string{contentType}}, Body: io.NopCloser(bytes.NewReader(body)), ContentLength: int64(len(body))}
-		defer func() { _ = resp.Body.Close() }()
-		return wafenginecore.PipelineDecodeResponse(resp, encoding)
-	}
 	wafpipeline.Live.ForwardPrepare = forwarder.Prepare
 	wafpipeline.Live.Forward = forwarder.Serve
 	waf_service.WafPipelineServiceApp.OnChange = func(old, next *wafpipeline.Snapshot) error {
-		var restore func() error
-		if next != nil && next.Config.ListenEnabled && wafpipeline.OwnsLegacyPort(next.Config.Port) && globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE != nil {
-			restore = globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE.DetachPipelinePort(next.Config.Port, time.Duration(next.Config.Policy.Access.DrainSeconds)*time.Second)
-		}
 		if err := wafpipeline.Listeners.Apply(old, next); err != nil {
-			if restore != nil {
-				var row model.PortConfig
-				if global.GWAF_LOCAL_DB.First(&row, "port = ?", next.Config.Port).Error == nil && row.Revision == next.Config.Revision {
-					if restoreErr := restore(); restoreErr != nil {
-						return errors.Join(err, restoreErr)
-					}
-				}
-			}
 			return err
 		}
 		wafpipeline.CloseRetiredProxy(old, next)
@@ -166,8 +139,6 @@ func initializePortPipeline() {
 	go rules.Run(ctx)
 	tamperDone := make(chan struct{})
 	go func() { defer close(tamperDone); tamperService.Run(ctx) }()
-	legacyTamperDone := make(chan struct{})
-	go func() { defer close(legacyTamperDone); wafenginecore.RunLegacyTamperTasks(ctx) }()
 	go bots.Run(ctx)
 	done := make(chan struct{})
 	go func() { defer close(done); gateStore.Run(ctx) }()
@@ -193,7 +164,6 @@ func initializePortPipeline() {
 	finishPortPipeline = func() {
 		<-defenseDone
 		<-tamperDone
-		<-legacyTamperDone
 		<-done
 		<-stateDone
 		if err := stateService.PersistMetrics(); err != nil {
@@ -247,7 +217,6 @@ func initializePortPipeline() {
 				if err := waf_service.WafPipelineServiceApp.RefreshSourceCertificates(); err != nil {
 					zlog.Warn("端口证书同步失败，保留有效旧证书", err.Error())
 				}
-				wafenginecore.CleanupLegacyAuthCounters()
 			}
 		}
 	}()
@@ -259,5 +228,10 @@ func initializePortPipeline() {
 		go feed.Run(ctx)
 	}
 	waf_service.WafPipelineServiceApp.Prepare = wafpipeline.Live.Prepare
-	wafpipeline.Listeners.SetHandler(wafpipeline.Live.Serve)
+	wafpipeline.Listeners.SetHandler(func(s *wafpipeline.Snapshot, w http.ResponseWriter, r *http.Request) {
+		if global.GWAF_DEBUG_WORKER_HEADER {
+			w.Header().Set("X-SamWaf-Worker", global.GWAF_WORKER_TAG)
+		}
+		wafpipeline.Live.Serve(s, w, r)
+	})
 }

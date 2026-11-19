@@ -1,6 +1,7 @@
 package wafcli
 
 import (
+	"HomeWaf/wafpipeline"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -15,51 +16,51 @@ import (
 )
 
 type mockSites struct {
-	sites  map[string]siteRecord
+	sites  map[uint16]wafpipeline.PortConfig
 	writes int
 	deny   bool
 }
 
 func (s *mockSites) serve(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	send := func(data any) { _ = json.NewEncoder(w).Encode(map[string]any{"code": 0, "data": data, "msg": "ok"}) }
+	send := func(code int, data any) { _ = json.NewEncoder(w).Encode(map[string]any{"code": code, "data": data}) }
 	if s.deny {
-		_ = json.NewEncoder(w).Encode(map[string]any{"code": -999, "data": "", "msg": "denied"})
+		send(-999, nil)
 		return
 	}
-	switch strings.TrimPrefix(r.URL.Path, hostAPI) {
-	case "list":
-		list := []siteRecord{}
-		for _, v := range s.sites {
-			list = append(list, v)
+	switch {
+	case r.Method == http.MethodGet && r.URL.Path == portsAPI:
+		configs := []wafpipeline.PortConfig{}
+		for _, cfg := range s.sites {
+			configs = append(configs, cfg)
 		}
-		send(map[string]any{"list": list, "total": len(list)})
-	case "detail":
-		send(s.sites[r.URL.Query().Get("code")])
-	case "add":
-		var m siteRecord
-		_ = json.NewDecoder(r.Body).Decode(&m)
-		m["code"] = json.RawMessage(`"created-code"`)
-		s.sites["created-code"] = m
+		send(0, configs)
+	case r.Method == http.MethodPost && r.URL.Path == portsAPI+"/save":
+		var req struct{ Config wafpipeline.PortConfig }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			send(-1, nil)
+			return
+		}
+		cfg := req.Config
+		old := s.sites[cfg.Port]
+		if cfg.Revision != old.Revision || old.Revision == 0 && cfg.ListenEnabled {
+			send(-1, nil)
+			return
+		}
+		cfg.Revision++
+		s.sites[cfg.Port] = cfg
 		s.writes++
-		send("created-code")
-	case "edit":
-		var m siteRecord
-		_ = json.NewDecoder(r.Body).Decode(&m)
-		s.sites[recordString(m, "code")] = m
+		send(0, cfg)
+	case r.Method == http.MethodPost && r.URL.Path == portsAPI+"/delete":
+		var req struct{ Port uint16 }
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || s.sites[req.Port].ListenEnabled {
+			send(-1, nil)
+			return
+		}
+		delete(s.sites, req.Port)
 		s.writes++
-		send(nil)
-	case "startstatus":
-		m := s.sites[r.URL.Query().Get("code")]
-		m["start_status"] = json.RawMessage(r.URL.Query().Get("start_status"))
-		s.writes++
-		send(nil)
-	case "del":
-		delete(s.sites, r.URL.Query().Get("code"))
-		s.writes++
-		send(nil)
+		send(0, nil)
 	default:
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
@@ -90,10 +91,10 @@ func testCommand(t *testing.T, base, input string, args ...string) (int, map[str
 }
 
 func TestSiteWorkflow(t *testing.T) {
-	m := &mockSites{sites: map[string]siteRecord{}}
+	m := &mockSites{sites: map[uint16]wafpipeline.PortConfig{}}
 	srv := httptest.NewServer(http.HandlerFunc(m.serve))
 	defer srv.Close()
-	in := `{"host":"www.example.com","port":18080,"remote_host":"http://127.0.0.1","remote_port":9112,"nickname":"keep"}`
+	in := `{"port":18080,"name":"family","upstream":"http://127.0.0.1:9112","policy":{"defense":{"enabled":true,"mode":"restrict","window_seconds":1800,"count":10,"duration_seconds":3600,"tcp_action":"reset"}}}`
 	action := func(in string, want string) {
 		t.Helper()
 		code, res, _ := testCommand(t, srv.URL, in, "site", "apply", "-f", "-", "-o", "json")
@@ -106,21 +107,21 @@ func TestSiteWorkflow(t *testing.T) {
 	if m.writes != 1 {
 		t.Fatalf("repeat wrote %d times", m.writes)
 	}
-	action(`{"host":"www.example.com","port":18080,"remarks":"changed"}`, "updated")
-	if recordString(m.sites["created-code"], "nickname") != "keep" {
+	action(`{"port":18080,"name":"changed"}`, "updated")
+	if m.sites[18080].Upstream != "http://127.0.0.1:9112" {
 		t.Fatal("partial apply erased nickname")
 	}
-	code, res, _ := testCommand(t, srv.URL, "", "site", "get", "created-code", "-o", "json")
-	if code != 0 || res["site"].(map[string]any)["remarks"] != "changed" {
+	code, res, _ := testCommand(t, srv.URL, "", "site", "get", "18080", "-o", "json")
+	if code != 0 || res["site"].(map[string]any)["name"] != "changed" {
 		t.Fatalf("get: %v", res)
 	}
-	for _, cmd := range []string{"stop", "stop", "start", "delete"} {
-		code, _, _ := testCommand(t, srv.URL, "", "site", cmd, "www.example.com:18080", "-o", "json")
+	for _, cmd := range []string{"start", "stop", "stop", "delete"} {
+		code, _, _ := testCommand(t, srv.URL, "", "site", cmd, "18080", "-o", "json")
 		if code != 0 {
 			t.Fatalf("%s code %d", cmd, code)
 		}
 	}
-	code, _, _ = testCommand(t, srv.URL, "", "site", "delete", "created-code", "-o", "json")
+	code, _, _ = testCommand(t, srv.URL, "", "site", "delete", "18080", "-o", "json")
 	if code != ExitNotFound {
 		t.Fatalf("missing code=%d", code)
 	}
@@ -132,7 +133,7 @@ func TestSiteWorkflow(t *testing.T) {
 }
 
 func TestBatchPreflight(t *testing.T) {
-	m := &mockSites{sites: map[string]siteRecord{}}
+	m := &mockSites{sites: map[uint16]wafpipeline.PortConfig{}}
 	srv := httptest.NewServer(http.HandlerFunc(m.serve))
 	defer srv.Close()
 	for _, input := range []string{

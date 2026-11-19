@@ -20,7 +20,6 @@ import (
 	"HomeWaf/global"
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"HomeWaf/model"
-	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
 	"HomeWaf/model/spec"
 	"HomeWaf/service/waf_service"
@@ -39,7 +38,7 @@ func TestDNSHomeOrderAndRenewalWithoutPublicPorts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&model.PrivateInfo{}, &model.Hosts{}, &model.SslOrder{}, &model.SslOrderLog{}); err != nil {
+	if err := db.AutoMigrate(&model.PrivateInfo{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslConfig{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}); err != nil {
 		t.Fatal(err)
 	}
 	oldDB, oldQueue := global.GWAF_LOCAL_DB, global.GWAF_CHAN_SSLOrder
@@ -49,9 +48,7 @@ func TestDNSHomeOrderAndRenewalWithoutPublicPorts(t *testing.T) {
 		sqlDB, _ := db.DB()
 		_ = sqlDB.Close()
 	})
-	if err := db.Create(&model.Hosts{BaseOrm: baseorm.BaseOrm{Id: "nas-host"}, Code: "nas", Host: "192.168.1.20", Port: 8443, Ssl: 1}).Error; err != nil {
-		t.Fatal(err)
-	}
+	service := createCertificateTestService(t, db)
 	if err := waf_service.WafPrivateInfoServiceApp.AddApi(request.WafPrivateInfoAddReq{PrivateGroupBelongCloud: "hurricane", PrivateGroupName: "household", PrivateKey: "HURRICANE_TOKENS", PrivateValue: "example.com:test-ddns-secret"}); err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +70,10 @@ func TestDNSHomeOrderAndRenewalWithoutPublicPorts(t *testing.T) {
 		return result.Code, w.Body.String()
 	}
 	api := &WafSslOrderApi{}
-	input := request.WafSslorderaddReq{HostCode: "nas", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", PrivateGroupName: "household", ApplyEmail: "owner@example.com", ApplyDomain: "example.com,*.example.com"}
+	if code, body := call(api.CertificateTargets, "/", nil); code != 0 || !strings.Contains(body, service.HostCode) {
+		t.Fatalf("native selector failed: %s", body)
+	}
+	input := request.WafSslorderaddReq{HostCode: service.HostCode, ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", PrivateGroupName: "household", ApplyEmail: "owner@example.com", ApplyDomain: "example.com,*.example.com"}
 	if code, body := call(api.AddApi, "/", input); code != 0 {
 		t.Fatalf("DNS order wrongly requires public ports: %s", body)
 	}
@@ -90,7 +90,7 @@ func TestDNSHomeOrderAndRenewalWithoutPublicPorts(t *testing.T) {
 	}{
 		{"default console query", map[string]any{"pageIndex": 1, "pageSize": 10, "host_code": "", "apply_domain": ""}, 1},
 		{"omitted filters", map[string]any{"pageIndex": 1, "pageSize": 10}, 1},
-		{"service only", map[string]any{"pageIndex": 1, "pageSize": 10, "host_code": "nas"}, 1},
+		{"service only", map[string]any{"pageIndex": 1, "pageSize": 10, "host_code": service.HostCode}, 1},
 		{"domain only", map[string]any{"pageIndex": 1, "pageSize": 10, "apply_domain": "example.com"}, 1},
 		{"different service", map[string]any{"pageIndex": 1, "pageSize": 10, "host_code": "other"}, 0},
 		{"different domain", map[string]any{"pageIndex": 1, "pageSize": 10, "apply_domain": "not-matching.example"}, 0},
@@ -129,16 +129,23 @@ func TestDNSHomeOrderAndRenewalWithoutPublicPorts(t *testing.T) {
 		t.Fatal(err)
 	}
 	keyDER, _ := x509.MarshalECPrivateKey(key)
-	order := queued.Content.(model.SslOrder)
-	order.ApplyMethod = "http01" // Migration to DNS at renewal must check the new method.
-	order.ApplyStatus = "success"
+	order, claimed, err := waf_service.WafSSLOrderServiceApp.Claim(queued.Content.(model.SslOrder).Id)
+	if err != nil || !claimed {
+		t.Fatalf("claim issuance: %v", err)
+	}
 	order.ResultValidTo = customtype.JsonTime(cert.NotAfter)
 	order.ResultCertificate = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 	order.ResultPrivateKey = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
-	if err := db.Save(&order).Error; err != nil {
+	if err := waf_service.RecordIssuedCertificate(&order); err != nil {
 		t.Fatal(err)
 	}
-	renew := request.WafSslordereditReq{Id: order.Id, HostCode: "nas", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", PrivateGroupName: "household", ApplyEmail: "owner@example.com", ApplyDomain: "example.com,*.example.com", ApplyStatus: "renewed"}
+	if err := waf_service.DeployCertificateOrder(&order); err != nil {
+		t.Fatal(err)
+	}
+	if err := waf_service.CompleteCertificateOrder(order, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	renew := request.WafSslordereditReq{Id: order.Id, HostCode: service.HostCode, ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", PrivateGroupName: "household", ApplyEmail: "owner@example.com", ApplyDomain: "example.com,*.example.com", ApplyStatus: "renewed"}
 	if code, body := call(api.ModifyApi, "/", renew); code != 0 {
 		t.Fatalf("DNS renewal rejected: %s", body)
 	}
@@ -150,38 +157,25 @@ func TestDNSHomeOrderAndRenewalWithoutPublicPorts(t *testing.T) {
 	if code != 0 || !strings.Contains(body, "HURRICANE_TOKENS") || strings.Contains(body, "test-ddns-secret") || strings.Contains(body, "private_value") {
 		t.Fatalf("credential status leaked or missing: %s", body)
 	}
-	// Reproduce the real console setup: one native service and only global legacy rules.
-	if err := db.AutoMigrate(&model.PortConfig{}); err != nil {
+}
+
+func createCertificateTestService(t *testing.T, db *gorm.DB) wafpipeline.PortConfig {
+	t.Helper()
+	if err := db.AutoMigrate(&model.PortConfig{}, &model.GateUser{}, &model.GateSession{}, &model.IPGroupItem{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Where("1 = 1").Delete(&model.Hosts{}).Error; err != nil {
+	oldPorts, oldPipeline, oldLog := wafpipeline.Ports, waf_service.WafPipelineServiceApp, global.GWAF_LOCAL_LOG_DB
+	wafpipeline.Ports = wafpipeline.NewRegistry[wafpipeline.Snapshot](200)
+	waf_service.WafPipelineServiceApp = &waf_service.WafPipelineService{}
+	global.GWAF_LOCAL_LOG_DB = nil
+	t.Cleanup(func() {
+		wafpipeline.Ports, waf_service.WafPipelineServiceApp, global.GWAF_LOCAL_LOG_DB = oldPorts, oldPipeline, oldLog
+	})
+	config := wafpipeline.PortConfig{Schema: 1, Port: 18443, Name: "NAS", Protocol: "http", HostNames: []string{"example.com", "*.example.com"}, Upstream: "http://127.0.0.1:5000", Policy: wafpipeline.DefaultPolicy()}
+	config.Policy.Defense.Enabled = true
+	saved, err := waf_service.WafPipelineServiceApp.Save(waf_service.PortSaveRequest{Config: config})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Create(&model.Hosts{BaseOrm: baseorm.BaseOrm{Id: "global"}, Code: "global", GLOBAL_HOST: 1, Host: "*"}).Error; err != nil {
-		t.Fatal(err)
-	}
-	config := wafpipeline.PortConfig{Schema: 1, Port: 15000, HostCode: "pipeline-15000", Name: "NAS", Protocol: "http", HostNames: []string{"example.com"}, Upstream: "http://127.0.0.1:5000", Policy: wafpipeline.DefaultPolicy()}
-	raw, _ := json.Marshal(config)
-	if err := db.Create(&model.PortConfig{BaseOrm: baseorm.BaseOrm{Id: "native"}, Port: 15000, ConfigJSON: string(raw), SecretsJSON: "{}", Revision: 1}).Error; err != nil {
-		t.Fatal(err)
-	}
-	if code, body := call(api.CertificateTargets, "/", nil); code != 0 || !strings.Contains(body, "pipeline-15000") || strings.Contains(body, `"value":"global"`) {
-		t.Fatalf("native selector failed: %s", body)
-	}
-	input.HostCode, input.ApplyMethod, input.ApplyDomain = "pipeline-15000", "dns01", "example.com,*.example.com"
-	if code, body := call(api.AddApi, "/", input); code != 0 {
-		t.Fatalf("native DNS order rejected: %s", body)
-	}
-	queued = <-global.GWAF_CHAN_SSLOrder
-	nativeOrder := queued.Content.(model.SslOrder)
-	nativeOrder.ApplyStatus, nativeOrder.ResultValidTo = "success", order.ResultValidTo
-	nativeOrder.ResultCertificate, nativeOrder.ResultPrivateKey = order.ResultCertificate, order.ResultPrivateKey
-	if err := db.Save(&nativeOrder).Error; err != nil {
-		t.Fatal(err)
-	}
-	renew.Id, renew.HostCode = nativeOrder.Id, nativeOrder.HostCode
-	if code, body := call(api.ModifyApi, "/", renew); code != 0 {
-		t.Fatalf("native renewal rejected: %s", body)
-	}
-	<-global.GWAF_CHAN_SSLOrder
+	return saved
 }

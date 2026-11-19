@@ -144,7 +144,6 @@ func collectChans() map[string]int64 {
 	return map[string]int64{
 		"host_len":       int64(len(global.GWAF_CHAN_HOST)),
 		"host_cap":       int64(cap(global.GWAF_CHAN_HOST)),
-		"engine_len":     int64(len(global.GWAF_CHAN_ENGINE)),
 		"msg_len":        int64(len(global.GWAF_CHAN_MSG)),
 		"common_msg_len": int64(len(global.GWAF_CHAN_COMMON_MSG)),
 		"ssl_len":        int64(len(global.GWAF_CHAN_SSL)),
@@ -162,7 +161,6 @@ func collectCache() map[string]int64 {
 	keys := global.GCACHE_WAFCACHE.ListAvailableKeys()
 	items := map[string]int64{"total": int64(len(keys))}
 	prefixes := map[string]string{
-		"cc_ban":       enums.CACHE_CCVISITBAN_PRE,
 		"replay_nonce": enums.CACHE_REPLAY_NONCE,
 		"ip_failure":   enums.CACHE_IP_FAILURE_PRE,
 		"access":       "CACHE_ACCESS_",

@@ -23,7 +23,6 @@ func (u *Updater) fetchInfoGithub() error {
 	return u.fetchReleaseInfo(global.GUPDATE_GITHUB_VERSION_URL, true)
 }
 
-// A release endpoint is separate from the legacy manifest/announcement/data root.
 func (u *Updater) fetchReleaseInfo(endpoint string, allowPrerelease bool) error {
 	u.BinGithubURL, u.ArchiveSHA256 = "", ""
 	if endpoint == "" {

@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 import { verifyThemeSettings, verifySystemMonitor } from './verify-theme-ui.mjs';
 
 const origin = process.env.OVERVIEW_TEST_ORIGIN || 'http://127.0.0.1:3001';
@@ -28,10 +28,11 @@ await context.addInitScript(() => {
 });
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const request = route.request(),
     url = new URL(request.url()),
     path = url.pathname.split('/api/v1/')[1] || '';
-  if (path.includes('handshake')) return route.fulfill({ json: { code: 1, msg: 'Isolated legacy transport test' } });
+
   if (path === 'sysinfo/checkversion') return route.fulfill({ json: { code: 1, msg: 'No update in test' } });
   let data = { list: [], total: 0 };
   if (path === 'monitor/system_info')
@@ -50,7 +51,7 @@ await context.route('**/api/**', async (route) => {
       });
       const result = await response.json();
       if (result.code !== 0) throw new Error('Live statistics failed: ' + path);
-      return route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(result.data)) } });
+      return route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(result.data)) } });
     }
     const empty = mode === 'empty';
     if (path === 'wafstatsiteoverview')
@@ -145,7 +146,7 @@ await context.route('**/api/**', async (route) => {
   }
   if (path === 'upgradenotice/summary') data = { pending_count: 0, popup_items: [], need_popup: false };
   if (path === 'statsysinfo') data = { is_default_account: false, is_empty_otp: false, is_empty_host: false };
-  await route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)) } });
+  await route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)) } });
 });
 const page = await context.newPage();
 page.on('pageerror', (e) => report.errors.push(e.message));

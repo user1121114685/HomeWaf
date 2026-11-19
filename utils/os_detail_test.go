@@ -21,10 +21,6 @@ func TestGetOSDetail(t *testing.T) {
 	if detail.IsWindows != (runtime.GOOS == "windows") {
 		t.Errorf("IsWindows 判断不正确: %v", detail.IsWindows)
 	}
-	// 非 Windows 不可能是 Win7 内核
-	if runtime.GOOS != "windows" && detail.IsWin7Kernel {
-		t.Error("非 Windows 系统不应判定为 Win7 内核")
-	}
 	// 非 Linux 不做容器/WSL 判定
 	if runtime.GOOS != "linux" && (detail.Container != "" || detail.IsWSL) {
 		t.Errorf("非 Linux 不应识别出容器/WSL: container=%v wsl=%v", detail.Container, detail.IsWSL)

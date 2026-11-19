@@ -99,7 +99,7 @@ export function uploadSslCertApi(data: any = {}) {
   })
 }
 //重启管理端
-export function restartManagerApi(data: any = {}) {
+export function restartManagerApi(data: { force: boolean }) {
   return request({
     url: 'vipconfig/restartManager',
     method: 'post',

@@ -22,7 +22,7 @@ type replayResponseBody struct {
 func (f *Forwarder) inspectDefenseLogin(state *forwardRequest, response *http.Response) error {
 	s, c, record := state.snapshot, state.request, state.response
 	d := s.Config.Policy.Defense
-	if d == nil || !d.Enabled || record.login == nil || record.status >= 500 || record.status == 101 || strings.Contains(strings.ToLower(record.contentType), "text/event-stream") {
+	if !d.Enabled || record.login == nil || record.status >= 500 || record.status == 101 || strings.Contains(strings.ToLower(record.contentType), "text/event-stream") {
 		return nil
 	}
 	if record.login.SuccessBodyContains != "" {

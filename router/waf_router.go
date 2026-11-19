@@ -20,5 +20,4 @@ func (receiver *OneKeyModRouter) InitOneKeyModRouter(group *gin.RouterGroup) {
 	router.POST("/api/v1/wafhost/onekeymod/doModify", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.DoOneKeyModifyApi)
 	router.GET("/api/v1/wafhost/onekeymod/del", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.DelApi)
 	router.GET("/api/v1/wafhost/onekeymod/restore", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN), api.RestoreApi)
-	router.POST("/api/v1/wafhost/onekeymod/parseNginx", api.ParseNginxApi)
 }

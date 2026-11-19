@@ -13,17 +13,12 @@ import (
 	"sync"
 )
 
-// 每实例静态数据加密密钥（DEK）。与通讯密钥 GWAF_COMMUNICATION_KEY 彻底分离：
-// 通讯密钥全实例共用且随源码公开，只适合做传输层混淆；落库的敏感字段（Access 的
-// TOTP/rq 签名密钥、CDN 厂商凭证、管理端 2FA 密钥等）改用本模块的每实例随机密钥，
-// 拿到数据库文件不再等于拿到明文。
-//
+// 每实例随机 DEK 保护落库的访问密钥、供应商凭证和管理端 2FA 密钥。
 // 数据密钥放在安装目录的 .homewaf-keys/，与 data/ 数据库目录分开。
 // Unix 权限 0600，Windows 限定 DACL；不进数据库、不经 API 回显。运营方可用
 // security.data_key_file 指定自管位置。
 //
-// 密文格式：DataEncrypt 产出带 "swk1:" 前缀（AES-256-GCM）；运行期拒绝公开
-// 通讯密钥加密的旧 CBC 数据，防止攻击者伪造旧格式凭证来绕过完整性校验。
+// AES-256-GCM 密文带有 swk1: 前缀。
 
 const (
 	// DataKeyPrefixV1 是 swk1 版密文前缀：AES-256-GCM。
@@ -116,9 +111,8 @@ func DataEncrypt(plain string) (string, error) {
 	return DataKeyPrefixV1 + ct, nil
 }
 
-// DataDecrypt accepts authenticated instance ciphertext only. The second
-// argument is retained for source compatibility; it cannot enable legacy CBC.
-func DataDecrypt(enc string, _ []byte) (string, error) {
+// DataDecrypt accepts only ciphertext authenticated by the instance key.
+func DataDecrypt(enc string) (string, error) {
 	if enc == "" {
 		return "", nil
 	}
@@ -134,7 +128,7 @@ func DataDecrypt(enc string, _ []byte) (string, error) {
 		}
 		return string(b), nil
 	}
-	return "", errors.New("unauthenticated legacy data ciphertext is disabled")
+	return "", errors.New("unsupported instance ciphertext format")
 }
 
 // IsDataKeyCiphertext 判断是否为 swk1 新格式密文。

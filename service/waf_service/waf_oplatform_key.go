@@ -227,7 +227,7 @@ func (receiver *WafOPlatformKeyService) GetByApiKey(apiKey string) (model.OPlatf
 		if !wafsec.IsDataKeyCiphertext(candidate.ApiKey) {
 			continue
 		}
-		plain, err := wafsec.DataDecrypt(candidate.ApiKey, nil)
+		plain, err := wafsec.DataDecrypt(candidate.ApiKey)
 		if err != nil {
 			continue
 		}
@@ -252,8 +252,11 @@ func maskStoredApiKey(bean model.OPlatformKey) string {
 	if strings.HasPrefix(bean.ApiKey, "hwa1:") {
 		return "****"
 	}
-	if bean.LocalOnly == 1 && wafsec.IsDataKeyCiphertext(bean.ApiKey) {
-		plain, err := wafsec.DataDecrypt(bean.ApiKey, nil)
+	if bean.LocalOnly == 1 {
+		if !wafsec.IsDataKeyCiphertext(bean.ApiKey) {
+			return "****"
+		}
+		plain, err := wafsec.DataDecrypt(bean.ApiKey)
 		if err != nil {
 			return "****"
 		}
@@ -308,7 +311,7 @@ func (receiver *WafOPlatformKeyService) EnsureLocalOnlyKey(rotate bool) (apiKey 
 			if err := tx.Where("id = ?", localOnlyKeyRecordID).First(&bean).Error; err != nil {
 				return err
 			}
-			plain, err = wafsec.DataDecrypt(bean.ApiKey, nil)
+			plain, err = wafsec.DataDecrypt(bean.ApiKey)
 			if err != nil {
 				if !rotate {
 					return errors.New("本机 Key 解密失败，请检查数据密钥或使用 --rotate")
@@ -342,13 +345,15 @@ func (receiver *WafOPlatformKeyService) EnsureLocalOnlyKey(rotate bool) (apiKey 
 		if findErr != nil {
 			return findErr
 		}
-		plain := bean.ApiKey
-		if wafsec.IsDataKeyCiphertext(plain) {
-			var err error
-			plain, err = wafsec.DataDecrypt(plain, nil)
-			if err != nil && !rotate {
+		plain := ""
+		if wafsec.IsDataKeyCiphertext(bean.ApiKey) {
+			var decryptErr error
+			plain, decryptErr = wafsec.DataDecrypt(bean.ApiKey)
+			if decryptErr != nil && !rotate {
 				return errors.New("本机 Key 解密失败，请检查数据密钥或使用 --rotate")
 			}
+		} else if !rotate {
+			return errors.New("本机 Key 存储格式无效，请清理后使用 --rotate")
 		}
 		action = "reused"
 		if rotate || plain == "" {

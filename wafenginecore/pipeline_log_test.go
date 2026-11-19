@@ -4,8 +4,6 @@ import (
 	"HomeWaf/common/queue"
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
-	"HomeWaf/model"
-	"HomeWaf/model/wafenginmodel"
 	"HomeWaf/wafpipeline"
 	"encoding/json"
 	"net/http/httptest"
@@ -14,7 +12,7 @@ import (
 	"testing"
 )
 
-func pipelineLogFixture(t *testing.T) (*WafEngine, *wafpipeline.Snapshot, *wafpipeline.RequestContext) {
+func pipelineLogFixture(t *testing.T) (*wafpipeline.Snapshot, *wafpipeline.RequestContext) {
 	t.Helper()
 	oldQueue, oldSettings, oldExclude := global.GQEQUE_LOG_DB, global.CurrentSettings(), globalIPLogExclude.Load()
 	global.GQEQUE_LOG_DB = queue.NewQueue()
@@ -36,7 +34,7 @@ func pipelineLogFixture(t *testing.T) (*WafEngine, *wafpipeline.Snapshot, *wafpi
 	c := wafpipeline.NewRequestContext(req, "port:15000", netip.MustParseAddr("203.0.113.7"), wafpipeline.DefaultViewLimits())
 	c.View.Body = []byte(`{"password":"SECRET_BODY","name":"fixture"}`)
 	s := &wafpipeline.Snapshot{Config: wafpipeline.PortConfig{Port: 15000, HostCode: "pipeline-15000"}}
-	return &WafEngine{}, s, c
+	return s, c
 }
 
 type unreadableLogBody struct{}
@@ -59,8 +57,8 @@ func TestPipelineWebLogKeepsIdentityVerdictAndRedactsSecrets(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			engine, s, c := pipelineLogFixture(t)
-			engine.RecordPipelineWebLog(s, c, tc.result)
+			s, c := pipelineLogFixture(t)
+			RecordPipelineWebLog(s, c, tc.result)
 			item, ok := global.GQEQUE_LOG_DB.Dequeue()
 			lg, typed := item.(*innerbean.WebLog)
 			if !ok || !typed || !global.GQEQUE_LOG_DB.Empty() {
@@ -87,12 +85,12 @@ func TestPipelineWebLogKeepsIdentityVerdictAndRedactsSecrets(t *testing.T) {
 }
 
 func TestPipelineWebLogRespectsFiltersAndDryRun(t *testing.T) {
-	engine, s, c := pipelineLogFixture(t)
+	s, c := pipelineLogFixture(t)
 	allow := wafpipeline.Result{Verdict: wafpipeline.Verdict{Action: wafpipeline.Allow, Status: 200}}
 	deny := wafpipeline.Result{Verdict: wafpipeline.Verdict{Action: wafpipeline.Deny, Status: 403, Reason: "access_disabled"}}
 	check := func(result wafpipeline.Result, want bool) {
 		t.Helper()
-		engine.RecordPipelineWebLog(s, c, result)
+		RecordPipelineWebLog(s, c, result)
 		_, got := global.GQEQUE_LOG_DB.Dequeue()
 		if got != want || !global.GQEQUE_LOG_DB.Empty() {
 			t.Fatalf("queued=%v, want %v", got, want)
@@ -106,13 +104,6 @@ func TestPipelineWebLogRespectsFiltersAndDryRun(t *testing.T) {
 	check(allow, false)
 	check(deny, true)
 	SetGlobalIPLogExclude("")
-	engine.withWriteTable(func(table *routingTable) {
-		table.HostCode[s.Config.HostCode] = "configured.test:15000"
-		table.HostTarget["configured.test:15000"] = &wafenginmodel.HostSafe{Host: model.Hosts{EXCLUDE_URL_LOG: "/login"}}
-	})
-	check(allow, false)
-	check(deny, false)
-	engine.InitRouting()
 	c.DryRun = true
 	check(deny, false)
 	c.DryRun = false

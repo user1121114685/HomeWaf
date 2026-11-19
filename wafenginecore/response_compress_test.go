@@ -44,7 +44,6 @@ func TestChooseCompressEncoding(t *testing.T) {
 }
 
 func TestMaybeApplyResponseCompress_SkipsWhenAlreadyEncoded(t *testing.T) {
-	waf := &WafEngine{}
 	req, _ := http.NewRequest("GET", "/a.html", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp := &http.Response{
@@ -53,14 +52,13 @@ func TestMaybeApplyResponseCompress_SkipsWhenAlreadyEncoded(t *testing.T) {
 		Request:    req,
 	}
 	body := []byte(strings.Repeat("x", 300))
-	out := waf.maybeApplyResponseCompress(req, resp, body, model.ResponseCompressConfig{IsEnable: 1, Prefer: "gzip_only", MinLength: 10})
+	out := maybeApplyResponseCompress(req, resp, body, model.ResponseCompressConfig{IsEnable: 1, Prefer: "gzip_only", MinLength: 10})
 	if !bytes.Equal(out, body) {
 		t.Fatal("should pass through when already encoded")
 	}
 }
 
 func TestMaybeApplyResponseCompress_GzipWhenUnencoded(t *testing.T) {
-	waf := &WafEngine{}
 	req, _ := http.NewRequest("GET", "/page.html", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp := &http.Response{
@@ -70,7 +68,7 @@ func TestMaybeApplyResponseCompress_GzipWhenUnencoded(t *testing.T) {
 	}
 	plain := []byte(strings.Repeat("hello world ", 40))
 	cfg := model.ResponseCompressConfig{IsEnable: 1, Prefer: "gzip_only", MinLength: 50}
-	out := waf.maybeApplyResponseCompress(req, resp, plain, cfg)
+	out := maybeApplyResponseCompress(req, resp, plain, cfg)
 	if resp.Header.Get("Content-Encoding") != "gzip" {
 		t.Fatalf("expected Content-Encoding gzip, got %q", resp.Header.Get("Content-Encoding"))
 	}
@@ -89,19 +87,17 @@ func TestMaybeApplyResponseCompress_GzipWhenUnencoded(t *testing.T) {
 }
 
 func TestMaybeApplyResponseCompress_MinLength(t *testing.T) {
-	waf := &WafEngine{}
 	req, _ := http.NewRequest("GET", "/a.html", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp := &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": []string{"text/html"}}, Request: req}
 	small := []byte("short")
-	out := waf.maybeApplyResponseCompress(req, resp, small, model.ResponseCompressConfig{IsEnable: 1, Prefer: "gzip_only", MinLength: 256})
+	out := maybeApplyResponseCompress(req, resp, small, model.ResponseCompressConfig{IsEnable: 1, Prefer: "gzip_only", MinLength: 256})
 	if !bytes.Equal(out, small) || resp.Header.Get("Content-Encoding") != "" {
 		t.Fatal("should skip small body")
 	}
 }
 
 func TestMaybeApplyResponseCompress_ExcludeExt(t *testing.T) {
-	waf := &WafEngine{}
 	req, _ := http.NewRequest("GET", "/app.js", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp := &http.Response{
@@ -111,7 +107,7 @@ func TestMaybeApplyResponseCompress_ExcludeExt(t *testing.T) {
 	}
 	body := []byte(strings.Repeat("x", 300))
 	cfg := model.ResponseCompressConfig{IsEnable: 1, Prefer: "gzip_only", MinLength: 10, ExcludeExtensions: ".js"}
-	out := waf.maybeApplyResponseCompress(req, resp, body, cfg)
+	out := maybeApplyResponseCompress(req, resp, body, cfg)
 	if !bytes.Equal(out, body) || resp.Header.Get("Content-Encoding") != "" {
 		t.Fatal("should exclude .js")
 	}

@@ -7,7 +7,6 @@ import (
 	"HomeWaf/utils"
 	"HomeWaf/wafpipeline"
 	"HomeWaf/wafsec"
-	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -47,24 +46,25 @@ func TestGateDurableRevocationAndRestart(t *testing.T) {
 		WafPipelineServiceApp = oldService
 		WafPipelineGateServiceApp = oldGate
 	})
-	cfg := wafpipeline.PortConfig{Schema: 1, Port: 45124, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: wafpipeline.DefaultPolicy()}
+	cfg := wafpipeline.PortConfig{Schema: 1, Port: 45124, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: newServicePolicyFixture()}
 	cfg.Policy.Gate.Enabled = true
-	raw, _ := json.Marshal(cfg)
-	secret, _ := pipelineSecret()
-	secretRaw, _ := json.Marshal(wafpipeline.PortSecrets{GateKey: secret})
-	if err = db.Create(&model.PortConfig{BaseOrm: pipelineORM(), Port: int(cfg.Port), ConfigJSON: string(raw), SecretsJSON: string(secretRaw), Revision: 1}).Error; err != nil {
+	cfg, err = WafPipelineServiceApp.Save(PortSaveRequest{Config: cfg, Username: "owner", Password: "long-safe-pass-42"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	hash, _ := utils.BcryptHash("long-safe-pass-42")
-	user := model.GateUser{BaseOrm: pipelineORM(), PortID: wafpipeline.PortID(cfg.Port), Username: "owner", PasswordHash: hash, AuthVersion: "v1", Enabled: true}
-	if err = db.Create(&user).Error; err != nil {
+	var user model.GateUser
+	if err := db.First(&user, "port_id = ? AND username = ?", wafpipeline.PortID(cfg.Port), "owner").Error; err != nil || user.AuthVersion == "" {
+		t.Fatalf("initial port account has no credential version: %v", err)
+	}
+	unversioned := model.GateUser{BaseOrm: pipelineORM(), PortID: user.PortID, Username: "unversioned", PasswordHash: user.PasswordHash, Enabled: true}
+	if err := db.Create(&unversioned).Error; err != nil {
 		t.Fatal(err)
 	}
 	if err = s.Load(); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now().Unix()
-	session := wafpipeline.GateSessionRecord{ID: "session-1", PortID: user.PortID, Username: "owner", TokenHash: "hash-only", Version: "v1", CreatedAt: now, LastSeen: now, ExpiresAt: now + 86400}
+	session := wafpipeline.GateSessionRecord{ID: "session-1", PortID: user.PortID, Username: "owner", TokenHash: "hash-only", Version: user.AuthVersion, CreatedAt: now, LastSeen: now, ExpiresAt: now + 86400}
 	if err = s.Store.Add(session, 0); err != nil {
 		t.Fatal(err)
 	}
@@ -117,6 +117,20 @@ func TestGateDurableRevocationAndRestart(t *testing.T) {
 	}
 	if err = crash.Delete(cfg.Port, "owner", "test"); err == nil {
 		t.Fatal("deleted last gate account")
+	}
+	if _, ok := crash.Store.Account(user.PortID, unversioned.Username); ok {
+		t.Fatal("a persisted unversioned account was activated")
+	}
+	reset := GateUserSaveRequest{Port: cfg.Port, Username: unversioned.Username, Enabled: true}
+	if err := crash.Save(reset, "test"); err == nil {
+		t.Fatal("an edit reused an unversioned account credential")
+	}
+	reset.Password = "different-explicit-reset-password"
+	if err := crash.Save(reset, "test"); err != nil {
+		t.Fatal(err)
+	}
+	if account, ok := crash.Store.Account(user.PortID, unversioned.Username); !ok || account.Version == "" || !utils.BcryptVerify(account.PasswordHash, reset.Password) {
+		t.Fatal("explicit password reset did not provision the current account")
 	}
 	if err = crash.Save(GateUserSaveRequest{Port: cfg.Port, Username: "owner", Password: "password123", Enabled: true}, "test"); err == nil {
 		t.Fatal("accepted weak password")

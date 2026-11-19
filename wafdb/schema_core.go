@@ -5,12 +5,10 @@ package wafdb
 import (
 	"HomeWaf/model"
 	"gorm.io/gorm"
-	"time"
 )
 
 var coreSchemaModels = []any{
 	&model.PortConfig{},
-	&model.PipelinePortMigration{},
 	&model.PipelineFeed{},
 	&model.ConfigTemplate{},
 	&model.GateUser{},
@@ -27,7 +25,6 @@ var coreSchemaModels = []any{
 	&model.URLAllowList{},
 	&model.IPBlockList{},
 	&model.URLBlockList{},
-	&model.AntiCC{},
 	&model.TokenInfo{},
 	&model.Account{},
 	&model.SystemConfig{},
@@ -46,7 +43,6 @@ var coreSchemaModels = []any{
 	&model.SslExpire{},
 	&model.HttpAuthBase{},
 	&model.Task{},
-	&model.BlockingPage{},
 	&model.Otp{},
 	&model.PrivateInfo{},
 	&model.PrivateGroup{},
@@ -80,8 +76,6 @@ var coreSchemaModels = []any{
 	&model.HostGuardBanLadder{},
 	&model.ThreatIPExclude{},
 	&model.UpgradeNoticeRecord{},
-	&model.HostGroup{},
-	&model.AntiCCRule{},
 	&model.HttpAuthSession{},
 	&model.IPWatchlist{},
 	&model.LogExportTask{},
@@ -90,6 +84,7 @@ var coreSchemaModels = []any{
 }
 
 var coreSchemaIndexes = []schemaIndex{
+	{"system_configs", "uni_system_config_item", "CREATE UNIQUE INDEX IF NOT EXISTS uni_system_config_item ON system_configs (user_code, tenant_id, item)"},
 	{"firewall_ip_block", "idx_firewall_ip_block_ip", "CREATE INDEX IF NOT EXISTS idx_firewall_ip_block_ip ON firewall_ip_block(ip)"},
 	{"firewall_ip_block", "idx_firewall_ip_block_status", "CREATE INDEX IF NOT EXISTS idx_firewall_ip_block_status ON firewall_ip_block(status)"},
 	{"firewall_ip_block", "idx_firewall_ip_block_expire_time", "CREATE INDEX IF NOT EXISTS idx_firewall_ip_block_expire_time ON firewall_ip_block(expire_time)"},
@@ -123,82 +118,5 @@ func InitializeCoreSchema(db *gorm.DB) error {
 	if err := initializeSchema(db, coreSchemaModels, coreSchemaIndexes); err != nil {
 		return err
 	}
-	// Explicit additive changes for the new pipeline tables, never a legacy
-	// data rewrite or a blanket migration of unrelated application tables.
-	for _, m := range []any{&model.GateUser{}, &model.GateSession{}} {
-		if !db.Migrator().HasColumn(m, "AuthVersion") {
-			if err := db.Migrator().AddColumn(m, "AuthVersion"); err != nil {
-				return err
-			}
-		}
-	}
-	for _, change := range []struct {
-		model any
-		field string
-	}{{&model.HttpAuthBase{}, "PasswordHashed"}, {&model.HttpAuthSession{}, "Port"}, {&model.GateRuntime{}, "Owner"}, {&model.OPlatformKey{}, "MCPAccess"}, {&model.SystemConfig{}, "EnabledUntil"}} {
-		if !db.Migrator().HasColumn(change.model, change.field) {
-			if err := db.Migrator().AddColumn(change.model, change.field); err != nil {
-				return err
-			}
-		}
-	}
-	// Give an already-enabled installation one window on upgrade. Subsequent
-	// starts keep the original deadline, including one that has already passed.
-	if err := db.Model(&model.SystemConfig{}).Where("item = ? AND value = ? AND enabled_until = 0", model.OpenPlatformSwitch, "1").
-		UpdateColumn("enabled_until", time.Now().Add(model.OpenPlatformWindow).Unix()).Error; err != nil {
-		return err
-	}
-	for _, field := range []string{"SignatureURL", "FeedID", "SigningKeyID", "SigningPublicKey", "SignedSequence", "SignedDigest", "SignatureExpiresAt"} {
-		if !db.Migrator().HasColumn(&model.ThreatIPChannel{}, field) {
-			if err := db.Migrator().AddColumn(&model.ThreatIPChannel{}, field); err != nil {
-				return err
-			}
-		}
-	}
-	for _, field := range []string{"RequestID", "SubmissionHash", "ActiveKey", "RenewFrom", "Progress", "AutoRenew", "CertificateID", "PolicyVersion", "Trigger", "Operation", "RetryOf", "Stage", "FailureKind", "RetryNotBefore", "BindingSnapshot", "OriginalFingerprint", "DeploymentResult"} {
-		if !db.Migrator().HasColumn(&model.SslOrder{}, field) {
-			if err := db.Migrator().AddColumn(&model.SslOrder{}, field); err != nil {
-				return err
-			}
-		}
-	}
-	for _, index := range []string{"uni_ssl_order_request", "uni_ssl_order_active"} {
-		// Explicit names for unique keys are stable across table naming strategies.
-		if !db.Migrator().HasIndex(&model.SslOrder{}, index) {
-			if err := db.Migrator().CreateIndex(&model.SslOrder{}, index); err != nil {
-				return err
-			}
-		}
-	}
-	if !db.Migrator().HasColumn(&model.SslExpire{}, "LastSuccess") {
-		if err := db.Migrator().AddColumn(&model.SslExpire{}, "LastSuccess"); err != nil {
-			return err
-		}
-	}
-	if !db.Migrator().HasColumn(&model.CertificateDelivery{}, "RetryNotBefore") {
-		if err := db.Migrator().AddColumn(&model.CertificateDelivery{}, "RetryNotBefore"); err != nil {
-			return err
-		}
-	}
-	if err := initializeSSLOrderLogScope(db); err != nil {
-		return err
-	}
 	return seedCoreDefaults(db)
-}
-
-func initializeSSLOrderLogScope(db *gorm.DB) error {
-	for _, field := range []string{"TenantID", "UserCode"} {
-		if !db.Migrator().HasColumn(&model.SslOrderLog{}, field) {
-			if err := db.Migrator().AddColumn(&model.SslOrderLog{}, field); err != nil {
-				return err
-			}
-		}
-	}
-	// Recover ownership from the parent order, never from the currently logged-in
-	// tenant. Existing scoped rows and orphaned records must not be reassigned.
-	return db.Exec(`UPDATE ssl_order_logs SET
-		tenant_id = (SELECT tenant_id FROM ssl_orders WHERE ssl_orders.id = ssl_order_logs.order_id),
-		user_code = (SELECT user_code FROM ssl_orders WHERE ssl_orders.id = ssl_order_logs.order_id)
-		WHERE (tenant_id IS NULL OR tenant_id = '') AND (user_code IS NULL OR user_code = '')
-		AND EXISTS (SELECT 1 FROM ssl_orders WHERE ssl_orders.id = ssl_order_logs.order_id)`).Error
 }

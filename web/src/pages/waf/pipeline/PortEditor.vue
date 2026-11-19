@@ -570,9 +570,6 @@
             </div>
             <details class="space">
               <summary>高级：编辑完整策略JSON（不含口令/私钥）</summary>
-              <p v-if="draft.policy.defense" class="muted">
-                蜜罐内容在独立页面管理；此处 honeypot 是只读内容，服务使用统一蜜罐设置。
-              </p>
               <p class="muted">
                 可设置所有范围、参数和观察条件。服务端严格验证字段与数值；这里不会修改监听端口或凭据。
               </p>

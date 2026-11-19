@@ -2,7 +2,6 @@ package wafpipeline
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -74,14 +73,8 @@ func TestFamilyNASTemplateAllowsMissingCSRFOrigin(t *testing.T) {
 		}
 	}
 }
-func TestLegacySynologyRulesAndValidation(t *testing.T) {
+func TestSynologyRulesAndValidation(t *testing.T) {
 	policy := DefaultPolicy()
-	policy.RuleSet.Rules = []Rule{{ID: synologyAdminCategory, Category: "sqli", Mode: ModeObserve, Severity: High}}
-	policy.RuleSet.CompleteSynologyRules()
-	policy.RuleSet.CompleteSynologyRules()
-	if len(policy.RuleSet.Rules) != 3 || policy.RuleSet.Rules[0].Mode != ModeObserve || policy.RuleSet.LocksDSMLogins() {
-		t.Fatal("old service settings changed or new rules duplicated")
-	}
 	if err := ValidatePolicy(policy); err != nil {
 		t.Fatal(err)
 	}
@@ -100,43 +93,11 @@ func TestLegacySynologyRulesAndValidation(t *testing.T) {
 	if err := ValidatePolicy(policy); err == nil {
 		t.Fatal("accepted conflicting DSM windows")
 	}
-	legacy := DefaultPolicy().RuleSet
-	legacy.SynologyLogin = &SynologyLoginPolicy{Admin: ModeBlock, FailureMode: ModeObserve, Failures: Threshold{WindowSeconds: 600, Count: 8, BanSeconds: 3600}}
-	legacyRaw := *legacy.SynologyLogin
-	legacyFailures := &legacy.SynologyLogin.Failures
-	legacy.CompleteSynologyRules()
-	admin := legacy.ruleByCategory(synologyAdminCategory)
-	failure = legacy.ruleByCategory(synologyFailureCategory)
-	if admin.Mode != ModeBlock || failure.Mode != ModeObserve || failure.LoginFailures != legacyFailures || legacy.SynologyLogin != nil {
-		t.Fatal("legacy DSM settings were not migrated to detector rules")
-	}
-	valid := DefaultPolicy()
-	valid.RuleSet = legacy
-	if err := ValidatePolicy(valid); err != nil {
-		t.Fatal(err)
-	}
-	rawLegacy, err := json.Marshal(RuleSetConfig{SynologyLogin: &legacyRaw})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var decoded RuleSetConfig
-	if err := StrictDecode(rawLegacy, &decoded); err != nil {
-		t.Fatal(err)
-	}
-	decoded.CompleteSynologyRules()
-	if decoded.LocksDSMLogins() || decoded.SynologyLogin != nil || decoded.ruleByCategory(synologyAdminCategory).Mode != ModeBlock || decoded.ruleByCategory(synologyFailureCategory).Mode != ModeObserve {
-		t.Fatal("decoded legacy DSM settings were not preserved")
-	}
-	full := DefaultPolicy()
-	full.RuleSet.Rules = make([]Rule, 256)
-	for i := range full.RuleSet.Rules {
-		full.RuleSet.Rules[i] = Rule{ID: fmt.Sprintf("custom-%d", i), Category: "sqli", Severity: Medium, Mode: ModeObserve}
-	}
-	full.RuleSet.CompleteSynologyRules()
-	if len(full.RuleSet.Rules) != 258 || ValidatePolicy(full) != nil {
-		t.Fatal("new DSM rules must not consume the previous 256-rule allowance")
+	if err := StrictDecode([]byte(`{"synology_login":{"admin_mode":"block"}}`), &RuleSetConfig{}); err == nil {
+		t.Fatal("accepted retired DSM configuration")
 	}
 }
+
 func TestPortConfigValidation(t *testing.T) {
 	c := PortConfig{Schema: 1, Port: 5000, Protocol: "http", Upstream: "http://127.0.0.1:8080", Policy: DefaultPolicy()}
 	if err := ValidateConfig(c, 26666); err != nil {

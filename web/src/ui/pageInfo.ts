@@ -23,7 +23,6 @@ export const pageDescriptions: Record<string, string> = {
   WafBatchTaskList: '查看批量操作的执行状态与逐项结果。',
   WafSSLOrderList: '追踪每次申请、续期和恢复；长期更新策略在证书管理中设置。',
   WafsslExpireList: '从 HomeWaf 所在机器检查域名与端口实际提供的证书，不修改服务或启用自动续期。',
-  WafBlockingPagelist: '设置请求被拦截时向访客展示的内容。',
   WafIPBan: '查看被封禁的来源，核对原因后释放。',
   WafFirewallIPBlock: '管理系统防火墙中的地址封禁。',
   WafThreatIP: '管理威胁来源订阅与排除项。',

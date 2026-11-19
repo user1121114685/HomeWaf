@@ -44,46 +44,10 @@ func honeypotInteraction(c *RequestContext) *HoneypotInteraction {
 	return interaction
 }
 
-// captureDeniedStep changes only the response to an existing policy denial.
-// Access shutdown, unavailable policy, lockdown, auth gates and observe mode
-// keep their original behavior. There is no new route to the business handler.
-func captureDeniedStep(s *Snapshot, step Step) Step {
-	if s.Config.Policy.Defense != nil {
-		return step
-	}
-	if !s.Config.Policy.Honeypot.Enabled || !s.Config.Policy.Honeypot.CaptureDenied ||
-		!(step.Number == 2 && step.Name == "ip_group" || step.Number == 3 && !step.FailClosed) {
-		return step
-	}
-	inspect := step.Inspect
-	step.Inspect = func(c *RequestContext) (Verdict, error) {
-		start := len(c.Hits)
-		v, err := inspect(c)
-		if err != nil || v.Observe || v.Action != Deny || v.Status >= 500 {
-			return v, err
-		}
-		eligible := step.Number == 2 && (strings.HasPrefix(v.Reason, "blacklist:") || v.Reason == "ip:unlisted")
-		if step.Number == 3 {
-			for _, hit := range c.Hits[start:] {
-				if !hit.Observe && hit.Category != "detector_error" {
-					eligible = true
-					break
-				}
-			}
-		}
-		if eligible {
-			v.Action, v.Status = Honeypot, http.StatusOK
-		}
-		return v, nil
-	}
-	return step
-}
-
 func TrapStep(s *Snapshot) Step {
 	return Step{Number: 3, Name: "trap_path", Inspect: func(c *RequestContext) (Verdict, error) {
-		policy := s.Config.Policy
-		cfg := HoneypotPolicy(s)
-		if !cfg.Enabled || policy.Defense == nil && !policy.HitPolicy.Enabled {
+		cfg, enabled := HoneypotPolicy(s)
+		if !enabled {
 			return Verdict{Action: Continue}, nil
 		}
 		for _, path := range cfg.TrapPaths {
@@ -104,8 +68,14 @@ func (h *HoneyHandler) Respond(s *Snapshot, c *RequestContext, w http.ResponseWr
 	if v.Action != Honeypot && v.Action != Tarpit {
 		return false
 	}
+	cfg, ready := HoneypotPolicy(s)
+	if !ready {
+		c.Values["response_verdict"] = Verdict{Action: Deny, Stage: v.Stage, Status: http.StatusServiceUnavailable, Reason: "defense:honeypot_unavailable"}
+		http.Error(w, "Protection unavailable", http.StatusServiceUnavailable)
+		return true
+	}
 	interaction := honeypotInteraction(c)
-	lure := selectHoneypotLure(s, c)
+	lure := selectHoneypotLure(s, c, cfg.Lures)
 	interaction.LureID = lure.ID
 	c.Hit("honeypot_visit", "honeypot", Low, false, "isolated honeypot request")
 	v.Status = http.StatusOK
@@ -113,7 +83,6 @@ func (h *HoneyHandler) Respond(s *Snapshot, c *RequestContext, w http.ResponseWr
 		c.Values["response_verdict"] = v
 		c.Trace.Add(TraceEntry{Stage: v.Stage, Check: "honeypot_response", Verdict: v})
 	}()
-	cfg := effectiveHoneypot(HoneypotPolicy(s))
 	if !h.admission.Acquire(s.Config.Port, cfg.MaxConcurrent) {
 		v.Status = http.StatusServiceUnavailable
 		w.Header().Set("Retry-After", "1")

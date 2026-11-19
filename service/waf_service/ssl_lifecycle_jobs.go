@@ -39,7 +39,7 @@ func RequestCertificateRenewal(id, requestID string, automatic bool, now time.Ti
 	if automatic && !p.Enabled {
 		return order, false, nil
 	}
-	if p.Status == "unresolved" || p.Status == "manual" {
+	if p.Status == "manual" {
 		return order, false, errors.New("请先确认此证书的自动申请来源")
 	}
 	var active model.SslOrder
@@ -326,11 +326,6 @@ func RunCertificateRenewals(now time.Time, retriesOnly bool) error {
 	if !CertificateLifecycleAvailable() {
 		return nil
 	}
-	if !retriesOnly {
-		if err := MigrateCertificatePolicies(); err != nil {
-			return err
-		}
-	}
 	var policies []model.SslRenewalPolicy
 	q := global.GWAF_LOCAL_DB.Where("enabled = ?", true)
 	if retriesOnly {
@@ -340,7 +335,7 @@ func RunCertificateRenewals(now time.Time, retriesOnly bool) error {
 		return err
 	}
 	for _, p := range policies {
-		if p.Status == "blocked" || p.Status == "unresolved" || p.Status == "manual" || p.Status == "queued" || p.Status == "running" || p.Status == "deploying" {
+		if p.Status == "blocked" || p.Status == "manual" || p.Status == "queued" || p.Status == "running" || p.Status == "deploying" {
 			continue
 		}
 		var c model.SslConfig
@@ -395,28 +390,8 @@ func PrepareInitialCertificateOrder(o *model.SslOrder) error {
 	if !CertificateLifecycleAvailable() {
 		return nil
 	}
-	if o.RenewFrom != "" || len(o.ResultCertificate) > 0 {
-		var policies []model.SslRenewalPolicy
-		if err := global.GWAF_LOCAL_DB.Where("host_code = ?", o.HostCode).Find(&policies).Error; err != nil {
-			return err
-		}
-		for _, p := range policies {
-			if p.Fingerprint != CertificateFingerprint(string(o.ResultCertificate)) {
-				continue
-			}
-			bindings, err := CertificateBindings(global.GWAF_LOCAL_DB, p.Id)
-			if err != nil {
-				return err
-			}
-			if certificateTargetID(bindings, o.HostCode) != p.TargetID {
-				continue
-			}
-			o.CertificateID, o.PolicyVersion, o.OriginalFingerprint = p.Id, p.Version, p.Fingerprint
-			o.BindingSnapshot = certificateSnapshot(bindings)
-			o.Stage, o.Trigger, o.Operation = "issue", "manual", "renewal"
-			return nil
-		}
-		return errors.New("旧续期任务的来源尚未确认，请在证书管理核对后重试")
+	if o.RenewFrom != "" {
+		return errors.New("续期需要使用证书的续期策略")
 	}
 	if o.HostCode == "" {
 		if o.ApplyMethod != "dns01" {
@@ -451,7 +426,7 @@ func ValidateClaimedCertificateOrder(o model.SslOrder) error {
 	if err := global.GWAF_LOCAL_DB.First(&p, "id = ?", o.CertificateID).Error; err != nil {
 		return err
 	}
-	if p.Status == "manual" || p.Status == "unresolved" {
+	if p.Status == "manual" {
 		return errors.New("证书更新方式已切换或来源尚未确认，已停止旧任务")
 	}
 	if o.Trigger == "automatic" && (!p.Enabled || p.Version != o.PolicyVersion) {

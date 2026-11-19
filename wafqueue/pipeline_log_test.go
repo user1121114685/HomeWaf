@@ -46,8 +46,7 @@ func TestPipelineRequestsReachAccessAndSecurityStorage(t *testing.T) {
 	}))
 	defer origin.Close()
 	forward := &wafpipeline.Forwarder{}
-	engine := &wafenginecore.WafEngine{}
-	runtime := &wafpipeline.Runtime{ForwardPrepare: forward.Prepare, Forward: forward.Serve, OnResult: engine.RecordPipelineWebLog}
+	runtime := &wafpipeline.Runtime{ForwardPrepare: forward.Prepare, Forward: forward.Serve, OnResult: wafenginecore.RecordPipelineWebLog}
 	snapshot := &wafpipeline.Snapshot{Config: wafpipeline.PortConfig{Schema: 1, Port: 15000, Protocol: "http", Upstream: origin.URL, HostCode: "pipeline-15000", HostNames: []string{"family.test"}, Policy: wafpipeline.DefaultPolicy()}}
 	if err := runtime.Prepare(snapshot); err != nil {
 		t.Fatal(err)

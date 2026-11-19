@@ -21,7 +21,7 @@ func TestProtectedFeedOverlapAndDetectorFailureRemainNonPunitive(t *testing.T) {
 		t.Fatal("ordinary feed lookup lost protected default")
 	}
 	f.runtime.Feed = feed
-	f.runtime.State = fixtureState{ban: true, honey: true}
+	f.runtime.State = fixtureState{ban: true}
 	f.update(t, func(s *Snapshot) { s.Config.Policy.IPGroup.FeedEnabled = true })
 	for _, trusted := range []bool{false, true} {
 		f.update(t, func(s *Snapshot) {
@@ -78,9 +78,9 @@ func TestProtectedRestrictionFastPathPreservesScopeAndExpiry(t *testing.T) {
 	if p.ProtectedRestriction("port:5000", netip.MustParseAddr("127.0.0.1")) || clockCalls != 0 {
 		t.Fatal("empty state consulted clock or invented a match")
 	}
-	rows := []PunishmentRecord{{Kind: "ban", Scope: "global", PortID: "port:5000", Prefix: "127.0.0.1/32", Reason: "fixture", ExpiresAt: now.Add(time.Minute).Unix()}, {Kind: "honeypot", Scope: "port", PortID: "port:5000", Prefix: "127.0.0.2/32", Reason: "fixture", ExpiresAt: now.Add(time.Minute).Unix()}}
+	rows := []PunishmentRecord{{Kind: "ban", Scope: "port", PortID: "port:5000", Prefix: "127.0.0.1/32", Reason: "fixture", ExpiresAt: now.Add(time.Minute).Unix()}}
 	for i := range rows {
-		rows[i].ID = recordKey(rows[i].Kind, rows[i].Scope, rows[i].PortID, rows[i].Prefix)
+		rows[i].ID = recordKey(rows[i].Kind, rows[i].PortID, rows[i].Prefix)
 	}
 	if err := p.Restore(rows); err != nil {
 		t.Fatal(err)
@@ -88,13 +88,13 @@ func TestProtectedRestrictionFastPathPreservesScopeAndExpiry(t *testing.T) {
 	for _, tc := range []struct {
 		port, ip string
 		want     bool
-	}{{"port:5001", "127.0.0.1", true}, {"port:5000", "127.0.0.2", true}, {"port:5001", "127.0.0.2", false}} {
+	}{{"port:5000", "127.0.0.1", true}, {"port:5001", "127.0.0.1", false}} {
 		if p.ProtectedRestriction(tc.port, netip.MustParseAddr(tc.ip)) != tc.want {
 			t.Fatal("diagnostic query changed state scope")
 		}
 	}
 	now = now.Add(2 * time.Minute)
-	if p.ProtectedRestriction("port:5000", netip.MustParseAddr("127.0.0.1")) || p.ProtectedRestriction("port:5000", netip.MustParseAddr("127.0.0.2")) {
+	if p.ProtectedRestriction("port:5000", netip.MustParseAddr("127.0.0.1")) {
 		t.Fatal("diagnostic query kept expired state")
 	}
 }

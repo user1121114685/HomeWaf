@@ -73,71 +73,65 @@ func (d *PostgresDialect) RenameTable(db *gorm.DB, src, dst string) error {
 	return db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", pgQuote(src), pgQuote(dst))).Error
 }
 
-// ShardSwapTable archives liveTable to archiveTable and leaves an empty liveTable.
-//
-// Unlike MySQL there is no atomic multi-table RENAME, but PostgreSQL DDL is
-// transactional, so wrapping the steps in one transaction gives the same guarantee.
-//
-// The subtlety is index names. Renaming a table carries its indexes along WITH THEIR
-// NAMES, and "CREATE TABLE ... (LIKE ... INCLUDING ALL)" auto-generates fresh names
-// rather than reusing them. Do it naively and the archive table walks off with the
-// canonical names (idx_web_time_desc_tenant_user_code, ...) while the new live table
-// gets web_logs_shardtmp_*_idx. On the next boot safeCreateIndex's HasIndex() lookup
-// misses and recreates them — duplicate indexes accumulate on the hottest table in
-// the system, one set per shard cycle.
-//
-// So: snapshot the live table's index DDL first, rename the archive's indexes out of
-// the way to free the canonical names, create the new live table WITHOUT indexes, then
-// replay the captured DDL verbatim (it names the live table, which now points at the
-// new empty one).
-func (d *PostgresDialect) ShardSwapTable(db *gorm.DB, liveTable, archiveTable string) error {
+// RotateLogTables preserves both request-to-payload correlation and canonical index names.
+func (d *PostgresDialect) RotateLogTables(db *gorm.DB, tables []string, suffix string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, table := range tables {
+			archive := table + "_" + suffix
+			if err := ValidatePartitionPair(table, archive); err != nil {
+				return err
+			}
+			if err := rotatePostgresTable(tx, table, archive, suffix); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func rotatePostgresTable(tx *gorm.DB, liveTable, archiveTable, suffix string) error {
 	type indexDef struct {
 		IndexName string
 		IndexDef  string
 	}
 	var defs []indexDef
-	if err := db.Raw(
+	if err := tx.Raw(
 		"SELECT indexname AS index_name, indexdef AS index_def FROM pg_indexes "+
 			"WHERE schemaname = current_schema() AND tablename = ?", liveTable,
 	).Scan(&defs).Error; err != nil {
 		return fmt.Errorf("postgres: 读取 %s 索引定义失败: %w", liveTable, err)
 	}
 
-	// Suffix used to park the archived table's index names (e.g. "20260714_120000").
-	suffix := strings.TrimPrefix(archiveTable, liveTable+"_")
+	// 1. Rename live → archive. Indexes follow and keep their (canonical) names.
+	if err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s",
+		pgQuote(liveTable), pgQuote(archiveTable))).Error; err != nil {
+		return fmt.Errorf("postgres: 重命名 %s → %s 失败: %w", liveTable, archiveTable, err)
+	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		// 1. Rename live → archive. Indexes follow and keep their (canonical) names.
-		if err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s",
-			pgQuote(liveTable), pgQuote(archiveTable))).Error; err != nil {
-			return fmt.Errorf("postgres: 重命名 %s → %s 失败: %w", liveTable, archiveTable, err)
+	// 2. Park the archived indexes, freeing the canonical names for the new live table.
+	for _, def := range defs {
+		newName := truncateIdent(def.IndexName+"_"+suffix, pgMaxIdentLen)
+		if err := tx.Exec(fmt.Sprintf("ALTER INDEX %s RENAME TO %s",
+			pgQuote(def.IndexName), pgQuote(newName))).Error; err != nil {
+			return fmt.Errorf("postgres: 重命名索引 %s 失败: %w", def.IndexName, err)
 		}
+	}
 
-		// 2. Park the archived indexes, freeing the canonical names for the new live table.
-		for _, def := range defs {
-			newName := truncateIdent(def.IndexName+"_"+suffix, pgMaxIdentLen)
-			if err := tx.Exec(fmt.Sprintf("ALTER INDEX %s RENAME TO %s",
-				pgQuote(def.IndexName), pgQuote(newName))).Error; err != nil {
-				return fmt.Errorf("postgres: 重命名索引 %s 失败: %w", def.IndexName, err)
-			}
-		}
+	// 3. New empty live table: structure only, no indexes (they come from the replay).
+	if err := tx.Exec(fmt.Sprintf(
+		"CREATE TABLE %s (LIKE %s INCLUDING DEFAULTS INCLUDING CONSTRAINTS)",
+		pgQuote(liveTable), pgQuote(archiveTable))).Error; err != nil {
+		return fmt.Errorf("postgres: 创建新的 %s 失败: %w", liveTable, err)
+	}
 
-		// 3. New empty live table: structure only, no indexes (they come from the replay).
-		if err := tx.Exec(fmt.Sprintf(
-			"CREATE TABLE %s (LIKE %s INCLUDING DEFAULTS INCLUDING CONSTRAINTS)",
-			pgQuote(liveTable), pgQuote(archiveTable))).Error; err != nil {
-			return fmt.Errorf("postgres: 创建新的 %s 失败: %w", liveTable, err)
+	// 4. Replay the captured DDL. Each statement names liveTable, which now refers
+	//    to the fresh empty table, and the canonical index names are free again.
+	for _, def := range defs {
+		if err := tx.Exec(def.IndexDef).Error; err != nil {
+			return fmt.Errorf("postgres: 重建索引 %s 失败: %w", def.IndexName, err)
 		}
-
-		// 4. Replay the captured DDL. Each statement names liveTable, which now refers
-		//    to the fresh empty table, and the canonical index names are free again.
-		for _, def := range defs {
-			if err := tx.Exec(def.IndexDef).Error; err != nil {
-				return fmt.Errorf("postgres: 重建索引 %s 失败: %w", def.IndexName, err)
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // TableSizeMB returns the total on-disk size (table + indexes + TOAST) in MB.

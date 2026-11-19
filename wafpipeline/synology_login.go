@@ -2,7 +2,6 @@ package wafpipeline
 
 import (
 	"encoding/json"
-	"fmt"
 	"mime"
 	"net/http"
 	"net/url"
@@ -16,12 +15,6 @@ const (
 	synologyAdminCategory   = "synology_admin"
 	synologyFailureCategory = "synology_login_failure"
 )
-
-type SynologyLoginPolicy struct {
-	Admin       Mode      `json:"admin_mode"`
-	FailureMode Mode      `json:"failure_mode"`
-	Failures    Threshold `json:"failures"`
-}
 
 func newSynologyRule(category string) Rule {
 	rule := Rule{ID: category, Category: category, Severity: Low, Mode: ModeOff}
@@ -43,50 +36,6 @@ func (rs RuleSetConfig) ruleByCategory(category string) *Rule {
 func (rs RuleSetConfig) LocksDSMLogins() bool {
 	rule := rs.ruleByCategory(synologyFailureCategory)
 	return rule != nil && rule.Mode == ModeBlock
-}
-
-// CompleteSynologyRules exposes the new detectors as off on older services.
-// Preserve every existing rule, including custom IDs and full rulesets.
-func (rs *RuleSetConfig) CompleteSynologyRules() {
-	legacy := rs.SynologyLogin
-	rs.SynologyLogin = nil
-	for _, category := range []string{synologyAdminCategory, synologyFailureCategory} {
-		defaults := newSynologyRule(category)
-		if rule := rs.ruleByCategory(category); rule != nil {
-			if legacy != nil {
-				if category == synologyAdminCategory {
-					rule.Mode = legacy.Admin
-				} else {
-					rule.Mode = legacy.FailureMode
-				}
-			}
-			if rule.LoginFailures == nil {
-				if category == synologyFailureCategory && legacy != nil {
-					rule.LoginFailures = &legacy.Failures
-				} else {
-					rule.LoginFailures = defaults.LoginFailures
-				}
-			} else if category == synologyFailureCategory && legacy != nil {
-				rule.LoginFailures = &legacy.Failures
-			}
-			continue
-		}
-		if legacy != nil {
-			if category == synologyAdminCategory {
-				defaults.Mode = legacy.Admin
-			} else {
-				defaults.Mode = legacy.FailureMode
-				defaults.LoginFailures = &legacy.Failures
-			}
-		}
-		if len(rs.Rules) >= 258 {
-			continue
-		}
-		for n := 2; slices.ContainsFunc(rs.Rules, func(r Rule) bool { return r.ID == defaults.ID }); n++ {
-			defaults.ID = fmt.Sprintf("%s_%d", category, n)
-		}
-		rs.Rules = append(rs.Rules, defaults)
-	}
 }
 
 func synologyEndpoint(path string) (string, bool) {
@@ -276,7 +225,7 @@ type synologyFailureWindow struct {
 
 // ClearSynologyLock removes only this service's persisted DSM login lock.
 func (p *Punisher) ClearSynologyLock(port uint16) error {
-	id := recordKey(synologyLockKind, "port", PortID(port), "")
+	id := recordKey(synologyLockKind, PortID(port), "")
 	p.mu.Lock()
 	_, exists := p.records[id]
 	if exists {
@@ -295,7 +244,7 @@ func (p *Punisher) ClearSynologyLock(port uint16) error {
 // IP-ban queue may be delayed and its exemptions apply only to IP punishment.
 func (p *Punisher) recordSynologyFailure(s *Snapshot, ruleID, request string) {
 	port := PortID(s.Config.Port)
-	id := recordKey(synologyLockKind, "port", port, "")
+	id := recordKey(synologyLockKind, port, "")
 	p.mu.Lock()
 	now := p.Now()
 	window := s.Compiled.synologyWindow

@@ -323,7 +323,7 @@ import {defineComponent} from 'vue';
       },
       loadHostList(){
         /* let that = this;
-        allhost().then((res) => {
+        listServices().then((res) => {
               let resdata = res
               console.log(resdata)
               if (resdata.code === 0) {

@@ -21,11 +21,7 @@ import (
 //
 // 形态：服务端持每实例 X25519 静态密钥对（私钥落 data/.keys/comm_key，0600，不进库不经 API），
 // 客户端每标签生成一次性密钥对与之协商出共享密钥，报文用 XSalsa20-Poly1305 加密。
-// 选 NaCl 而非 AES-GCM 的原因见计划 §二十：浏览器 crypto.subtle 只在 secure context 可用，
-// 而本通道要服务的正是 HTTP 部署；tweetnacl 是纯 JS 且同步的。
-//
-// 密文格式：swt2:<keyid>:<base64(nonce24 ‖ secretbox)>；无前缀 = 旧 CBC 通道（legacy），
-// 由调用方按前缀路由，旧客户端行为逐字节不变。
+// 密文格式为 swt2:<keyid>:<base64(nonce24 ‖ secretbox)>。
 //
 // 边界（如实记录，不做过度承诺）：会话密钥防的是被动抓包与 HAR 离线还原；
 // 服务端静态私钥长期有效，故无前向保密；主动中间人仍只有 TLS 能防。
@@ -206,19 +202,35 @@ func IsTransportV2(s string) bool {
 	return strings.HasPrefix(s, TransportPrefixV2)
 }
 
-// TransportEncrypt 用 keyid 对应的会话密钥加密，产出 swt2:<keyid>:<base64>。
-// keyid 无效（未握手/已过期/服务端重启）时返回错误，由调用方回落 legacy 通道。
-func TransportEncrypt(keyid string, plain []byte) (string, error) {
+// TransportSession holds the negotiated key through response serialization.
+type TransportSession struct {
+	id  string
+	key [commKeyLen]byte
+}
+
+func OpenTransportSession(keyid string) (*TransportSession, error) {
 	key, ok := lookupCommSession(keyid)
 	if !ok {
-		return "", errors.New("会话密钥不存在或已过期")
+		return nil, errors.New("会话密钥不存在或已过期")
 	}
+	return &TransportSession{id: keyid, key: key}, nil
+}
+
+func TransportEncrypt(keyid string, plain []byte) (string, error) {
+	session, err := OpenTransportSession(keyid)
+	if err != nil {
+		return "", err
+	}
+	return session.Encrypt(plain)
+}
+
+func (s *TransportSession) Encrypt(plain []byte) (string, error) {
 	var nonce [commNonceLen]byte
 	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
 		return "", err
 	}
-	sealed := secretbox.Seal(nonce[:], plain, &nonce, &key)
-	return TransportPrefixV2 + keyid + ":" + base64.StdEncoding.EncodeToString(sealed), nil
+	sealed := secretbox.Seal(nonce[:], plain, &nonce, &s.key)
+	return TransportPrefixV2 + s.id + ":" + base64.StdEncoding.EncodeToString(sealed), nil
 }
 
 // TransportDecrypt 解开 swt2 报文，返回明文与其 keyid。

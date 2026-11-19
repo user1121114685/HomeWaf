@@ -7,7 +7,6 @@ import (
 	"HomeWaf/common/zlog"
 	"HomeWaf/customtype"
 	"HomeWaf/global"
-	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/service/waf_service"
@@ -32,15 +31,8 @@ func livePeriodKey() (string, bool) {
 	if db == nil {
 		return "", false
 	}
-	table := model.AccessLogTableName
-	if !dialect.Get().TableExists(db, table) {
-		table = "web_logs"
-		if !dialect.Get().TableExists(db, table) {
-			return "", false
-		}
-	}
 	var oldest *int64
-	if err := db.Table(table).Select("MIN(unix_add_time)").Scan(&oldest).Error; err != nil {
+	if err := db.Model(&model.AccessLog{}).Select("MIN(unix_add_time)").Scan(&oldest).Error; err != nil {
 		zlog.Debug("TaskDBSharding", "取最早日志时间失败", err.Error())
 		return "", false
 	}
@@ -87,25 +79,18 @@ func TaskShareDbInfo() {
 		return
 	}
 
-	// 启动时已同步做过一次（CutTierBoundaryIfNeeded），这里是兜底
-	if CutTierBoundaryIfNeeded() {
-		return
-	}
-
 	// 周期边界优先：实时库里最早一条日志落在上一个周期，就把这一段整体切成那个周期的分区。
 	// 放在体积判断之前——常态就该按周期切，体积只是兜底。
 	curKey := partition.KeyOf(time.Now())
 	if oldKey, ok := livePeriodKey(); ok && oldKey != curKey {
-		doLogShardCut(innerLogName, fmt.Sprintf("跨周期切分（%s → %s）", oldKey, curKey), false, oldKey)
+		doLogShardCut(innerLogName, fmt.Sprintf("跨周期切分（%s → %s）", oldKey, curKey), oldKey)
 		return
 	}
 
-	//获取当前日志数量（分层的写入主体是 access_log；老表不再写入，只作兜底）
-	var total int64 = 0
-	if dialect.Get().TableExists(global.GWAF_LOCAL_LOG_DB, model.AccessLogTableName) {
-		global.GWAF_LOCAL_LOG_DB.Table(dialect.Get().ForceIndexClause(model.AccessLogTableName, "idx_al_time")).Count(&total)
-	} else {
-		global.GWAF_LOCAL_LOG_DB.Table(dialect.Get().ForceIndexClause("web_logs", "idx_tenant_usercode_web_logs")).Count(&total)
+	var total int64
+	if err := global.GWAF_LOCAL_LOG_DB.Model(&model.AccessLog{}).Count(&total).Error; err != nil {
+		zlog.Error(innerLogName, "统计访问日志失败", err)
+		return
 	}
 
 	//获取当前数据库文件大小
@@ -140,66 +125,25 @@ func TaskShareDbInfo() {
 			zlog.Error(innerLogName, "获取数据库文件大小失败:", err)
 		}
 	} else {
-		sizeTable := model.AccessLogTableName
-		if !dialect.Get().TableExists(global.GWAF_LOCAL_LOG_DB, sizeTable) {
-			sizeTable = "web_logs"
-		}
-		tableSizeMB, err := dialect.Get().TableSizeMB(global.GWAF_LOCAL_LOG_DB, sizeTable)
+		tableSizeMB, err := dialect.Get().TableSizeMB(global.GWAF_LOCAL_LOG_DB, model.AccessLogTableName)
 		if err == nil {
 			if tableSizeMB > global.CurrentSettings().GDATA_SHARE_DB_FILE_SIZE {
 				needSharding = true
 				shardingReason = fmt.Sprintf("表大小(%dMB)超过限制(%dMB)", tableSizeMB, global.CurrentSettings().GDATA_SHARE_DB_FILE_SIZE)
 			}
 		} else {
-			zlog.Error(innerLogName, "获取"+sizeTable+"表大小失败:", err)
+			zlog.Error(innerLogName, "获取"+model.AccessLogTableName+"表大小失败:", err)
 		}
 	}
 
 	if needSharding {
 		// 同周期内被写爆了：仍然按当前周期命名，序号从 02 起，读侧与过期判断照样认得出周期
-		doLogShardCut(innerLogName, shardingReason+"（同周期内兜底切分）", false, curKey)
+		doLogShardCut(innerLogName, shardingReason+"（同周期内兜底切分）", curKey)
 	}
 }
 
-// CutTierBoundaryIfNeeded 分层改造的一次性边界：升级后 web_logs 里还躺着改造前的数据，而写入已切到
-// access_log / security_event / event_payload。先把它整体切成一个归档分片，新表从空开始——
-// 此后「实时」与「归档」各归各位，旧数据照旧能在归档下拉里读（D6）。
-//
-// 必须在开始接流量之前调用：判定条件是 access_log 为空，一旦有新请求写进来就不再成立，
-// 存量数据会一直留在实时库的 web_logs 里，而实时视图只读新表。
-// 无标记可记：web_logs 不再写入，access_log 一旦有行就说明边界已经切过，天然幂等。
-// 返回 true 表示本次做了切分。
-func CutTierBoundaryIfNeeded() bool {
-	if global.GWAF_LOCAL_DB == nil || global.GWAF_LOCAL_LOG_DB == nil {
-		return false
-	}
-	if !dialect.Get().TableExists(global.GWAF_LOCAL_LOG_DB, model.AccessLogTableName) {
-		return false
-	}
-	var legacyCnt, accessCnt int64
-	global.GWAF_LOCAL_LOG_DB.Model(&innerbean.WebLog{}).Count(&legacyCnt)
-	global.GWAF_LOCAL_LOG_DB.Model(&model.AccessLog{}).Count(&accessCnt)
-	if legacyCnt == 0 || accessCnt > 0 {
-		return false
-	}
-	// 存量 web_logs 里的数据跨很多个月，给它安一个周期键是假的，沿用时间戳命名
-	doLogShardCut("TaskDBSharding", fmt.Sprintf("分层改造边界切换（存量 %d 行转入归档）", legacyCnt), true, "")
-	return true
-}
-
-// doLogShardCut 执行一次日志库切分。swapWebLog=true 只用于分层改造的一次性边界切换
-// （把存量 web_logs + event_payload 切出去）；常规切分换的是三层新表，
-// web_logs 不再写入也就无需再换。
-//
-// periodKey 非空则按周期命名（local_log_202609.db / access_log_202609，同周期第二个起带 _02 序号），
-// 为空则沿用 14 位时间戳命名——只有分层改造的边界切换会走后者，那批存量数据跨很多个月，
-// 安一个周期键是假的。
-//
-// 归档标识：SQLite 为新文件名(.db)，MySQL/PG 为归档表名（边界切换是 web_logs_<ts>，
-// 常规切分是 access_log_<周期或时间戳>；读侧 ResolveTierTables 按前缀两种都认）。
-// 注意：MySQL/PG 的归档表不再被 gormigrate 跟踪，今后给这些表加列时读旧分片可能缺列——
-// 读侧已按分片实际列取交集（webLogSelect），无需同步 ALTER。
-func doLogShardCut(innerLogName, reason string, swapWebLog bool, periodKey string) {
+// doLogShardCut rotates the current tiers into a monthly archive.
+func doLogShardCut(innerLogName, reason, periodKey string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	release, err := wafdb.AcquireLogWrite(ctx)
@@ -212,37 +156,15 @@ func doLogShardCut(innerLogName, reason string, swapWebLog bool, periodKey strin
 	defer func() { global.GDATA_CURRENT_CHANGE = false }()
 	zlog.Info(innerLogName, "开始分库，原因:", reason)
 
-	ts := time.Now().Format("20060102150405")
-
-	cutTable := model.AccessLogTableName
-	if swapWebLog {
-		cutTable = "web_logs"
-	}
 	var total int64
-	if swapWebLog {
-		global.GWAF_LOCAL_LOG_DB.Model(&innerbean.WebLog{}).Count(&total)
-	} else {
-		global.GWAF_LOCAL_LOG_DB.Model(&model.AccessLog{}).Count(&total)
+	if err := global.GWAF_LOCAL_LOG_DB.Model(&model.AccessLog{}).Count(&total).Error; err != nil {
+		zlog.Error(innerLogName, "统计待归档访问日志失败", err)
+		return
 	}
-
-	// 分区命名：有周期键按周期来，同周期第二个起带序号；没有则沿用时间戳
-	suffix := ts
-	seq := 1
-	if periodKey != "" {
-		seq = nextPeriodSeq(periodKey)
-		suffix = periodKey
-		if seq > 1 {
-			suffix = fmt.Sprintf("%s_%02d", periodKey, seq)
-		}
-	}
-	newDBFilename := fmt.Sprintf("local_log_%v.db", suffix)
-	archiveName := newDBFilename
+	seq := nextPeriodSeq(periodKey)
+	archiveName := partition.FileNameSeq(periodKey, seq)
 	if !dialect.Get().IsFileBased() {
-		if swapWebLog {
-			archiveName = "web_logs_" + suffix
-		} else {
-			archiveName = model.AccessLogTableName + "_" + suffix
-		}
+		archiveName = partition.TableNameSeq(model.AccessLogTableName, periodKey, seq)
 	}
 
 	// 起止时间用**这批数据自己的**最早/最晚时间，而不是「上一个分片的结束时间 → 现在」。
@@ -250,7 +172,7 @@ func doLogShardCut(innerLogName, reason string, swapWebLog bool, periodKey strin
 	// 数据算成过期；停机几天再启动、或同周期内兜底切分时，这个差别很要紧。
 	startTime := customtype.JsonTime(time.Now())
 	endTime := customtype.JsonTime(time.Now())
-	if lo, hi, ok := cutDataRange(cutTable); ok {
+	if lo, hi, ok := cutDataRange(model.AccessLogTableName); ok {
 		startTime, endTime = customtype.JsonTime(lo), customtype.JsonTime(hi)
 	} else {
 		var lastedDb model.ShareDb
@@ -276,68 +198,48 @@ func doLogShardCut(innerLogName, reason string, swapWebLog bool, periodKey strin
 
 	zlog.Info(innerLogName, "正在切库中...")
 	if dialect.Get().IsFileBased() {
-		// SQLite：关闭连接 → 重命名三个 WAL 文件 → 重建 LogDb
+		// SQLite：先 checkpoint 再关闭、重命名文件和创建实时库
 		currentDir := utils.GetCurrentDir()
 		oldPath := currentDir + "/data/local_log.db"
-		newPath := currentDir + "/data/" + newDBFilename
+		newPath := currentDir + "/data/" + archiveName
 
+		if _, err := os.Lstat(newPath); !os.IsNotExist(err) {
+			zlog.Error(innerLogName, "归档目标已存在或无法访问", "path", newPath, "error", err)
+			return
+		}
+		// Drain all committed pages before renaming the database. The last close
+		// removes SQLite's WAL and SHM, which must never be reused by the new live DB.
+		var checkpoint struct{ Busy, Log, Checkpointed int }
+		if err := global.GWAF_LOCAL_LOG_DB.Raw("PRAGMA wal_checkpoint(TRUNCATE)").Scan(&checkpoint).Error; err != nil || checkpoint.Busy != 0 {
+			zlog.Warn(innerLogName, "日志库正在使用，推迟分片", "error", err)
+			return
+		}
 		sqlDB, err := global.GWAF_LOCAL_LOG_DB.DB()
 		if err != nil {
-			zlog.Error(innerLogName, "切换关闭时候错误", err)
-		} else {
-			if err := sqlDB.Close(); err != nil {
-				zlog.Error(innerLogName, "切换关闭时候错误", err)
-			}
+			zlog.Error(innerLogName, "无法取得日志库连接", err)
+			return
 		}
-		// 等待连接彻底关闭（Count 报错即连接已关闭，可安全重命名文件）。
-		// 加最大重试上限，避免连接异常未报错时无限循环卡住切库（高频切库后该段执行更频繁）。
-		var testTotal int64
-		for attempt := 0; attempt < 10; attempt++ {
-			testError := global.GWAF_LOCAL_LOG_DB.Model(&innerbean.WebLog{}).Count(&testTotal).Error
-			if testError != nil {
-				zlog.Debug(innerLogName, "连接已关闭，可切库", testError)
-				break
-			}
-			if attempt == 9 {
-				zlog.Warn(innerLogName, "等待日志库连接关闭超时，强制继续切库")
-				break
-			}
-			time.Sleep(1 * time.Second)
+		if err := sqlDB.Close(); err != nil {
+			zlog.Error(innerLogName, "关闭日志库失败", err)
+			return
 		}
-
-		if err := os.Rename(oldPath, newPath); err != nil {
-			zlog.Error(innerLogName, "Error renaming database file:", err)
-		}
-		if err := os.Rename(oldPath+"-shm", newPath+"-shm"); err != nil {
-			zlog.Error(innerLogName, "Error renaming .db-shm file:", err)
-		}
-		if err := os.Rename(oldPath+"-wal", newPath+"-wal"); err != nil {
-			zlog.Error(innerLogName, "Error renaming .db-wal file:", err)
-		}
-		global.GWAF_LOCAL_DB.Create(sharDbBean)
 		global.GWAF_LOCAL_LOG_DB = nil
+		if err := os.Rename(oldPath, newPath); err != nil {
+			zlog.Error(innerLogName, "重命名日志库失败", err)
+			wafdb.InitLogDb("")
+			return
+		}
 		wafdb.InitLogDb("")
 	} else {
-		// MySQL/PG：CREATE TABLE LIKE + 单语句原子 RENAME 换表，换表期间无写入空窗。
-		// 任一张换失败不回滚：报文按 req_uuid 寻址、窄行按时间查，留在实时表里读侧照样找得到。
-		swap := func(table string) {
-			if !dialect.Get().TableExists(global.GWAF_LOCAL_LOG_DB, table) {
-				return
-			}
-			if err := dialect.Get().ShardSwapTable(global.GWAF_LOCAL_LOG_DB, table, table+"_"+suffix); err != nil {
-				zlog.Warn(innerLogName, "分表失败，数据留在实时表:", "table", table, "error", err)
-			}
+		suffix := wafdb.ArchiveTableSuffix(archiveName)
+		if err := dialect.Get().RotateLogTables(global.GWAF_LOCAL_LOG_DB, waf_service.ShardTierBases, suffix); err != nil {
+			zlog.Error(innerLogName, "日志分表失败", "error", err)
+			return
 		}
-		if swapWebLog {
-			swap("web_logs")
-			swap(model.EventPayloadTableName)
-		} else {
-			swap(model.AccessLogTableName)
-			swap(model.SecurityEventTableName)
-			swap(model.EventPayloadTableName)
-		}
-		global.GWAF_LOCAL_DB.Create(sharDbBean)
 		zlog.Info(innerLogName, "分表完成，归档表:", archiveName)
+	}
+	if err := global.GWAF_LOCAL_DB.Create(&sharDbBean).Error; err != nil {
+		zlog.Error(innerLogName, "登记日志分区失败", "name", archiveName, "error", err)
 	}
 	// 分区构成变了，归档计数缓存跟着作废
 	waf_service.InvalidateShardCounts()

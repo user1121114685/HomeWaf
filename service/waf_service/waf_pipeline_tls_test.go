@@ -17,7 +17,7 @@ import (
 )
 
 func TestPipelineTLSSelectionPersistsBindingAndChecksNames(t *testing.T) {
-	s, db := legacyMigrationFixture(t)
+	s, db := nativePortFixture(t)
 	if err := db.AutoMigrate(&model.SslConfig{}); err != nil {
 		t.Fatal(err)
 	}

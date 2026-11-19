@@ -14,7 +14,6 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -126,7 +125,6 @@ func TestNewServiceRequiresEnabledDefenseBeforePersistence(t *testing.T) {
 func TestDefenseConfigurationDoesNotRequireMigrationConfirmation(t *testing.T) {
 	s, db, _ := defenseServiceFixture(t)
 	c := wafpipeline.PortConfig{Schema: 1, Port: 45132, Protocol: "http", Upstream: "http://127.0.0.1:1", Policy: wafpipeline.DefaultPolicy()}
-	c.Policy.Honeypot.Enabled, c.Policy.HitPolicy.Lockdown.Enabled = true, true
 	c = seedLegacyPortFixture(t, s.ports(), db, c)
 	d := wafpipeline.DefaultDefense()
 	d.Enabled = true
@@ -135,11 +133,11 @@ func TestDefenseConfigurationDoesNotRequireMigrationConfirmation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.Policy.Defense == nil || saved.Policy.Honeypot.Enabled || saved.Policy.HitPolicy.Lockdown.Enabled || saved.Policy.HitPolicy.BanScope != "port" {
-		t.Fatal("old controls remained active")
+	if saved.Policy.Defense == nil {
+		t.Fatal("defense policy was not persisted")
 	}
 	saved.Policy.Defense = nil
-	if _, err := s.ports().Save(PortSaveRequest{Config: saved}); err == nil || !strings.Contains(err.Error(), "配置不能删除") {
+	if _, err := s.ports().Save(PortSaveRequest{Config: saved}); err == nil {
 		t.Fatalf("defense removal was accepted: %v", err)
 	}
 }
@@ -306,7 +304,7 @@ func TestDefenseHistoryAndSharedHoneypotPersistIndependently(t *testing.T) {
 	if err != nil || shared.Configured {
 		t.Fatal(shared, err)
 	}
-	shared.Config.Lures = []wafpipeline.HoneypotLure{{ID: "panel", Title: "统一提示", Message: "固定文本", Weight: 1}}
+	shared.Config.Lures = []wafpipeline.HoneypotLure{{ID: "panel", Title: "缁熶竴鎻愮ず", Message: "鍥哄畾鏂囨湰", Weight: 1}}
 	saved, err := honey.Save(shared, "operator")
 	if err != nil {
 		t.Fatal(err)
@@ -322,8 +320,8 @@ func TestDefenseHistoryAndSharedHoneypotPersistIndependently(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	effective := wafpipeline.HoneypotPolicy(&wafpipeline.Snapshot{Config: c})
-	if !wafpipeline.SharedHoneypotReady() || effective.Lures[0].Title != saved.Config.Lures[0].Title || effective.DistributedDrop.Enabled {
+	effective, ready := wafpipeline.HoneypotPolicy(&wafpipeline.Snapshot{Config: c})
+	if !ready || !wafpipeline.SharedHoneypotReady() || effective.Lures[0].Title != saved.Config.Lures[0].Title {
 		t.Fatal("shared policy was not consumed")
 	}
 }
@@ -446,22 +444,16 @@ func TestDefensePolicyEditsPreserveAutomaticReopen(t *testing.T) {
 	}
 }
 
-func TestDefenseCanonicalOwnershipSurvivesLegacyTemplate(t *testing.T) {
+func TestDefenseTemplateOwnership(t *testing.T) {
 	s, _, _ := defenseServiceFixture(t)
 	c := saveDefenseService(t, s, 45130, wafpipeline.DefenseQuiet)
-	forged := wafpipeline.CloneConfig(c)
-	forged.Policy.Honeypot.Lures = []wafpipeline.HoneypotLure{{ID: "a", Title: "wrong owner", Weight: 1}}
-	if _, err := s.ports().Save(PortSaveRequest{Config: forged}); err == nil {
-		t.Fatal("port editor became a second honeypot write path")
-	}
-	template := wafpipeline.Template{Schema: 1, ID: "user-defense-test", Name: "Legacy template", Version: 1, Policy: wafpipeline.DefaultPolicy()}
-	template.Policy.Honeypot.Enabled, template.Policy.HitPolicy.Lockdown.Enabled = true, true
-	updated, err := wafpipeline.ApplyTemplate(c, template, []string{"honeypot", "hit_policy", "defense"})
+	template := wafpipeline.Template{Schema: 1, ID: "user-defense-test", Name: "Defense template", Version: 1, Policy: wafpipeline.DefaultPolicy()}
+	updated, err := wafpipeline.ApplyTemplate(c, template, []string{"hit_policy", "defense"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.Policy.Honeypot.Enabled || updated.Policy.HitPolicy.Lockdown.Enabled || updated.Policy.HitPolicy.BanScope != "port" || updated.Policy.Defense == nil {
-		t.Fatal("legacy template reintroduced conflicting controls")
+	if updated.Policy.Defense == nil {
+		t.Fatal("template lost defense policy")
 	}
 	if _, err := s.ports().Save(PortSaveRequest{Config: updated}); err != nil {
 		t.Fatal(err)

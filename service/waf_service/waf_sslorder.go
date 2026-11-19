@@ -102,14 +102,13 @@ func (receiver *WafSSLOrderService) DelApi(req request.WafSslorderdeleteReq) err
 	if err != nil {
 		return err
 	}
-	if CertificateLifecycleAvailable() {
-		var p model.SslRenewalPolicy
-		if bean.CertificateID != "" && global.GWAF_LOCAL_DB.First(&p, "id = ?", bean.CertificateID).Error == nil {
-			if p.Status == "unresolved" || (p.LastOrderID == bean.Id && bean.ApplyStatus == "fail") {
-				return errors.New("此记录仍用于来源核对或故障恢复，请完成处理后再删除")
-			}
-		} else if bean.ApplyStatus == "success" {
-			return errors.New("此成功记录尚未迁移签发上下文，暂不能删除")
+	if bean.CertificateID != "" && bean.ApplyStatus == "fail" {
+		var count int64
+		if err := global.GWAF_LOCAL_DB.Model(&model.SslRenewalPolicy{}).Where("id = ? AND last_order_id = ?", bean.CertificateID, bean.Id).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return errors.New("此记录仍用于故障恢复，请完成处理后再删除")
 		}
 	}
 	return global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {

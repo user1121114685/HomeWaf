@@ -21,7 +21,6 @@
 
           <template #op="slotProps">
             <button type="button" class="t-button-link" @click="handleClickDetail(slotProps)">{{ $t('common.details') }}</button>
-            <button type="button" class="t-button-link" @click="handleClickEdit(slotProps)">{{ $t('common.edit') }}</button>
           </template>
         </hw-table>
       </div>
@@ -35,14 +34,14 @@
       <template #body><div >
         <hw-form :data="formEditData" ref="form" :rules="rules" :labelWidth="100">
            <hw-form-item :label="$t('page.account_log.operation_account')" name="login_account">
-             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.login_account" ></hw-input>
+             <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.login_account" readonly ></hw-input>
            </hw-form-item>
           <hw-form-item :label="$t('page.account_log.operation_type')" name="op_type">
-            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.op_type"></hw-input>
+            <hw-input :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.op_type" readonly></hw-input>
           </hw-form-item>
 
           <hw-form-item :label="$t('common.remarks')" name="op_content">
-            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.op_content"  name="op_content">
+            <hw-textarea :style="{ width: 'min(100%, 480px)' }" v-model="formEditData.op_content" readonly  name="op_content">
             </hw-textarea>
           </hw-form-item>
           <hw-form-item style="float: right">
@@ -207,27 +206,9 @@ import {defineComponent} from 'vue';
       },
       rehandleChange(changeParams, triggerAndData) {
       },
-      handleClickDetail(e) {
-        console.log(e)
-        const {
-          id
-        } = e.row
-        console.log('hostlist',id)
-        this.$router.push({
-          path: '/waf-host/anticc/detail',
-          query: {
-            id: id,
-          },
-        }, );
-      },
-      handleClickEdit(e) {
-        console.log(e)
-        const {
-          id
-        } = e.row
-        console.log(id)
-        this.editFormVisible = true
-        this.getDetail(id)
+      handleClickDetail({ row }) {
+        this.formEditData = { ...row };
+        this.editFormVisible = true;
       },
       onClickCloseBtn(): void {
         this.formVisible = false;
@@ -242,29 +223,6 @@ import {defineComponent} from 'vue';
       },
       resetIdx() {
         this.deleteIdx = -1;
-      },
-      getDetail(id) {
-        let that = this
-        this.$request
-          .get('/account_log/detail', {
-            params: {
-              id: id,
-            }
-          })
-          .then((res) => {
-            let resdata = res
-            console.log(resdata)
-            if (resdata.code === 0) {
-              that.detail_data = resdata.data;
-              that.formEditData = {
-                ...that.detail_data
-              }
-            }
-          })
-          .catch((e: Error) => {
-            console.log(e);
-          })
-          .finally(() => {});
       },
     },
   });

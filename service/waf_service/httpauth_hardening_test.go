@@ -17,7 +17,7 @@ import (
 	"testing"
 )
 
-func TestLegacyAuthenticationHashConversionPortBindingAndRevocation(t *testing.T) {
+func TestAuthenticationRequiresExplicitPasswordResetAndRevokesSessions(t *testing.T) {
 	if !wafsec.DataKeyReady() {
 		if err := wafsec.InitDataKey(t.TempDir(), ""); err != nil {
 			t.Fatal(err)
@@ -41,13 +41,8 @@ func TestLegacyAuthenticationHashConversionPortBindingAndRevocation(t *testing.T
 	if err := db.Create(&row).Error; err != nil {
 		t.Fatal(err)
 	}
-	accounts, err := WafHttpAuthBaseServiceApp.LoadForHost(row.HostCode)
-	if err != nil || len(accounts) != 1 || !accounts[0].PasswordHashed || !utils.BcryptVerify(accounts[0].Password, password) {
-		t.Fatalf("one-way conversion failed: %v", err)
-	}
-	public, _ := json.Marshal(accounts)
-	if strings.Contains(string(public), password) || strings.Contains(string(public), accounts[0].Password) {
-		t.Fatal("account API exposes password proof")
+	if _, err := WafHttpAuthBaseServiceApp.LoadForHost(row.HostCode); err == nil {
+		t.Fatal("plaintext account was accepted without an explicit reset")
 	}
 	host := model.Hosts{Code: row.HostCode}
 	cfg := model.DecodeHttpAuthConfig("")
@@ -66,6 +61,14 @@ func TestLegacyAuthenticationHashConversionPortBindingAndRevocation(t *testing.T
 	}
 	if err := WafHttpAuthBaseServiceApp.ModifyApi(request.WafHttpAuthBaseEditReq{Id: row.Id, HostCode: row.HostCode, UserName: row.UserName, Password: "changed-password-fixture-2"}); err != nil {
 		t.Fatal(err)
+	}
+	accounts, err := WafHttpAuthBaseServiceApp.LoadForHost(row.HostCode)
+	if err != nil || len(accounts) != 1 || !accounts[0].PasswordHashed || !utils.IsBcryptHash(accounts[0].Password) {
+		t.Fatalf("explicit password reset did not produce a bcrypt account: %v", err)
+	}
+	public, _ := json.Marshal(accounts)
+	if strings.Contains(string(public), password) || strings.Contains(string(public), accounts[0].Password) {
+		t.Fatal("account API exposes password proof")
 	}
 	if _, ok := WafHttpAuthSessionServiceApp.ValidateCustom(host.Code, token, "198.51.100.18", cfg, 5000); ok {
 		t.Fatal("changed password retained existing session")

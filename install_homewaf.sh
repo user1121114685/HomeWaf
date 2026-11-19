@@ -11,7 +11,6 @@ archive=
 checksums=
 purge_data=0
 yes=0
-helper=
 die() { printf 'HomeWaf: %s\n' "$*" >&2; exit 1; }
 if [[ ${1:-} == install || ${1:-} == uninstall || ${1:-} == upgrade || ${1:-} == update ]]; then action=$1; shift; fi
 [[ $action != update ]] || action=upgrade
@@ -96,23 +95,17 @@ if [[ $action == uninstall ]]; then
   echo "HomeWaf program removed. Configuration, data and keys remain in $destination unless --purge-data --yes was specified."
   exit 0
 fi
-if [[ $action == upgrade && $docker_mode == 0 ]]; then
-  [[ -x $destination/$binary ]] || die "HomeWaf is not installed in $destination"
-  if [[ -z $archive && -z $checksums ]] && "$destination/$binary" update --help >/dev/null 2>&1; then
-    (cd -- "$destination"; "./$binary" apikey init; "./$binary" update --version "$version" --wait 15m)
-    exit 0
-  fi
-fi
 if [[ $action == upgrade && $docker_mode == 1 ]]; then docker container inspect homewaf >/dev/null 2>&1 || die 'No existing HomeWaf container; use install first.'; fi
 for command in curl tar install; do command -v "$command" >/dev/null || die "Required command not found: $command"; done
 download() { curl --fail --silent --show-error --location --retry 3 --connect-timeout 20 --max-time 600 --proto '=https' --proto-redir '=https' "$1" -o "$2"; }
 temporary=$(mktemp -d)
-trap '[[ -z $helper ]] || rm -f -- "$helper"; rm -rf -- "$temporary"' EXIT
+trap 'rm -rf -- "$temporary"' EXIT
 if [[ $version == latest ]]; then
   effective=$(curl --fail --silent --show-error --location --retry 3 --connect-timeout 20 --max-time 60 --proto '=https' --proto-redir '=https' -o /dev/null -w '%{url_effective}' "$repo/releases/latest")
   version=${effective##*/}
 fi
 [[ $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][A-Za-z0-9.-]+)?$ ]] || die "Invalid release version: $version"
+[[ ! $version =~ ^v[012]\. ]] || die 'Use the installer supplied with the requested release for versions before v3.'
 asset=HomeWaf_${os}_${arch}_${version#v}.tar.gz
 checksum_name=HomeWaf_${version#v}_checksums.txt
 if ((docker_mode)); then
@@ -134,10 +127,11 @@ if ((docker_mode)); then
     old_image=$(docker inspect --format '{{.Image}}' homewaf)
   fi
   docker load --input "$temporary/$asset"
+  docker run --rm --network none -v homewaf-data:/app/data:ro -v homewaf-keys:/app/.homewaf-keys:ro "homewaf:$version" check-install-format /app
   docker image tag "homewaf:$version" homewaf:latest
   if [[ -n $old_image ]]; then docker stop --time 120 homewaf; docker rm homewaf; fi
   run_args=(-d --name homewaf --label io.homewaf.installer=release --restart unless-stopped
-    -p 127.0.0.1:26666:26666 -p 80:80 -p 443:443 -p 443:443/udp
+    -p 127.0.0.1:26666:26666 -p 80:80 -p 443:443
     -v homewaf-conf:/app/conf -v homewaf-data:/app/data -v homewaf-keys:/app/.homewaf-keys
     -v homewaf-logs:/app/logs -v homewaf-ssl:/app/ssl)
   ready=0
@@ -167,14 +161,10 @@ tar --no-same-owner --no-same-permissions -xzf "$temporary/$asset" -C "$temporar
 for required in "$binary" LICENSE NOTICE THIRD_PARTY_NOTICES.md LICENSES; do
   [[ -e $temporary/unpacked/$required ]] || die "Missing $required"
 done
+"$temporary/unpacked/$binary" check-install-format "$destination"
 if [[ $action == upgrade ]]; then
-  # Old releases may lack the CLI update command. Run the verified new client
-  # from the installation directory so it reads that instance's config and key.
-  # The running server still owns download, SHA256 validation and smooth restart.
-  helper="$destination/.homewaf-upgrade-$(basename "$temporary")"
-  install -m 0755 "$temporary/unpacked/$binary" "$helper"
-  "$helper" update --help >/dev/null 2>&1 || die 'This release has no command-line update client; choose a newer release.'
-  (cd -- "$destination"; "./$binary" apikey init; "$helper" update --version "$version" --wait 15m)
+  [[ -x $destination/$binary ]] || die "HomeWaf is not installed in $destination"
+  (cd -- "$destination"; "./$binary" apikey init; "./$binary" update --version "$version" --wait 15m)
   exit 0
 fi
 installed=0
@@ -196,33 +186,7 @@ done
 if ((service)); then
   if ((installed == 0)); then "$destination/$binary" install; fi
   "$destination/$binary" start
-  if "$destination/$binary" console-info --help >/dev/null 2>&1; then
-    "$destination/$binary" console-info --wait 90s --show-initial-password
-  else
-    # Older releases do not have console-info; retain --version compatibility.
-    server_ips=$(hostname -I 2>/dev/null || true)
-    if [[ -z $server_ips ]] && command -v ipconfig >/dev/null; then
-      server_ips=$(ipconfig getifaddr en0 2>/dev/null || true)
-    fi
-    echo 'HomeWaf service started. Open a server IP reachable from your device:'
-    for server_ip in $server_ips; do
-      [[ $server_ip != 127.* && $server_ip != ::1 ]] || continue
-      if [[ $server_ip == *:* ]]; then server_ip="[$server_ip]"; fi
-      printf '  http://%s:26666/\n' "$server_ip"
-    done
-    [[ -n $server_ips ]] || echo '  http://<server-ip>:26666/ (replace <server-ip> with this server address)'
-    for ((attempt=0;attempt<90;attempt++)); do
-      if curl -fsS --max-time 2 http://127.0.0.1:26666/ -o /dev/null 2>/dev/null; then break; fi
-      sleep 1
-    done
-    ((attempt < 90)) || die 'Management console did not become ready. Check the HomeWaf service and logs.'
-    if [[ -f $destination/data/initial_password.txt && ! -L $destination/data/initial_password.txt ]]; then
-      echo 'Initial credentials (valid only until the password is changed):'
-      cat -- "$destination/data/initial_password.txt"
-    else
-      echo 'Existing instance: use your current password.'
-    fi
-  fi
+  "$destination/$binary" console-info --wait 90s --show-initial-password
 else
   echo "Installed. Start with: $destination/$binary"
   echo "After startup, show the server address and initial password: $destination/$binary console-info --show-initial-password"

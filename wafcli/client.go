@@ -26,7 +26,7 @@ import (
 	"HomeWaf/wafconfig"
 )
 
-const hostAPI = "/api/v1/wafhost/host/"
+const portsAPI = "/api/v1/pipeline/ports"
 const maxResponseBytes = 32 << 20
 
 type apiClient struct {
@@ -211,48 +211,4 @@ func (a *apiClient) call(ctx context.Context, method, path string, body any, out
 		}
 		return nil
 	}
-}
-
-type siteRecord map[string]json.RawMessage
-
-func recordString(m siteRecord, k string) string {
-	var v string
-	_ = json.Unmarshal(m[k], &v)
-	return v
-}
-func recordInt(m siteRecord, k string) int { var v int; _ = json.Unmarshal(m[k], &v); return v }
-
-func (a *apiClient) list(ctx context.Context) ([]siteRecord, error) {
-	items := []siteRecord{}
-	for page := 1; ; page++ {
-		var result struct {
-			List  []siteRecord `json:"list"`
-			Total int64        `json:"total"`
-		}
-		if err := a.call(ctx, http.MethodPost, hostAPI+"list", map[string]int{"pageIndex": page, "pageSize": 100}, &result); err != nil {
-			return nil, err
-		}
-		if len(result.List) == 0 {
-			break
-		}
-		items = append(items, result.List...)
-		if int64(len(items)) >= result.Total {
-			break
-		}
-		if page >= 10000 {
-			return nil, fail(ExitFailed, errors.New("站点分页数量超过上限"))
-		}
-	}
-	return items, nil
-}
-
-func (a *apiClient) detail(ctx context.Context, code string) (siteRecord, error) {
-	var m siteRecord
-	if err := a.call(ctx, http.MethodGet, hostAPI+"detail?"+url.Values{"code": {code}}.Encode(), nil, &m); err != nil {
-		return nil, err
-	}
-	if recordString(m, "code") == "" {
-		return nil, fail(ExitNotFound, errors.New("站点不存在"))
-	}
-	return m, nil
 }

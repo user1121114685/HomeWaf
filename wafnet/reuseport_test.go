@@ -28,23 +28,3 @@ func TestReusePortTCPDualBind(t *testing.T) {
 
 	t.Logf("两个监听器成功同时绑定 TCP 端口 %d（端口复用生效）", port)
 }
-
-// TestReusePortPacketConnDualBind 验证 UDP（HTTP/3 用）端口复用双绑定。
-func TestReusePortPacketConnDualBind(t *testing.T) {
-	pc1, err := ReusePortPacketConn("127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("第一个 REUSEPORT UDP 监听失败: %v", err)
-	}
-	defer pc1.Close()
-
-	port := pc1.LocalAddr().(*net.UDPAddr).Port
-	addr := "127.0.0.1:" + strconv.Itoa(port)
-
-	pc2, err := ReusePortPacketConn(addr)
-	if err != nil {
-		t.Fatalf("第二个 REUSEPORT UDP 监听绑定同端口 %d 失败: %v", port, err)
-	}
-	defer pc2.Close()
-
-	t.Logf("两个 PacketConn 成功同时绑定 UDP 端口 %d（端口复用生效）", port)
-}

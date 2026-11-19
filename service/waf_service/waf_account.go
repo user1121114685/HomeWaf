@@ -158,6 +158,9 @@ func (receiver *WafAccountService) CheckIsExistApi(req request.WafAccountAddReq)
 	return global.GWAF_LOCAL_DB.First(&model.Account{}, "login_account = ? ", req.LoginAccount).Error
 }
 func (receiver *WafAccountService) ModifyApi(req request.WafAccountEditReq, operatorRole string) error {
+	if operatorRole != enums.ROLE_SUPER_ADMIN && operatorRole != enums.ROLE_SYSTEM_ADMIN {
+		return errors.New("当前账号角色无权编辑管理账号")
+	}
 
 	var target model.Account
 	global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&target)
@@ -165,7 +168,7 @@ func (receiver *WafAccountService) ModifyApi(req request.WafAccountEditReq, oper
 		return errors.New("账号不存在")
 	}
 	// N7：非超级管理员不得编辑超级管理员账号（防止改名/改状态等干扰或锁定超管账号）。
-	if enums.NormalizeRole(target.Role) == enums.ROLE_SUPER_ADMIN && enums.NormalizeRole(operatorRole) != enums.ROLE_SUPER_ADMIN {
+	if target.Role == enums.ROLE_SUPER_ADMIN && operatorRole != enums.ROLE_SUPER_ADMIN {
 		return errors.New("仅超级管理员可编辑超级管理员账号")
 	}
 	// 若修改了登录名，新名不得与其他账号重复
@@ -188,7 +191,7 @@ func (receiver *WafAccountService) ModifyApi(req request.WafAccountEditReq, oper
 			return errors.New("请指定合法的账号角色")
 		}
 		// N7 防提权：仅超级管理员可变更账号角色（对照被更新记录 target 的当前角色，杜绝 id/login_account 解耦绕过）。
-		if req.Role != target.Role && enums.NormalizeRole(operatorRole) != enums.ROLE_SUPER_ADMIN {
+		if req.Role != target.Role && operatorRole != enums.ROLE_SUPER_ADMIN {
 			return errors.New("仅超级管理员可变更账号角色")
 		}
 		beanMap["Role"] = req.Role

@@ -409,7 +409,7 @@ func (r *WafCDNIPService) providerInUse(code string) bool {
 }
 
 // encCred/decCred 凭证静态加解密(每实例 DEK；空值原样返回)。
-// 写入产出 swk1 新格式；读取兼容升级前的旧通讯密钥密文(无前缀)。
+// 写入并读取均使用 swk1 密文。
 func encCred(s string) string {
 	if strings.TrimSpace(s) == "" {
 		return ""
@@ -426,7 +426,7 @@ func decCred(c string) string {
 	if strings.TrimSpace(c) == "" {
 		return ""
 	}
-	b, err := wafsec.DataDecrypt(c, global.GWAF_COMMUNICATION_KEY)
+	b, err := wafsec.DataDecrypt(c)
 	if err != nil {
 		zlog.Error("CDN 凭证解密失败", err.Error())
 		return ""

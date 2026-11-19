@@ -160,12 +160,8 @@ func (receiver *WafHttpAuthBaseService) ModifyApi(req request.WafHttpAuthBaseEdi
 			return err
 		}
 		password = hash
-	} else if !old.PasswordHashed {
-		hash, err := utils.BcryptHash(old.Password)
-		if err != nil {
-			return err
-		}
-		password = hash
+	} else if !old.PasswordHashed || !utils.IsBcryptHash(old.Password) {
+		return errors.New("HTTPAuth account password must be reset before use")
 	}
 	beanMap["Password"] = password
 	beanMap["PasswordHashed"] = true
@@ -188,8 +184,8 @@ func (receiver *WafHttpAuthBaseService) GetDetailApi(req request.WafHttpAuthBase
 	return bean
 }
 
-// LoadForHost performs a one-way conversion of old encrypted plaintext during
-// configuration loading, never on a request. Account rows and keys are kept.
+// LoadForHost only accepts accounts written by the current password path.
+// Existing plaintext rows require an explicit administrator password reset.
 func (receiver *WafHttpAuthBaseService) LoadForHost(hostCode string) ([]model.HttpAuthBase, error) {
 	var rows []model.HttpAuthBase
 	if err := global.GWAF_LOCAL_DB.Where("host_code = ?", hostCode).Limit(1001).Find(&rows).Error; err != nil {
@@ -199,18 +195,9 @@ func (receiver *WafHttpAuthBaseService) LoadForHost(hostCode string) ([]model.Ht
 		return nil, errors.New("HTTPAuth account quota exceeded")
 	}
 	for i := range rows {
-		if rows[i].PasswordHashed {
-			continue
+		if !rows[i].PasswordHashed || !utils.IsBcryptHash(rows[i].Password) {
+			return nil, errors.New("HTTPAuth account password must be reset before use")
 		}
-		hash, err := utils.BcryptHash(rows[i].Password)
-		if err != nil {
-			return nil, errors.New("legacy HTTPAuth password cannot be converted; reset this account")
-		}
-		if err = global.GWAF_LOCAL_DB.Model(&model.HttpAuthBase{}).Where("id = ? AND (password_hashed = ? OR password_hashed IS NULL)", rows[i].Id, false).Updates(map[string]any{"Password": hash, "PasswordHashed": true}).Error; err != nil {
-			return nil, err
-		}
-		rows[i].Password = hash
-		rows[i].PasswordHashed = true
 	}
 	return rows, nil
 }

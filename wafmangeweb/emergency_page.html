@@ -138,8 +138,6 @@ function reqHeaders(extra) {
     'X-Request-Time': Math.floor(Date.now() / 1000).toString(),
     'X-Request-Id': genUUID()
   }, extra || {});
-  // 有会话密钥就声明，后端据此用 v2 加密响应
-  if (window._secKeyId) { h['X-Sec-Ver'] = '2'; h['X-Key-Id'] = window._secKeyId; }
   return h;
 }
 
@@ -168,126 +166,66 @@ function _bytesToB64Sec(bytes) {
   return btoa(bin);
 }
 
-// 确保会话密钥就绪；失败（后端没有该接口/网络异常）返回 false，调用方回落 legacy
-function ensureSec() {
-  if (_secKeyId && _secShared) return Promise.resolve(true);
+async function ensureSec() {
+  if (_secKeyId && _secShared) return { id: _secKeyId, key: _secShared };
   if (_secPromise) return _secPromise;
-
-  // 一次往返：发自己的一次性公钥，换回服务端公钥 + keyid（X25519 谁先谁后都行）
-  var eph = nacl.box.keyPair();
-  _secPromise = fetch(apiUrl('/api/v1/public/seckey'), {
-    method: 'POST',
-    headers: reqHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ epk: _bytesToB64Sec(eph.publicKey) })
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(reg) {
-      if (!reg || reg.code !== 0 || !reg.data || !reg.data.keyid || !reg.data.pub) throw new Error('no keyid');
+  _secPromise = (async function() {
+    var eph = nacl.box.keyPair();
+    try {
+      var response = await fetch(apiUrl('/api/v1/public/seckey'), {
+        method: 'POST',
+        headers: reqHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ epk: _bytesToB64Sec(eph.publicKey) })
+      });
+      var reg = await response.json();
+      if (!response.ok || reg.code !== 0 || !reg.data || !reg.data.keyid || !reg.data.pub) throw new Error('管理会话握手失败');
       var serverPub = _b64ToBytesSec(reg.data.pub);
-      if (serverPub.length !== 32) throw new Error('bad pub');
-      _secKeyId = reg.data.keyid;
+      if (serverPub.length !== 32) throw new Error('管理会话公钥无效');
       _secShared = nacl.box.before(serverPub, eph.secretKey);
-      window._secKeyId = _secKeyId;
-      return true;
-    })
-    .catch(function() { _secKeyId = ''; _secShared = null; window._secKeyId = ''; return false; })
-    .then(function(ok) { _secPromise = null; return ok; });
+      _secKeyId = reg.data.keyid;
+      return { id: _secKeyId, key: _secShared };
+    } finally {
+      eph.secretKey.fill(0);
+    }
+  })().finally(function() { _secPromise = null; });
   return _secPromise;
 }
 
-// 解开 swt2 报文；不是 v2 格式或校验失败返回 null
-function secDecrypt(enc) {
-  if (typeof enc !== 'string' || enc.indexOf('swt2:') !== 0 || !_secShared) return null;
-  try {
-    var rest = enc.slice(5);
-    var sep = rest.indexOf(':');
-    if (sep <= 0 || rest.slice(0, sep) !== _secKeyId) return null;
-    var raw = _b64ToBytesSec(rest.slice(sep + 1));
-    if (raw.length <= 24) return null;
-    var opened = nacl.secretbox.open(raw.slice(24), raw.slice(0, 24), _secShared);
-    if (!opened) return null;
-    return new TextDecoder().decode(opened);
-  } catch (e) { return null; }
+function secEncrypt(text, session) {
+  var nonce = nacl.randomBytes(24);
+  var sealed = nacl.secretbox(new TextEncoder().encode(text), nonce, session.key);
+  var raw = new Uint8Array(nonce.length + sealed.length);
+  raw.set(nonce);
+  raw.set(sealed, nonce.length);
+  return 'swt2:' + session.id + ':' + _bytesToB64Sec(raw);
 }
 
-// ─── AES-CBC 解密（Web Crypto API，与后端 wafsec/aes.go 对称）───────────────
-// 格式：Base64(随机16字节IV ‖ 密文)，PKCS7 padding，Key = "7E@u*has$d*@s5YX"
-var _AES_KEY_RAW = '7E@u*has$d*@s5YX';
-
-function _b64ToBytes(b64) {
-  var bin = atob(b64);
-  var bytes = new Uint8Array(bin.length);
-  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
+function secDecrypt(enc, session) {
+  var prefix = 'swt2:' + session.id + ':';
+  if (typeof enc !== 'string' || !enc.startsWith(prefix)) throw new Error('管理响应的会话标识无效');
+  var raw = _b64ToBytesSec(enc.slice(prefix.length));
+  var opened = nacl.secretbox.open(raw.slice(24), raw.slice(0, 24), session.key);
+  if (!opened) throw new Error('管理响应校验失败');
+  return new TextDecoder().decode(opened);
 }
 
-function _bytesToB64(bytes) {
-  var bin = '';
-  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
-
-var _cryptoKeyPromise = null;
-function _getAesKey() {
-  if (!_cryptoKeyPromise) {
-    // crypto.subtle 只在安全上下文(HTTPS/localhost)存在。走 HTTP 从局域网 IP 打开时它是
-    // undefined，此路不通——这种部署下正常路径是上面的 v2 通道，legacy 只是兜底。
-    if (!window.crypto || !window.crypto.subtle) {
-      return Promise.reject(new Error('当前以 HTTP 访问，浏览器未提供 crypto.subtle；请改用 https 或 localhost 访问本页'));
-    }
-    var keyBytes = new TextEncoder().encode(_AES_KEY_RAW);
-    _cryptoKeyPromise = crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt', 'decrypt']);
+async function apiFetch(url, options, retried) {
+  var session = await ensureSec();
+  var opt = Object.assign({}, options, { headers: reqHeaders(options.headers) });
+  opt.headers['X-Key-Id'] = session.id;
+  if (options.body) opt.body = secEncrypt(options.body, session);
+  var response = await fetch(url, opt);
+  if (response.status === 401 || response.status === 403) {
+    doLogout();
+    throw new Error('认证失败，请重新登录');
   }
-  return _cryptoKeyPromise;
-}
-
-function aesDecrypt(base64Str) {
-  return _getAesKey().then(function(key) {
-    var data = _b64ToBytes(base64Str);
-    var iv = data.slice(0, 16);
-    var ciphertext = data.slice(16);
-    return crypto.subtle.decrypt({ name: 'AES-CBC', iv: iv }, key, ciphertext);
-  }).then(function(plainBuf) {
-    // 去掉 PKCS7 padding
-    var plain = new Uint8Array(plainBuf);
-    var pad = plain[plain.length - 1];
-    if (pad > 0 && pad <= 16) plain = plain.slice(0, plain.length - pad);
-    return new TextDecoder().decode(plain);
-  });
-}
-
-// ─── 统一 fetch 封装：自动解密 code===0 时的 data 字段 ─────────────────────
-function apiFetch(url, options) {
-  // 先确保会话密钥就绪，再把声明补进请求头——调用方组装 headers 时握手可能还没完成
-  return ensureSec().then(function() {
-    var opt = options || {};
-    if (_secKeyId) {
-      opt.headers = Object.assign({}, opt.headers || {}, { 'X-Sec-Ver': '2', 'X-Key-Id': _secKeyId });
-    }
-    return fetch(url, opt);
-  })
-    .then(function(r) {
-      if (r.status === 401 || r.status === 403) {
-        doLogout();
-        throw new Error('认证失败，请重新登录');
-      }
-      return r.json();
-    })
-    .then(function(json) {
-      if (json.code === 0 && json.data && typeof json.data === 'string' && json.data.length > 0) {
-        // v2 报文优先；握手没成时后端回落 legacy，这里也跟着走旧解法
-        var plain = secDecrypt(json.data);
-        if (plain !== null) {
-          json.data = JSON.parse(plain);
-          return json;
-        }
-        return aesDecrypt(json.data).then(function(legacyPlain) {
-          json.data = JSON.parse(legacyPlain);
-          return json;
-        });
-      }
-      return json;
-    });
+  var json = await response.json();
+  if (json.code === -5 && !retried) {
+    if (_secKeyId === session.id) { _secKeyId = ''; _secShared = null; }
+    return apiFetch(url, options, true);
+  }
+  if (json.code === 0) json.data = JSON.parse(secDecrypt(json.data, session));
+  return json;
 }
 
 // 从 ?back= 参数读取回跳 URL（App.vue enterEmergencyMode 传入）
@@ -337,7 +275,7 @@ var currentVersion = '';
 
 function loadVersion() {
   return apiFetch(apiUrl('/api/v1/sysinfo/version'), {
-    headers: reqHeaders({ 'X-Token': token })
+    headers: { 'X-Token': token }
   }).then(function(res) {
     if (res.code === 0 && res.data) {
       currentVersion = res.data.version || '';
@@ -374,10 +312,9 @@ function doLogin() {
   var otp = document.getElementById('inputOtp').value;
   if (!account || !password) { showAlert('请填写账号和密码', 'danger'); return; }
 
-  // 登录请求发送明文 JSON（后端 SecApi 中间件不解密普通 web JSON POST）
-  apiFetch(apiUrl('/api/v1/login'), {
+  apiFetch(apiUrl('/api/v1/public/login'), {
     method: 'POST',
-    headers: reqHeaders({ 'Content-Type': 'application/json' }),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ login_account: account, login_password: password, login_otp_secret_code: otp })
   })
   .then(function(res) {
@@ -401,7 +338,7 @@ function loadBackups() {
   wrap.innerHTML = '<div class="loading">加载中...</div>';
 
   apiFetch(apiUrl('/api/v1/sysinfo/rollbacklist'), {
-    headers: reqHeaders({ 'X-Token': token })
+    headers: { 'X-Token': token }
   })
   .then(function(res) {
     if (res.code !== 0) { showAlert(res.msg || '获取失败', 'danger'); wrap.innerHTML = ''; return; }
@@ -459,7 +396,7 @@ function doRollback() {
   showAlert('正在执行回退，请稍候...', '');
 
   apiFetch(apiUrl('/api/v1/sysinfo/rollback?version=' + encodeURIComponent(pendingVersion)), {
-    headers: reqHeaders({ 'X-Token': token })
+    headers: { 'X-Token': token }
   })
   .then(function(res) {
     btn.disabled = false;

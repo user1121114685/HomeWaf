@@ -376,10 +376,9 @@ export default defineComponent({
         'inbound_anomaly_score_pl1', 'inbound_anomaly_score_pl2',
         'inbound_anomaly_score_pl3', 'inbound_anomaly_score_pl4',
       ]);
-      const matches = content.match(/%\{tx\.([a-zA-Z_][a-zA-Z0-9_]*)\}/g) || [];
+      const matches = content.matchAll(/%\{tx\.([a-zA-Z_][a-zA-Z0-9_]*)\}/g);
       const vars = new Set<string>();
-      for (const m of matches) {
-        const name = m.replace('%{tx.', '').replace('}', '');
+      for (const [, name] of matches) {
         if (!scoreVars.has(name)) vars.add(name);
       }
       return Array.from(vars);

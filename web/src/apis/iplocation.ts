@@ -2,6 +2,14 @@
 
 import request from '@/utils/request'
 
+export function uploadIPDBApi(file: File, type: string, key: string) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('type', type);
+  form.append('key', key);
+  return request.post('/iplocation/upload', form);
+}
+
 // IP数据库管理 - 获取状态
 export function getIPDBStatusApi() {
   return request({

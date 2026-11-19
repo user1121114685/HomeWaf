@@ -14,14 +14,8 @@ type WafPipelineHoneypotService struct{ mu sync.Mutex }
 
 var WafPipelineHoneypotServiceApp = &WafPipelineHoneypotService{}
 
-func validateSharedHoneypot(cfg wafpipeline.HoneypotConfig) error {
-	policy := wafpipeline.DefaultPolicy()
-	policy.Honeypot = cfg
-	return wafpipeline.ValidateConfig(wafpipeline.PortConfig{Schema: wafpipeline.SchemaVersion, Port: 1, Protocol: "http", Upstream: "http://127.0.0.1", Policy: policy}, 0)
-}
-
 func (s *WafPipelineHoneypotService) Get() (wafpipeline.SharedHoneypotConfig, error) {
-	out := wafpipeline.SharedHoneypotConfig{Config: wafpipeline.SharedHoneypotPolicy(wafpipeline.DefaultPolicy().Honeypot)}
+	out := wafpipeline.SharedHoneypotConfig{Config: wafpipeline.DefaultHoneypotConfig()}
 	db, err := pipelineDB()
 	if err != nil {
 		return out, err
@@ -37,8 +31,7 @@ func (s *WafPipelineHoneypotService) Get() (wafpipeline.SharedHoneypotConfig, er
 	if err := wafpipeline.StrictDecode([]byte(row.ConfigJSON), &out.Config); err != nil {
 		return out, err
 	}
-	out.Config = wafpipeline.SharedHoneypotPolicy(out.Config)
-	if err := validateSharedHoneypot(out.Config); err != nil {
+	if err := wafpipeline.ValidateHoneypotConfig(out.Config); err != nil {
 		return out, err
 	}
 	out.Configured, out.Revision = true, row.Revision
@@ -60,10 +53,11 @@ func (s *WafPipelineHoneypotService) Load() error {
 func (s *WafPipelineHoneypotService) Save(value wafpipeline.SharedHoneypotConfig, operator string) (wafpipeline.SharedHoneypotConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cfg := wafpipeline.SharedHoneypotPolicy(value.Config)
-	policy := wafpipeline.DefaultPolicy()
-	policy.Honeypot = cfg
-	if err := wafpipeline.ValidateConfig(wafpipeline.PortConfig{Schema: wafpipeline.SchemaVersion, Port: 1, Protocol: "http", Upstream: "http://127.0.0.1", Policy: policy}, 0); err != nil {
+	cfg := value.Config
+	if cfg.ArchiveMaxBytes == 0 {
+		cfg.ArchiveMaxBytes = wafpipeline.DefaultHoneypotConfig().ArchiveMaxBytes
+	}
+	if err := wafpipeline.ValidateHoneypotConfig(cfg); err != nil {
 		return value, err
 	}
 	db, err := pipelineDB()

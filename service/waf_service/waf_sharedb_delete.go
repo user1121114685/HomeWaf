@@ -26,23 +26,20 @@ import (
 //     而且删完 share_dbs 记录还在，下拉里仍然列着一个已经不存在的分区。
 //     这里按「分区」来删：文件型删文件、服务型丢表，两种部署都把元数据记录一并清掉。
 
-// ShardTierBases 一个归档分区里可能存在的四层基表
+// ShardTierBases 一个归档分区里可能存在的三层基表
 var ShardTierBases = []string{
 	model.AccessLogTableName,
 	model.SecurityEventTableName,
 	model.EventPayloadTableName,
-	wafdb.LogTableName,
 }
 
 // IsLiveShardName 实时库自己的标识，永远不能被当成归档删除
 func IsLiveShardName(name string) bool {
 	name = strings.TrimSpace(name)
-	return name == "" || name == AutoShard || name == enums.DB_LOG || name == "local_log.db" ||
-		name == wafdb.LogTableName || name == model.AccessLogTableName
+	return name == "" || name == AutoShard || name == enums.DB_LOG || name == model.AccessLogTableName
 }
 
-// ArchiveSuffix 从归档标识里取出分片后缀（周期键或时间戳），认不出返回空。
-// 只认 web_logs_ / access_log_ 两种前缀——与读侧 ResolveTierTables 的口径一致。
+// ArchiveSuffix returns the period and optional sequence of a SQL archive.
 func ArchiveSuffix(name string) string {
 	return wafdb.ArchiveTableSuffix(name)
 }
@@ -79,7 +76,7 @@ func (receiver *WafShareDbService) GetAllShareDbWithTiers() ([]ShardTierInfo, er
 	for _, s := range shards {
 		info := ShardTierInfo{ShareDb: s}
 		if IsLiveShardName(s.FileName) {
-			// 实时行的 Cnt 只是补登那一刻对 web_logs 的快照，且该表分层后已停写，永远定格。
+
 			// 归档分区的 Cnt 是切库快照（归档不可变，快照即准确），实时的只能现场数。
 			info.Cnt = liveShardCnt()
 		} else {

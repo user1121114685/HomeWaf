@@ -1,5 +1,6 @@
 // HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 import { clearAppOpPassword } from '@/utils/appOperationPassword';
+import { heartbeat_api } from '@/apis/common';
 
 const state = { token: localStorage.getItem('access_token') || '', userInfo: { name: '', roles: [] as string[] } };
 const mutations = {
@@ -27,7 +28,13 @@ const actions = {
   },
   async getUserInfo({ commit, state }: any) {
     if (!state.token) throw new Error('Not authenticated');
-    commit('setUserInfo', { name: localStorage.getItem('current_account') || '', roles: ['ALL_ROUTERS'] });
+    const token = state.token;
+    const result = await heartbeat_api();
+    const role = result.data?.role;
+    if (state.token !== token || result.code !== 0 || !['superAdmin', 'systemAdmin', 'securityAdmin', 'auditAdmin'].includes(role)) {
+      throw new Error('账号角色无效，请重新登录');
+    }
+    commit('setUserInfo', { name: result.data.login_account, role, roles: ['ALL_ROUTERS'] });
   },
   async logout({ commit }: any) {
     commit('removeToken');

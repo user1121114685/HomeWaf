@@ -205,8 +205,7 @@ func InitLogDb(currentDir string) (bool, error) {
 // InitManaulLogDb 按需只读打开一个 SQLite 归档日志分片，已打开的直接复用。
 //
 // 归档文件只读：不跑初始化、连接层 query_only，打开前先确认文件在——不在就返回 ErrShardMissing，
-// 不会在原位置建出一个空库。读侧按分片实际有的表与列取数（ResolveTierTables / webLogSelect），
-// 不需要归档跟着实时库补表补列。页缓存与连接数按只读场景收小，多个分片同时打开时内存可控。
+// 不会在原位置建出一个空库。页缓存与连接数按只读场景收小，多个分片同时打开时内存可控。
 func InitManaulLogDb(currentDir string, custFileName string) error {
 	if dialect.Get().Name() != "sqlite" {
 		// MySQL 模式下所有日志写入同一个库，无需手动切换分库
@@ -324,7 +323,7 @@ func before_query(db *gorm.DB) {
 	// not embed BaseOrm. Keep tenant filtering for every other table, including
 	// schema-less Table(...).Find/Count queries.
 	switch db.Statement.Table {
-	case "pipeline_port_migration", "gate_runtime", "pipeline_state", "pipeline_daily_metrics", "pipeline_log", "pipeline_success_source", "pipeline_honeypot":
+	case "gate_runtime", "pipeline_state", "pipeline_daily_metrics", "pipeline_log", "pipeline_success_source", "pipeline_honeypot":
 		return
 	}
 	db.Where("tenant_id = ? and user_code=? ", global.GWAF_TENANT_ID, global.GWAF_USER_CODE)
@@ -743,7 +742,7 @@ func ExecuteSQLCommand(currentDir string) {
 			fmt.Println("\nSQL 语句示例:")
 			fmt.Println("  SELECT * FROM account LIMIT 10;")
 			fmt.Println("  UPDATE hosts SET status=1 WHERE code='xxx';")
-			fmt.Println("  DELETE FROM web_logs WHERE unix_add_time < 1234567890;")
+			fmt.Println("  DELETE FROM access_log WHERE unix_add_time < 1234567890;")
 			fmt.Println("")
 			continue
 		}

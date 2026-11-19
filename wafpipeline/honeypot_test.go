@@ -2,7 +2,6 @@ package wafpipeline
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -11,83 +10,18 @@ import (
 	"time"
 )
 
-func TestHoneypotCaptureDeniedStepPolicyBoundaries(t *testing.T) {
-	for _, tc := range []struct {
-		name       string
-		number     int
-		step       string
-		failClosed bool
-		verdict    Verdict
-		hit        bool
-		observeHit bool
-		fail       bool
-		want       Action
-	}{
-		{"manual blacklist", 2, "ip_group", true, Verdict{Action: Deny, Status: 403, Reason: "blacklist:custom"}, false, false, false, Honeypot},
-		{"shared blacklist", 2, "ip_group", true, Verdict{Action: Deny, Status: 403, Reason: "blacklist:group"}, false, false, false, Honeypot},
-		{"automatic blacklist", 2, "ip_group", true, Verdict{Action: Deny, Status: 403, Reason: "blacklist:auto:sqli"}, false, false, false, Honeypot},
-		{"unlisted", 2, "ip_group", true, Verdict{Action: Deny, Status: 403, Reason: "ip:unlisted"}, false, false, false, Honeypot},
-		{"policy failure", 2, "ip_group", true, Verdict{Action: Deny, Status: 503, Reason: "ip:group_unavailable"}, false, false, false, Deny},
-		{"lockdown", 2, "ip_group", true, Verdict{Action: Deny, Status: 503, Reason: "lockdown"}, false, false, false, Deny},
-		{"access shutdown", 1, "access_switch", true, Verdict{Action: Deny, Status: 503, Reason: "access_disabled"}, false, false, false, Deny},
-		{"unknown business entry", 2, "business_entry", true, Verdict{Action: Deny, Status: 404}, false, false, false, Deny},
-		{"attack rule", 3, "sqli", false, Verdict{Action: Deny, Status: 403, RuleID: "sqli", Reason: "matched"}, true, false, false, Honeypot},
-		{"rate limit", 3, "qps", false, Verdict{Action: Deny, Status: 429, RuleID: "qps"}, true, false, false, Honeypot},
-		{"observed verdict", 3, "sqli", false, Verdict{Action: Deny, Observe: true}, true, true, false, Deny},
-		{"observed evidence", 3, "sqli", false, Verdict{Action: Deny}, true, true, false, Deny},
-		{"no hit", 3, "detector", false, Verdict{Action: Deny}, false, false, false, Deny},
-		{"auth gate", 3, "auth_gate", true, Verdict{Action: Deny, Status: 403}, true, false, false, Deny},
-		{"challenge", 3, "bot", false, Verdict{Action: Challenge, Status: 429}, true, false, false, Challenge},
-		{"drop", 3, "custom", false, Verdict{Action: Drop}, true, false, false, Drop},
-		{"detector failure", 3, "detector", false, Verdict{Action: Deny}, true, false, true, Deny},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			s := &Snapshot{Config: PortConfig{Policy: DefaultPolicy()}}
-			s.Config.Policy.Honeypot.Enabled = true
-			s.Config.Policy.Honeypot.CaptureDenied = true
-			originalErr := errors.New("unavailable")
-			step := Step{Number: tc.number, Name: tc.step, FailClosed: tc.failClosed, Inspect: func(c *RequestContext) (Verdict, error) {
-				if tc.hit {
-					c.Hit("sqli", "sqli", High, tc.observeHit, "signature matched")
-				}
-				if tc.fail {
-					return tc.verdict, originalErr
-				}
-				return tc.verdict, nil
-			}}
-			context := func() *RequestContext {
-				return NewRequestContext(httptest.NewRequest("GET", "http://test/", nil), "port:5000", netip.MustParseAddr("198.51.100.1"), DefaultViewLimits())
-			}
-			c := context()
-			v, err := captureDeniedStep(s, step).Inspect(c)
-			if v.Action != tc.want || v.Reason != tc.verdict.Reason || v.RuleID != tc.verdict.RuleID || tc.fail && err != originalErr {
-				t.Fatalf("verdict/evidence changed: %+v, %v", v, err)
-			}
-			if v.Action == Honeypot && v.Status != 200 {
-				t.Fatal("honeypot did not advertise its response status")
-			}
-			for _, disabled := range []string{"capture", "honeypot"} {
-				s.Config.Policy.Honeypot.CaptureDenied = disabled != "capture"
-				s.Config.Policy.Honeypot.Enabled = disabled != "honeypot"
-				v, _ := captureDeniedStep(s, step).Inspect(context())
-				if v != tc.verdict {
-					t.Fatalf("%s disabled but behavior changed: %+v", disabled, v)
-				}
-			}
-		})
-	}
-}
-
 func TestHoneypotCapturedRequestsStayIsolatedAndBoundMetadata(t *testing.T) {
+	cfg := DefaultHoneypotConfig()
+	cfg.MaxDelayMillis = 0
+	publishTestHoneypot(t, cfg)
 	f := newProxyFixture(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }, false)
 	honey := NewHoneyHandler()
 	f.runtime.Respond = honey.Respond
 	results := make(chan Result, 8)
 	f.runtime.OnResult = func(_ *Snapshot, _ *RequestContext, result Result) { results <- result }
 	f.update(t, func(s *Snapshot) {
-		s.Config.Policy.Honeypot.Enabled = true
-		s.Config.Policy.Honeypot.CaptureDenied = true
-		s.Config.Policy.Honeypot.MaxDelayMillis = 0
+		s.Config.Policy.Defense.Enabled = true
+		s.Config.Policy.Defense.Mode = DefenseHoney
 		s.Config.Policy.IPGroup.Entries = []IPEntry{{Type: "deny", Value: "127.0.0.1"}}
 	})
 	for _, method := range []string{"GET", "POST", "HEAD"} {
@@ -122,12 +56,12 @@ func TestHoneypotCapturedRequestsStayIsolatedAndBoundMetadata(t *testing.T) {
 			}
 		}
 	}
-	// Explain uses exactly the same routing policy and keeps the original reason.
+	// Explain reports the policy denial. The live response layer is exercised above.
 	result, err := f.runtime.Explain(f.current.Load(), httptest.NewRequest("GET", "http://test/admin", nil), netip.MustParseAddr("127.0.0.1"))
-	if err != nil || result.Verdict.Action != Honeypot || result.Trace[len(result.Trace)-1].Verdict.Action != Honeypot {
-		t.Fatalf("preview disagrees with live routing: %+v %v", result, err)
+	if err != nil || result.Verdict.Action != Deny || result.Verdict.Reason != "blacklist:custom" {
+		t.Fatalf("preview lost the policy denial: %+v %v", result, err)
 	}
-	f.update(t, func(s *Snapshot) { s.Config.Policy.Honeypot.CaptureDenied = false })
+	f.update(t, func(s *Snapshot) { s.Config.Policy.Defense.Enabled = false })
 	status, _, _ := proxyCall(t, f, "GET", "/admin", "", nil)
 	result = <-results
 	if status != 403 || result.Honeypot != nil || f.requests.Load() != 0 {
@@ -136,14 +70,17 @@ func TestHoneypotCapturedRequestsStayIsolatedAndBoundMetadata(t *testing.T) {
 }
 
 func TestHoneypotTrapNormalizedPathsAcrossSources(t *testing.T) {
+	cfg := DefaultHoneypotConfig()
+	cfg.MaxDelayMillis = 0
+	cfg.TrapPaths = []string{"/bait"}
+	publishTestHoneypot(t, cfg)
 	f := newProxyFixture(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }, false)
 	f.runtime.Respond = NewHoneyHandler().Respond
 	original := f.runtime.RuleSteps
 	f.runtime.RuleSteps = func(s *Snapshot) []Step { return append([]Step{TrapStep(s)}, original(s)...) }
 	f.update(t, func(s *Snapshot) {
-		s.Config.Policy.Honeypot.Enabled = true
-		s.Config.Policy.Honeypot.MaxDelayMillis = 0
-		s.Config.Policy.Honeypot.TrapPaths = []string{"/bait"}
+		s.Config.Policy.Defense.Enabled = true
+		s.Config.Policy.Defense.Mode = DefenseHoney
 		s.Config.Policy.Network.TrustedProxies = []string{"127.0.0.1/32"}
 	})
 	for _, ip := range []string{"198.51.100.11", "198.51.100.12"} {
@@ -161,14 +98,16 @@ func TestHoneypotTrapNormalizedPathsAcrossSources(t *testing.T) {
 }
 
 func TestHoneypotRuleDenialsAcrossSourcesAndObserveMode(t *testing.T) {
+	cfg := DefaultHoneypotConfig()
+	cfg.MaxDelayMillis = 0
+	publishTestHoneypot(t, cfg)
 	f := newProxyFixture(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }, false)
 	f.runtime.Respond = NewHoneyHandler().Respond
 	results := make(chan Result, 8)
 	f.runtime.OnResult = func(_ *Snapshot, _ *RequestContext, result Result) { results <- result }
 	f.update(t, func(s *Snapshot) {
-		s.Config.Policy.Honeypot.Enabled = true
-		s.Config.Policy.Honeypot.CaptureDenied = true
-		s.Config.Policy.Honeypot.MaxDelayMillis = 0
+		s.Config.Policy.Defense.Enabled = true
+		s.Config.Policy.Defense.Mode = DefenseHoney
 		s.Config.Policy.Network.TrustedProxies = []string{"127.0.0.1/32"}
 		s.Config.Policy.RuleSet.URLs = []URLRule{{ID: "restricted", Match: "prefix", Value: "/private", Action: Deny, Mode: ModeBlock}}
 	})
@@ -190,9 +129,11 @@ func TestHoneypotRuleDenialsAcrossSourcesAndObserveMode(t *testing.T) {
 }
 
 func TestHoneypotOverloadAndHead(t *testing.T) {
-	s := &Snapshot{Config: PortConfig{Port: 5000, Policy: DefaultPolicy()}}
-	s.Config.Policy.Honeypot.MaxConcurrent = 1
-	s.Config.Policy.Honeypot.MaxDelayMillis = 0
+	cfg := DefaultHoneypotConfig()
+	cfg.MaxConcurrent = 1
+	cfg.MaxDelayMillis = 0
+	publishTestHoneypot(t, cfg)
+	s := honeypotSnapshot()
 	h := NewHoneyHandler()
 	newContext := func() *RequestContext {
 		return NewRequestContext(httptest.NewRequest("HEAD", "http://test/", nil), "port:5000", netip.MustParseAddr("198.51.100.1"), DefaultViewLimits())
@@ -222,8 +163,11 @@ func (w *honeyDeadlineWriter) SetReadDeadline(deadline time.Time) error {
 }
 
 func TestHoneypotSubmissionBoundsReadDeadline(t *testing.T) {
-	s := &Snapshot{Config: PortConfig{Port: 5000, Policy: DefaultPolicy()}, Secrets: PortSecrets{GateKey: randomToken()}}
-	s.Config.Policy.Honeypot.MaxDelayMillis = 0
+	cfg := DefaultHoneypotConfig()
+	cfg.MaxDelayMillis = 0
+	publishTestHoneypot(t, cfg)
+	s := honeypotSnapshot()
+	s.Secrets.GateKey = randomToken()
 	req := httptest.NewRequest("POST", "http://test/login", strings.NewReader(`{"username":"probe","password":"test"}`))
 	req.Header.Set("Content-Type", "application/json")
 	c := NewRequestContext(req, "port:5000", netip.MustParseAddr("198.51.100.1"), DefaultViewLimits())

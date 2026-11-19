@@ -612,7 +612,7 @@ func (receiver *WafNotifyThrottleService) debugLog(sub model.NotifySubscription,
 // 用哈希而不是原文：维度里可能带 URL/规则原文这种超长且含任意字符的串，
 // 原文直接做 map key 会让内存和日志都不可控。
 func buildDedupKey(subId string, dedupKeys []string, ev NotifyEvent) string {
-	parts := make([]string, 0, len(dedupKeys)+1)
+	parts := make([]string, 0, len(dedupKeys))
 	for _, k := range dedupKeys {
 		v := ev.DedupParts[k]
 		if v == "" {

@@ -166,7 +166,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import { hashBytes } from '@/utils/legacyCipher';
+import { hashBytes } from '@/utils/fileHash';
 import request from '@/utils/request';
 import { wafAppAddApi, wafAppEditApi, wafAppListApi, wafAppDirPreviewApi, buildUploadConfig } from '@/apis/application';
 import { createDirPreviewController, planSubmit } from './appFlow';

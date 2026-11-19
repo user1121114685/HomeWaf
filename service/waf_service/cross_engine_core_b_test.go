@@ -113,14 +113,20 @@ func runCoreCRUDCasesB(t *testing.T, db *gorm.DB) {
 	})
 
 	t.Run("SslExpire", func(t *testing.T) {
-		domain := "d_" + sfx() + ".com"
-		fatalIf(t, WafSslExpireServiceApp.AddApi(request.WafSslExpireAddReq{Domain: domain, Port: 443, VisitLog: "v", Status: "unknown"}))
+		domain := "d-" + sfx() + ".example.test"
+		fatalIf(t, WafSslExpireServiceApp.AddApi(request.WafSslExpireAddReq{Domain: domain, Port: 443}))
 		var bean model.SslExpire
 		firstBy(t, db, &bean, "domain = ?", domain)
+		checkedAt := time.Now()
+		must(t, db.Model(&bean).Updates(map[string]any{
+			"last_detect": checkedAt, "last_success": checkedAt, "valid_to": checkedAt.AddDate(0, 1, 0),
+			"status": "valid", "visit_log": "previous result",
+		}).Error)
 		fatalIf(t, WafSslExpireServiceApp.ModifyApi(request.WafSslExpireEditReq{Id: bean.Id, Domain: domain, Port: 8443, VisitLog: "v2", Status: "valid"}))
 		got := WafSslExpireServiceApp.GetDetailByIdApi(bean.Id)
-		if got.Port != 8443 || got.Status != "valid" {
-			t.Fatalf("SslExpire 更新未落库: %+v", got)
+		if got.Port != 8443 || got.Status != "unverified" || got.VisitLog != "" ||
+			!time.Time(got.LastDetect).IsZero() || !time.Time(got.LastSuccess).IsZero() || !time.Time(got.ValidTo).IsZero() {
+			t.Fatalf("修改监测目标后应清空旧检测结果: %+v", got)
 		}
 		fatalIf(t, WafSslExpireServiceApp.DelApi(request.WafSslExpireDelReq{Id: bean.Id}))
 		assertGone(t, db, &model.SslExpire{}, bean.Id)
@@ -166,7 +172,7 @@ func runCoreCRUDCasesB(t *testing.T, db *gorm.DB) {
 		}
 		cn2 := "u" + sfx() + ".example.com"
 		cert2, key2 := genSelfSignedCert(t, cn2)
-		fatalIf(t, WafSslConfigServiceApp.ModifyApi(request.SslConfigEditReq{Id: bean.Id, CertContent: cert2, KeyContent: key2}))
+		fatalIf(t, WafSslConfigServiceApp.ModifyApi(request.SslConfigEditReq{Id: bean.Id, CertContent: cert2, KeyContent: key2, AutoLoadPath: new(0), ExportCertPath: new(string), ExportKeyPath: new(string)}))
 		got := WafSslConfigServiceApp.GetDetailInner(bean.Id)
 		if got.Domains != cn2 {
 			t.Fatalf("SslConfig 更新未落库: domains=%q 期望 %q", got.Domains, cn2)

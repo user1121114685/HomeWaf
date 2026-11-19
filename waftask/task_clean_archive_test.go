@@ -52,8 +52,8 @@ func TestShardEndPrefersRecordedTime(t *testing.T) {
 	}
 }
 
-func TestIsLiveShardNameCoversEveryDriver(t *testing.T) {
-	for _, name := range []string{"", "local_log.db", "web_logs", "access_log"} {
+func TestIsLiveShardName(t *testing.T) {
+	for _, name := range []string{"", "auto", "local_log.db"} {
 		if !isLiveShardName(name) {
 			t.Errorf("%q 是实时库标识，必须被挡在回收之外", name)
 		}
@@ -69,12 +69,12 @@ func TestArchiveSuffix(t *testing.T) {
 	cases := map[string]string{
 		"access_log_202609":       "202609",
 		"access_log_202609_02":    "202609_02",
-		"web_logs_20260921153045": "20260921153045",
+		"web_logs_20260921153045": "",
 		"access_log_space name":   "",
 		"access_log_a/b":          "",
 		"local_log_202609.db":     "", // SQLite 走删文件那条路，不需要后缀
 		"access_log":              "", // 实时表：取不出后缀，回收逻辑因此不会碰它
-		"security_event_202609":   "", // 只认 web_logs_/access_log_ 两种标识，与读侧口径一致
+		"security_event_202609":   "", // 以访问表名登记分区
 	}
 	for name, want := range cases {
 		if got := archiveSuffix(name); got != want {

@@ -96,7 +96,7 @@ func Auth() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			if !enums.IsValidRole(enums.NormalizeRole(tokenInfo.Role)) {
+			if !enums.IsValidRole(tokenInfo.Role) {
 				response.AuthFailWithMessage("账号角色无效，请联系管理员", c)
 				c.Abort()
 				return
@@ -206,8 +206,7 @@ func Auth() gin.HandlerFunc {
 			// 将登录账号写入 context，供下游（变更记录、安全审计）取用
 			c.Set("loginAccount", tokenInfo.LoginAccount)
 			c.Set("loginIP", currentIP)
-			// 写入角色，供 RBAC 鉴权中间件判定（空角色兜底为超级管理员，向后兼容）
-			c.Set("userRole", enums.NormalizeRole(tokenInfo.Role))
+			c.Set("userRole", tokenInfo.Role)
 		}
 
 		// 这里执行路由 HandlerFunc
@@ -234,20 +233,10 @@ func bindFailCounterTTL() time.Duration {
 
 // extractTokenStr 按请求路径挑选令牌来源。
 //
-// 判定一律基于 URL.Path，**不能用 RequestURI**——后者带查询串，给这两条路由加任何
-// 查询参数（例如 WebSocket 的 ?keyid=）都会让相等判断失配，于是落到常规请求头分支：
-// WebSocket 握手带不了自定义头，令牌取空，连接被判鉴权失败，页面表现为收不到通知。
-//
-//   - /api/v1/ws                     令牌在 Sec-WebSocket-Protocol（浏览器 WS API 只能这样带）
-//   - /api/v1/waflog/attack/download 令牌在查询串（下载走 window.open，同样带不了头）
-//   - 其余                            常规请求头，移动端与 Web 各用各的
+// 浏览器 WebSocket 通过子协议携带令牌，URL.Path 允许同时附带会话标识查询参数。
 func extractTokenStr(c *gin.Context) string {
-	reqPath := c.Request.URL.Path
-	if reqPath == "/api/v1/ws" {
+	if c.Request.URL.Path == "/api/v1/ws" {
 		return normalizeTokenStr(c.GetHeader("Sec-WebSocket-Protocol"))
-	}
-	if strings.HasPrefix(reqPath, "/api/v1/waflog/attack/download") {
-		return normalizeTokenStr(c.Query("X-Token"))
 	}
 	if c.GetHeader("X-Login-Type") == "mobile" {
 		return normalizeTokenStr(c.GetHeader("X-Mobile-Token"))
@@ -270,7 +259,7 @@ func normalizeTokenStr(raw string) string {
 }
 
 // isFingerprintExemptPath 判断当前请求是否豁免设备指纹比对。
-// WebSocket 握手、SSE(text/event-stream)、带查询串令牌的下载都由浏览器按各自的规则发头，
+// WebSocket 握手和 SSE(text/event-stream) 由浏览器按各自的规则发头，
 // 与页面里 XHR 的 Accept-Encoding/Accept-Language 天然不同，参与比对只会误杀。
 func isFingerprintExemptPath(c *gin.Context) bool {
 	if strings.EqualFold(c.GetHeader("Upgrade"), "websocket") {
@@ -279,11 +268,7 @@ func isFingerprintExemptPath(c *gin.Context) bool {
 	if strings.Contains(strings.ToLower(c.GetHeader("Accept")), "text/event-stream") {
 		return true
 	}
-	uri := c.Request.URL.Path
-	if uri == "/api/v1/ws" || strings.HasPrefix(uri, "/api/v1/waflog/attack/download") {
-		return true
-	}
-	return false
+	return c.Request.URL.Path == "/api/v1/ws"
 }
 
 // bumpTokenBindFailure 累加该令牌的绑定校验失败次数，返回是否已达阈值(达到则调用方作废会话)。

@@ -3,13 +3,9 @@
 package api
 
 import (
-	"HomeWaf/common/zlog"
-	"HomeWaf/enums"
-	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
-	"HomeWaf/model/spec"
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
 	"errors"
@@ -146,7 +142,11 @@ func (s *WafSslConfigApi) ModifySslConfigApi(c *gin.Context) {
 		} else {
 			newSslBean := wafSslConfigService.GetDetailInner(req.Id)
 			if oldSslBean.SerialNo != newSslBean.SerialNo {
-				s.NotifySslUpdate(oldSslBean, newSslBean)
+				waf_service.RefreshManagerCertBySslConfig(newSslBean.Id, newSslBean.CertContent, newSslBean.KeyContent)
+				if refreshErr := waf_service.WafPipelineServiceApp.RefreshSourceCertificates(); refreshErr != nil {
+					response.FailWithMessage("证书已保存，服务刷新失败："+refreshErr.Error(), c)
+					return
+				}
 			}
 			//证书已保存成功，导出只是附加动作：失败只提示，不改变保存结果
 			tip, exportFailed := s.exportTip(c, req.Id)
@@ -202,29 +202,4 @@ func (s *WafSslConfigApi) auditExport(c *gin.Context, msg string, exportErr erro
 		Result:      result,
 		Message:     "[" + roleStr + "] " + detail,
 	})
-}
-
-// NotifySslUpdate 通知到SSL引擎使其配置实时生效
-func (s *WafSslConfigApi) NotifySslUpdate(oldConfig model.SslConfig, newConfig model.SslConfig) {
-	innerLogName := "NotifySslUpdate"
-	//若管理端证书绑定了该证书夹条目，顺带刷新管理端证书
-	waf_service.RefreshManagerCertBySslConfig(newConfig.Id, newConfig.CertContent, newConfig.KeyContent)
-	for _, hosts := range wafHostService.GetHostBySSLConfigId(oldConfig.Id) {
-		//1.更新主机信息 2.发送主机通知
-		err := wafHostService.UpdateSSLInfo(newConfig.CertContent, newConfig.KeyContent, hosts.Code)
-		if err != nil {
-			zlog.Error(innerLogName, "ssl host update:", err.Error())
-			continue
-		}
-
-		hosts.Certfile = newConfig.CertContent
-		hosts.Keyfile = newConfig.KeyContent
-		var chanInfo = spec.ChanCommonHost{
-			HostCode:   hosts.Code,
-			Type:       enums.ChanTypeSSL,
-			Content:    hosts,
-			OldContent: hosts,
-		}
-		global.GWAF_CHAN_MSG <- chanInfo
-	}
 }

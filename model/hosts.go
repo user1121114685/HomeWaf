@@ -70,23 +70,11 @@ type Hosts struct {
 	IPTrustProxies string `gorm:"type:text" json:"ip_trust_proxies"` //可信代理网段(CIDR/IP，逗号分隔)，用于 xff_depth 跳过可信 hop
 	CDNProvider    string `gorm:"size:32" json:"cdn_provider"`       //cdn_preset 模式选择的 CDN 厂商: cloudflare|fastly|cloudfront|edgeone|aliyun|akamai
 	AccessJSON     string `gorm:"type:text" json:"access_json"`      //统一访问认证(Access模式)站点级配置 json（三态开关/路径白名单）
-	// GroupCode 所属分组短码，空=未分组。
-	// 纯管理端组织维度：只用于列表筛选与批量选择，不参与任何请求期判定，也不下发引擎（见 model/host_group.go）。
+	// GroupCode 保留在旧站点记录中，仅供管理员自行处理历史数据。
 	GroupCode string `gorm:"size:64" json:"group_code"`
 	// PortListensJSON 端口监听表(JSON)，形如 [{"port":80,"proto":"http","ipv":"both"}]。
-	// 空 = 按老规则从 Ssl/BindMorePort/AutoJumpHTTPS 派生（存量站点保持原行为）。
-	// addr 为预留字段：当前版本不生效，引擎读到会忽略并按通配监听。
-	// 解析唯一入口 utils.ResolveHostListens，其它地方不得自行解析。
+	// 必须显式声明主端口；utils.ResolveHostListens 拒绝无效监听表。
 	PortListensJSON string `gorm:"size:2048" json:"port_listens_json"`
-	// EmergencyMode 紧急模式（对标 Under Attack Mode）：1=开启，全部页面请求先过一次人机验证。
-	//
-	// 它是站点级总闸，不改动任何一条 CC 规则——把规则的动作改掉再改回来，
-	// 中间出任何岔子都恢复不回原样，而这个开关多半是在被打的时候按的。
-	// 「永不挑战的路径」对它同样生效：App/API 客户端跑不了 JS 挑战，必须留得出口。
-	EmergencyMode int `json:"emergency_mode"`
-	// EmergencyUntil 紧急模式自动关闭时间(unix 秒)，0=手动关闭前一直开着。
-	// 默认给一个到期时间：这个开关会让全部访客多走一道挑战，忘了关的代价由真实用户承担。
-	EmergencyUntil int64 `json:"emergency_until"`
 }
 
 // DisplayName 站点在下拉/清单里的显示名：域名:端口(昵称,SSL,备注)。
@@ -107,16 +95,6 @@ func (h Hosts) DisplayName() string {
 		return fmt.Sprintf("%s:%d(%s)", h.Host, h.Port, strings.Join(bracketContent, ","))
 	}
 	return fmt.Sprintf("%s:%d", h.Host, h.Port)
-}
-
-// IsEmergencyActive 紧急模式当前是否生效（已开启且未到自动关闭时间）。
-// 到期判定放在读取侧而不是靠定时任务改库：定时任务没跑到的那段时间里，
-// 库里写着「开」而实际早该关了，两者不一致比晚关几秒更难查。
-func (h *Hosts) IsEmergencyActive(nowUnix int64) bool {
-	if h == nil || h.EmergencyMode != 1 {
-		return false
-	}
-	return h.EmergencyUntil <= 0 || h.EmergencyUntil > nowUnix
 }
 
 type HostsDefense struct {
@@ -575,7 +553,6 @@ type CustomResponseHeaderRule struct {
 type CustomResponseHeadersConfig struct {
 	IsEnableCustomHeaders int                        `json:"is_enable_custom_headers"` // 是否开启 1开启 0关闭
 	Rules                 []CustomResponseHeaderRule `json:"rules"`                    // 规则列表（V2）
-	Headers               []CustomHeaderItem         `json:"headers,omitempty"`        // 兼容旧版扁平列表
 }
 
 // defaultResponseCompressMimeTypes 与 nginx gzip_types 常见默认类似
@@ -691,8 +668,7 @@ func ParseCustomHeadersConfig(customHeadersJSON string) CustomHeadersConfig {
 	return config
 }
 
-// ParseCustomResponseHeadersConfig 解析自定义响应头信息配置（支持 V2 多规则格式和旧版扁平格式）
-// 旧格式（只有 headers 字段）会自动转换为一条 global 规则，保持向后兼容。
+// ParseCustomResponseHeadersConfig 解析自定义响应头规则。
 func ParseCustomResponseHeadersConfig(customResponseHeadersJSON string) CustomResponseHeadersConfig {
 	var config CustomResponseHeadersConfig
 	config.IsEnableCustomHeaders = 0
@@ -704,20 +680,6 @@ func ParseCustomResponseHeadersConfig(customResponseHeadersJSON string) CustomRe
 
 	if err := json.Unmarshal([]byte(customResponseHeadersJSON), &config); err != nil {
 		return config
-	}
-
-	// 向后兼容：若 rules 为空但存在旧版 headers 字段，转换为一条 global 规则
-	if len(config.Rules) == 0 && len(config.Headers) > 0 {
-		config.Rules = []CustomResponseHeaderRule{
-			{
-				RuleName:   "全局默认",
-				MatchType:  "global",
-				MatchValue: "",
-				MergeMode:  "merge",
-				Headers:    config.Headers,
-			},
-		}
-		config.Headers = nil
 	}
 
 	// 为每条规则设置默认值

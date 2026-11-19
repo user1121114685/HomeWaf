@@ -2,7 +2,6 @@
 
 import proxy from '../config/host';
 const env = import.meta.env.MODE || 'development';
-export {AesEncrypt,AesDecrypt} from './legacyCipher';
 
 export function getBaseUrl(){
   const API_HOST = env === 'mock' ? '/' : proxy[env].API; // 如果是mock模式 就不配置host 会走本地Mock拦截

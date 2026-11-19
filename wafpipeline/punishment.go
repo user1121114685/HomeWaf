@@ -4,7 +4,6 @@ import (
 	"HomeWaf/common/queue"
 	"container/list"
 	"context"
-	"crypto/sha256"
 	"errors"
 	"net"
 	"net/netip"
@@ -31,18 +30,17 @@ func (e HitEvent) QueueSize() int64 {
 }
 
 type PunishmentRecord struct {
-	ID            string `json:"id"`
-	Kind          string `json:"kind"`
-	PortID        string `json:"port_id"`
-	Scope         string `json:"scope"`
-	Prefix        string `json:"prefix"`
-	Reason        string `json:"reason"`
-	RuleID        string `json:"rule_id"`
-	Hits          int    `json:"hits"`
-	Strikes       int    `json:"strikes"`
-	CreatedAt     int64  `json:"created_at"`
-	ExpiresAt     int64  `json:"expires_at"`
-	CooldownUntil int64  `json:"cooldown_until,omitempty"`
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	PortID    string `json:"port_id"`
+	Scope     string `json:"scope"`
+	Prefix    string `json:"prefix"`
+	Reason    string `json:"reason"`
+	RuleID    string `json:"rule_id"`
+	Hits      int    `json:"hits"`
+	Strikes   int    `json:"strikes"`
+	CreatedAt int64  `json:"created_at"`
+	ExpiresAt int64  `json:"expires_at"`
 }
 type PunishmentChange struct {
 	Record PunishmentRecord `json:"record"`
@@ -50,11 +48,7 @@ type PunishmentChange struct {
 }
 type punishmentView struct {
 	Bans          map[string]map[netip.Prefix]PunishmentRecord
-	Honeypots     map[string]map[netip.Prefix]PunishmentRecord
-	Locks         map[string]PunishmentRecord
 	Widths        map[string][]int
-	Drops         map[string]map[netip.Prefix]PunishmentRecord
-	HoneyLocks    map[string]PunishmentRecord
 	SynologyLocks map[string]PunishmentRecord
 }
 type hitWindow struct {
@@ -62,7 +56,6 @@ type hitWindow struct {
 	epochs  [64]int64
 	lastReq string
 	width   time.Duration
-	paths   map[[32]byte]time.Time
 }
 type counterEntry struct {
 	key, port string
@@ -70,11 +63,7 @@ type counterEntry struct {
 	local     *list.Element
 }
 type statePort struct {
-	order            *list.List
-	distinct         map[netip.Addr]time.Time
-	cooldown         time.Time
-	honeyDistinct    map[netip.Addr]time.Time
-	honeyCooldown    time.Time
+	order *list.List
 }
 
 // Punisher owns bounded mutable counters and publishes immutable decision
@@ -134,7 +123,7 @@ func (p *Punisher) Submit(e HitEvent) bool {
 func (p *Punisher) port(id string) *statePort {
 	s := p.ports[id]
 	if s == nil {
-		s = &statePort{order: list.New(), distinct: map[netip.Addr]time.Time{}}
+		s = &statePort{order: list.New()}
 		p.ports[id] = s
 	}
 	return s
@@ -152,10 +141,7 @@ func (p *Punisher) protected(s *Snapshot, e HitEvent) bool {
 	}
 	return s.Compiled != nil && s.Compiled.Trusted.Contains(net.IP(e.ClientIP.AsSlice()), p.Now().Unix())
 }
-func recordKey(kind, scope, port, prefix string) string {
-	if scope == "global" {
-		port = "*"
-	}
+func recordKey(kind, port, prefix string) string {
 	return kind + "|" + port + "|" + prefix
 }
 func active(r PunishmentRecord, now int64) bool { return r.ExpiresAt == 0 || r.ExpiresAt > now }
@@ -190,7 +176,7 @@ func (p *Punisher) remove(id string) {
 		p.revision++
 	}
 }
-func (p *Punisher) count(port, ip, category, req, path string, window int, distinct bool, limit int, now time.Time) int {
+func (p *Punisher) count(port, ip, category, req string, window, limit int, now time.Time) int {
 	key := port + "|" + ip + "|" + category
 	state := p.port(port)
 	entry := p.counters[key]
@@ -216,27 +202,6 @@ func (p *Punisher) count(port, ip, category, req, path string, window int, disti
 		return 0
 	}
 	w.lastReq = req
-	if distinct {
-		if w.paths == nil {
-			w.paths = map[[32]byte]time.Time{}
-		}
-		for key, seen := range w.paths {
-			if now.Sub(seen) >= time.Duration(window)*time.Second {
-				delete(w.paths, key)
-			}
-		}
-		// At most 128 distinct path hashes per counter, never retain URLs.
-		hash := sha256.Sum256([]byte(path))
-		if _, ok := w.paths[hash]; ok {
-			w.paths[hash] = now
-			return len(w.paths)
-		}
-		if len(w.paths) >= 128 {
-			return len(w.paths)
-		}
-		w.paths[hash] = now
-		return len(w.paths)
-	}
 	width := (time.Duration(window)*time.Second + 63) / 64
 	if w.width != width {
 		*w = hitWindow{width: width, lastReq: req}
@@ -261,11 +226,11 @@ func (p *Punisher) count(port, ip, category, req, path string, window int, disti
 func (p *Punisher) ban(s *Snapshot, e HitEvent, count, duration int, now time.Time) []PunishmentChange {
 	policy := s.Config.Policy.HitPolicy
 	prefix := prefixFor(e.ClientIP, policy.IPv6Prefix).String()
-	id := recordKey("ban", policy.BanScope, e.PortID, prefix)
+	id := recordKey("ban", e.PortID, prefix)
 	if current, ok := p.records[id]; ok && active(current, now.Unix()) {
 		return nil
 	}
-	historyID := recordKey("history", policy.BanScope, e.PortID, prefix)
+	historyID := recordKey("history", e.PortID, prefix)
 	needed := 0
 	for _, key := range []string{id, historyID} {
 		if _, ok := p.records[key]; !ok {
@@ -285,7 +250,7 @@ func (p *Punisher) ban(s *Snapshot, e HitEvent, count, duration int, now time.Ti
 	for i := 1; i < strikes && seconds < 7*86400; i++ {
 		seconds = min(seconds*4, int64(7*86400))
 	}
-	r := PunishmentRecord{ID: id, Kind: "ban", PortID: e.PortID, Scope: policy.BanScope, Prefix: prefix, Reason: e.Category, RuleID: e.RuleID, Hits: count, Strikes: strikes, CreatedAt: now.Unix(), ExpiresAt: now.Unix() + seconds}
+	r := PunishmentRecord{ID: id, Kind: "ban", PortID: e.PortID, Scope: "port", Prefix: prefix, Reason: e.Category, RuleID: e.RuleID, Hits: count, Strikes: strikes, CreatedAt: now.Unix(), ExpiresAt: now.Unix() + seconds}
 	if !p.put(r) {
 		return nil
 	}
@@ -294,64 +259,7 @@ func (p *Punisher) ban(s *Snapshot, e HitEvent, count, duration int, now time.Ti
 	history.Kind = "history"
 	history.ExpiresAt = now.Add(30 * 24 * time.Hour).Unix()
 	p.put(history)
-	p.remove(recordKey("honeypot", "port", e.PortID, prefix))
 	return []PunishmentChange{{r, "ban_created"}}
-}
-func (p *Punisher) honey(s *Snapshot, e HitEvent, count int, now time.Time) []PunishmentChange {
-	if s.Config.Policy.Defense != nil {
-		return nil
-	}
-	if !s.Config.Policy.Honeypot.Enabled {
-		return nil
-	}
-	prefix := prefixFor(e.ClientIP, s.Config.Policy.HitPolicy.IPv6Prefix).String()
-	id := recordKey("honeypot", "port", e.PortID, prefix)
-	if current, ok := p.records[id]; ok && active(current, now.Unix()) {
-		return nil
-	}
-	r := PunishmentRecord{ID: id, Kind: "honeypot", PortID: e.PortID, Scope: "port", Prefix: prefix, Reason: e.Category, RuleID: e.RuleID, Hits: count, CreatedAt: now.Unix(), ExpiresAt: now.Add(time.Duration(s.Config.Policy.Honeypot.TTLSeconds) * time.Second).Unix()}
-	if !p.put(r) {
-		return nil
-	}
-	return []PunishmentChange{{r, "honeypot_created"}}
-}
-func (p *Punisher) lock(s *Snapshot, e HitEvent, now time.Time) []PunishmentChange {
-	if s.Config.Policy.Defense != nil {
-		return nil
-	}
-	cfg := s.Config.Policy.HitPolicy.Lockdown
-	if !cfg.Enabled || e.Severity.Rank() < High.Rank() || strings.HasPrefix(e.Category, "response_") {
-		return nil
-	}
-	state := p.port(e.PortID)
-	if now.Before(state.cooldown) {
-		return nil
-	}
-	for ip, t := range state.distinct {
-		if now.Sub(t) >= time.Duration(cfg.WindowSeconds)*time.Second {
-			delete(state.distinct, ip)
-		}
-	}
-	key := prefixFor(e.ClientIP, s.Config.Policy.HitPolicy.IPv6Prefix).Addr()
-	if len(state.distinct) < 1000 {
-		state.distinct[key] = now
-	}
-	if len(state.distinct) < cfg.DistinctIPs {
-		return nil
-	}
-	id := recordKey("lockdown", "port", e.PortID, "")
-	old := p.records[id]
-	r := PunishmentRecord{ID: id, Kind: "lockdown", PortID: e.PortID, Scope: "port", Reason: "distributed_high_severity", Hits: len(state.distinct), CreatedAt: now.Unix(), ExpiresAt: now.Add(time.Duration(cfg.Seconds) * time.Second).Unix(), CooldownUntil: now.Add(time.Duration(cfg.Seconds+cfg.CooldownSeconds) * time.Second).Unix()}
-	if old.ID != "" {
-		r.CreatedAt = old.CreatedAt
-	}
-	if !p.put(r) {
-		return nil
-	}
-	if old.ID != "" {
-		return nil
-	}
-	return []PunishmentChange{{r, "lockdown_started"}}
 }
 func (p *Punisher) process(s *Snapshot, e HitEvent, now time.Time) []PunishmentChange {
 	p.Processed.Add(1)
@@ -359,84 +267,38 @@ func (p *Punisher) process(s *Snapshot, e HitEvent, now time.Time) []PunishmentC
 		p.Ignored.Add(1)
 		return nil
 	}
-	cfg := s.Config.Policy
-	if cfg.Defense != nil && (e.Category == "honeypot_visit" || e.Category == "honeypot_escalation" || e.Category == "trap_path") {
-		return nil
-	}
-	if e.Category == "honeypot_visit" {
-		return p.honeypotHit(s, e, now)
-	}
-	// Configured visit thresholds replace the legacy immediate escalation ban.
-	if e.Category == "honeypot_escalation" && cfg.Honeypot.Enabled && (cfg.Honeypot.DropAfterHits > 0 || cfg.Honeypot.DistributedDrop.Enabled) {
-		return nil
-	}
-	ip := prefixFor(e.ClientIP, cfg.HitPolicy.IPv6Prefix).String()
-	changes := p.lock(s, e, now)
+	policy := s.Config.Policy.HitPolicy
 	if e.Category == "custom_rule" && e.BanSeconds > 0 {
-		return append(changes, p.ban(s, e, 1, min(e.BanSeconds, 7*86400), now)...)
+		return p.ban(s, e, 1, min(e.BanSeconds, 7*86400), now)
 	}
-	if e.Category == "honeypot_escalation" {
-		return append(changes, p.ban(s, e, 1, cfg.HitPolicy.Critical.BanSeconds, now)...)
-	}
-	if e.Category == "trap_path" {
-		return append(changes, p.honey(s, e, 1, now)...)
-	}
+	ip := prefixFor(e.ClientIP, policy.IPv6Prefix).String()
 	if e.Category == "auth_fail" {
-		long := effectiveThreshold(cfg.HitPolicy.LoginBan, Threshold{600, 20, 1800})
-		n := p.count(e.PortID, ip, "auth_ban", e.ReqID, "", long.WindowSeconds, false, cfg.HitPolicy.MaxKeys, now)
-		if n >= long.Count {
-			return append(changes, p.ban(s, e, n, long.BanSeconds, now)...)
+		login := effectiveThreshold(policy.LoginBan, Threshold{600, 20, 1800})
+		hits := p.count(e.PortID, ip, "auth_ban", e.ReqID, login.WindowSeconds, policy.MaxKeys, now)
+		if hits >= login.Count {
+			return p.ban(s, e, hits, login.BanSeconds, now)
 		}
-		n = p.count(e.PortID, ip, "auth_fail", e.ReqID, "", 300, false, cfg.HitPolicy.MaxKeys, now)
-		if n >= cfg.Honeypot.AuthFailThreshold {
-			return append(changes, p.honey(s, e, n, now)...)
-		}
-		return changes
+		return nil
 	}
-	if e.Category == "weak_pwd" {
-		n := p.count(e.PortID, ip, e.Category, e.ReqID, "", 300, false, cfg.HitPolicy.MaxKeys, now)
-		if n >= cfg.Honeypot.WeakPasswordThreshold {
-			return append(changes, p.honey(s, e, n, now)...)
-		}
-		return changes
-	}
-	if strings.HasPrefix(e.Category, "response_") {
-		if !cfg.HitPolicy.ResponseSignals {
-			return changes
-		}
-		var threshold Threshold
-		switch e.Category {
-		case "response_404":
-			threshold = effectiveThreshold(cfg.HitPolicy.Response404, Threshold{60, 20, 0})
-		case "response_auth":
-			threshold = effectiveThreshold(cfg.HitPolicy.ResponseAuth, Threshold{300, 10, 0})
-		case "response_5xx":
-			threshold = effectiveThreshold(cfg.HitPolicy.Response5xx, Threshold{300, 5, 0})
-		default:
-			return changes
-		}
-		n := p.count(e.PortID, ip, e.Category, e.ReqID, e.Path, threshold.WindowSeconds, e.Category == "response_404", cfg.HitPolicy.MaxKeys, now)
-		if n >= threshold.Count {
-			return append(changes, p.honey(s, e, n, now)...)
-		}
-		return changes
+	if strings.HasPrefix(e.Category, "honeypot_") || strings.HasPrefix(e.Category, "response_") || e.Category == "weak_pwd" || e.Category == "trap_path" {
+		return nil
 	}
 	var threshold Threshold
 	switch e.Severity {
 	case Critical:
-		threshold = cfg.HitPolicy.Critical
+		threshold = policy.Critical
 	case High:
-		threshold = cfg.HitPolicy.High
+		threshold = policy.High
 	case Medium:
-		threshold = cfg.HitPolicy.Medium
+		threshold = policy.Medium
 	default:
-		return changes
+		return nil
 	}
-	n := p.count(e.PortID, ip, "severity:"+string(e.Severity), e.ReqID, "", threshold.WindowSeconds, false, cfg.HitPolicy.MaxKeys, now)
+	n := p.count(e.PortID, ip, "severity:"+string(e.Severity), e.ReqID, threshold.WindowSeconds, policy.MaxKeys, now)
 	if n >= threshold.Count {
-		changes = append(changes, p.ban(s, e, n, threshold.BanSeconds, now)...)
+		return p.ban(s, e, n, threshold.BanSeconds, now)
 	}
-	return changes
+	return nil
 }
 func effectiveThreshold(t, fallback Threshold) Threshold {
 	if t.WindowSeconds == 0 && t.Count == 0 && t.BanSeconds == 0 {
@@ -446,22 +308,13 @@ func effectiveThreshold(t, fallback Threshold) Threshold {
 }
 
 func (p *Punisher) publish() {
-	v := &punishmentView{Bans: map[string]map[netip.Prefix]PunishmentRecord{}, Honeypots: map[string]map[netip.Prefix]PunishmentRecord{}, Locks: map[string]PunishmentRecord{}, Widths: map[string][]int{}, Drops: map[string]map[netip.Prefix]PunishmentRecord{}, HoneyLocks: map[string]PunishmentRecord{}}
-	v.SynologyLocks = map[string]PunishmentRecord{}
+	v := &punishmentView{Bans: map[string]map[netip.Prefix]PunishmentRecord{}, Widths: map[string][]int{}, SynologyLocks: map[string]PunishmentRecord{}}
 	for _, r := range p.records {
 		if r.Kind == synologyLockKind {
 			v.SynologyLocks[r.PortID] = r
 			continue
 		}
-		if r.Kind == "honeypot_lockdown" {
-			v.HoneyLocks[r.PortID] = r
-			continue
-		}
-		if r.Kind == "lockdown" {
-			v.Locks[r.PortID] = r
-			continue
-		}
-		if r.Kind != "ban" && r.Kind != "honeypot" && r.Kind != "drop" {
+		if r.Kind != "ban" {
 			continue
 		}
 		prefix, err := netip.ParsePrefix(r.Prefix)
@@ -469,20 +322,10 @@ func (p *Punisher) publish() {
 			continue
 		}
 		scope := r.PortID
-		if r.Scope == "global" {
-			scope = "*"
+		if v.Bans[scope] == nil {
+			v.Bans[scope] = map[netip.Prefix]PunishmentRecord{}
 		}
-		groups := v.Bans
-		if r.Kind == "honeypot" {
-			groups = v.Honeypots
-		}
-		if r.Kind == "drop" {
-			groups = v.Drops
-		}
-		if groups[scope] == nil {
-			groups[scope] = map[netip.Prefix]PunishmentRecord{}
-		}
-		groups[scope][prefix] = r
+		v.Bans[scope][prefix] = r
 		width := prefix.Bits()
 		if prefix.Addr().Is4() {
 			width += 256
@@ -505,22 +348,13 @@ func lookupState(groups map[string]map[netip.Prefix]PunishmentRecord, widths map
 	if !ip.IsValid() {
 		return PunishmentRecord{}, false
 	}
-	for _, key := range []string{port, "*"} {
-		group := groups[key]
-		if len(group) == 0 {
+	for _, width := range widths[port] {
+		if (width >= 256) != ip.Is4() {
 			continue
 		}
-		for _, width := range widths[key] {
-			if (width >= 256) != ip.Is4() {
-				continue
-			}
-			bits := width
-			if bits >= 256 {
-				bits -= 256
-			}
-			if r, ok := group[netip.PrefixFrom(ip, bits).Masked()]; ok && active(r, now) {
-				return r, true
-			}
+		bits := width % 256
+		if r, ok := groups[port][netip.PrefixFrom(ip, bits).Masked()]; ok && active(r, now) {
+			return r, true
 		}
 	}
 	return PunishmentRecord{}, false
@@ -533,59 +367,15 @@ func (p *Punisher) BanReason(port string, ip netip.Addr) string {
 	}
 	return ""
 }
-func (p *Punisher) InHoneypot(port string, ip netip.Addr) bool {
-	v := p.state.Load()
-	_, ok := lookupState(v.Honeypots, v.Widths, port, ip, p.Now().Unix())
-	return ok
-}
 
-// ProtectedRestriction performs one read/clock for ignored-state diagnostics.
-// Empty state is the common household case and requires neither lookup nor clock.
+// Avoid reading the clock or hashing prefixes when no source bans are active.
 func (p *Punisher) ProtectedRestriction(port string, ip netip.Addr) bool {
 	v := p.state.Load()
-	if v == nil || len(v.Bans) == 0 && len(v.Honeypots) == 0 && len(v.Drops) == 0 && len(v.HoneyLocks) == 0 {
+	if len(v.Bans[port]) == 0 {
 		return false
 	}
-	now := p.Now().Unix()
-	if r, ok := v.HoneyLocks[port]; ok && active(r, now) {
-		return true
-	}
-	if _, ok := lookupState(v.Drops, v.Widths, port, ip, now); ok {
-		return true
-	}
-	if record, ok := lookupState(v.Bans, v.Widths, port, ip, now); ok && record.Reason != "" {
-		return true
-	}
-	_, ok := lookupState(v.Honeypots, v.Widths, port, ip, now)
+	_, ok := lookupState(v.Bans, v.Widths, port, ip, p.Now().Unix())
 	return ok
-}
-func (p *Punisher) Locked(port string) bool {
-	r, ok := p.state.Load().Locks[port]
-	return ok && active(r, p.Now().Unix())
-}
-
-func (p *Punisher) expire(now time.Time) []PunishmentChange {
-	var changes []PunishmentChange
-	for id, r := range p.records {
-		if !active(r, now.Unix()) {
-			if r.Kind == "honeypot_lockdown" {
-				p.releaseHoneyLock(r, now, r.CooldownUntil)
-				changes = append(changes, PunishmentChange{r, "honeypot_lockdown_released"})
-			}
-			if r.Kind == "lockdown" {
-				p.port(r.PortID).cooldown = now.Add(time.Duration(max(0, r.CooldownUntil-now.Unix())) * time.Second)
-				p.port(r.PortID).distinct = map[netip.Addr]time.Time{}
-				changes = append(changes, PunishmentChange{r, "lockdown_released"})
-				cooldown := r
-				cooldown.Kind = "cooldown"
-				cooldown.ID = recordKey("cooldown", "port", r.PortID, "")
-				cooldown.ExpiresAt = r.CooldownUntil
-				p.put(cooldown)
-			}
-			p.remove(id)
-		}
-	}
-	return changes
 }
 
 // Drain consumes a bounded batch; the production worker is the sole caller.
@@ -596,7 +386,11 @@ func (p *Punisher) Drain(limit int) int {
 	p.mu.Lock()
 	before := p.revision
 	now := p.Now()
-	changes = append(changes, p.expire(now)...)
+	for id, record := range p.records {
+		if !active(record, now.Unix()) {
+			p.remove(id)
+		}
+	}
 	for len(events) < limit {
 		v, ok := p.Queue.Dequeue()
 		if !ok {
@@ -680,42 +474,29 @@ func (p *Punisher) Restore(rows []PunishmentRecord) error {
 		return errors.New("punishment state exceeds quota")
 	}
 	for _, r := range rows {
-		if r.Kind != "ban" && r.Kind != "honeypot" && r.Kind != "history" && r.Kind != "lockdown" && r.Kind != "cooldown" && r.Kind != "drop" && r.Kind != "honeypot_lockdown" && r.Kind != "honeypot_cooldown" && r.Kind != synologyLockKind {
+		if r.Kind != "ban" && r.Kind != "history" && r.Kind != synologyLockKind {
 			return errors.New("unknown punishment kind")
 		}
-		if r.Scope != "global" && r.Scope != "port" || !strings.HasPrefix(r.PortID, "port:") || r.ExpiresAt < 0 {
+		if r.Scope != "port" || !strings.HasPrefix(r.PortID, "port:") || r.ExpiresAt < 0 {
 			return errors.New("invalid punishment scope")
-		}
-		if (r.Kind == "drop" || r.Kind == "honeypot_lockdown" || r.Kind == "honeypot_cooldown") && r.Scope != "port" {
-			return errors.New("honeypot drops must be port scoped")
 		}
 		if r.Kind == synologyLockKind {
 			if r.Scope != "port" || r.Prefix != "" || r.ExpiresAt <= r.CreatedAt || r.ExpiresAt-r.CreatedAt > 7*86400 {
 				return errors.New("invalid DSM login lockdown")
 			}
-		} else if r.Kind != "lockdown" && r.Kind != "cooldown" && r.Kind != "honeypot_lockdown" && r.Kind != "honeypot_cooldown" {
+		} else {
 			prefix, err := netip.ParsePrefix(r.Prefix)
 			if err != nil || prefix.Bits() < 32 {
 				return errors.New("invalid punishment prefix")
 			}
 		}
-		if r.ID != recordKey(r.Kind, r.Scope, r.PortID, r.Prefix) {
+		if r.ID != recordKey(r.Kind, r.PortID, r.Prefix) {
 			return errors.New("punishment identity mismatch")
 		}
 	}
 	for _, r := range rows {
 		if active(r, p.Now().Unix()) {
 			p.put(r)
-			if r.Kind == "cooldown" {
-				p.port(r.PortID).cooldown = p.Now().Add(time.Duration(r.ExpiresAt-p.Now().Unix()) * time.Second)
-			}
-			if r.Kind == "honeypot_cooldown" {
-				p.port(r.PortID).honeyCooldown = time.Unix(r.ExpiresAt, 0)
-			}
-		} else if r.Kind == "lockdown" && r.CooldownUntil > p.Now().Unix() {
-			p.port(r.PortID).cooldown = p.Now().Add(time.Duration(r.CooldownUntil-p.Now().Unix()) * time.Second)
-		} else if r.Kind == "honeypot_lockdown" && r.CooldownUntil > p.Now().Unix() {
-			p.releaseHoneyLock(r, p.Now(), r.CooldownUntil)
 		}
 	}
 	p.publish()
@@ -726,7 +507,7 @@ func (p *Punisher) Records(port string) []PunishmentRecord {
 	defer p.mu.Unlock()
 	rows := []PunishmentRecord{}
 	for _, r := range p.records {
-		if r.Kind != "history" && r.Kind != "cooldown" && r.Kind != "honeypot_cooldown" && active(r, p.Now().Unix()) && (port == "" || r.PortID == port || r.Scope == "global") {
+		if r.Kind != "history" && active(r, p.Now().Unix()) && (port == "" || r.PortID == port) {
 			rows = append(rows, r)
 		}
 	}
@@ -736,7 +517,7 @@ func (p *Punisher) Records(port string) []PunishmentRecord {
 func (p *Punisher) Manage(port, id, action string) error {
 	p.mu.Lock()
 	r, ok := p.records[id]
-	if !ok || (r.PortID != port && r.Scope != "global") {
+	if !ok || r.PortID != port || r.Kind == "history" {
 		p.mu.Unlock()
 		return errors.New("state record not found")
 	}
@@ -744,21 +525,7 @@ func (p *Punisher) Manage(port, id, action string) error {
 	switch action {
 	case "release":
 		p.remove(id)
-		if r.Kind == "honeypot_lockdown" {
-			p.releaseHoneyLock(r, p.Now(), p.Now().Add(time.Minute).Unix())
-		} else if r.Kind == "lockdown" {
-			seconds := 60
-			if s := p.Lookup(port); s != nil {
-				seconds = s.Config.Policy.HitPolicy.Lockdown.CooldownSeconds
-			}
-			p.port(port).cooldown = p.Now().Add(time.Duration(seconds) * time.Second)
-			p.port(port).distinct = map[netip.Addr]time.Time{}
-			cooldown := r
-			cooldown.Kind = "cooldown"
-			cooldown.ID = recordKey("cooldown", "port", r.PortID, "")
-			cooldown.ExpiresAt = p.Now().Add(time.Duration(seconds) * time.Second).Unix()
-			p.put(cooldown)
-		} else {
+		{
 			prefix, err := netip.ParsePrefix(r.Prefix)
 			if err == nil {
 				for key, entry := range p.counters {
@@ -767,7 +534,7 @@ func (p *Punisher) Manage(port, id, action string) error {
 						continue
 					}
 					ip, e := netip.ParsePrefix(parts[1])
-					if e == nil && prefix.Contains(ip.Addr()) && (r.Scope == "global" || entry.port == port) {
+					if e == nil && prefix.Contains(ip.Addr()) && entry.port == port {
 						p.port(entry.port).order.Remove(entry.local)
 						delete(p.counters, key)
 					}

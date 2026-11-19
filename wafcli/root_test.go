@@ -16,8 +16,8 @@ func TestExecuteSingleJSON(t *testing.T) {
 	oldArgs, oldOut, oldFactory := os.Args, resultOut, siteClientFactory
 	defer func() { os.Args = oldArgs; resultOut = oldOut; siteClientFactory = oldFactory }()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "list") {
-			_, _ = w.Write([]byte(`{"code":0,"data":{"list":[],"total":0}}`))
+		if r.URL.Path == portsAPI {
+			_, _ = w.Write([]byte(`{"code":0,"data":[]}`))
 			return
 		}
 		_, _ = w.Write([]byte(`{"code":-1,"msg":"operation failed"}`))
@@ -30,7 +30,7 @@ func TestExecuteSingleJSON(t *testing.T) {
 	}{
 		{[]string{"samwaf", "site", "list", "-o", "json"}, 0},
 		{[]string{"samwaf", "site", "list", "--bogus", "-o", "json"}, 2},
-		{[]string{"samwaf", "site", "get", "missing", "-o", "json"}, 1},
+		{[]string{"samwaf", "site", "get", "42", "-o", "json"}, ExitNotFound},
 	} {
 		var out bytes.Buffer
 		resultOut = &out
@@ -49,7 +49,7 @@ func TestExecuteSingleJSON(t *testing.T) {
 	resultOut = &out
 	os.Args = []string{"samwaf", "site", "apply", "-f", "-", "-o", "json"}
 	root := newRootCommand(Deps{})
-	root.SetIn(strings.NewReader(`{"host":"www.example.com","port":8080,"remote_host":"http://127.0.0.1","remote_port":9112}`))
+	root.SetIn(strings.NewReader(`{"port":8080,"upstream":"http://127.0.0.1:9112","policy":{"defense":{"enabled":true,"mode":"restrict","window_seconds":60,"count":5,"duration_seconds":60,"tcp_action":"reset"}}}`))
 	root.SetArgs(os.Args[1:])
 	_, err := root.ExecuteC()
 	if err == nil || !errors.Is(err, errResultWritten) {

@@ -687,7 +687,10 @@ func (w *WafVpConfigApi) RestartManagerApi(c *gin.Context) {
 	var req struct {
 		Force bool `json:"force"`
 	}
-	_ = c.ShouldBindJSON(&req) // 老前端不带请求体，绑定失败按 Force=false 处理
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("解析请求失败", c)
+		return
+	}
 
 	if global.GWAF_SSL_ENABLE && !req.Force {
 		if err := localca.CheckServerCert(localca.DefaultPaths(utils.GetCurrentDir())); err != nil {

@@ -61,11 +61,11 @@ func TestExtractTokenStrWebSocketIgnoresXToken(t *testing.T) {
 	}
 }
 
-func TestExtractTokenStrDownload(t *testing.T) {
+func TestExtractTokenStrRejectsQueryCredentials(t *testing.T) {
 	c := ctxFor(t, http.MethodGet,
-		"/api/v1/waflog/attack/download?X-Token=dl-token&X-Request-Id=abc", nil)
-	if got := extractTokenStr(c); got != "dl-token" {
-		t.Fatalf("下载链接令牌应取自查询串，实际 %q", got)
+		"/api/v1/waflog/exports/task-1/download?X-Token=dl-token", nil)
+	if got := extractTokenStr(c); got != "" {
+		t.Fatalf("download query disclosed a management token: %q", got)
 	}
 }
 
@@ -98,7 +98,6 @@ func TestFingerprintExemptWithQueryString(t *testing.T) {
 	}{
 		{"ws 带查询串", "/api/v1/ws?keyid=abc", nil, true},
 		{"ws 无查询串", "/api/v1/ws", nil, true},
-		{"下载带查询串", "/api/v1/waflog/attack/download?X-Token=t", nil, true},
 		{"Upgrade 头", "/whatever", map[string]string{"Upgrade": "websocket"}, true},
 		{"SSE", "/api/v1/events", map[string]string{"Accept": "text/event-stream"}, true},
 		{"普通接口", "/api/v1/hosts/list?page=1", nil, false},

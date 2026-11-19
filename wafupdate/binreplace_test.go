@@ -1,6 +1,7 @@
 package wafupdate
 
 import (
+	"crypto/rand"
 	"errors"
 	"os"
 	"path/filepath"
@@ -85,16 +86,18 @@ func TestSweepLeftoversOnlyTouchesOwnTemps(t *testing.T) {
 		}
 		return p
 	}
-	old1 := mustWrite(oldPrefix(exe) + ".20260101010101.111")
-	old2 := mustWrite(oldPrefix(exe) + ".20260101010102.222")
+	old1 := mustWrite(oldPrefix(exe) + ".111." + rand.Text())
+	old2 := mustWrite(oldPrefix(exe) + ".222." + rand.Text())
 	newFile := mustWrite("." + exe + stageNewSuffix)
 	keepExe := mustWrite(exe)
 	keepOther := mustWrite("other.txt")
 	keepOtherExeOld := mustWrite(".OtherApp.exe.old")
+	keepLegacy := mustWrite(oldPrefix(exe) + ".20260101010101.111")
+	keepBackup := mustWrite(oldPrefix(exe) + ".backup")
 
 	// 把 .old 的时间戳改老，绕开"跳过 60s 内新建文件"的并发保护
 	aged := time.Now().Add(-10 * time.Minute)
-	for _, p := range []string{old1, old2, newFile} {
+	for _, p := range []string{old1, old2, newFile, keepLegacy, keepBackup} {
 		if err := os.Chtimes(p, aged, aged); err != nil {
 			t.Fatal(err)
 		}
@@ -109,7 +112,7 @@ func TestSweepLeftoversOnlyTouchesOwnTemps(t *testing.T) {
 			t.Errorf("应被清扫却仍在: %s", p)
 		}
 	}
-	for _, p := range []string{keepExe, keepOther, keepOtherExeOld} {
+	for _, p := range []string{keepExe, keepOther, keepOtherExeOld, keepLegacy, keepBackup} {
 		if _, err := os.Lstat(p); err != nil {
 			t.Errorf("不该被动却没了: %s", p)
 		}
@@ -121,7 +124,7 @@ func TestSweepLeftoversOnlyTouchesOwnTemps(t *testing.T) {
 func TestSweepLeftoversSkipsRecent(t *testing.T) {
 	dir := t.TempDir()
 	exe := "SamWaf64.exe"
-	fresh := filepath.Join(dir, oldPrefix(exe)+".20260101010101.333")
+	fresh := filepath.Join(dir, oldPrefix(exe)+".333."+rand.Text())
 	if err := os.WriteFile(fresh, []byte("x"), 0644); err != nil {
 		t.Fatal(err)
 	}

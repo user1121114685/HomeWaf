@@ -1,12 +1,6 @@
 package waf_service
 
 import (
-	"bufio"
-	"errors"
-	"io"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -15,7 +9,6 @@ import (
 	"HomeWaf/internal/acmelog"
 	"HomeWaf/internal/dnsproviders"
 	"HomeWaf/model"
-	"HomeWaf/utils"
 )
 
 const sslOrderLogLimit = 500
@@ -44,9 +37,9 @@ type SSLOrderLogs struct {
 	UpdatedAt        customtype.JsonTime          `json:"update_time"`
 	ResultError      string                       `json:"result_error"`
 	HeartbeatStale   bool                         `json:"heartbeat_stale"`
-	Legacy           bool                         `json:"legacy"`
-	Limit            int                          `json:"limit"`
-	Entries          []model.SslOrderLog          `json:"entries"`
+
+	Limit   int                 `json:"limit"`
+	Entries []model.SslOrderLog `json:"entries"`
 }
 
 func (s *WafSSLOrderService) AppendLog(id, level, message string) error {
@@ -98,17 +91,6 @@ func (s *WafSSLOrderService) Logs(id string) (SSLOrderLogs, error) {
 	for i, j := 0, len(view.Entries)-1; i < j; i, j = i+1, j-1 {
 		view.Entries[i], view.Entries[j] = view.Entries[j], view.Entries[i]
 	}
-	if len(view.Entries) == 0 || time.Time(view.Entries[0].CreatedAt).Sub(time.Time(order.CREATE_TIME)) > 10*time.Second {
-		view.Legacy = true
-		entries, err := readLegacySSLOrderLogs(filepath.Join(utils.GetCurrentDir(), "logs", "log.log"), order)
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return view, err
-		}
-		view.Entries = append(entries, view.Entries...)
-		if len(view.Entries) > sslOrderLogLimit {
-			view.Entries = view.Entries[len(view.Entries)-sslOrderLogLimit:]
-		}
-	}
 	settings := global.CurrentSettings()
 	secrets := []string{settings.GCONFIG_ZEROSSL_ACCESS_KEY, settings.GCONFIG_ZEROSSL_EAB_KID, settings.GCONFIG_ZEROSSL_EAB_HMAC_KEY}
 	if order.ApplyMethod == "dns01" && order.PrivateGroupName != "" {
@@ -130,63 +112,4 @@ func (s *WafSSLOrderService) Logs(id string) (SSLOrderLogs, error) {
 		view.Entries[i].Message = acmelog.SanitizeValues(view.Entries[i].Message, secrets...)
 	}
 	return view, nil
-}
-
-var ansiLog = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
-// Historical orders predate per-order logging. Read a bounded tail of the fixed
-// local runtime log, matching an exact domain and this order's time window.
-// Never accept a path from the client or return unrelated runtime log lines.
-func readLegacySSLOrderLogs(path string, order model.SslOrder) ([]model.SslOrderLog, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	start := info.Size() - (4 << 20)
-	if start < 0 {
-		start = 0
-	}
-	scanner := bufio.NewScanner(io.NewSectionReader(f, start, info.Size()-start))
-	scanner.Buffer(make([]byte, 4096), (4<<20)+1)
-	if start > 0 {
-		scanner.Scan()
-	}
-	var domains []string
-	for _, domain := range strings.Split(order.ApplyDomain, ",") {
-		domains = append(domains, regexp.QuoteMeta(strings.TrimSpace(domain)))
-	}
-	if len(domains) == 0 || order.ApplyDomain == "" {
-		return nil, nil
-	}
-	matchDomain := regexp.MustCompile(`(?i)(^|[\s=\[,])(?:` + strings.Join(domains, "|") + `)([\s,\]:]|$)`)
-	from := time.Time(order.CREATE_TIME).Truncate(time.Second)
-	until := time.Time(order.UPDATE_TIME).Add(time.Second)
-	if order.ApplyStatus == "submitted" || order.ApplyStatus == "applying" {
-		until = time.Now()
-	}
-	entries := []model.SslOrderLog{}
-	for scanner.Scan() {
-		line := ansiLog.ReplaceAllString(scanner.Text(), "")
-		if !strings.Contains(line, "ACME证书:") && !strings.Contains(line, "正在进行首次证书申请") && !strings.Contains(line, "正在证书续期申请处理") {
-			continue
-		}
-		parts := strings.SplitN(line, "\t", 4)
-		if len(parts) < 3 {
-			continue
-		}
-		at, err := time.ParseInLocation("2006-01-02 15:04:05.000", parts[0], time.Local)
-		if err != nil || at.Before(from) || at.After(until) || !matchDomain.MatchString(parts[2]) {
-			continue
-		}
-		entries = append(entries, model.SslOrderLog{CreatedAt: customtype.JsonTime(at), Level: strings.ToLower(parts[1]), Message: acmelog.Sanitize(parts[2])})
-		if len(entries) > sslOrderLogLimit {
-			entries = entries[len(entries)-sslOrderLogLimit:]
-		}
-	}
-	return entries, scanner.Err()
 }

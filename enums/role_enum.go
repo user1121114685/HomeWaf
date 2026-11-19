@@ -1,8 +1,8 @@
 package enums
 
-// 账号角色（三权分立 + 超级管理员兜底）
+// 账号角色
 // 国标 GB/T 32917 §7「自身安全」要求权限分离，这里定义四类角色：
-//   - superAdmin   超级管理员：拥有全部权限，向后兼容历史单一账号、用于初始部署
+//   - superAdmin   超级管理员：拥有全部权限，首次安装时显式授予引导账号
 //   - systemAdmin  系统管理员：账户管理 + 系统配置
 //   - securityAdmin 安全管理员：WAF 策略/规则/防护配置
 //   - auditAdmin   审计管理员：日志审计（只读），独立审计系统员与安全员，三者相互制约
@@ -26,19 +26,4 @@ func IsValidRole(role string) bool {
 	default:
 		return false
 	}
-}
-
-// NormalizeRole 归一化角色：空角色（历史账号、未赋角色）一律视为超级管理员，
-// 保证向后兼容——绝不因为引入 RBAC 把现网已存在账号锁死。
-// 非法的非空角色保留原值，鉴权必须拒绝，不能提升为超级管理员。
-func NormalizeRole(role string) string {
-	if role == "" {
-		return ROLE_SUPER_ADMIN
-	}
-	return role
-}
-
-// IsSuperAdmin 是否超级管理员（含空角色兜底）
-func IsSuperAdmin(role string) bool {
-	return NormalizeRole(role) == ROLE_SUPER_ADMIN
 }

@@ -14,19 +14,6 @@ type PortConfig struct {
 
 func (PortConfig) TableName() string { return "port_config" }
 
-// Ownership survives deletion of a migrated port configuration so an old
-// listener can never silently return on restart. Original host data is kept.
-type PipelinePortMigration struct {
-	Port        int    `gorm:"primaryKey" json:"port"`
-	State       string `gorm:"size:24" json:"state"`
-	SourcesJSON string `gorm:"type:text" json:"sources_json"`
-	SourceHash  string `gorm:"size:64" json:"-"`
-	ImportedAt  int64  `json:"imported_at"`
-	Operator    string `gorm:"size:128" json:"operator"`
-}
-
-func (PipelinePortMigration) TableName() string { return "pipeline_port_migration" }
-
 type ConfigTemplate struct {
 	baseorm.BaseOrm
 	Code       string `gorm:"size:64;uniqueIndex:idx_pipeline_template" json:"code"`

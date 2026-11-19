@@ -60,9 +60,6 @@ func ProcessMessageDequeEngine() {
 					handleIPBanMessage(msg)
 				case innerbean.AccessMessageInfo:
 					handleAccessMessage(msg)
-				case innerbean.ExportResultMessageInfo:
-					//导出结果
-					sendToWebSocket("导出结果", msg.Msg, nil, "DOWNLOAD_LOG")
 				case innerbean.LogExportReadyMessageInfo:
 					//导出任务产物就绪：只通知任务号，下载由用户从任务列表发起
 					sendToWebSocket("日志导出任务", msg.Msg, map[string]interface{}{"task_id": msg.TaskID}, "LOG_EXPORT_READY")
@@ -291,7 +288,7 @@ func handleIPBanMessage(msg innerbean.IPBanMessageInfo) {
 }
 
 // sendToWebSocket 统一的 WebSocket 发送函数。
-// 写入必须走 global.GWebSocket.Broadcast：它按连接加锁串行化并带写超时，
+// 写入必须走 global.GWebSocket.BroadcastBuild：它按连接加锁串行化并带写超时，
 // 直接对裸连接 WriteMessage 会与 ping 回显、定时任务撞成 concurrent write panic。
 func sendToWebSocket(messageType, messageData string, messageAttach interface{}, cmdType string) {
 	// 在线表尚未建好时直接丢弃：本协程可能早于初始化跑起来，对 nil 调方法会 panic。
@@ -308,7 +305,7 @@ func sendToWebSocket(messageType, messageData string, messageAttach interface{},
 		MessageDateTime:     time.Now().Format("2006-01-02 15:04:05"),
 		MessageUnReadStatus: true,
 	}
-	// 按连接各自的会话密钥组装：v2 连接一份，旧连接回落 legacy
+	// 按每条连接各自的会话密钥组装报文。
 	global.GWebSocket.BroadcastBuild(websocket.MessageText, func(keyID string) ([]byte, error) {
 		msgBytes, err := wsmsg.Build(keyID, dataPacket, cmdType)
 		if err != nil {

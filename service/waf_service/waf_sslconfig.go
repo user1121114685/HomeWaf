@@ -111,26 +111,21 @@ func (receiver *WafSslConfigService) AddApi(req request.SslConfigAddReq) (string
 			CREATE_TIME: customtype.JsonTime(time.Now()),
 			UPDATE_TIME: customtype.JsonTime(time.Now()),
 		},
-		CertContent: req.CertContent,
-		KeyContent:  req.KeyContent,
-		SerialNo:    serialNo,
-		Subject:     subject,
-		Issuer:      issuer,
-		ValidFrom:   customtype.JsonTime(validFrom),
-		ValidTo:     customtype.JsonTime(validTo),
-		Domains:     domains,
-		CertPath:    req.CertPath,
-		KeyPath:     req.KeyPath,
+		CertContent:  req.CertContent,
+		KeyContent:   req.KeyContent,
+		SerialNo:     serialNo,
+		Subject:      subject,
+		Issuer:       issuer,
+		ValidFrom:    customtype.JsonTime(validFrom),
+		ValidTo:      customtype.JsonTime(validTo),
+		Domains:      domains,
+		CertPath:     req.CertPath,
+		KeyPath:      req.KeyPath,
+		AutoLoadPath: req.AutoLoadPath,
 		//证书导出路径：留空即不导出，此处只做去空格，合法性在真正导出时校验，
 		//避免因为导出路径写错就把证书本身的保存挡下来
 		ExportCertPath: strings.TrimSpace(req.ExportCertPath),
 		ExportKeyPath:  strings.TrimSpace(req.ExportKeyPath),
-	}
-	//路径自动加载开关：未提供时默认开启(1)
-	if req.AutoLoadPath != nil {
-		bean.AutoLoadPath = *req.AutoLoadPath
-	} else {
-		bean.AutoLoadPath = 1
 	}
 	if bean.CertPath == "" {
 		bean.CertPath = filepath.Join(utils.GetCurrentDir(), "ssl", bean.Id, "domain.crt")
@@ -200,6 +195,9 @@ func (receiver *WafSslConfigService) CheckIsExistApi(serialNo string) error {
 }
 
 func (receiver *WafSslConfigService) ModifyApi(req request.SslConfigEditReq) error {
+	if req.AutoLoadPath == nil || (*req.AutoLoadPath != 0 && *req.AutoLoadPath != 1) || req.ExportCertPath == nil || req.ExportKeyPath == nil {
+		return errors.New("请提交自动加载开关和证书、私钥导出路径，关闭导出时路径留空")
+	}
 	var previous model.SslConfig
 	if err := global.GWAF_LOCAL_DB.First(&previous, "id = ?", req.Id).Error; err != nil {
 		return err
@@ -250,16 +248,18 @@ func (receiver *WafSslConfigService) ModifyApi(req request.SslConfigEditReq) err
 	}
 
 	var bean model.SslConfig
-	global.GWAF_LOCAL_DB.Where("serial_no = ?", serialNo).Find(&bean)
-	if bean.Id != "" && bean.SerialNo != serialNo {
+	if err := global.GWAF_LOCAL_DB.Where("serial_no = ? AND id <> ?", serialNo, req.Id).Limit(1).Find(&bean).Error; err != nil {
+		return err
+	}
+	if bean.Id != "" {
 		return errors.New("该证书已经存在")
 	}
 
 	if req.CertPath == "" {
-		req.CertPath = filepath.Join(utils.GetCurrentDir(), "ssl", bean.Id, "domain.crt")
+		req.CertPath = filepath.Join(utils.GetCurrentDir(), "ssl", req.Id, "domain.crt")
 	}
 	if req.KeyPath == "" {
-		req.KeyPath = filepath.Join(utils.GetCurrentDir(), "ssl", bean.Id, "domain.key")
+		req.KeyPath = filepath.Join(utils.GetCurrentDir(), "ssl", req.Id, "domain.key")
 	}
 	beanMap := map[string]interface{}{
 		"CertContent": req.CertContent,
@@ -274,17 +274,9 @@ func (receiver *WafSslConfigService) ModifyApi(req request.SslConfigEditReq) err
 		"CertPath":    req.CertPath,
 		"KeyPath":     req.KeyPath,
 	}
-	//仅当请求提供了路径自动加载开关时才更新该列，避免旧前端不传该字段导致被误置0
-	if req.AutoLoadPath != nil {
-		beanMap["AutoLoadPath"] = *req.AutoLoadPath
-	}
-	//同理，导出路径只在前端明确传了才更新，nil=旧前端不认识该字段，保持库里原值
-	if req.ExportCertPath != nil {
-		beanMap["ExportCertPath"] = strings.TrimSpace(*req.ExportCertPath)
-	}
-	if req.ExportKeyPath != nil {
-		beanMap["ExportKeyPath"] = strings.TrimSpace(*req.ExportKeyPath)
-	}
+	beanMap["AutoLoadPath"] = *req.AutoLoadPath
+	beanMap["ExportCertPath"] = strings.TrimSpace(*req.ExportCertPath)
+	beanMap["ExportKeyPath"] = strings.TrimSpace(*req.ExportKeyPath)
 	return global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(model.SslConfig{}).Where("id = ? AND cert_content = ?", req.Id, previous.CertContent).Updates(beanMap)
 		if result.Error != nil {
@@ -293,7 +285,7 @@ func (receiver *WafSslConfigService) ModifyApi(req request.SslConfigEditReq) err
 		if result.RowsAffected != 1 {
 			return errors.New("证书已被其他操作修改，请重新读取")
 		}
-		if CertificateLifecycleAvailable() && (CertificateFingerprint(req.CertContent) != CertificateFingerprint(previous.CertContent) || (req.AutoLoadPath != nil && *req.AutoLoadPath == 1)) {
+		if CertificateLifecycleAvailable() && (CertificateFingerprint(req.CertContent) != CertificateFingerprint(previous.CertContent) || *req.AutoLoadPath == 1) {
 			return tx.Model(&model.SslRenewalPolicy{}).Where("id = ?", req.Id).Updates(map[string]any{"enabled": false, "status": "manual", "version": gorm.Expr("version + 1"), "next_attempt_at": nil, "last_error": "手动维护或文件同步已接管更新，原自动续期已停止"}).Error
 		}
 		return nil
@@ -450,39 +442,7 @@ func (receiver *WafSslConfigService) DelApi(req request.SslConfigDeleteReq) erro
 
 // formatBindHosts 格式化绑定的主机列表
 func (receiver *WafSslConfigService) formatBindHosts(sslId string) []string {
-	var hosts []model.Hosts
 	var result []string
-
-	// 查询绑定该SSL的所有主机
-	global.GWAF_LOCAL_DB.Where("bind_ssl_id = ?", sslId).Find(&hosts)
-
-	// 格式化每个主机的显示信息
-	for _, host := range hosts {
-		var hostDisplay string
-
-		// 构建括号内的内容
-		var bracketContent []string
-
-		// 如果是SSL，添加SSL标识
-		if host.Ssl == 1 {
-			bracketContent = append(bracketContent, "SSL")
-		}
-
-		// 如果有备注，添加备注
-		if host.REMARKS != "" {
-			bracketContent = append(bracketContent, host.REMARKS)
-		}
-
-		// 构建最终的Host显示字符串
-		if len(bracketContent) > 0 {
-			hostDisplay = fmt.Sprintf("%s:%d(%s)", host.Host, host.Port, strings.Join(bracketContent, ","))
-		} else {
-			hostDisplay = fmt.Sprintf("%s:%d", host.Host, host.Port)
-		}
-
-		result = append(result, hostDisplay)
-	}
-
 	if global.GWAF_LOCAL_DB.Migrator().HasTable(&model.PortConfig{}) {
 		var rows []model.PortConfig
 		if err := global.GWAF_LOCAL_DB.Limit(wafpipeline.Ports.Limit()).Find(&rows).Error; err == nil {

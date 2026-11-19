@@ -1,6 +1,6 @@
 // Verify password masking with synthetic credentials and fully isolated APIs.
 import { chromium, expect } from '@playwright/test';
-import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -14,12 +14,13 @@ try {
   await context.routeWebSocket('**/api/**', ws => ws.close());
   let loginRequests = 0;
   await context.route('**/api/**', async route => {
+    if (await handleTransportHandshake(route)) return;
     const endpoint = new URL(route.request().url()).pathname.split('/api/v1/')[1] || '';
     if (endpoint === 'public/login') {
       loginRequests++;
-      return route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify({ access_token: 'isolated-password-test', need_change_password: true })), msg: '' } });
+      return route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify({ access_token: 'isolated-password-test', need_change_password: true })), msg: '' } });
     }
-    return route.fulfill({ json: { code: 1, data: AesEncrypt('{}'), msg: 'Isolated password fixture' } });
+    return route.fulfill({ json: { code: 1, data: routeSession(route).encrypt('{}'), msg: 'Isolated password fixture' } });
   });
   const page = await context.newPage();
   await page.goto(origin + '/#/login');

@@ -4,6 +4,8 @@ package api
 
 import (
 	"HomeWaf/global"
+	"HomeWaf/internal/releasetest"
+	"HomeWaf/internal/transporttest"
 	"HomeWaf/model"
 	"HomeWaf/wafsec"
 	"encoding/json"
@@ -39,6 +41,7 @@ func TestSysRuntimeInfoApi(t *testing.T) {
 	if err != nil {
 		t.Fatalf("无法创建请求：%v", err)
 	}
+	req.Header.Set("X-Key-Id", transporttest.Session(t))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	t.Logf("响应体内容: %s", rec.Body.String())
@@ -57,7 +60,7 @@ func TestSysRuntimeInfoApi(t *testing.T) {
 	payload := response.Data
 	var encrypted string
 	if json.Unmarshal(response.Data, &encrypted) == nil {
-		decrypted, err := wafsec.AesDecrypt(encrypted, global.GWAF_COMMUNICATION_KEY)
+		decrypted, _, err := wafsec.TransportDecrypt(encrypted)
 		if err != nil {
 			t.Fatalf("响应解密失败：%v", err)
 		}
@@ -86,20 +89,19 @@ func isolateVersionCheck(t *testing.T, handler http.HandlerFunc) *gin.Engine {
 	t.Helper()
 	oldURL, oldRelease, oldBetaURL := global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL
 	oldVersion, oldName := global.GWAF_RELEASE_VERSION, global.GWAF_RELEASE_VERSION_NAME
-	oldBeta, oldWin7, oldUpdating := global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_WIN7_VERSION, global.GWAF_RUNTIME_IS_UPDATETING
+	oldBeta, oldUpdating := global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING
 	t.Cleanup(func() {
 		global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL = oldURL, oldRelease, oldBetaURL
 		global.GWAF_RELEASE_VERSION, global.GWAF_RELEASE_VERSION_NAME = oldVersion, oldName
 		global.UpdateSettings(func(cfg *global.RuntimeSettings) {
-			cfg.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_WIN7_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = oldBeta, oldWin7, oldUpdating
+			cfg.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = oldBeta, oldUpdating
 		})
 	})
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	global.GUPDATE_VERSION_URL = server.URL + "/"
-	global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL = "", ""
+	global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL = server.URL, ""
 	global.UpdateSettings(func(cfg *global.RuntimeSettings) {
-		cfg.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_WIN7_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = 0, "false", false
+		cfg.GCONFIG_CHECK_BETA_VERSION, global.GWAF_RUNTIME_IS_UPDATETING = 0, false
 	})
 	global.GWAF_RELEASE_VERSION, global.GWAF_RELEASE_VERSION_NAME = "v1.0.6", "fixture"
 	r := gin.New()
@@ -134,9 +136,8 @@ func TestCheckVersionNeedUploadApi(t *testing.T) {
 			calls := 0
 			r := isolateVersionCheck(t, func(w http.ResponseWriter, r *http.Request) {
 				calls++
-				_ = json.NewEncoder(w).Encode(map[string]any{"Version": tc.version, "Sha256": make([]byte, 32), "Desc": "fixture release"})
+				_ = json.NewEncoder(w).Encode(releasetest.Metadata(tc.version, "fixture release"))
 			})
-			global.GWAF_RUNTIME_WIN7_VERSION = "true"
 			out := checkVersionFixture(t, r)
 			if out.Code != 0 || calls != 1 {
 				t.Fatalf("check failed: %+v calls=%d", out, calls)
@@ -157,7 +158,7 @@ func TestCheckVersionNeedUploadApi(t *testing.T) {
 
 func TestInternalBuildVersionAPIKeepsBuildIdentityWithoutSameReleasePrompt(t *testing.T) {
 	r := isolateVersionCheck(t, func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{"Version": "v2.0.2", "Sha256": make([]byte, 32), "Desc": "same source baseline"})
+		_ = json.NewEncoder(w).Encode(releasetest.Metadata("v2.0.2", "same source baseline"))
 	})
 	oldID, oldCommit, oldTime, oldChannel := global.GWAF_BUILD_ID, global.GWAF_BUILD_COMMIT, global.GWAF_BUILD_TIME, global.GWAF_BUILD_CHANNEL
 	t.Cleanup(func() {

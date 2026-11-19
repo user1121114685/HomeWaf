@@ -2,7 +2,6 @@ package enums
 
 const (
 	TASK_RUNTIME_QPS_CLEAN            = "task_runtime_qps_clean"            //清空运行QPS
-	TASK_HOST_QPS_CLEAN               = "task_host_qps_clean"               //清空主机QPS
 	TASK_SHARE_DB                     = "task_share_db"                     //分区检测(每天兜底)
 	TASK_SHARE_DB_CHECK               = "task_share_db_check"               //分区高频检测(每5分钟；按周期切，体积超限兜底)
 	TASK_COUNTER                      = "task_counter"                      //统计
@@ -17,9 +16,6 @@ const (
 	TASK_SSL_EXPIRE_CHECK             = "task_ssl_expire_check"             //SSL证书到期检测
 	TASK_MANAGER_CERT_CHECK           = "task_manager_cert_check"           //管理端证书到期检测与本地证书自动续期
 	TASK_NOTICE                       = "task_notice"                       //通知信息
-	TASK_HEALTH                       = "task_health"                       //健康检测
-	TASK_CLEAR_CC_WINDOWS             = "task_clear_cc_windows"             //清除ccWindows记录
-	TASK_CLEAR_WEBCACHE               = "task_clear_webcache"               //清除缓存
 	TASK_GC                           = "task_gc"                           //GC回收
 	TASK_STATS_PUSH                   = "task_stats_push"                   //系统统计数据推送
 	TASK_DB_MONITOR                   = "task_db_monitor"                   //数据库监控

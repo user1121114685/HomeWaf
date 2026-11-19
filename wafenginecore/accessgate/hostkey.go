@@ -82,9 +82,7 @@ func TokenCookieName(prefix, normalizedHost string) string {
 		prefix = disabledDefault.CookiePrefix
 	}
 	if normalizedHost == "" {
-		// 正常路径走不到：能进网关说明请求已按 Host 匹配到站点。
-		// 真走到了就回退到旧名字，保持可用而不是把人锁在外面。
-		return prefix + "_tk"
+		return ""
 	}
 	sum := sha256.Sum256([]byte(normalizedHost))
 	return prefix + "_tk_" + hex.EncodeToString(sum[:8])

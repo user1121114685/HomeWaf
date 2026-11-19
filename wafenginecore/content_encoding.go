@@ -29,8 +29,6 @@ import (
 // encodingDetectPeekSize 编码自动检测的探测窗口大小（meta声明可能在1024字节之后）
 const encodingDetectPeekSize = 8192
 
-// Legacy response transforms are bounded; larger bodies retain their original
-// stream. The new port proxy never needs whole-response transformation.
 const maxResponseTransformBytes = 1 << 20
 
 var errResponseTransformLimit = errors.New("response transformation limit exceeded")
@@ -159,12 +157,7 @@ func gbkDecodesClean(b []byte) bool {
 }
 
 // 返回内容前依据情况进行返回压缩数据
-func (waf *WafEngine) compressContent(res *http.Response, isStaticAssist bool, inputBytes []byte, encodeType string) (respBytes []byte, err error) {
-
-	// 如果是静态资源响应或资源类型请求，直接返回原始内容
-	if isStaticAssist {
-		return inputBytes, errors.New("静态资源或资源类型请求，跳过编码转换")
-	}
+func compressContent(res *http.Response, inputBytes []byte, encodeType string) (respBytes []byte, err error) {
 
 	// 优先使用检测阶段返回的编码，否则从Content-Type头提取
 	charsetName := encodeType
@@ -206,7 +199,7 @@ func (waf *WafEngine) compressContent(res *http.Response, isStaticAssist bool, i
 }
 
 // 获取原始内容
-func (waf *WafEngine) getOrgContent(resp *http.Response, isStaticAssist bool, defaultEncoding string) (cntBytes []byte, encodeType string, err error) {
+func PipelineDecodeResponse(resp *http.Response, defaultEncoding string) (cntBytes []byte, encodeType string, err error) {
 	request := &http.Request{Body: resp.Body}
 	bodyBytes, err := bodyinspect.ReadPrefix(request, maxResponseTransformBytes)
 	resp.Body = request.Body
@@ -215,11 +208,6 @@ func (waf *WafEngine) getOrgContent(resp *http.Response, isStaticAssist bool, de
 	}
 	if len(bodyBytes) > maxResponseTransformBytes {
 		return bodyBytes[:maxResponseTransformBytes], "", errResponseTransformLimit
-	}
-
-	// 如果是静态资源响应或资源类型请求，直接返回原始内容
-	if isStaticAssist {
-		return bodyBytes, "", errors.New("静态资源或资源类型请求，跳过编码转换")
 	}
 
 	// 根据内容编码处理压缩（从独立reader读取，保持resp.Body完整不被消耗）

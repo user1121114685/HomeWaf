@@ -21,7 +21,6 @@ export const renewalStates: Record<string, string> = {
   deploying: '正在更新服务',
   retry_wait: '失败，等待重试',
   blocked: '需要处理',
-  unresolved: '来源待确认',
   manual: '手动维护已接管',
 };
 export const validityStates: Record<string, string> = {
@@ -42,7 +41,7 @@ export function showTime(value?: string) {
 export function renewalLabel(record: CertificateRecord) {
   const policy = record.renewal;
   if (!policy) return record.update_method === 'file' ? '由外部程序更新' : '未配置自动申请';
-  if (['blocked', 'unresolved', 'manual', 'running', 'queued', 'retry_wait', 'deploying'].includes(policy.status))
+  if (['blocked', 'manual', 'running', 'queued', 'retry_wait', 'deploying'].includes(policy.status))
     return renewalStates[policy.status];
   return policy.enabled ? '已开启，等待续期窗口' : '自动续期已关闭';
 }

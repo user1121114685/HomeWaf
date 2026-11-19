@@ -20,7 +20,6 @@ const (
 	MaxTotalSuccessPrefixes = 32768
 )
 
-// Nil is accepted when loading older configurations. New service saves require an enabled policy.
 type DefenseConfig struct {
 	Enabled         bool   `json:"enabled"`
 	Mode            string `json:"mode"`
@@ -36,7 +35,7 @@ func DefaultDefense() DefenseConfig {
 
 func ValidateDefense(c *DefenseConfig) error {
 	if c == nil {
-		return nil
+		return errors.New("anomaly response policy is required")
 	}
 	if c.Mode != DefenseQuiet && c.Mode != DefenseRestrict && c.Mode != DefenseClose && c.Mode != DefenseHoney {
 		return errors.New("请选择一种异常访问处置模式")
@@ -62,7 +61,7 @@ type DefenseState struct {
 }
 
 func ActiveDefense(c PortConfig, now int64) *DefenseState {
-	if c.Policy.Defense == nil || !c.Policy.Defense.Enabled || c.DefenseState == nil {
+	if !c.Policy.Defense.Enabled || c.DefenseState == nil {
 		return nil
 	}
 	if c.DefenseState.ExpiresAt <= now && c.DefenseState.Mode != DefenseClose {
@@ -112,7 +111,6 @@ type defenseCounter struct {
 type DefenseStatus struct {
 	Mode            string        `json:"mode"`
 	Enabled         bool          `json:"enabled"`
-	Legacy          bool          `json:"legacy"`
 	HoneypotReady   bool          `json:"honeypot_ready"`
 	Revision        int64         `json:"revision"`
 	AccessEnabled   bool          `json:"access_enabled"`
@@ -223,7 +221,11 @@ func (e *DefenseEngine) counter(s *Snapshot) *defenseCounter {
 		c = &defenseCounter{}
 		e.counters[port] = c
 	}
-	if d := s.Config.Policy.Defense; d != nil && c.Config != *d {
+	d := s.Config.Policy.Defense
+	if d == nil {
+		return nil
+	}
+	if c.Config != *d {
 		c.Config = *d
 		c.Failures = nil
 		c.Pending = nil
@@ -236,7 +238,7 @@ func (e *DefenseEngine) counter(s *Snapshot) *defenseCounter {
 // Request failures may carry several detector events. This is called exactly
 // once for the final request outcome, rather than once for each HitEvent.
 func DefenseFailure(c *RequestContext, v Verdict) bool {
-	if c == nil || c.DryRun || v.Observe || strings.HasPrefix(v.Reason, "defense:") || v.Reason == "access_disabled" || v.Reason == "lockdown" || v.Reason == synologyLockKind || v.Reason == "synology_admin" || v.Reason == "policy_unavailable" {
+	if c == nil || c.DryRun || v.Observe || strings.HasPrefix(v.Reason, "defense:") || v.Reason == "access_disabled" || v.Reason == synologyLockKind || v.Reason == "synology_admin" || v.Reason == "policy_unavailable" {
 		return false
 	}
 	for _, hit := range c.Hits {
@@ -315,7 +317,10 @@ func (e *DefenseEngine) Observe(s *Snapshot, c *RequestContext, v Verdict) {
 		}
 	}
 	d := s.Config.Policy.Defense
-	if d == nil || !d.Enabled || d.Mode == DefenseHoney || !s.Config.Policy.Access.Enabled || s.Config.DefenseState != nil || state.Pending != nil || !DefenseFailure(c, v) {
+	if d == nil {
+		return
+	}
+	if !d.Enabled || d.Mode == DefenseHoney || !s.Config.Policy.Access.Enabled || s.Config.DefenseState != nil || state.Pending != nil || !DefenseFailure(c, v) {
 		return
 	}
 	state.Failures = recentFailures(state.Failures, now-int64(d.WindowSeconds))
@@ -408,10 +413,12 @@ func (e *DefenseEngine) Status(s *Snapshot) DefenseStatus {
 	defer e.mu.Unlock()
 	now := e.Now().Unix()
 	out := DefenseStatus{Revision: s.Config.Revision, AccessEnabled: s.Config.Policy.Access.Enabled, HistoryReady: e.historyReady, Error: e.historyError, State: s.Config.DefenseState}
-	out.Legacy, out.HoneypotReady = s.Config.Policy.Defense == nil, SharedHoneypotReady()
-	if d := s.Config.Policy.Defense; d != nil {
-		out.Mode, out.Enabled = d.Mode, d.Enabled
+	d := s.Config.Policy.Defense
+	if d == nil {
+		return DefenseStatus{Revision: s.Config.Revision, AccessEnabled: s.Config.Policy.Access.Enabled, HistoryReady: e.historyReady, Error: "anomaly response policy is required"}
 	}
+	out.HoneypotReady = SharedHoneypotReady()
+	out.Mode, out.Enabled = d.Mode, d.Enabled
 	if e.overflow[s.Config.Port] > now {
 		out.HistoryReady = false
 		out.Error = "成功来源容量已满，自动收紧暂不触发"

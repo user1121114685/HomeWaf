@@ -53,8 +53,7 @@ type SslOrder struct {
 	PrivateGroupName        string              `gorm:"size:255" json:"private_group_name"`           //密钥分组名称DNS有效
 }
 
-// Missing preferences from older callers retain the default automatic renewal.
-func (s SslOrder) AutoRenewEnabled() bool { return s.AutoRenew == nil || *s.AutoRenew }
+func (s SslOrder) AutoRenewEnabled() bool { return s.AutoRenew != nil && *s.AutoRenew }
 
 func (s *SslOrder) RefreshHeartbeatState(now time.Time) {
 	s.HeartbeatStale = s.ApplyStatus == "applying" && now.Sub(time.Time(s.UPDATE_TIME)) > 90*time.Second

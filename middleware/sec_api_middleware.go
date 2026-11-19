@@ -3,24 +3,40 @@
 package middleware
 
 import (
-	"HomeWaf/common/zlog"
-	"HomeWaf/global"
 	"HomeWaf/model/common/response"
 	"HomeWaf/wafsec"
 	"bytes"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"io"
+	"mime"
 	"net/http"
-	"strings"
 )
 
 // SecApi 鉴权中间件
 func SecApi() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		isOpenAPI := c.GetBool("is_openapi")
+		keyID := c.GetHeader(response.HeaderKeyID)
+		if c.FullPath() == "/api/v1/ws" {
+			keyID = c.Query("keyid")
+		}
+		if !isOpenAPI {
+			session, err := wafsec.OpenTransportSession(keyID)
+			if err != nil {
+				response.Rehandshake(c)
+				return
+			}
+			c.Set(response.TransportSessionKey, session)
+		}
 		// Multipart uploads are plaintext: preserve streaming and existing 200 MiB
 		// application uploads instead of buffering them during transport decryption.
-		if strings.HasPrefix(strings.ToLower(c.GetHeader("Content-Type")), "multipart/form-data") {
+		if c.ContentType() == "multipart/form-data" {
+			_, params, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
+			if err != nil || params["boundary"] == "" || !isManagementFileUpload(c.FullPath()) {
+				c.AbortWithStatus(http.StatusUnsupportedMediaType)
+				return
+			}
 			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 210<<20)
 			c.Next()
 			return
@@ -29,7 +45,7 @@ func SecApi() gin.HandlerFunc {
 		// requests with unknown Content-Length.
 		const maxTransportBody = 32 << 20
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxTransportBody)
-		if strings.HasSuffix(c.Request.URL.Path, "/api/v1/wafhost/host/diagnostic") {
+		if c.FullPath() == "/api/v1/wafhost/host/diagnostic" {
 			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32<<10)
 		}
 		bodyBytes, err := io.ReadAll(c.Request.Body)
@@ -43,50 +59,24 @@ func SecApi() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-		// v2 通道：按报文前缀路由，不看 Content-Type。前缀不匹配的报文原样落到下面的
-		// legacy 分支，旧客户端行为不变。
-		if wafsec.IsTransportV2(string(bodyBytes)) {
-			plain, _, err := wafsec.TransportDecrypt(string(bodyBytes))
-			if err == nil {
-				c.Request.Body = io.NopCloser(bytes.NewBuffer(plain))
-			} else {
-				// 会话密钥已失效（服务端重启/过期）：直接给出重新握手的明文信号。
-				// 放原文过去会让业务层拿一段密文当参数解析，报出一个与真实原因无关的错。
-				zlog.Debug("v2报文解密失败", err.Error())
-				c.JSON(http.StatusOK, response.Response{
-					Code: response.NEED_REHANDSHAKE,
-					Data: "",
-					Msg:  "会话密钥不可用，请重新握手",
-				})
-				c.Abort()
+		if !isOpenAPI && len(bodyBytes) != 0 {
+			plain, id, err := wafsec.TransportDecrypt(string(bodyBytes))
+			if err != nil || id != keyID {
+				response.Rehandshake(c)
 				return
 			}
-			c.Next()
-			return
+			bodyBytes = plain
 		}
-
-		if c.Request.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
-			decryptBytes, err := wafsec.AesDecrypt(string(bodyBytes), global.GWAF_COMMUNICATION_KEY)
-			if err == nil {
-				c.Request.Body = io.NopCloser(bytes.NewBuffer(decryptBytes))
-			}
-
-		} else if strings.Contains(c.Request.Header.Get("accept"), "text/event-stream") {
-			decryptBytes, err := wafsec.AesDecrypt(string(bodyBytes), global.GWAF_COMMUNICATION_KEY)
-			if err == nil {
-				c.Request.Body = io.NopCloser(bytes.NewBuffer(decryptBytes))
-			}
-		} else if c.Request.Header.Get("X-Login-Type") == "mobile" && c.Request.Header.Get("Content-Type") == "application/json" {
-			decryptBytes, err := wafsec.AesDecrypt(string(bodyBytes), global.GWAF_COMMUNICATION_KEY)
-			if err == nil {
-				c.Request.Body = io.NopCloser(bytes.NewBuffer(decryptBytes))
-			} else {
-				zlog.Debug("Decrypt error", err.Error())
-			}
-
-		}
+		c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		c.Next()
 	}
+}
+
+func isManagementFileUpload(path string) bool {
+	switch path {
+	case "/api/v1/iplocation/upload", "/api/v1/license/checklicense",
+		"/api/v1/application/app/upload", "/api/v1/application/app/upgrade":
+		return true
+	}
+	return false
 }

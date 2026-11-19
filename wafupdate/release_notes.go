@@ -53,8 +53,6 @@ func (u *Updater) RecentReleaseNotes(channel string) ([]ReleaseNote, error) {
 	allowPrerelease := channel == "github"
 	if allowPrerelease {
 		endpoint = global.GUPDATE_GITHUB_VERSION_URL
-	} else if u.ApiURL != "" {
-		return fallback, nil // Legacy manifests describe one version only.
 	}
 	parsed, err := url.Parse(endpoint)
 	if err != nil {

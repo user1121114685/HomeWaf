@@ -17,7 +17,7 @@ import (
 // ActorKey 访问者身份：只有 IP 可用。
 // 注意不能拿 GUEST_IDENTIFICATION 当身份——它是引擎写的分类标签
 // （正常访客/可疑用户/bot 名/触发敏感词…），全站只有几个取值，
-// 当键会把所有正常访客聚成一个 actor。分类聚合直接查窄行的 guest_id_entification 列。
+// 当键会把所有正常访客聚成一个 actor。分类聚合直接查窄行的 guest_identification 列。
 func ActorKey(ip string) string {
 	if ip != "" {
 		return "ip:" + ip

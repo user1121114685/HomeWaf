@@ -7,7 +7,7 @@ import (
 
 func (r *Runtime) defenseResponse(s *Snapshot, c *RequestContext, w http.ResponseWriter, v Verdict) bool {
 	d := s.Config.Policy.Defense
-	if d == nil || !d.Enabled || c.DryRun || !DefenseFailure(c, v) {
+	if !d.Enabled || c.DryRun || !DefenseFailure(c, v) {
 		return false
 	}
 	if d.Mode == DefenseHoney {

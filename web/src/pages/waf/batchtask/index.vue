@@ -278,15 +278,15 @@ import Trend from '@/components/trend/index.vue';
 
 import { batchTaskAddApi, batchTaskDelApi, batchTaskEditApi, batchTaskListApi, batchTaskManualApi } from '@/apis/batchtask';
   import {
-    allhost
-  } from '@/apis/host';
+    listServices
+  } from '@/apis/services';
   import {
     wafIPGroupOptionsApi, wafIPGroupAddApi
   } from '@/apis/ipgroup';
 const INITIAL_DATA = {
   batch_task_name: '',
   batch_host_code: '',
-  batch_type: 'ipallow',
+  batch_type: 'ipgroup',
   batch_source_type: 'local',
   batch_source: '',
   batch_execute_method: 'append',
@@ -488,40 +488,17 @@ export default defineComponent({
       deleteIdx: -1,
       // 任务类型配置模板
       batchTypeConfigs: {
-        ipallow: {
-          template: {
-          },
-          description: "无"
-        },
-        ipdeny: {
-          template: {
-          },
-          description: "无"
-        },
         ipgroup: {
-          // 目标组由上方的「目标IP组」下拉维护，这里不给模板，避免覆盖已选中的组
-          template: {
-          },
-          description: "无"
+          template: {},
+          description: 'IP组任务将来源导入租户级共享IP组。',
         },
         sensitive: {
-          template: {
-            "check_direction": "out",
-            "action": "replace"
-          },
-          description: "敏感词检测配置\n- check_direction: 检测方向(in=入站, out=出站, all=双向)\n- action: 检测后动作(deny=拒绝, replace=替换)"
-        }
+          template: { check_direction: 'out', action: 'replace' },
+          description: '敏感词检测配置',
+        },
       },
       //任务类型
       batch_task_type: [
-        {
-            label: this.$t('page.batchtask.batch_type.add_ipallow'),
-            value: 'ipallow'
-        },
-        {
-        label: this.$t('page.batchtask.batch_type.add_ipdeny'),
-        value: 'ipdeny'
-         },
         {
           label: this.$t('page.batchtask.batch_type.add_ipgroup'),
           value: 'ipgroup'
@@ -695,7 +672,7 @@ export default defineComponent({
     },
     loadHostList() {
         return new Promise((resolve, reject) => {
-          allhost()
+          listServices()
             .then((res) => {
               let resdata = res;
               console.log(resdata);

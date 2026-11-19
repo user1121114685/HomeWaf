@@ -25,7 +25,7 @@ import {defineComponent} from 'vue';
 
 import websocket from "@/utils/websocket.js";
 import { DialogPlugin } from '@/ui';
-import  {ensureSecSession, currentKeyId, decryptIncoming} from './utils/seccrypto'
+import { ensureSecSession, invalidateSecSession } from './utils/seccrypto';
 import { clearLocalStorageExceptPreserved, saveCurrentUrl } from '@/constants';
 const env = import.meta.env.MODE || 'development';
 const isSharedScreen = () => window.location.hash.split('?')[0] === '#/dashboard/shared';
@@ -143,14 +143,15 @@ export default defineComponent({
           return;
         }
         this.wsConnecting = true;
+        let session;
         try {
-          // WebSocket 建连不能带自定义头，会话密钥只能走查询参数；
-          // 握手失败(旧后端/网络异常)时 keyid 为空，后端推送回落 legacy 通道。
-          await ensureSecSession()
+          session = await ensureSecSession();
+        } catch {
+          this.scheduleReconnect(this.wsGeneration);
+          return;
         } finally {
           this.wsConnecting = false;
         }
-        const keyid = currentKeyId()
         if(!this.ws) {
           // url
           const isHttps = window.location.protocol === 'https:';
@@ -159,7 +160,7 @@ export default defineComponent({
           let url = env=="development"
               ? `ws://127.0.0.1:26666${secPath}/api/v1/ws`
               : `${isHttps ? 'wss' : 'ws'}://${window.location.host}${secPath}/api/v1/ws`;
-          if (keyid) url += `?keyid=${encodeURIComponent(keyid)}`;
+          url += `?keyid=${encodeURIComponent(session.id)}`;
           // 代次：本次连接的身份标记。旧连接的事件迟到时靠它识别并丢弃，
           // 否则「已废弃连接的 close 事件」会把 this.ws（此时已指向新的活连接）置空并再排一次重连，
           // 于是又漏出一条连接——线上就是这样一路裂变出十几条并存连接，
@@ -169,9 +170,9 @@ export default defineComponent({
               url,	// url
               token,
               () => this.wsOnOpen(gen), // 链接回调
-              (e) => this.wsOnMessage(e, gen),	// 连接成功后处理接口返回信息
+              (e) => this.wsOnMessage(e, gen, session),	// 连接成功后处理接口返回信息
               () => this.wsOnClose(gen), // 关闭回调
-              (e) => this.wsOnError(e, gen), // 消息通知错误回调
+              (e) => this.wsOnError(e, gen, session), // 消息通知错误回调
               [], // 发送后台的心跳包参数
               30000, // 心跳间隔：30秒（可按需调整）
               false // 关闭工具内部重连，统一由 App.vue 控制
@@ -230,11 +231,12 @@ export default defineComponent({
         }, delay);
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, WS_RECONNECT_MAX_DELAY);
       },
-      wsOnError(e, gen) {
+      wsOnError(e, gen, session) {
+        if (this.isCurrentWs(gen) && !this.wsOpenedAt) invalidateSecSession(session.id);
         console.log(e,'消息通知错误回调，重新连接')
         this.scheduleReconnect(gen);
       },
-      wsOnMessage(e, gen) {
+      wsOnMessage(e, gen, session) {
         // 僵尸连接（已被丢弃但服务端还在推）的消息一律丢掉，否则同一条通知会重复入库
         if (!this.isCurrentWs(gen)) return;
         if(e.data=="pong"){
@@ -248,7 +250,7 @@ export default defineComponent({
           let msgDataEnstr =wsData.msg_data
 
           //console.log('msgDataEnstr',msgDataEnstr)
-          let tmpSrcContent = decryptIncoming(msgDataEnstr)
+          let tmpSrcContent = session.decrypt(msgDataEnstr)
          // console.log('tmpSrcContent',tmpSrcContent)
           let msgData = JSON.parse(tmpSrcContent)
           //console.log('msgData',msgData)
@@ -283,10 +285,6 @@ export default defineComponent({
             });
             // 通知确认框只定位任务；原消息仍保留在铃铛中供稍后查看。
             return;
-          }else if(wsData.msg_cmd_type==="DOWNLOAD_LOG"){
-            this.$message.warning(this.$t('logExport.oldNotice'));
-            // 旧导出通知仅给升级指引；原消息仍保留在铃铛中。
-            return;
           }else if(wsData.msg_cmd_type==="UPDATE_AVAILABLE"){
             this.$bus.$emit('software-update-available');
           }else if(wsData.msg_cmd_type==="SystemStats"){
@@ -319,23 +317,6 @@ export default defineComponent({
   }
 
 });
-
-/*
-var ws = new WebSocket("ws://127.0.0.1:26666/api/v1/ws",[localStorage.getItem("access_token")]);
-//连接打开时触发
-ws.onopen = function(evt) {
-    console.log("Connection open ...");
-    ws.send("ping");
-};
-//接收到消息时触发
-ws.onmessage = function(evt) {
-    console.log("Received Message: " + evt.data);
-};
-//连接关闭时触发
-ws.onclose = function(evt) {
-    console.log("Connection closed.");
-}; */
-
 
 </script>
 <style>

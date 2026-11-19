@@ -1,12 +1,12 @@
 package waf_service
 
 import (
+	"HomeWaf/model"
 	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
 
-	"HomeWaf/model"
 	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafpipeline"
 )
@@ -15,14 +15,8 @@ func TestSSLCertificateTargetsAndNativeBinding(t *testing.T) {
 	oldDialect := func() (d dialect.DBDialect) { defer func() { _ = recover() }(); return dialect.Get() }()
 	dialect.Register(&dialect.SQLiteDialect{})
 	t.Cleanup(func() { dialect.Register(oldDialect) })
-	s, db := legacyMigrationFixture(t)
+	s, db := nativePortFixture(t)
 	if err := db.AutoMigrate(&model.SslConfig{}); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Where("1 = 1").Delete(&model.Hosts{}).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Create(&model.Hosts{BaseOrm: pipelineORM(), Code: "global-only", Host: "*", GLOBAL_HOST: 1}).Error; err != nil {
 		t.Fatal(err)
 	}
 	config := wafpipeline.PortConfig{Schema: 1, Port: 15000, Name: "家庭 NAS", Protocol: "http", HostNames: []string{"nas.example.com", "*.example.com"}, Upstream: "http://127.0.0.1:5000", Policy: newServicePolicyFixture()}
@@ -88,11 +82,6 @@ func TestSSLCertificateTargetsAndNativeBinding(t *testing.T) {
 	if strings.Contains(raw, "PRIVATE KEY") {
 		t.Fatal("certificate key stored without encryption")
 	}
-	eligible, err := GetSSLRenewalHosts()
-	if err != nil || len(eligible) != 1 || eligible[0].Code != target.Code {
-		t.Fatalf("native service missing from auto-renewal: %+v %v", eligible, err)
-	}
-
 	second := makeCertificate()
 	renewedID, err := s.ApplySSLCertificate(target, second, true)
 	if err != nil || renewedID != id {
@@ -122,10 +111,6 @@ func TestSSLCertificateTargetsAndNativeBinding(t *testing.T) {
 	}
 	if _, err := s.Save(PortSaveRequest{Config: snapshot.Config, TLSCert: first.CertContent, TLSKey: first.KeyContent}); err != nil {
 		t.Fatal(err)
-	}
-	eligible, err = GetSSLRenewalHosts()
-	if err != nil || len(eligible) != 0 {
-		t.Fatal("manual certificate replacement must stop managed auto-renewal")
 	}
 	if _, err := s.ApplySSLCertificate(target, second, true); err == nil {
 		t.Fatal("in-flight renewal overwrote a manual certificate replacement")

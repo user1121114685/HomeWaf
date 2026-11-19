@@ -16,13 +16,12 @@ type Options struct {
 }
 
 type SourceStatus struct {
-	ID             string   `json:"id"`
-	Driver         string   `json:"driver"`
-	Table          string   `json:"table,omitempty"`
-	Status         string   `json:"status"`
-	SnapshotTime   string   `json:"snapshot_time,omitempty"`
-	MissingColumns []string `json:"missing_columns,omitempty"`
-	ErrorCode      string   `json:"error_code,omitempty"`
+	ID           string `json:"id"`
+	Driver       string `json:"driver"`
+	Table        string `json:"table,omitempty"`
+	Status       string `json:"status"`
+	SnapshotTime string `json:"snapshot_time,omitempty"`
+	ErrorCode    string `json:"error_code,omitempty"`
 }
 
 type TableCount struct {
@@ -54,7 +53,6 @@ type Manifest struct {
 	Consistency        string                `json:"consistency"`
 	GeneratedAt        time.Time             `json:"generated_at"`
 	Sources            []SourceStatus        `json:"sources"`
-	MissingColumns     map[string][]string   `json:"missing_columns,omitempty"`
 	Counts             map[string]TableCount `json:"counts"`
 	Files              []FileInfo            `json:"files"`
 	Fields             map[string][]Field    `json:"fields"`

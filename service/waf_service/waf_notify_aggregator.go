@@ -195,7 +195,7 @@ func BuildMergedMessage(sub model.NotifySubscription, channelType string, events
 	firstTitle, _, used := RenderNotifyMessage(sub, channelType, events[0])
 	title = firstTitle + "（合并" + strconv.Itoa(len(events)) + "条）"
 
-	parts := make([]string, 0, showCount+1)
+	parts := make([]string, 0, showCount)
 	for i := 0; i < showCount; i++ {
 		_, body, u := RenderNotifyMessage(sub, channelType, events[i])
 		if u == model.TemplateUsedFallback {

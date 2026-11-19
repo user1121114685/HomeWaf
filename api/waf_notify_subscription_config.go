@@ -283,7 +283,7 @@ func (w *WafNotifySubscriptionApi) BatchConfigApi(c *gin.Context) {
 }
 
 func copyMap(src map[string]interface{}) map[string]interface{} {
-	out := make(map[string]interface{}, len(src)+1)
+	out := make(map[string]interface{}, len(src))
 	for k, v := range src {
 		out[k] = v
 	}

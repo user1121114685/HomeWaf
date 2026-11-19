@@ -15,6 +15,7 @@ import (
 	"HomeWaf/model/request"
 	response2 "HomeWaf/model/response"
 	"HomeWaf/utils"
+	"crypto/rand"
 	"fmt"
 	"strings"
 	"time"
@@ -123,6 +124,10 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 
 			// 密码正确，清除错误计数
 			global.GCACHE_WAFCACHE.Remove(cacheKey)
+			if !enums.IsValidRole(bean.Role) {
+				response.AuthFailWithMessage("账号角色无效，请联系管理员", c)
+				return
+			}
 
 			// 口令强制改密判定：首次登录/被重置(NeedChangePassword) 或 口令已过有效期（提前计算，用于写入令牌与响应）
 			needChangePwd := false
@@ -160,7 +165,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 			}
 
 			//记录状态
-			accessToken := utils.Md5String(uuid.GenUUID())
+			accessToken := rand.Text()
 			tokenInfo, tokenErr := wafTokenInfoService.AddApiWithFingerprintAndType(bean.LoginAccount, accessToken, utils.GetManageClientIP(c), deviceFingerprint, loginType, bean.Role)
 			// 会话没建成就绝不能回「登录成功」：
 			// 旧写法忽略落库错误、又拿重查结果当令牌下发，一旦对不上，前端会拿到一个

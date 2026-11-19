@@ -10,6 +10,9 @@ import (
 	"HomeWaf/wafowasp"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/url"
 	"strconv"
 	"strings"
@@ -30,6 +33,22 @@ func (w *WafOwaspApi) manager(c *gin.Context) *wafowasp.OwaspManager {
 		return nil
 	}
 	return m
+}
+
+func decodeOwaspJSON(c *gin.Context, target any) error {
+	decoder := json.NewDecoder(c.Request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("request contains multiple JSON values")
+		}
+		return err
+	}
+	return nil
 }
 
 // RulesListApi 获取OWASP规则列表
@@ -486,35 +505,10 @@ func (w *WafOwaspApi) BaseConfigSetApi(c *gin.Context) {
 	if m == nil {
 		return
 	}
-	raw := map[string]interface{}{}
-	if err := c.ShouldBindJSON(&raw); err != nil {
+	var cfg wafowasp.BaseConfig
+	if err := decodeOwaspJSON(c, &cfg); err != nil {
 		response.FailWithMessage("解析失败: "+err.Error(), c)
 		return
-	}
-	pickInt := func(keys ...string) int {
-		for _, k := range keys {
-			if v, ok := raw[k]; ok && v != nil {
-				switch n := v.(type) {
-				case float64:
-					return int(n)
-				case int:
-					return n
-				case string:
-					if x, err := strconv.Atoi(n); err == nil {
-						return x
-					}
-				}
-			}
-		}
-		return 0
-	}
-	cfg := wafowasp.BaseConfig{
-		BlockingParanoia:     pickInt("blocking_paranoia_level", "blocking_paranoia"),
-		DetectionParanoia:    pickInt("detection_paranoia_level", "detection_paranoia"),
-		InboundThreshold:     pickInt("inbound_anomaly_score_threshold", "inbound_threshold"),
-		OutboundThreshold:    pickInt("outbound_anomaly_score_threshold", "outbound_threshold"),
-		EarlyBlocking:        pickInt("early_blocking"),
-		EnforceBodyProcessor: pickInt("enforce_bodyproc_urlencoded", "enforce_body_processor"),
 	}
 	if cfg.BlockingParanoia < 1 || cfg.BlockingParanoia > 4 {
 		response.FailWithMessage("blocking_paranoia_level 必须在 1..4", c)
@@ -561,7 +555,7 @@ func (w *WafOwaspApi) TuningGetApi(c *gin.Context) {
 
 // TuningSetApi 更新OWASP调参配置
 // @Summary      更新OWASP调参配置
-// @Description  写入 tuning 配置并热重载；同时兼容长名（inbound_anomaly_score_threshold）和短名（inbound_threshold）两套 key
+// @Description  写入 tuning 配置并热重载
 // @Tags         OWASP规则管理
 // @Accept       json
 // @Produce      json
@@ -574,49 +568,10 @@ func (w *WafOwaspApi) TuningSetApi(c *gin.Context) {
 	if m == nil {
 		return
 	}
-	raw := map[string]interface{}{}
-	if err := c.ShouldBindJSON(&raw); err != nil {
+	var req wafowasp.TuningConfig
+	if err := decodeOwaspJSON(c, &req); err != nil {
 		response.FailWithMessage("解析失败: "+err.Error(), c)
 		return
-	}
-	pickInt := func(keys ...string) int {
-		for _, k := range keys {
-			if v, ok := raw[k]; ok && v != nil {
-				switch n := v.(type) {
-				case float64:
-					return int(n)
-				case int:
-					return n
-				case string:
-					if x, err := strconv.Atoi(n); err == nil {
-						return x
-					}
-				}
-			}
-		}
-		return 0
-	}
-	pickStr := func(keys ...string) string {
-		for _, k := range keys {
-			if v, ok := raw[k]; ok {
-				if s, ok := v.(string); ok {
-					return s
-				}
-			}
-		}
-		return ""
-	}
-	req := wafowasp.TuningConfig{
-		BlockingParanoia:         pickInt("blocking_paranoia_level", "blocking_paranoia"),
-		DetectionParanoia:        pickInt("detection_paranoia_level", "detection_paranoia"),
-		InboundThreshold:         pickInt("inbound_anomaly_score_threshold", "inbound_threshold"),
-		OutboundThreshold:        pickInt("outbound_anomaly_score_threshold", "outbound_threshold"),
-		RuleEngine:               pickStr("rule_engine"),
-		EarlyBlocking:            pickInt("early_blocking"),
-		EnforceBodyProcessor:     pickInt("enforce_bodyproc_urlencoded", "enforce_body_processor"),
-		RequestBodyLimit:         pickInt("request_body_limit"),
-		RequestBodyInMemoryLimit: pickInt("request_body_in_memory_limit"),
-		BodyInspectLimit:         pickInt("body_inspect_limit"),
 	}
 	if req.BlockingParanoia < 1 || req.BlockingParanoia > 4 {
 		response.FailWithMessage("blocking_paranoia_level 必须在 1..4", c)

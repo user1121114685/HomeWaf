@@ -43,13 +43,10 @@ func TestPortPolicyRepeatedEditsPersistWithoutRecreationOrSecretLoss(t *testing.
 	gateKey := snapshot.Secrets.GateKey
 	for version := 2; version <= 4; version++ {
 		config.Name = fmt.Sprintf("edited-%d", version)
-		config.Policy.Honeypot.Enabled = true
-		config.Policy.Honeypot.CaptureDenied = true
-		config.Policy.Honeypot.Lures = []wafpipeline.HoneypotLure{{ID: "stable-lure", Title: fmt.Sprintf("管理入口%d", version), Message: "可重复修改", Weight: version * 10}}
-		config.Policy.Honeypot.DropAfterHits = version + 1
-		config.Policy.Honeypot.DistributedDrop.Enabled = true
-		config.Policy.Honeypot.ArchiveBody = true
-		config.Policy.Gate.Title = fmt.Sprintf("访问门%d", version)
+		config.Policy.Defense.Enabled = true
+		config.Policy.Defense.Mode = wafpipeline.DefenseQuiet
+		config.Policy.Defense.Count = version * 10
+		config.Policy.Gate.Title = fmt.Sprintf("Login %d", version)
 		config.Policy.RuleSet.QPS.PerIP = float64(40 + version)
 		config.Policy.Network.MaxProxyHops = version + 8
 		config.Policy.IPGroup.Entries = []wafpipeline.IPEntry{{ID: "source", Type: "allow", Trust: "allow_only", Value: "198.51.100.7"}}
@@ -60,7 +57,6 @@ func TestPortPolicyRepeatedEditsPersistWithoutRecreationOrSecretLoss(t *testing.
 		if config.Revision != int64(version) {
 			t.Fatalf("unexpected edit revision: %d", config.Revision)
 		}
-		// Reload from SQLite, not just the snapshot returned by Save.
 		wafpipeline.Ports = wafpipeline.NewRegistry[wafpipeline.Snapshot](200)
 		loaded := &WafPipelineService{Prepare: runtime.Prepare}
 		if err := loaded.Load(); err != nil {
@@ -70,7 +66,7 @@ func TestPortPolicyRepeatedEditsPersistWithoutRecreationOrSecretLoss(t *testing.
 		if err != nil {
 			t.Fatal(err)
 		}
-		if config.Name != fmt.Sprintf("edited-%d", version) || config.Policy.Honeypot.Lures[0].Weight != version*10 || config.Policy.Honeypot.DropAfterHits != version+1 || !config.Policy.Honeypot.ArchiveBody || config.Policy.Gate.Title != fmt.Sprintf("访问门%d", version) || config.Policy.RuleSet.QPS.PerIP != float64(40+version) || config.Policy.Network.MaxProxyHops != version+8 || len(config.Policy.IPGroup.Entries) != 1 {
+		if config.Name != fmt.Sprintf("edited-%d", version) || !config.Policy.Defense.Enabled || config.Policy.Defense.Mode != wafpipeline.DefenseQuiet || config.Policy.Defense.Count != version*10 || config.Policy.Gate.Title != fmt.Sprintf("Login %d", version) || config.Policy.RuleSet.QPS.PerIP != float64(40+version) || config.Policy.Network.MaxProxyHops != version+8 || len(config.Policy.IPGroup.Entries) != 1 {
 			t.Fatal("saved configuration did not survive reload", config)
 		}
 		snapshot, _ = wafpipeline.Ports.Get(config.Port)

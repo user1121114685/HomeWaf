@@ -4,6 +4,7 @@ package waf_service
 
 import (
 	"HomeWaf/customtype"
+	"HomeWaf/enums"
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
@@ -57,13 +58,30 @@ func seedTokenRow(t *testing.T, db *gorm.DB, account, loginType, token string) {
 	}
 }
 
+func TestManagementTokenRequiresAssignedRole(t *testing.T) {
+	db := openTokenTestDB(t)
+	old := global.GWAF_LOCAL_DB
+	global.GWAF_LOCAL_DB = db
+	t.Cleanup(func() { global.GWAF_LOCAL_DB = old })
+	for _, role := range []string{"", "unknown"} {
+		token, err := WafTokenInfoServiceApp.AddApiWithFingerprintAndType("fixture", "token", "127.0.0.1", "", "web", role)
+		if token != nil || err == nil {
+			t.Fatalf("role %q received a management session", role)
+		}
+	}
+	var count int64
+	if err := db.Model(&model.TokenInfo{}).Count(&count).Error; err != nil || count != 0 {
+		t.Fatalf("invalid roles persisted %d sessions: %v", count, err)
+	}
+}
+
 // TestIssue938_旧行残留时签发的令牌与返回给前端的不是同一个
 //
 // 复现 issue #938："登录成功但立刻被弹回登录页、无限循环、没有任何日志"。
 //
 // 登录接口的写法是：
 //
-//	accessToken := utils.Md5String(uuid.GenUUID())          // ① 本地生成
+//	accessToken := rand.Text()          // ① 本地生成
 //	tokenInfo := AddApiWithFingerprintAndType(..., accessToken, ...)  // ② 落库后**重新查库**
 //	GCACHE_WAFCACHE.SetWithTTl(CACHE_TOKEN+accessToken, ...) // ③ 缓存用 ①
 //	response(LoginRep{AccessToken: tokenInfo.AccessToken})   // ④ 返回给前端的是 ②
@@ -93,7 +111,7 @@ func TestIssue938_旧行残留时签发的令牌与返回给前端的不是同�
 	seedTokenRow(t, db, account, loginType, "OLD_DEAD_TOKEN")
 
 	const issued = "NEW_ISSUED_TOKEN"
-	got, err := WafTokenInfoServiceApp.AddApiWithFingerprintAndType(account, issued, "127.0.0.1", "", loginType, "")
+	got, err := WafTokenInfoServiceApp.AddApiWithFingerprintAndType(account, issued, "127.0.0.1", "", loginType, enums.ROLE_SYSTEM_ADMIN)
 	if err != nil {
 		t.Fatalf("签发令牌不应报错: %v", err)
 	}
@@ -128,7 +146,7 @@ func TestIssue938_落库失败时登录仍然返回空令牌且调用方无从�
 		t.Fatalf("准备失败场景出错: %v", err)
 	}
 
-	got, err := WafTokenInfoServiceApp.AddApiWithFingerprintAndType("admin", "NEW_ISSUED_TOKEN", "127.0.0.1", "", "web", "")
+	got, err := WafTokenInfoServiceApp.AddApiWithFingerprintAndType("admin", "NEW_ISSUED_TOKEN", "127.0.0.1", "", "web", enums.ROLE_SYSTEM_ADMIN)
 
 	if err == nil {
 		t.Fatalf("写库失败必须把 error 返回给调用方，否则登录接口会带着空令牌回「登录成功」。got=%+v", got)

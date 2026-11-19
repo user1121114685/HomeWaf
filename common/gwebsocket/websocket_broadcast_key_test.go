@@ -18,8 +18,7 @@ import (
 //
 // v2 通道下每条连接各有各的会话密钥，不能再像以前那样"加密一次发给所有人"。
 // BroadcastBuild 把组装交给调用方，并把该连接建连时声明的 KeyID 传进去；
-// 下面验证每条连接确实收到用自己 KeyID 组装出来的那一份，且旧客户端（KeyID 为空）
-// 仍能收到东西——否则表现就是"部分标签页收不到通知"。
+// 下面验证每条连接确实收到用自己 KeyID 组装出来的那一份。
 
 // dialWithKey 建一条带 keyid 的连接，返回客户端侧连接
 func dialWithKey(t *testing.T, online *WebSocketOnline, srvURL string, keyID string) *Wssocket.Conn {
@@ -43,6 +42,10 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 		}
 		// 复刻 api/waf_websocket.go：keyid 从查询串取（WS 握手带不了自定义头）
 		sessionID := online.AddWebSocketWithKey("tenant-user-admin", r.URL.Query().Get("keyid"), ws)
+		if sessionID == "" {
+			ws.CloseNow()
+			return
+		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -59,13 +62,13 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 		wg.Wait()
 	}()
 
-	// 三条连接：两条带各自的 keyid，一条模拟旧客户端（无 keyid）
+	// 每条连接使用各自的 keyid。
 	connA := dialWithKey(t, online, srv.URL, "key-A")
 	defer connA.CloseNow()
 	connB := dialWithKey(t, online, srv.URL, "key-B")
 	defer connB.CloseNow()
-	connOld := dialWithKey(t, online, srv.URL, "")
-	defer connOld.CloseNow()
+	connC := dialWithKey(t, online, srv.URL, "key-C")
+	defer connC.CloseNow()
 
 	// 等三条都登记完
 	deadline := time.Now().Add(3 * time.Second)
@@ -83,9 +86,6 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 		mu.Lock()
 		seen[keyID]++
 		mu.Unlock()
-		if keyID == "" {
-			return []byte("legacy-payload"), nil
-		}
 		return []byte("payload-for:" + keyID), nil
 	})
 	if sent != 3 {
@@ -95,7 +95,7 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 	// 每个 KeyID 都应恰好被组装一次
 	mu.Lock()
 	defer mu.Unlock()
-	for _, want := range []string{"key-A", "key-B", ""} {
+	for _, want := range []string{"key-A", "key-B", "key-C"} {
 		if seen[want] != 1 {
 			t.Fatalf("KeyID %q 应被组装 1 次，实际 %d 次", want, seen[want])
 		}
@@ -103,9 +103,9 @@ func TestBroadcastBuildUsesPerConnectionKey(t *testing.T) {
 
 	// 每条连接收到的必须是给自己那一份
 	expect := map[*Wssocket.Conn]string{
-		connA:   "payload-for:key-A",
-		connB:   "payload-for:key-B",
-		connOld: "legacy-payload",
+		connA: "payload-for:key-A",
+		connB: "payload-for:key-B",
+		connC: "payload-for:key-C",
 	}
 	for conn, want := range expect {
 
@@ -131,6 +131,10 @@ func TestBroadcastBuildSkipsFailedConnection(t *testing.T) {
 			return
 		}
 		sessionID := online.AddWebSocketWithKey("u", r.URL.Query().Get("keyid"), ws)
+		if sessionID == "" {
+			ws.CloseNow()
+			return
+		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

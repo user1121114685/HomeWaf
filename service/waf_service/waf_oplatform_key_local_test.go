@@ -71,7 +71,7 @@ func assertLocalAPIKeyEncrypted(t *testing.T, row model.OPlatformKey, plain stri
 	if row.ApiKey == plain || !wafsec.IsDataKeyCiphertext(row.ApiKey) {
 		t.Fatal("local key must be encrypted in storage")
 	}
-	decoded, err := wafsec.DataDecrypt(row.ApiKey, nil)
+	decoded, err := wafsec.DataDecrypt(row.ApiKey)
 	if err != nil || decoded != plain {
 		t.Fatal("stored local key must decrypt to the returned value")
 	}
@@ -295,7 +295,7 @@ func TestMCPKeyRequiresSourceRestriction(t *testing.T) {
 	}
 }
 
-func TestLocalOnlyKeyLegacyPlaintextUpgrade(t *testing.T) {
+func TestLocalOnlyKeyLegacyPlaintextRequiresRotation(t *testing.T) {
 	db := newLocalAPIKeyTestDB(t)
 	svc := WafOPlatformKeyServiceApp
 	key, _, err := svc.EnsureLocalOnlyKey(false)
@@ -307,11 +307,17 @@ func TestLocalOnlyKeyLegacyPlaintextUpgrade(t *testing.T) {
 		t.Fatalf("set plaintext local row: %v", err)
 	}
 	assertLocalAPIKeyRejected(t, key)
-	reused, action, err := svc.EnsureLocalOnlyKey(false)
-	if err != nil || action != "reused" || reused != key {
-		t.Fatalf("upgrade local row action=%s error=%v", action, err)
+	if detail := svc.GetDetailApi(request.WafOPlatformKeyDetailReq{Id: row.Id}); detail.ApiKey != "****" {
+		t.Fatal("plaintext local key must be fully masked")
 	}
-	assertLocalAPIKeyEncrypted(t, readLocalAPIKeyRow(t, db), key)
+	if reused, action, err := svc.EnsureLocalOnlyKey(false); err == nil || reused != "" || action != "" {
+		t.Fatalf("plaintext local row must require explicit rotation, got key=%q action=%q error=%v", reused, action, err)
+	}
+	rotated, action, err := svc.EnsureLocalOnlyKey(true)
+	if err != nil || action != "rotated" || rotated == key {
+		t.Fatalf("rotate plaintext local row action=%s error=%v", action, err)
+	}
+	assertLocalAPIKeyEncrypted(t, readLocalAPIKeyRow(t, db), rotated)
 }
 
 func TestLocalOnlyKeyDatabaseFailure(t *testing.T) {

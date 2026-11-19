@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const source = JSON.parse(
@@ -63,23 +63,18 @@ function resultFor(config) {
   };
 }
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const req = route.request(),
     url = new URL(req.url()),
     endpoint = url.pathname.split('/api/v1/')[1] || '';
-  if (endpoint.includes('handshake') || endpoint === 'public/seckey' || endpoint === 'sysinfo/checkversion')
+  if (endpoint === 'sysinfo/checkversion')
     return route.fulfill({ json: { code: 1, msg: 'Isolated UI fixture' } });
   let input = {};
   if (req.postData()) {
-    try {
-      input = JSON.parse(AesDecrypt(req.postData()));
-    } catch {
-      try {
-        input = JSON.parse(req.postData());
-      } catch {}
-    }
+    input = JSON.parse(routeSession(route).decrypt(req.postData()));
   }
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '' } });
-  const fail = (msg) => route.fulfill({ json: { code: 1, msg, data: AesEncrypt(JSON.stringify({})) } });
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '' } });
+  const fail = (msg) => route.fulfill({ json: { code: 1, msg, data: routeSession(route).encrypt(JSON.stringify({})) } });
   const p = Number(url.searchParams.get('port') || input.port || input.config?.port);
   if (endpoint === 'iplocation/status')
     return ok({ ipv4_file_size: 11122714, ipv6_file_size: 37283761, ipv4_builtin: true, ipv6_builtin: true });
@@ -106,7 +101,7 @@ await context.route('**/api/**', async (route) => {
         json: {
           code: 1,
           msg: '证书与私钥不匹配',
-          data: AesEncrypt(JSON.stringify({ field_errors: { key_content: '证书与私钥不匹配' } })),
+          data: routeSession(route).encrypt(JSON.stringify({ field_errors: { key_content: '证书与私钥不匹配' } })),
         },
       });
     certificateCreated = true;

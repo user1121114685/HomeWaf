@@ -6,6 +6,7 @@ import (
 	"HomeWaf/model/common/response"
 	"HomeWaf/model/request"
 	"HomeWaf/service/waf_service"
+	"HomeWaf/wafenginecore/ipset"
 	"HomeWaf/waftask"
 	"errors"
 	"fmt"
@@ -231,10 +232,33 @@ func checkSystemConfigValue(item string, value string) (string, bool) {
 			return fmt.Sprintf("排除标签不合法: %q（不能含引号/分号/反斜杠/注释符/控制字符，单项不超过 255 字符，最多 30 项）", bad), false
 		}
 	case "exclude_ip_log":
-		// 与站点级清单同一套校验（checkExcludeIPLog 在 waf_host.go），存坏行当场拒绝
 		if err := checkExcludeIPLog(value); err != nil {
 			return err.Error(), false
 		}
 	}
 	return "", true
+}
+
+// checkExcludeIPLog 校验「排除记录日志的IP」清单：长度封顶 + 每行必须是可解析的
+// IP 模式（单IP/CIDR/通配符/区间）或 group:组短码。保存时拒绝，避免配错一行静默不生效。
+func checkExcludeIPLog(raw string) error {
+	if len(raw) > 10000 {
+		return errors.New("排除记录日志的IP清单过长（上限10000字符）")
+	}
+	for _, line := range strings.FieldsFunc(raw, func(r rune) bool { return r == '\n' || r == '\r' || r == ',' }) {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if len(line) >= len("group:") && strings.EqualFold(line[:len("group:")], "group:") {
+			if strings.TrimSpace(line[len("group:"):]) == "" {
+				return errors.New("排除清单里的 group: 后面缺少组短码")
+			}
+			continue
+		}
+		if _, err := ipset.ParsePatternLenient(line); err != nil {
+			return fmt.Errorf("排除清单无法识别的IP模式: %s", line)
+		}
+	}
+	return nil
 }

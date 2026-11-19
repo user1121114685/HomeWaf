@@ -173,6 +173,13 @@ func TestGateHTTPIsolationCSRFAndCredentialStripping(t *testing.T) {
 		t.Fatal("unauthenticated request reached upstream")
 	}
 	cookie := sessionCookie(t, a)
+	for _, name := range []string{"samwaf_ac_tk", "samwaf_httpauth_token"} {
+		stale := &http.Cookie{Name: name, Value: cookie.Value}
+		r, _ = gateRequest(t, a, "GET", "/private", nil, nil, stale)
+		if r.StatusCode != http.StatusUnauthorized || a.hits.Load() != 0 {
+			t.Fatalf("retired cookie %q authenticated a private request", name)
+		}
+	}
 	r, _ = gateRequest(t, a, "GET", "/private", nil, map[string]string{"Authorization": "Bearer business-token", "X-HomeWaf-Token": "secret"}, cookie, &http.Cookie{Name: "business", Value: "keep"}, &http.Cookie{Name: gateCookieName(b.snap.Config.Port), Value: "other"})
 	if r.StatusCode != 200 || a.hits.Load() != 1 {
 		t.Fatal("valid session did not reach upstream")

@@ -120,8 +120,6 @@ func coerceBytes(v interface{}) interface{} {
 }
 
 // coerceBool converts SQLite/MySQL's 0/1 integer representation into a real boolean.
-// anti_ccs.is_enable_rule and anti_ccs.skip_global_cc are the only persisted bool
-// columns in the schema, but getting this wrong silently disables every CC rule.
 func coerceBool(v interface{}) interface{} {
 	switch x := v.(type) {
 	case nil:

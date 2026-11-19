@@ -3,10 +3,11 @@ import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 const origin = process.env.CONSOLE_TEST_ORIGIN || 'http://127.0.0.1:3001';
 const forcePassword = process.env.CONSOLE_TEST_FORCE_PASSWORD === '1';
 let passwordChanged = false;
+let invalidRole;
 const changedNotice = process.env.CONSOLE_TEST_CHANGED_NOTICE === '1';
 const output = fileURLToPath(new URL('../../artifacts/login-navigation/', import.meta.url));
 fs.mkdirSync(output, { recursive: true });
@@ -19,9 +20,14 @@ await context.addInitScript(() => {
 });
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 await context.route('**/api/**', async (route) => {
+  if (invalidRole !== undefined && new URL(route.request().url()).pathname.endsWith('/heartbeat')) {
+    const data = routeSession(route).encrypt(JSON.stringify({ login_account: 'fixture', role: invalidRole }));
+    return route.fulfill({ json: { code: 0, msg: '', data } });
+  }
+  if (await handleTransportHandshake(route)) return;
   const endpoint = new URL(route.request().url()).pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, msg: '', data: AesEncrypt(JSON.stringify(data)) } });
-  if (endpoint.includes('handshake') || endpoint === 'public/seckey' || endpoint === 'sysinfo/checkversion')
+  const ok = (data) => route.fulfill({ json: { code: 0, msg: '', data: routeSession(route).encrypt(JSON.stringify(data)) } });
+  if (endpoint === 'sysinfo/checkversion')
     return route.fulfill({ json: { code: 1, msg: 'Isolated fixture' } });
   if (endpoint === 'public/login')
     return ok({
@@ -66,32 +72,33 @@ try {
     await dialog.locator('button[type="submit"]').click();
     report.checks.push('Forced password change completes before protected navigation');
   }
-  await expect(page.getByTestId('workbench')).toBeVisible({ timeout: 30000 });
+  const dashboard = page.getByRole('region', { name: '流量趋势与请求来源' });
+  const navigation = page.getByRole('navigation', { name: '管理功能' });
+  await expect(dashboard).toBeVisible({ timeout: 30000 });
   report.checks.push('Fresh login succeeds without preinstalled token');
   await expect(page.locator('.el-notification').getByText('127.0.0.1', { exact: true })).toBeVisible();
   if (changedNotice) {
     await page.locator('.el-notification').getByRole('button', { name: '查看登录历史' }).click();
     await expect(page).toHaveURL(/account\/LoginHistory/);
     await expect(page.locator('.el-notification')).toHaveCount(0);
-    await page.getByRole('navigation', { name: '常用功能' }).getByRole('link', { name: '工作台', exact: true }).click();
+    await navigation.getByRole('link', { name: '流量概览', exact: true }).click();
     report.checks.push('Login notice footer opens history and closes without render errors');
   }
-  for (const [label, testID] of [
-    ['服务接入', 'pipeline-page'],
-    ['工作台', 'workbench'],
-    ['策略模板', 'pipeline-page'],
-    ['工作台', 'workbench'],
+  for (const [label, target] of [
+    ['我的服务', page.getByTestId('pipeline-page')],
+    ['流量概览', dashboard],
+    ['策略模板', page.getByTestId('pipeline-page')],
+    ['流量概览', dashboard],
   ]) {
-    await page.getByRole('navigation', { name: '常用功能' }).getByRole('link', { name: label, exact: true }).click();
-    await expect(page.getByTestId(testID)).toBeVisible();
+    await navigation.getByRole('textbox', { name: '查找功能' }).fill(label);
+    await navigation.getByRole('link', { name: label, exact: true }).click();
+    await expect(target).toBeVisible();
     report.navigation.push({ label, url: page.url() });
     expect(await page.evaluate(() => window.__navigationDocumentID)).toBe(documentID);
   }
   report.checks.push('Navigation works immediately after login without any document reload');
-  await page.getByRole('button', { name: '查看全部功能' }).click();
-  await page.getByRole('textbox', { name: '搜索全部功能' }).fill('IP数据库');
-  await expect(page.locator('.nav-all-functions a').first()).toBeVisible();
-  await page.locator('.nav-all-functions a').first().click();
+  await navigation.getByRole('textbox', { name: '查找功能' }).fill('IP数据库');
+  await navigation.getByRole('link', { name: /IP数据库/ }).click();
   await expect(page).toHaveURL(/sys\/IPLocation/);
   await expect(page.locator('.test-section')).toBeVisible();
   report.checks.push('Full navigation renders IP location after login');
@@ -101,11 +108,19 @@ try {
   await page.locator('.login-password input[type="text"]').last().fill('navigation-test');
   await page.locator('.login-password input[type="password"]').fill('navigation-test-password');
   await page.locator('.login-password button[type="submit"]').click();
-  await expect(page.getByTestId('workbench')).toBeVisible();
-  await page.getByRole('navigation', { name: '常用功能' }).getByRole('link', { name: '服务接入', exact: true }).click();
+  await expect(dashboard).toBeVisible();
+  await navigation.getByRole('link', { name: '我的服务', exact: true }).click();
   await expect(page.getByTestId('pipeline-page')).toBeVisible();
   expect(await page.evaluate(() => window.__navigationDocumentID)).toBe(documentID);
   report.checks.push('Logout and repeat login keep navigation usable without refresh');
+  for (invalidRole of ['', 'unknown']) {
+    await page.evaluate(() => localStorage.setItem('access_token', 'invalid-role-session'));
+    await page.goto(origin + '/?role=' + encodeURIComponent(invalidRole) + '#/waf-pipeline/ports');
+    await expect(page).toHaveURL(/#\/login(?:\?|$)/);
+    await expect(page.getByTestId('pipeline-page')).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('access_token'))).toBe(null);
+  }
+  report.checks.push('Restored tokens with empty or unknown roles return to login');
   expect(report.errors).toEqual([]);
   console.log(
     JSON.stringify(

@@ -12,11 +12,11 @@ import (
 	"HomeWaf/model/request"
 	"HomeWaf/wafsec"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type WafSystemConfigService struct{}
@@ -61,7 +61,7 @@ func decConfigValue(item, stored string) string {
 		zlog.Error("拒绝未加密的敏感配置项", "item", item)
 		return ""
 	}
-	plain, err := wafsec.DataDecrypt(stored, global.GWAF_COMMUNICATION_KEY)
+	plain, err := wafsec.DataDecrypt(stored)
 	if err != nil {
 		zlog.Error("配置项解密失败", "item", item, "err", err)
 		return ""
@@ -108,6 +108,9 @@ func (receiver *WafSystemConfigService) addConfig(wafSystemConfigAddReq request.
 		// 已存在，跳过插入
 		return nil
 	}
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return result.Error
+	}
 	value, err := encConfigValue(wafSystemConfigAddReq.Item, wafSystemConfigAddReq.Value)
 	if err != nil {
 		return err
@@ -138,7 +141,7 @@ func (receiver *WafSystemConfigService) addConfig(wafSystemConfigAddReq request.
 			return errors.New("开放平台开关只接受 0 或 1")
 		}
 	}
-	return global.GWAF_LOCAL_DB.Create(bean).Error
+	return global.GWAF_LOCAL_DB.Clauses(clause.OnConflict{DoNothing: true}).Create(bean).Error
 }
 
 func (receiver *WafSystemConfigService) CheckIsExistApi(wafSystemConfigAddReq request.WafSystemConfigAddReq) error {
@@ -318,70 +321,14 @@ func (receiver *WafSystemConfigService) DelApi(req request.WafSystemConfigDelReq
 	return nil
 }
 
-// GetAllConfigs 批量获取所有配置项，返回以item为key的map
-// 同时会对历史数据中同一 item 存在多条记录的情况进行预处理：保留最新一条，删除其余重复数据
+// GetAllConfigs loads the instance settings, decrypting secret values for runtime use.
 func (receiver *WafSystemConfigService) GetAllConfigs() map[string]model.SystemConfig {
 	var configs []model.SystemConfig
-	configMap := make(map[string]model.SystemConfig)
-
-	// 一次性查询所有配置
 	global.GWAF_LOCAL_DB.Find(&configs)
-
-	// 预处理：检测并清理同一 item 的重复记录（兼容历史版本脏数据）
-	// 按 item 分组，如果同一 item 有多条记录，保留 UPDATE_TIME 最新的一条，删除其余
-	itemGroup := make(map[string][]model.SystemConfig)
+	result := make(map[string]model.SystemConfig, len(configs))
 	for _, config := range configs {
-		itemGroup[config.Item] = append(itemGroup[config.Item], config)
+		decryptConfigBean(&config)
+		result[config.Item] = config
 	}
-	for item, group := range itemGroup {
-		if len(group) <= 1 {
-			continue
-		}
-		// 找出 UPDATE_TIME 最新的记录作为保留项
-		keepIdx := 0
-		for i := 1; i < len(group); i++ {
-			if time.Time(group[i].UPDATE_TIME).After(time.Time(group[keepIdx].UPDATE_TIME)) {
-				keepIdx = i
-			}
-		}
-		// 收集需要删除的记录 ID（排除保留项，且仅删除有 Id 的记录）
-		var deleteIds []string
-		for i, g := range group {
-			if i != keepIdx && g.Id != "" {
-				deleteIds = append(deleteIds, g.Id)
-			}
-		}
-		if len(deleteIds) > 0 {
-			zlog.Warn(fmt.Sprintf(
-				"[配置去重] item=%s 发现 %d 条重复记录，保留 id=%s (UPDATE_TIME=%s)，即将删除 %d 条: %v",
-				item,
-				len(group),
-				group[keepIdx].Id,
-				time.Time(group[keepIdx].UPDATE_TIME).Format("2006-01-02 15:04:05"),
-				len(deleteIds),
-				deleteIds,
-			))
-			global.GWAF_LOCAL_DB.Where("id IN ?", deleteIds).Delete(&model.SystemConfig{})
-		}
-		// 将保留项放入 map
-		configMap[item] = group[keepIdx]
-	}
-	// 对于没有重复的 item，直接放入 map
-	for _, config := range configs {
-		if _, exists := configMap[config.Item]; !exists {
-			configMap[config.Item] = config
-		}
-	}
-
-	// 密钥类配置在库里是密文，这里统一还原为明文再交给调用方。
-	// 必须在返回前完成：配置加载会拿 Value 与默认值比较并写入全局变量，
-	// 若带着密文出去，全局变量拿到的就是密文而非真正的密钥。
-	for item, config := range configMap {
-		if model.IsSensitiveConfigItem(item) {
-			config.Value = decConfigValue(item, config.Value)
-			configMap[item] = config
-		}
-	}
-
-	return configMap
+	return result
 }

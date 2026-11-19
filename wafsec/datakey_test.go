@@ -5,9 +5,6 @@ import (
 	"testing"
 )
 
-// legacyKey 模拟旧的全实例共用通讯密钥（16 字节 AES-128）。
-var legacyKey = []byte("7E@u*has$d*@s5YX")
-
 // setupDataKey 在临时目录初始化一把全新的 DEK，供各用例使用。
 // 因 InitDataKey 用 sync.Once，测试里直接给 dataKey 赋值绕过 Once。
 func setupDataKey(t *testing.T) {
@@ -32,7 +29,7 @@ func TestDataEncryptRoundTrip(t *testing.T) {
 	if !IsDataKeyCiphertext(enc) {
 		t.Fatalf("密文应带 swk1 前缀: %q", enc)
 	}
-	got, err := DataDecrypt(enc, legacyKey)
+	got, err := DataDecrypt(enc)
 	if err != nil {
 		t.Fatalf("DataDecrypt: %v", err)
 	}
@@ -46,7 +43,7 @@ func TestDataEncryptEmpty(t *testing.T) {
 	if enc, _ := DataEncrypt(""); enc != "" {
 		t.Fatalf("空串应原样返回空: %q", enc)
 	}
-	if dec, _ := DataDecrypt("", legacyKey); dec != "" {
+	if dec, _ := DataDecrypt(""); dec != "" {
 		t.Fatalf("空串应原样返回空: %q", dec)
 	}
 }
@@ -60,24 +57,13 @@ func TestDataEncryptNonceUnique(t *testing.T) {
 	}
 }
 
-// Public source includes the old CBC key; runtime must reject forged legacy data.
-func TestDataDecryptRejectsLegacyCBC(t *testing.T) {
-	setupDataKey(t)
-	plain := "legacy-cbc-credential"
-	legacyEnc, err := AesEncrypt([]byte(plain), legacyKey)
-	if err != nil {
-		t.Fatalf("AesEncrypt: %v", err)
-	}
-	if IsDataKeyCiphertext(legacyEnc) {
-		t.Fatalf("旧 CBC 密文不应带 swk1 前缀")
-	}
-	got, err := DataDecrypt(legacyEnc, legacyKey)
-	if err == nil || got != "" {
-		t.Fatal("accepted ciphertext forged with the public legacy key")
+// Runtime must reject ciphertext that does not use the authenticated instance format.
+func TestDataDecryptRejectsUnknownFormat(t *testing.T) {
+	if _, err := DataDecrypt("unknown-format"); err == nil {
+		t.Fatal("unrecognized ciphertext accepted")
 	}
 }
 
-// 篡改 swk1 密文应被 GCM 完整性校验拒绝（CBC 做不到这一点）。
 func TestDataDecryptTamperRejected(t *testing.T) {
 	setupDataKey(t)
 	enc, _ := DataEncrypt("integrity-protected")
@@ -88,7 +74,7 @@ func TestDataDecryptTamperRejected(t *testing.T) {
 		}
 		return "AA"
 	}()
-	if _, err := DataDecrypt(tampered, legacyKey); err == nil {
+	if _, err := DataDecrypt(tampered); err == nil {
 		t.Fatalf("被篡改的 GCM 密文应解密失败")
 	}
 }

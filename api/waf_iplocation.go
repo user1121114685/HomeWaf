@@ -262,13 +262,13 @@ func (w *WafIPLocationApi) SaveIPDBConfigApi(c *gin.Context) {
 
 // UploadIPDBFileApi 上传 IP 数据库文件
 func (w *WafIPLocationApi) UploadIPDBFileApi(c *gin.Context) {
-	// key 是界面上那张表的槽位标识。带了 key 就按槽位定义确定落盘文件名与允许后缀，
-	// 不用再靠扩展名猜用户想传哪个库（.mmdb 到底是 IPv4 还是 IPv6 的，靠猜是猜不准的）。
-	// 不带 key 时退回老的 type+扩展名逻辑，保证老前端/脚本还能用。
+	// The current upload contract names the destination slot and its declared type.
 	slotKey := c.PostForm("key")
 	ipType := c.PostForm("type")
-	if slot, ok := iplocation.DatabaseByKey(slotKey); ok && ipType == "" {
-		ipType = slot.UploadType
+	slot, ok := iplocation.DatabaseByKey(slotKey)
+	if !ok || slot.UploadType == "" || ipType != slot.UploadType {
+		response.FailWithMessage("必须指定有效的数据槽位 key 和匹配的 type", c)
+		return
 	}
 	if ipType != "ipv4" && ipType != "ipv6" && ipType != "ipdb" {
 		response.FailWithMessage("无效的类型参数，必须是 ipv4、ipv6 或 ipdb", c)
@@ -286,8 +286,8 @@ func (w *WafIPLocationApi) UploadIPDBFileApi(c *gin.Context) {
 		response.FailWithMessage("不支持的文件类型，仅支持 .xdb、.mmdb 和 .ipdb 文件", c)
 		return
 	}
-	// 带了 key 就用槽位声明的后缀严格卡一遍，别让用户把 mmdb 传进 ip2region 的槽
-	if slot, ok := iplocation.DatabaseByKey(slotKey); ok && !strings.EqualFold(ext, slot.Accept) {
+	// Enforce the slot's declared suffix so a database cannot land in the wrong slot.
+	if !strings.EqualFold(ext, slot.Accept) {
 		response.FailWithMessage(fmt.Sprintf("【%s】只接受 %s 文件，请确认后重新上传", slot.Desc, slot.Accept), c)
 		return
 	}

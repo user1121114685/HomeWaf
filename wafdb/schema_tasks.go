@@ -11,13 +11,10 @@ import (
 func defaultTasks() []model.Task {
 	return []model.Task{
 		{TaskName: "每1秒执行qps清空", TaskUnit: enums.TASK_SECOND, TaskAt: "", TaskValue: 1, TaskMethod: enums.TASK_RUNTIME_QPS_CLEAN},
-		{TaskName: "每1秒重置QPS数据", TaskUnit: enums.TASK_SECOND, TaskAt: "", TaskValue: 1, TaskMethod: enums.TASK_HOST_QPS_CLEAN},
 		{TaskName: "每天10s进行一次统计", TaskUnit: enums.TASK_SECOND, TaskValue: 10, TaskAt: "", TaskMethod: enums.TASK_COUNTER},
 		{TaskName: "每10s推送系统统计数据", TaskUnit: enums.TASK_SECOND, TaskValue: 10, TaskAt: "", TaskMethod: enums.TASK_STATS_PUSH},
-		{TaskName: "每30s进行健康度检测", TaskUnit: enums.TASK_SECOND, TaskValue: 30, TaskAt: "", TaskMethod: enums.TASK_HEALTH},
 		{TaskName: "每1分钟进行一次延迟信息提取", TaskUnit: enums.TASK_MIN, TaskValue: 10, TaskAt: "", TaskMethod: enums.TASK_DELAY_INFO},
 		{TaskName: "每1分钟进行一次配置更新", TaskUnit: enums.TASK_MIN, TaskValue: 1, TaskAt: "", TaskMethod: enums.TASK_LOAD_CONFIG},
-		{TaskName: "每5分钟进行CCWindows旧信息清除", TaskUnit: enums.TASK_MIN, TaskValue: 5, TaskAt: "", TaskMethod: enums.TASK_CLEAR_CC_WINDOWS},
 		{TaskName: "每5分钟进行防火墙IP封禁规则清理", TaskUnit: enums.TASK_MIN, TaskValue: 5, TaskAt: "", TaskMethod: enums.TASK_FIREWALL_CLEAN_EXPIRED},
 		{TaskName: "每天30分钟删除历史下载文件", TaskUnit: enums.TASK_MIN, TaskValue: 30, TaskAt: "", TaskMethod: enums.TASK_DELETE_HISTORY_DOWNLOAD_FILE},
 		{TaskName: "每1小时进行一次微信提取accesstoken", TaskUnit: enums.TASK_HOUR, TaskValue: 1, TaskAt: "", TaskMethod: enums.TASK_REFLUSH_WECHAT_ACCESS_TOKEN},
@@ -30,7 +27,6 @@ func defaultTasks() []model.Task {
 		{TaskName: "每天05:00进行批量任务", TaskUnit: enums.TASK_DAY, TaskValue: 1, TaskAt: "05:00", TaskMethod: enums.TASK_BATCH},
 		{TaskName: "每天06:00进行批量SSL过期检测", TaskUnit: enums.TASK_DAY, TaskValue: 1, TaskAt: "06:00", TaskMethod: enums.TASK_SSL_EXPIRE_CHECK},
 		{TaskName: "每天早8晚8进行通知(需要开启通知)", TaskUnit: enums.TASK_DAY, TaskValue: 1, TaskAt: "08:00;20:00", TaskMethod: enums.TASK_NOTICE},
-		{TaskName: "每周六晚上23:00进行web文件缓存清除", TaskUnit: enums.TASK_WEEKLY, TaskValue: 1, TaskAt: "23:00", TaskDaysOfTheWeek: "6", TaskMethod: enums.TASK_CLEAR_WEBCACHE},
 		{TaskName: "每天凌晨04:30清理统计数据（按保留策略）", TaskUnit: enums.TASK_DAY, TaskValue: 1, TaskAt: "04:30", TaskMethod: enums.TASK_STATS_DATA_CLEANUP},
 		{TaskName: "每5分钟按文件大小检测分库", TaskUnit: enums.TASK_MIN, TaskValue: 5, TaskAt: "", TaskMethod: enums.TASK_SHARE_DB_CHECK},
 		{TaskName: "每1小时检查威胁情报IP订阅是否到期", TaskUnit: enums.TASK_HOUR, TaskValue: 1, TaskAt: "", TaskMethod: enums.TASK_THREAT_IP_SYNC},

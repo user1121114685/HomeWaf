@@ -101,7 +101,7 @@ func TestLogExportRowsLiveSourceBatching(t *testing.T) {
 	if st.SnapshotTime.IsZero() {
 		t.Fatal("快照时间未记录")
 	}
-	if st.Tables[model.AccessLogTableName].State != "ready" || len(st.Tables[model.AccessLogTableName].MissingColumns) != 0 {
+	if st.Tables[model.AccessLogTableName].State != "ready" {
 		t.Fatalf("缺列处理错误: %+v", st.Tables[model.AccessLogTableName])
 	}
 }
@@ -166,7 +166,7 @@ func TestLogExportRowsStrictTableSelection(t *testing.T) {
 	}
 }
 
-type exportHistoricalRow struct {
+type exportTestRow struct {
 	ReqUUID    string `gorm:"primaryKey"`
 	TenantID   string
 	UserCode   string
@@ -174,7 +174,7 @@ type exportHistoricalRow struct {
 	URL        *string
 }
 
-func TestLogExportRowsIsolationMissingColumnsAndBoundary(t *testing.T) {
+func TestLogExportRowsIsolationAndBoundary(t *testing.T) {
 	defer resetExportGlobals(t)()
 	dialect.Register(&dialect.SQLiteDialect{})
 	db := openTenantTestDB(t, "sqlite")
@@ -182,11 +182,11 @@ func TestLogExportRowsIsolationMissingColumnsAndBoundary(t *testing.T) {
 	oldTenant, oldUser := global.GWAF_TENANT_ID, global.GWAF_USER_CODE
 	global.GWAF_TENANT_ID, global.GWAF_USER_CODE = "tenantA", "userA"
 	t.Cleanup(func() { global.GWAF_TENANT_ID, global.GWAF_USER_CODE = oldTenant, oldUser })
-	if e := db.Table("access_log").AutoMigrate(&exportHistoricalRow{}); e != nil {
+	if e := db.AutoMigrate(&model.AccessLog{}); e != nil {
 		t.Fatal(e)
 	}
 	empty := ""
-	rows := []exportHistoricalRow{
+	rows := []exportTestRow{
 		{"a", "tenantA", "userA", "2026-10-29 01:00:00", nil},
 		{"b", "tenantA", "userA", "2026-10-29 01:30:00", &empty},
 		{"other-tenant", "tenantB", "userA", "2026-10-29 01:30:00", nil},
@@ -221,7 +221,7 @@ func TestLogExportRowsIsolationMissingColumnsAndBoundary(t *testing.T) {
 			t.Fatalf("NULL/empty changed: %v", got)
 		}
 		if v, ok := got[0]["actor_key"]; !ok || v != nil {
-			t.Fatalf("missing column must be NULL: %v", got[0])
+			t.Fatalf("unset stored column must be NULL: %v", got[0])
 		}
 		if st.Tables["security_event"].State != "missing" || st.Tables["access_log"].State != "ready" {
 			t.Fatalf("wrong table states: %+v", st.Tables)
@@ -250,19 +250,19 @@ func TestLogExportRowsSnapshotAndCancellation(t *testing.T) {
 	oldUser := global.GWAF_USER_CODE
 	global.GWAF_USER_CODE = "userA"
 	t.Cleanup(func() { global.GWAF_USER_CODE = oldUser })
-	if e := db.Table("access_log").AutoMigrate(&exportHistoricalRow{}); e != nil {
+	if e := db.AutoMigrate(&model.AccessLog{}); e != nil {
 		t.Fatal(e)
 	}
-	if e := db.Table("security_event").AutoMigrate(&exportHistoricalRow{}); e != nil {
+	if e := db.AutoMigrate(&model.SecurityEvent{}); e != nil {
 		t.Fatal(e)
 	}
 	for i := 0; i < 1001; i++ {
-		r := exportHistoricalRow{ReqUUID: fmt.Sprintf("row-%05d", i), TenantID: "tenantA", UserCode: "userA", CreateTime: "2026-10-29 01:00:00"}
+		r := exportTestRow{ReqUUID: fmt.Sprintf("row-%05d", i), TenantID: "tenantA", UserCode: "userA", CreateTime: "2026-10-29 01:00:00"}
 		if e := db.Table("access_log").Create(&r).Error; e != nil {
 			t.Fatal(e)
 		}
 	}
-	event := exportHistoricalRow{ReqUUID: "event-original", TenantID: "tenantA", UserCode: "userA", CreateTime: "2026-10-29 01:00:00"}
+	event := exportTestRow{ReqUUID: "event-original", TenantID: "tenantA", UserCode: "userA", CreateTime: "2026-10-29 01:00:00"}
 	if e := db.Table("security_event").Create(&event).Error; e != nil {
 		t.Fatal(e)
 	}
@@ -273,7 +273,7 @@ func TestLogExportRowsSnapshotAndCancellation(t *testing.T) {
 		seen[b.Table] += len(b.Rows)
 		if batches == 1 {
 			for _, table := range []string{"access_log", "security_event"} {
-				r := exportHistoricalRow{ReqUUID: "zz-late", TenantID: "tenantA", UserCode: "userA", CreateTime: "2026-10-29 01:00:00"}
+				r := exportTestRow{ReqUUID: "zz-late", TenantID: "tenantA", UserCode: "userA", CreateTime: "2026-10-29 01:00:00"}
 				if e := db.Table(table).Create(&r).Error; e != nil {
 					return e
 				}
@@ -338,10 +338,10 @@ func TestLogExportRowsRealSQLiteArchive(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer conn.Close()
-	if e = db.Table("security_event").AutoMigrate(&exportHistoricalRow{}); e != nil {
+	if e = db.AutoMigrate(&model.SecurityEvent{}); e != nil {
 		t.Fatal(e)
 	}
-	r := exportHistoricalRow{ReqUUID: "archive-event", TenantID: "tenantA", UserCode: "userA", CreateTime: "2026-09-20 12:00:00"}
+	r := exportTestRow{ReqUUID: "archive-event", TenantID: "tenantA", UserCode: "userA", CreateTime: "2026-09-20 12:00:00"}
 	if e = db.Table("security_event").Create(&r).Error; e != nil {
 		t.Fatal(e)
 	}
@@ -373,7 +373,7 @@ func TestLogExportRowsRealSQLiteArchive(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer closeDB()
-	if e = opened.Table("security_event").Create(&exportHistoricalRow{ReqUUID: "should-not-write"}).Error; e == nil {
+	if e = opened.Table("security_event").Create(&exportTestRow{ReqUUID: "should-not-write"}).Error; e == nil {
 		t.Fatal("archive connection allowed writes")
 	}
 }

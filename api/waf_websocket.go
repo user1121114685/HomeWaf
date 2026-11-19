@@ -43,9 +43,12 @@ func (w *WafWebSocketApi) WebSocketMessageApi(c *gin.Context) {
 	tokenStr := c.GetHeader("Sec-WebSocket-Protocol")
 	tokenInfo := wafTokenInfoService.GetInfoByAccessToken(tokenStr)
 
-	//本次连接声明的传输会话密钥（v2 客户端才带；旧客户端为空，推送回落 legacy）。
 	//WebSocket 建连没法带自定义头，只能走查询参数。
 	keyID := c.Query("keyid")
+	if keyID == "" {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
 
 	//升级get请求为webSocket协议
 	ws, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{Subprotocols: []string{tokenStr}, OriginPatterns: originPatterns})

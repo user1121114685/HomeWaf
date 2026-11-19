@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const dist = path.join(root, 'web/dist');
@@ -40,12 +40,13 @@ await context.addInitScript(() => {
 });
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const req = route.request(), endpoint = new URL(req.url()).pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '' } });
-  const fail = (msg) => route.fulfill({ json: { code: 1, data: AesEncrypt('{}'), msg } });
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '' } });
+  const fail = (msg) => route.fulfill({ json: { code: 1, data: routeSession(route).encrypt('{}'), msg } });
   let input = {};
-  if (req.postData()) { try { input = JSON.parse(AesDecrypt(req.postData())); } catch { try { input = JSON.parse(req.postData()); } catch {} } }
-  if (endpoint.includes('handshake') || endpoint === 'public/seckey' || endpoint === 'sysinfo/checkversion') return fail('Isolated fixture');
+  if (req.postData()) input = JSON.parse(routeSession(route).decrypt(req.postData()));
+  if (endpoint === 'sysinfo/checkversion') return fail('Isolated fixture');
   if (endpoint === 'oplatform/mcp') return failedRead ? fail('MCP 状态读取失败，请重试。') : ok({ endpoint: '/mcp', transport: 'Streamable HTTP', enabled, suggested_source: '127.0.0.0/24', tools: toolList });
   if (endpoint === 'oplatform/key/add') {
     requests.push(input);

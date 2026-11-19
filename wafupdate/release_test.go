@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testRelease(t *testing.T) map[string]any {
@@ -151,6 +152,30 @@ func TestReleaseHTTPFailures(t *testing.T) {
 		if errors.Is(err, ErrNoPublishedRelease) != (status == 404) {
 			t.Fatalf("wrong HTTP %d classification: %v", status, err)
 		}
+	}
+}
+
+func TestReleaseRedirectStaysOnHTTPS(t *testing.T) {
+	insecure := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("HTTPS release client followed redirect to plaintext")
+	}))
+	defer insecure.Close()
+	secure := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/redirect" {
+			http.Redirect(w, r, insecure.URL, http.StatusFound)
+		}
+	}))
+	defer secure.Close()
+	client := newUpdateHTTPClient(time.Second, time.Second, time.Second)
+	client.Transport = secure.Client().Transport
+	requester := &HTTPRequester{Client: client}
+	body, err := requester.Fetch(secure.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body.Close()
+	if _, err := requester.Fetch(secure.URL + "/redirect"); err == nil || !strings.Contains(err.Error(), "requires HTTPS") {
+		t.Fatalf("expected HTTPS redirect denial, got %v", err)
 	}
 }
 

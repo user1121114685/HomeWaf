@@ -45,7 +45,6 @@ export const workspaceGroups = [
       'WafLdpUrlList',
       'PrivateInfo',
       'WafPathRuleList',
-      'WafBlockingPagelist',
       'WafIPBan',
       'WafFirewallIPBlock',
       'WafThreatIP',

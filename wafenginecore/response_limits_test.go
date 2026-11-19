@@ -31,7 +31,7 @@ func TestResponseTransformLimitsPreserveOriginalStreamAndClose(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			original := &responseLimitBody{Reader: bytes.NewReader(tc.wire)}
 			response := &http.Response{Body: original, Header: http.Header{"Content-Encoding": {tc.encoding}}}
-			_, _, err := (&WafEngine{}).getOrgContent(response, false, "auto")
+			_, _, err := PipelineDecodeResponse(response, "auto")
 			if !errors.Is(err, errResponseTransformLimit) {
 				t.Fatalf("missing resource limit: %v", err)
 			}

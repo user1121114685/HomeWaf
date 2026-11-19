@@ -42,19 +42,6 @@ func CertificateFingerprint(value string) string {
 
 func CertificateBindings(db *gorm.DB, id string) ([]CertificateBinding, error) {
 	result := []CertificateBinding{}
-	hosts := []model.Hosts{}
-	if db.Migrator().HasTable(&model.Hosts{}) {
-		if err := db.Where("bind_ssl_id = ?", id).Find(&hosts).Error; err != nil {
-			return nil, err
-		}
-		for _, h := range hosts {
-			protocol := "http"
-			if h.Ssl == 1 {
-				protocol = "https"
-			}
-			result = append(result, CertificateBinding{Kind: "host", ID: h.Id, Code: h.Code, Name: h.DisplayName(), Port: h.Port, Protocol: protocol, Source: h.Code, ValidTo: CertificateExpiry(h.Certfile), Fingerprint: CertificateFingerprint(h.Certfile)})
-		}
-	}
 	if db.Migrator().HasTable(&model.PortConfig{}) {
 		var ports []model.PortConfig
 		if err := db.Limit(wafpipeline.Ports.Limit() + 1).Find(&ports).Error; err != nil {
@@ -66,15 +53,7 @@ func CertificateBindings(db *gorm.DB, id string) ([]CertificateBinding, error) {
 				return nil, fmt.Errorf("端口 %d 证书绑定读取失败", row.Port)
 			}
 			for source, index := range snapshot.Secrets.TLSBindings {
-				matches := source == certificateSourcePrefix+id
-				if !matches {
-					for _, h := range hosts {
-						if source == h.Code {
-							matches = true
-						}
-					}
-				}
-				if !matches {
+				if source != certificateSourcePrefix+id {
 					continue
 				}
 				pairs := append([]wafpipeline.TLSCertificate{{Certificate: snapshot.Secrets.TLSCert, PrivateKey: snapshot.Secrets.TLSKey}}, snapshot.Secrets.AdditionalTLS...)
@@ -100,26 +79,17 @@ func certificateTargetBinding(code string) (CertificateBinding, error) {
 		return CertificateBinding{}, err
 	}
 	b := CertificateBinding{Kind: target.Source, Code: code, Name: target.Label, Port: target.Port, Protocol: target.Protocol}
-	if target.Source == "pipeline" {
-		var row model.PortConfig
-		if err := global.GWAF_LOCAL_DB.First(&row, "port = ?", target.Port).Error; err != nil {
-			return b, err
-		}
-		snapshot, err := decodePort(row)
-		if err != nil {
-			return b, err
-		}
-		b.ID, b.Fingerprint = row.Id, CertificateFingerprint(snapshot.Secrets.TLSCert)
-		b.ValidTo = CertificateExpiry(snapshot.Secrets.TLSCert)
-		b.Source = certificateSourcePrefix + managedCertificateID(snapshot.Secrets)
-	} else {
-		var row model.Hosts
-		if err := global.GWAF_LOCAL_DB.First(&row, "code = ?", code).Error; err != nil {
-			return b, err
-		}
-		b.ID, b.Source, b.Fingerprint = row.Id, row.Code, CertificateFingerprint(row.Certfile)
-		b.ValidTo = CertificateExpiry(row.Certfile)
+	var row model.PortConfig
+	if err := global.GWAF_LOCAL_DB.First(&row, "port = ?", target.Port).Error; err != nil {
+		return b, err
 	}
+	snapshot, err := decodePort(row)
+	if err != nil {
+		return b, err
+	}
+	b.ID, b.Fingerprint = row.Id, CertificateFingerprint(snapshot.Secrets.TLSCert)
+	b.ValidTo = CertificateExpiry(snapshot.Secrets.TLSCert)
+	b.Source = certificateSourcePrefix + managedCertificateID(snapshot.Secrets)
 	return b, nil
 }
 
@@ -157,12 +127,6 @@ func certificateTargetID(bindings []CertificateBinding, code string) string {
 		}
 	}
 	return ""
-}
-func certificateBoundToSource(bindings []CertificateBinding, code string) bool {
-	return certificateTargetID(bindings, code) != ""
-}
-func certificateIdentityNames(value string) string {
-	return strings.ToLower(canonicalSSLDomainSet(value))
 }
 
 type CertificateBindRequest struct {

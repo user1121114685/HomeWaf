@@ -47,19 +47,15 @@ func (w *WafPipelineApi) SharedPipelineHoneypot(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	legacy := make([]gin.H, 0)
 	bound := make([]gin.H, 0)
 	sources := make([]gin.H, 0, len(ports))
 	for _, port := range ports {
 		sources = append(sources, gin.H{"port": port.Port, "name": port.Name})
-		if port.Policy.Defense == nil && port.Policy.Honeypot.Enabled {
-			legacy = append(legacy, gin.H{"port": port.Port, "name": port.Name, "config": port.Policy.Honeypot})
-		}
-		if d := port.Policy.Defense; d != nil && d.Enabled && d.Mode == wafpipeline.DefenseHoney {
+		if d := port.Policy.Defense; d.Enabled && d.Mode == wafpipeline.DefenseHoney {
 			bound = append(bound, gin.H{"port": port.Port, "name": port.Name})
 		}
 	}
-	response.OkWithDetailed(gin.H{"shared": config, "legacy": legacy, "services": bound, "sources": sources}, "", c)
+	response.OkWithDetailed(gin.H{"shared": config, "services": bound, "sources": sources}, "", c)
 }
 func (w *WafPipelineApi) SaveSharedPipelineHoneypot(c *gin.Context) {
 	var req wafpipeline.SharedHoneypotConfig

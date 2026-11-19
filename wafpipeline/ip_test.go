@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-type fixtureState struct{ ban, locked, honey bool }
+type fixtureState struct{ ban bool }
 
 func (s fixtureState) BanReason(string, netip.Addr) string {
 	if s.ban {
@@ -20,8 +20,6 @@ func (s fixtureState) BanReason(string, netip.Addr) string {
 	}
 	return ""
 }
-func (s fixtureState) Locked(string) bool                 { return s.locked }
-func (s fixtureState) InHoneypot(string, netip.Addr) bool { return s.honey }
 func TestIPPrecedenceScopeExpiryAndUnlisted(t *testing.T) {
 	ip := netip.MustParseAddr("203.0.113.1")
 	for _, tc := range []struct {
@@ -42,7 +40,7 @@ func TestIPPrecedenceScopeExpiryAndUnlisted(t *testing.T) {
 			s.Config.Policy.Access.Enabled = !tc.closed
 			s.Config.Policy.IPGroup.Entries = tc.entries
 			s.Config.Policy.IPGroup.UnlistedAction = tc.unlisted
-			r := &Runtime{State: fixtureState{ban: true, locked: true, honey: true}}
+			r := &Runtime{State: fixtureState{ban: true}}
 			if err := r.Prepare(s); err != nil {
 				t.Fatal(err)
 			}
@@ -52,7 +50,7 @@ func TestIPPrecedenceScopeExpiryAndUnlisted(t *testing.T) {
 			}
 		})
 	}
-	for _, action := range []Action{Continue, Deny, Honeypot} {
+	for _, action := range []Action{Continue, Deny} {
 		s := &Snapshot{Config: PortConfig{Schema: 1, Port: 5000, Protocol: "http", Upstream: "http://localhost:8080", Policy: DefaultPolicy()}}
 		s.Config.Policy.IPGroup.UnlistedAction = action
 		s.Config.Policy.IPGroup.Entries = []IPEntry{{Type: "deny", Value: ip.String(), ExpiresAt: time.Now().Unix() - 1}}

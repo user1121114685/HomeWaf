@@ -5,7 +5,6 @@ package waf_service
 import (
 	"HomeWaf/customtype"
 	"HomeWaf/global"
-	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
@@ -29,7 +28,7 @@ func TestLogURLKeywordQueries(t *testing.T) {
 	}
 	urls := []string{"/api/a_b%20!x|z?q=hello", "/api/aXbZ20!x|z?q=hello", "/other?name=hello world"}
 	at := time.Date(2020, 3, 10, 12, 0, 0, 0, time.Local)
-	seed := func(db *gorm.DB, prefix string, when time.Time, legacy bool) {
+	seed := func(db *gorm.DB, prefix string, when time.Time) {
 		t.Helper()
 		for i, url := range urls {
 			narrow := model.LogNarrow{
@@ -38,28 +37,16 @@ func TestLogURLKeywordQueries(t *testing.T) {
 				ACTION: "阻止", RULE: "url-rule", UNIX_ADD_TIME: when.Add(time.Duration(i) * time.Second).UnixMilli(),
 				CREATE_TIME: when.Format("2006-01-02 15:04:05"),
 			}
-			if legacy {
-				row := innerbean.WebLog{
-					REQ_UUID: narrow.ReqUUID, TenantId: narrow.TenantId, USER_CODE: narrow.UserCode,
-					HOST_CODE: narrow.HostCode, URL: url, SRC_IP: narrow.SRC_IP, METHOD: narrow.Method,
-					ACTION: narrow.ACTION, RULE: narrow.RULE, USER_AGENT: narrow.USER_AGENT,
-					UNIX_ADD_TIME: narrow.UNIX_ADD_TIME, CREATE_TIME: narrow.CREATE_TIME,
-				}
-				if err := db.Create(&row).Error; err != nil {
+			for _, row := range []interface{}{&model.AccessLog{LogNarrow: narrow}, &model.SecurityEvent{LogNarrow: narrow}} {
+				if err := db.Create(row).Error; err != nil {
 					t.Fatal(err)
-				}
-			} else {
-				for _, row := range []interface{}{&model.AccessLog{LogNarrow: narrow}, &model.SecurityEvent{LogNarrow: narrow}} {
-					if err := db.Create(row).Error; err != nil {
-						t.Fatal(err)
-					}
 				}
 			}
 		}
 	}
-	seed(live, "live-url-", at, false)
+	seed(live, "live-url-", at)
 	shards := []string{wafdb.LiveLogName()}
-	for i, legacy := range []bool{true, false} {
+	for i := range 2 {
 		name := fmt.Sprintf("local_log_20200%d.db", i+1)
 		db, err := gorm.Open(sqlite.Open(filepath.Join(root, "data", name)), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 		if err != nil {
@@ -67,16 +54,12 @@ func TestLogURLKeywordQueries(t *testing.T) {
 		}
 		sqlDB, _ := db.DB()
 		t.Cleanup(func() { _ = sqlDB.Close() })
-		if legacy {
-			err = db.AutoMigrate(&innerbean.WebLog{})
-		} else {
-			err = db.AutoMigrate(&model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{})
-		}
+		err = db.AutoMigrate(&model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		when := at.AddDate(0, i-2, 0)
-		seed(db, name+"-", when, legacy)
+		seed(db, name+"-", when)
 		if err = core.Create(&model.ShareDb{
 			BaseOrm:     baseorm.BaseOrm{Id: name, Tenant_ID: global.GWAF_TENANT_ID, USER_CODE: global.GWAF_USER_CODE},
 			DbLogicType: "log", FileName: name, Cnt: 3,

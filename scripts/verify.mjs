@@ -26,6 +26,7 @@ run(["test", "./...", "-run", "^$"]);
 // Keep opt-in database/performance tests compilable without connecting to a database server.
 run(["test", "-tags=crossdb,iptagperf", "./...", "-run", "^$"]);
 // Exercise current schema initialization and upserts using temporary SQLite databases only.
+run(["test", "-tags=crossdb", "./service/waf_service", "-run", "^TestCrossEngine$/^sqlite$", "-count=1"]);
 run([
   "test",
   "-tags=crossdb",
@@ -36,7 +37,6 @@ run([
 ]);
 run([
   "test",
-  "./binarydist",
   "./internal/licensing",
   "./internal/secretfield",
   "./wafsec",
@@ -55,7 +55,6 @@ run([
   "test",
   "./utils",
   "./model",
-  "./wafenginecore",
   "./wafqueue",
   "-run",
   "Test.*(Rule|HTTP3|Http3|WebSocket|Websocket|MessageQueue)",
@@ -74,14 +73,14 @@ run(["test", "./wafnet", "./supervisor", "-count=1"]);
 run(["test", "./waftask", "-run", "^TestEveryCleanupTableHasSeededPolicy$", "-count=1"]);
 run(["test", "./waftask", "-run", "^TestSSLOrderScheduledRenewal", "-count=1"]);
 run(["test", "./middleware", "-run", "^TestOpenApiLocalOnlySchemaPreservesKeys$", "-count=1"]);
-run(["test", "./wafenginecore", "./cmd/homewaf", "-run", "Test(ProxyReadiness|WorkerReadiness|Graceful)", "-count=1"]);
+run(["test", "./cmd/homewaf", "-run", "Test(WorkerReadiness|Graceful)", "-count=1"]);
 run(["run", "./scripts/generate-dns-providers", "-check"]);
 run(["test", "./internal/dnsproviders", "./utils/ssl", "./service/waf_service", "./api", "./router", "-run", "^Test(DNS|Hurricane|SSLCertificate|ZeroSSL)", "-count=1"]);
-run(["test", "./wafenginecore", "-run", "^TestNativeACME", "-count=1"]);
+run(["test", "./wafenginecore", "-short", "-count=1"]);
 run(["test", "./utils", "-run", "^TestOutboundRequestError", "-count=1"]);
 // Full handler/router boundary regressions use isolated fixtures only.
 run(["test", "./api", "./router", "./middleware", "./wafmangeweb", "./wafmcp", "./enums", "-count=1"]);
-run(["test", "./service/waf_service", "./wafenginecore", "-run", "^Test(CertificateLifecycle|SSLOrder|SensitiveConfig|SystemConfigRejects)", "-count=1"]);
+run(["test", "./service/waf_service", "-run", "^Test(CertificateLifecycle|SSLOrder|SensitiveConfig|SystemConfigRejects)", "-count=1"]);
 run(["test", "./wafpipeline", "-short", "-count=1"]);
 run(["test", "./service/waf_service", "./firewall", "-run", "^Test(NewServiceRequiresEnabledDefense|Defense|FlowDrop)", "-count=1"]);
 run(["test", "./internal/acmelog", "./internal/acmelease", "-count=1"]);

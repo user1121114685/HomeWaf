@@ -2,14 +2,31 @@ package waf_service
 
 import (
 	"HomeWaf/global"
+	sqlite "HomeWaf/internal/sqlitedialect"
 	"HomeWaf/model"
 	commonrequest "HomeWaf/model/common/request"
 	"HomeWaf/model/request"
+	"path/filepath"
 	"testing"
+
+	"gorm.io/gorm"
 )
 
 func TestSystemLogFilteringAndFailures(t *testing.T) {
-	_, db := setupCCThresholdTestDB(t)
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "system-log.db")), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := global.GWAF_LOCAL_LOG_DB
+	global.GWAF_LOCAL_LOG_DB = db
+	t.Cleanup(func() {
+		global.GWAF_LOCAL_LOG_DB = previous
+		_ = sqlDB.Close()
+	})
 	if err := db.AutoMigrate(&model.WafSysLog{}); err != nil {
 		t.Fatal(err)
 	}

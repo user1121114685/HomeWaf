@@ -3,7 +3,7 @@
 package api
 
 import (
-	"HomeWaf/global"
+	"HomeWaf/internal/transporttest"
 	"HomeWaf/wafconfig"
 	"HomeWaf/wafsec"
 	"encoding/json"
@@ -43,15 +43,13 @@ func TestNormalizeAdminTitle(t *testing.T) {
 }
 
 func TestAdminTitlesGetEncryptedSingleField(t *testing.T) {
-	priorLegacy := global.CurrentSettings().GCONFIG_COMM_LEGACY_KEY
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = true })
-	t.Cleanup(func() {
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_COMM_LEGACY_KEY = priorLegacy })
-	})
+	keyID := transporttest.Session(t)
 	r := gin.New()
 	r.GET("/api/v1/public/uiconfig", (&WafVpConfigApi{}).GetAdminTitlesApi)
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/public/uiconfig", nil))
+	req := httptest.NewRequest("GET", "/api/v1/public/uiconfig", nil)
+	req.Header.Set("X-Key-Id", keyID)
+	r.ServeHTTP(w, req)
 	var envelope struct {
 		Code int    `json:"code"`
 		Data string `json:"data"`
@@ -59,7 +57,7 @@ func TestAdminTitlesGetEncryptedSingleField(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil || envelope.Code != 0 || envelope.Data == "" {
 		t.Fatalf("invalid encrypted response: %s, %v", w.Body.String(), err)
 	}
-	plain, err := wafsec.AesDecrypt(envelope.Data, global.GWAF_COMMUNICATION_KEY)
+	plain, _, err := wafsec.TransportDecrypt(envelope.Data)
 	if err != nil {
 		t.Fatal(err)
 	}

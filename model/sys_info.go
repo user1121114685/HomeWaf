@@ -55,9 +55,8 @@ type RuntimeSystemInfo struct {
 	KernelArch      string `json:"kernel_arch"`      //内核架构(真实机器架构)
 
 	//特殊环境标记(前端按条件展示)
-	IsWindows      bool   `json:"is_windows"`     //是否 Windows 系统
-	IsWin7Build    bool   `json:"is_win7_build"`  //当前二进制是否 Win7 专版
-	IsWin7Kernel   bool   `json:"is_win7_kernel"` //当前系统是否 Win7/Win8/Server2008R2 内核
+	IsWindows bool `json:"is_windows"` //是否 Windows 系统
+
 	Container      string `json:"container"`      //容器类型：空=非容器；docker/podman/containerd/lxc
 	InKubernetes   bool   `json:"in_kubernetes"`  //是否运行在 Kubernetes 中
 	IsWSL          bool   `json:"is_wsl"`         //是否运行在 WSL 中

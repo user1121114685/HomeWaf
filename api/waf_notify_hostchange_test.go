@@ -13,6 +13,7 @@ import (
 	"HomeWaf/customtype"
 	"HomeWaf/enums"
 	"HomeWaf/global"
+	"HomeWaf/internal/transporttest"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/spec"
@@ -119,6 +120,7 @@ func doJSONPost(t *testing.T, handler gin.HandlerFunc, body string) *httptest.Re
 		t.Fatalf("构造请求失败: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Key-Id", transporttest.Session(t))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec
@@ -319,36 +321,6 @@ func notifyCases() []notifyCase {
 			},
 			wantType:     enums.ChanTypeHostPathRule,
 			checkContent: sliceChecker[model.HostPathRule](),
-		},
-		{
-			name:   "CC防护",
-			tables: []interface{}{&model.AntiCC{}},
-			seed: func(t *testing.T) string {
-				id := uuid.GenUUID()
-				return seedRow(t, &model.AntiCC{BaseOrm: newTestBase(id), HostCode: "hostA",
-					Rate: 10, Limit: 100, LockIPMinutes: 5, LimitMode: "rate"}, id)
-			},
-			handler: new(WafAntiCCApi).ModifyAntiCCApi,
-			editBody: func(id string, changeHost bool) string {
-				return `{"id":"` + id + `","host_code":"` + hostOf(changeHost) + `","rate":10,"limit":100,` +
-					`"lock_ip_minutes":5,"limit_mode":"rate","remarks":"r"}`
-			},
-			wantType: enums.ChanTypeAnticc,
-			// CC 防护每站只有一条，Content 是结构体而不是切片：
-			// 旧网站的配置被移走后查不到记录，引擎收到零值 AntiCC 就会关掉该站的 CC 防护。
-			checkContent: func(t *testing.T, hostCode string, content interface{}, wantCount int) {
-				t.Helper()
-				bean, ok := content.(model.AntiCC)
-				if !ok {
-					t.Fatalf("%s 的 Content 类型应为 model.AntiCC，实际 %T", hostCode, content)
-				}
-				if wantCount > 0 && bean.Id == "" {
-					t.Errorf("%s 应收到真实的 CC 配置，实际是零值", hostCode)
-				}
-				if wantCount == 0 && bean.Id != "" {
-					t.Errorf("%s 的 CC 配置已移走，应收到零值以关闭防护，实际 Id=%s", hostCode, bean.Id)
-				}
-			},
 		},
 		{
 			name:   "负载均衡",

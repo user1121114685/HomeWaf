@@ -45,7 +45,7 @@ func TestInitializeArchiveSchema(t *testing.T) {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	initializeArchiveSchema(t, db)
-	for _, table := range []string{wafdb.LogTableName, model.AccessLogTableName, model.SecurityEventTableName, model.EventPayloadTableName} {
+	for _, table := range []string{model.AccessLogTableName, model.SecurityEventTableName, model.EventPayloadTableName} {
 		if !db.Migrator().HasTable(table) {
 			t.Errorf("missing current log table %s", table)
 		}
@@ -53,7 +53,7 @@ func TestInitializeArchiveSchema(t *testing.T) {
 	if !db.Migrator().HasTable(&model.ShareDb{}) {
 		t.Error("missing archive metadata table")
 	}
-	if db.Migrator().HasTable("migrations") {
+	if db.Migrator().HasTable("web_logs") || db.Migrator().HasTable("migrations") {
 		t.Error("fresh schema initialization replayed historical migrations")
 	}
 }
@@ -168,7 +168,7 @@ func runArchiveCleanupAssertions(t *testing.T, db *gorm.DB) {
 	}
 
 	// 实时表一张都不能少
-	for _, base := range append(tiers, wafdb.LogTableName) {
+	for _, base := range tiers {
 		if !d.TableExists(db, base) {
 			t.Fatalf("实时表 %s 被误删了", base)
 		}

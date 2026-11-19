@@ -36,8 +36,6 @@ type RuntimeSettings struct {
 	GCONFIG_DATA_KEY_FILE string
 	// 每实例传输密钥(X25519)文件的自管路径；只从config.yml读、不进DB/API。留空=默认data/.keys/comm_key(首启自动生成,0600)
 	GCONFIG_COMM_KEY_FILE string
-	// 是否保留 legacy 传输通道(旧客户端用内置密钥的CBC报文)。默认开，任何版本不自动翻转；确认无旧独立前端/旧App后可手动关
-	GCONFIG_COMM_LEGACY_KEY bool
 	// 批量任务本地来源允许的额外目录（绝对路径，逗号分隔）；只从config.yml读、不进DB/API。内置默认data/import恒允许，留空=只允许该默认目录
 	GCONFIG_BATCH_IMPORT_ALLOWED_DIRS string
 	// 宝塔工具可访问的 Nginx 配置根目录。空值采用宝塔默认安装路径。
@@ -62,10 +60,6 @@ type RuntimeSettings struct {
 	GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME int64
 	// 登录错误记录周期 单位分钟最小1
 	GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES int64
-	// 真实IP来源诊断探针：默认关闭。开启后才在内存里采样"最近到达的请求头"供管理端排查，
-	// 关闭时业务请求路径上只多一次整型比较；样本只存内存、不落库、不外发。
-	// 真实IP来源探针开关 1开启 0关闭
-	GCONFIG_IPPROBE_ENABLE int64
 	// 统一访问认证(Access 模式)
 	// 开启后，被 WAF 代理的站点默认都要先登录才能访问；站点可用 access_json 的三态单独强制开/关。
 	// 默认 0（关闭）—— 存量用户升级后行为完全不变，这一点不能改。
@@ -147,10 +141,6 @@ type RuntimeSettings struct {
 	// GCONFIG_RECORD_PATCH_VERSION_LOG   int64 = 20250106 // 日志数据库补丁日期
 	// 记录原始信息(默认不开启)
 	GCONFIG_RECORD_ALL_SRC_BYTE_INFO int64
-	// 配置是否启用http3(默认关闭)
-	GCONFIG_ENABLE_HTTP3 int64
-	// 配置http3是否用BBR(默认NewReno)
-	GCONFIG_ENABLE_HTTP3_BBR int64
 	// 请求记录是否进行脱敏处理 1开启脱敏 0关闭脱敏
 	GCONFIG_RECORD_LOG_DESENSITIZE int64
 	// 令牌有效期(分钟)：空闲多久未访问即失效，每次通过鉴权的请求都会滑动续期。
@@ -375,7 +365,6 @@ var runtimeSettings = func() *atomic.Pointer[runtimeSettingsSnapshot] {
 		GCONFIG_SSL_EXPORT_ALLOWED_DIRS:          "",
 		GCONFIG_DATA_KEY_FILE:                    "",
 		GCONFIG_COMM_KEY_FILE:                    "",
-		GCONFIG_COMM_LEGACY_KEY:                  true,
 		GCONFIG_BATCH_IMPORT_ALLOWED_DIRS:        "",
 		GCONFIG_OUTBOUND_ALLOWED_HOSTS:           "",
 		GCONFIG_RECORD_AUTO_LOAD_SSL:             1,
@@ -387,7 +376,6 @@ var runtimeSettings = func() *atomic.Pointer[runtimeSettingsSnapshot] {
 		GCONFIG_RECORD_PROXY_LOOP_MAX_HOP:        10,
 		GCONFIG_RECORD_LOGIN_MAX_ERROR_TIME:      3,
 		GCONFIG_RECORD_LOGIN_LIMIT_MINTUTES:      1,
-		GCONFIG_IPPROBE_ENABLE:                   0,
 		GCONFIG_ACCESS_ENABLE:                    0,
 		GCONFIG_ACCESS_AUDIT_RETAIN_DAYS:         90,
 		GCONFIG_ACCESS_FORCE_DISABLE:             false,
@@ -417,8 +405,6 @@ var runtimeSettings = func() *atomic.Pointer[runtimeSettingsSnapshot] {
 		GCONFIG_UPDATE_RESTART_TIMEOUT:           90,
 		GCONFIG_UPDATE_ENV_REPORT:                false,
 		GCONFIG_RECORD_ALL_SRC_BYTE_INFO:         0,
-		GCONFIG_ENABLE_HTTP3:                     0,
-		GCONFIG_ENABLE_HTTP3_BBR:                 0,
 		GCONFIG_RECORD_LOG_DESENSITIZE:           1,
 		GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES:     30,
 		GCONFIG_RECORD_ANNOUNCEMENT_EXPIRE_HOURS: 24,

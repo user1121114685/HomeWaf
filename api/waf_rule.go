@@ -450,7 +450,6 @@ func (w *WafRuleAPi) ModifyRuleStatusApi(c *gin.Context) {
 }
 
 // TestRuleApi 测试规则是否匹配模拟请求
-// 处理逻辑与 wafengine.go ServeHTTP 中的 WebLog 构建保持一致
 func (w *WafRuleAPi) TestRuleApi(c *gin.Context) {
 	var req request.WafRuleTestReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -487,7 +486,7 @@ func (w *WafRuleAPi) TestRuleApi(c *gin.Context) {
 		return
 	}
 
-	// 3. 通过IP解析地理位置（与 wafengine.go 第353行一致）
+	// 3. 通过IP解析地理位置
 	region := utils.GetCountry(req.TestSrcIP)
 	// region 返回格式: [国家, ISP, 省份, 城市, ...]
 	country := ""
@@ -503,7 +502,7 @@ func (w *WafRuleAPi) TestRuleApi(c *gin.Context) {
 		city = region[3]
 	}
 
-	// 4. URL解码处理（与 wafengine.go 第358行一致）
+	// 4. URL解码处理
 	decodedRawQuery := ""
 	decodedURL := req.TestURL
 	if strings.Contains(req.TestURL, "?") {
@@ -514,7 +513,7 @@ func (w *WafRuleAPi) TestRuleApi(c *gin.Context) {
 		}
 	}
 
-	// 5. 构建 WebLog（字段与 wafengine.go 第360-395行保持一致）
+	// 5. 构建 WebLog
 	weblog := &innerbean.WebLog{
 		SRC_IP:     req.TestSrcIP,
 		HOST:       req.TestHost,

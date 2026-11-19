@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"HomeWaf/global"
+	"HomeWaf/internal/releasetest"
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
@@ -37,8 +37,8 @@ func TestScheduledSoftwareUpdateReachesSubscribedWebhook(t *testing.T) {
 	}
 	var deliveries atomic.Int32
 	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, ".json") {
-			json.NewEncoder(w).Encode(map[string]any{"Version": "v9.1.1", "Sha256": make([]byte, 32)})
+		if r.URL.Path == "/release" {
+			json.NewEncoder(w).Encode(releasetest.Metadata("v9.1.1", "Update notification"))
 			return
 		}
 		if r.URL.Path != "/subscribed" || r.Method != http.MethodPost {
@@ -52,14 +52,14 @@ func TestScheduledSoftwareUpdateReachesSubscribedWebhook(t *testing.T) {
 	}))
 	defer endpoint.Close()
 
-	oldDB, oldLogs, oldSource, oldVersion := global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GUPDATE_VERSION_URL, global.GWAF_RELEASE_VERSION
+	oldDB, oldLogs, oldSource, oldVersion := global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GUPDATE_RELEASE_URL, global.GWAF_RELEASE_VERSION
 	oldAllow := global.CurrentSettings().GCONFIG_OUTBOUND_ALLOWED_HOSTS
 	t.Cleanup(func() {
-		global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GUPDATE_VERSION_URL, global.GWAF_RELEASE_VERSION = oldDB, oldLogs, oldSource, oldVersion
+		global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB, global.GUPDATE_RELEASE_URL, global.GWAF_RELEASE_VERSION = oldDB, oldLogs, oldSource, oldVersion
 		global.UpdateSettings(func(c *global.RuntimeSettings) { c.GCONFIG_OUTBOUND_ALLOWED_HOSTS = oldAllow })
 	})
 	global.GWAF_LOCAL_DB, global.GWAF_LOCAL_LOG_DB = db, db
-	global.GUPDATE_VERSION_URL, global.GWAF_RELEASE_VERSION = endpoint.URL+"/", "v9.1.0"
+	global.GUPDATE_RELEASE_URL, global.GWAF_RELEASE_VERSION = endpoint.URL+"/release", "v9.1.0"
 	global.UpdateSettings(func(c *global.RuntimeSettings) { c.GCONFIG_OUTBOUND_ALLOWED_HOSTS = "127.0.0.1" })
 	config, _ := json.Marshal(map[string]string{"url": endpoint.URL + "/subscribed", "body_template": `{"title":"{{.Title}}"}`})
 	channel := model.NotifyChannel{BaseOrm: baseorm.BaseOrm{Id: "test-webhook"}, Type: "webhook", ConfigJSON: string(config), Status: 1}

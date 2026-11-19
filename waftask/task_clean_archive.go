@@ -7,7 +7,6 @@ import (
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/service/waf_service"
-	"HomeWaf/utils"
 	"HomeWaf/wafdb"
 	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafdb/partition"
@@ -26,7 +25,7 @@ import (
 //     或者换到服务型数据库。
 //   - MySQL/PG：一个分区是每层各一张表，可以**按层各走各的保留期**：
 //     窄行 access_log_* 走访问日志保留天数（默认 30 天，通常更短），
-//     安全事件 / 报文 / 存量 web_logs 走日志保留天数。某一层先过期就先丢那一层，
+//     安全事件 / 报文 走日志保留天数。某一层先过期就先丢那一层，
 //     整个分区都没了才删掉分片记录。
 //
 // 实时库里的过期数据仍然按行删（DeleteHistory）：保留期可能短于一个周期，
@@ -39,7 +38,7 @@ type tierRetention struct {
 	days int
 }
 
-// archiveTiers 归档分区里可能有的四层，以及各自的保留期来源
+// archiveTiers 归档分区里可能有的三层，以及各自的保留期来源
 func archiveTiers() []tierRetention {
 	logDays := int(global.CurrentSettings().GDATA_DELETE_INTERVAL)
 	accessDays := int(global.CurrentSettings().GDATA_ACCESS_LOG_RETENTION_DAYS)
@@ -50,7 +49,6 @@ func archiveTiers() []tierRetention {
 		{model.AccessLogTableName, accessDays},
 		{model.SecurityEventTableName, logDays},
 		{model.EventPayloadTableName, logDays},
-		{wafdb.LogTableName, logDays},
 	}
 }
 
@@ -143,13 +141,15 @@ func CleanExpiredArchiveShard() {
 
 // dropShardFile 删除 SQLite 分区文件（含 -wal / -shm）与分片记录
 func dropShardFile(innerLogName string, shard model.ShareDb) bool {
-	// 删除前先关掉可能已按需打开的连接，避免删正在被查询的文件
+	dbPath, err := wafdb.ShardFilePath(shard.FileName)
+	if err != nil {
+		return false
+	}
 	wafdb.CloseManualLogDb(shard.FileName)
-
-	dbPath := utils.GetCurrentDir() + "/data/" + shard.FileName
 	for _, p := range []string{dbPath, dbPath + "-wal", dbPath + "-shm"} {
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 			zlog.Warn(innerLogName, "删除归档文件失败", "file", p, "error", err.Error())
+			return false
 		}
 	}
 	if err := waf_service.WafShareDbServiceApp.DeleteById(shard.Id); err != nil {
@@ -196,6 +196,9 @@ func dropShardTables(innerLogName string, shard model.ShareDb, end, now time.Tim
 			"数据截止", end.Format("2006-01-02 15:04:05"))
 	}
 
+	if dropped > 0 {
+		waf_service.InvalidateShardCounts()
+	}
 	if left > 0 || dropped == 0 {
 		return false
 	}
@@ -212,7 +215,7 @@ func dropOrphanPartitions(innerLogName string, shards []model.ShareDb, now time.
 	if dialect.Get().IsFileBased() || global.GWAF_LOCAL_LOG_DB == nil {
 		return 0
 	}
-	known := make(map[string]struct{}, len(shards)*4)
+	known := make(map[string]struct{}, len(shards)*3)
 	for _, s := range shards {
 		if suffix := archiveSuffix(s.FileName); suffix != "" {
 			for _, tier := range archiveTiers() {

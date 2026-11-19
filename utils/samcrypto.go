@@ -1,23 +1,13 @@
 package utils
 
 import (
-	"crypto/md5"
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"math/big"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
-
-func Md5String(str string) string {
-	h := md5.New()
-	io.WriteString(h, str)
-	sum := h.Sum(nil)
-	return hex.EncodeToString(sum[:])
-}
 
 // BcryptHash 用 bcrypt 计算口令哈希（内含随机 per-password 盐，无需单独盐列）。
 // bcrypt 仅取口令前 72 字节，过长口令返回错误由上层提示。

@@ -12,7 +12,6 @@ import (
 	"HomeWaf/common/uuid"
 	"HomeWaf/enums"
 	"HomeWaf/global"
-	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 
@@ -28,8 +27,8 @@ func openShardTestDBs(t *testing.T) (core, logDB *gorm.DB) {
 		t.Fatalf("建 share_dbs 失败: %v", err)
 	}
 	logDB = openTenantTestDB(t, "sqlite")
-	if err := logDB.AutoMigrate(&innerbean.WebLog{}); err != nil {
-		t.Fatalf("建 web_logs 失败: %v", err)
+	if err := InitializeLogSchema(logDB); err != nil {
+		t.Fatalf("建日志表失败: %v", err)
 	}
 	return core, logDB
 }
@@ -47,7 +46,7 @@ func countShard(t *testing.T, core *gorm.DB, name string) int64 {
 // 归档列表里就没有任何一项被标为 is_current。
 func TestEnsureLiveShardRecordWithArchivesOnly(t *testing.T) {
 	core, logDB := openShardTestDBs(t)
-	for _, name := range []string{"local_log_20260615173225.db", "local_log_20260616092350.db"} {
+	for _, name := range []string{"local_log_202606.db", "local_log_202606_02.db"} {
 		if err := core.Create(&model.ShareDb{BaseOrm: baseorm.BaseOrm{Id: uuid.GenUUID()}, DbLogicType: "log", FileName: name}).Error; err != nil {
 			t.Fatalf("写归档记录失败: %v", err)
 		}
@@ -78,11 +77,7 @@ func TestLiveLogNameSQLite(t *testing.T) {
 	}
 }
 
-// —— 归档分片只读打开与按数据选层 ——
-
-// makeArchive 在 ./data 下造一个归档文件：建出全部四张日志表（模拟被旧版打开过、跑过迁移的归档），
-// legacyRows 行写进 web_logs，accessRows 行写进 access_log。
-func makeArchive(t *testing.T, name string, legacyRows, accessRows int) string {
+func makeArchive(t *testing.T, name string, accessRows int) string {
 	t.Helper()
 	if err := os.MkdirAll("data", 0o755); err != nil {
 		t.Fatal(err)
@@ -93,15 +88,8 @@ func makeArchive(t *testing.T, name string, legacyRows, accessRows int) string {
 	if err != nil {
 		t.Fatalf("建归档文件失败: %v", err)
 	}
-	if err := db.AutoMigrate(&innerbean.WebLog{}, &model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{}); err != nil {
+	if err := InitializeLogSchema(db); err != nil {
 		t.Fatalf("建表失败: %v", err)
-	}
-	for i := 0; i < legacyRows; i++ {
-		row := &innerbean.WebLog{REQ_UUID: fmt.Sprintf("%s_w%d", name, i), TenantId: global.GWAF_TENANT_ID,
-			USER_CODE: global.GWAF_USER_CODE, UNIX_ADD_TIME: int64(i + 1)}
-		if err := db.Create(row).Error; err != nil {
-			t.Fatalf("写 web_logs 失败: %v", err)
-		}
 	}
 	for i := 0; i < accessRows; i++ {
 		row := &model.AccessLog{LogNarrow: model.LogNarrow{ReqUUID: fmt.Sprintf("%s_a%d", name, i),
@@ -116,11 +104,9 @@ func makeArchive(t *testing.T, name string, legacyRows, accessRows int) string {
 	return path
 }
 
-// 改造边界切出来的分片（以及被旧版打开过的归档）同时有 web_logs 数据与空的新表：
-// 必须读 web_logs，不能因为新表「存在」就去读空表。
-func TestResolveTierTablesPollutedArchiveReadsWebLogs(t *testing.T) {
-	const name = "local_log_20260101000001.db"
-	path := makeArchive(t, name, 3, 0)
+func TestResolveTierTablesReadOnlyArchive(t *testing.T) {
+	const name = "local_log_202601.db"
+	path := makeArchive(t, name, 3)
 	t.Cleanup(func() { closeShardDB(name) })
 	before, err := os.Stat(path)
 	if err != nil {
@@ -131,15 +117,11 @@ func TestResolveTierTablesPollutedArchiveReadsWebLogs(t *testing.T) {
 	if tier.Err != nil {
 		t.Fatalf("打开归档失败: %v", tier.Err)
 	}
-	// 对照：新表确实存在，按存在性选层就会读到空表
-	if !tier.DB.Migrator().HasTable(model.AccessLogTableName) {
-		t.Fatal("对照组失效：归档里应当有空的 access_log")
-	}
-	if tier.WebLog != LogTableName || tier.Access != "" || tier.Event != "" {
-		t.Fatalf("应读 web_logs、新表置空，实际 %+v", tier)
+	if tier.Access != model.AccessLogTableName || tier.Event != model.SecurityEventTableName || tier.Payload != model.EventPayloadTableName || tier.DB.Migrator().HasTable("web_logs") {
+		t.Fatalf("unexpected archive schema: %+v", tier)
 	}
 	var n int64
-	if err := tier.DB.Table(tier.WebLog).Count(&n).Error; err != nil || n != 3 {
+	if err := tier.DB.Table(tier.Access).Count(&n).Error; err != nil || n != 3 {
 		t.Fatalf("应读到 3 行，实际 %d (%v)", n, err)
 	}
 	if tier.Empty {
@@ -147,7 +129,7 @@ func TestResolveTierTablesPollutedArchiveReadsWebLogs(t *testing.T) {
 	}
 
 	// 只读：连接层拒写，文件大小与修改时间不变
-	if err := tier.DB.Exec("DELETE FROM web_logs").Error; err == nil {
+	if err := tier.DB.Exec("DELETE FROM access_log").Error; err == nil {
 		t.Fatal("归档连接不该能写")
 	}
 	closeShardDB(name)
@@ -165,23 +147,9 @@ func TestResolveTierTablesPollutedArchiveReadsWebLogs(t *testing.T) {
 	}
 }
 
-func TestResolveTierTablesTieredArchiveReadsNewTables(t *testing.T) {
-	const name = "local_log_20260101000002.db"
-	makeArchive(t, name, 0, 2)
-	t.Cleanup(func() { closeShardDB(name) })
-
-	tier := ResolveTierTables(name)
-	if tier.Err != nil {
-		t.Fatalf("打开归档失败: %v", tier.Err)
-	}
-	if tier.Access != model.AccessLogTableName || tier.Event != model.SecurityEventTableName || tier.WebLog != "" {
-		t.Fatalf("分层之后的归档应读新表，实际 %+v", tier)
-	}
-}
-
 func TestResolveTierTablesEmptyArchive(t *testing.T) {
-	const name = "local_log_20260101000003.db"
-	makeArchive(t, name, 0, 0)
+	const name = "local_log_202601_03.db"
+	makeArchive(t, name, 0)
 	t.Cleanup(func() { closeShardDB(name) })
 
 	tier := ResolveTierTables(name)
@@ -192,7 +160,7 @@ func TestResolveTierTablesEmptyArchive(t *testing.T) {
 
 // 文件不在时报缺失，且不能在原位置建出一个空库，也不能回落实时库
 func TestResolveTierTablesMissingArchive(t *testing.T) {
-	const name = "local_log_20260101000004.db"
+	const name = "local_log_202601_04.db"
 	tier := ResolveTierTables(name)
 	if !errors.Is(tier.Err, ErrShardMissing) {
 		t.Fatalf("应报 ErrShardMissing，实际 %v", tier.Err)
@@ -209,7 +177,7 @@ func TestResolveTierTablesMissingArchive(t *testing.T) {
 }
 
 func TestResolveTierTablesRejectsBadNames(t *testing.T) {
-	for _, name := range []string{"../local.db", "local_log_1.db/../../x.db", "local.db", "local_log_abc.db"} {
+	for _, name := range []string{"../local.db", "local_log_1.db/../../x.db", "local.db", "local_log_abc.db", "local_log_20260101000001.db", "local_log_202613.db", "local_log_202601_01.db"} {
 		if tier := ResolveTierTables(name); tier.Err == nil {
 			t.Fatalf("%q 不该被当成归档打开", name)
 		}
@@ -220,8 +188,8 @@ func TestResolveTierTablesRejectsBadNames(t *testing.T) {
 func TestShardRetireKeepsConnectionUsable(t *testing.T) {
 	names := make([]string, 0, shardCacheMax+1)
 	for i := 0; i <= shardCacheMax; i++ {
-		name := fmt.Sprintf("local_log_2026020100%04d.db", i)
-		makeArchive(t, name, 1, 0)
+		name := fmt.Sprintf("local_log_202602_%02d.db", i+2)
+		makeArchive(t, name, 1)
 		names = append(names, name)
 	}
 	t.Cleanup(func() {
@@ -242,27 +210,27 @@ func TestShardRetireKeepsConnectionUsable(t *testing.T) {
 		t.Fatal("超过上限后最早的连接应被移出缓存")
 	}
 	var n int64
-	if err := first.DB.Table(LogTableName).Count(&n).Error; err != nil {
+	if err := first.DB.Table(model.AccessLogTableName).Count(&n).Error; err != nil {
 		t.Fatalf("宽限期内被淘汰的连接应仍可用: %v", err)
 	}
 	closeShardDB(names[0])
-	if err := first.DB.Table(LogTableName).Count(&n).Error; err == nil {
+	if err := first.DB.Table(model.AccessLogTableName).Count(&n).Error; err == nil {
 		t.Fatal("显式关闭后宽限期里的连接也应已关")
 	}
 }
 
 func TestShardHasIndex(t *testing.T) {
-	const name = "local_log_20260101000005.db"
-	makeArchive(t, name, 1, 0)
+	const name = "local_log_202601_05.db"
+	makeArchive(t, name, 1)
 	t.Cleanup(func() { closeShardDB(name) })
 	tier := ResolveTierTables(name)
 	if tier.Err != nil {
 		t.Fatal(tier.Err)
 	}
-	if ShardHasIndex(tier.DB, name, LogTableName, "idx_no_such_index") {
+	if ShardHasIndex(tier.DB, name, model.AccessLogTableName, "idx_no_such_index") {
 		t.Fatal("不存在的索引应返回 false")
 	}
-	if !ShardHasIndex(tier.DB, name, LogTableName, "idx_weblog_time") {
+	if !ShardHasIndex(tier.DB, name, model.AccessLogTableName, "idx_al_time") {
 		t.Fatal("结构体上声明的索引应存在")
 	}
 }

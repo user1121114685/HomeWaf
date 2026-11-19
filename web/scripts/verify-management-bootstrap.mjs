@@ -6,7 +6,7 @@ import net from 'node:net';
 import https from 'node:https';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { fromBase64, toBase64, transportKeyPair, TransportSession } from '../src/utils/transportCipher.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const source = path.resolve(process.argv[2] || path.join(root, 'artifacts/HomeWaf64.exe'));
@@ -91,13 +91,20 @@ try {
   expect(info.stdout).toContain('https://');
   expect(info.stdout).toContain('SHA-256:');
   expect(info.stdout).not.toMatch(/Samwaf/i);
-  const publicResponse = await (
-    await fetch(origin + '/api/v1/public/managementTls', {
-      headers: { 'X-Request-Time': String(Math.floor(Date.now() / 1000)), 'X-Request-Id': crypto.randomUUID() },
-    })
-  ).json();
-  const publicInfo =
-    typeof publicResponse.data === 'string' ? JSON.parse(AesDecrypt(publicResponse.data)) : publicResponse.data;
+  const headers = () => ({ 'X-Request-Time': String(Math.floor(Date.now() / 1000)), 'X-Request-Id': crypto.randomUUID() });
+  const keys = transportKeyPair();
+  const registration = await (await fetch(origin + '/api/v1/public/seckey', {
+    method: 'POST',
+    headers: { ...headers(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ epk: toBase64(keys.publicKey) }),
+  })).json();
+  expect(registration.code).toBe(0);
+  const session = new TransportSession(registration.data.keyid, fromBase64(registration.data.pub), keys.secretKey);
+  const publicResponse = await (await fetch(origin + '/api/v1/public/managementTls', {
+    headers: { ...headers(), 'X-Key-Id': session.id },
+  })).json();
+  expect(publicResponse.code).toBe(0);
+  const publicInfo = JSON.parse(session.decrypt(publicResponse.data));
   expect(publicInfo.https_configured).toBe(true);
   expect(publicInfo.host_covered).toBe(true);
   expect(publicInfo.ca_pem).toContain('BEGIN CERTIFICATE');

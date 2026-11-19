@@ -5,7 +5,6 @@ package waf_service
 import (
 	"HomeWaf/customtype"
 	"HomeWaf/global"
-	"HomeWaf/innerbean"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
@@ -53,7 +52,7 @@ func setupLogLookupTest(t *testing.T) (*gorm.DB, *gorm.DB, string) {
 	if err := core.AutoMigrate(&model.ShareDb{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := live.AutoMigrate(&model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{}, &innerbean.WebLog{}); err != nil {
+	if err := live.AutoMigrate(&model.AccessLog{}, &model.SecurityEvent{}, &model.EventPayload{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, db := range []*gorm.DB{core, live} {

@@ -19,7 +19,6 @@ import (
 	"HomeWaf/common/validfield"
 	"HomeWaf/common/zlog"
 	"HomeWaf/innerbean"
-	"HomeWaf/model"
 	"HomeWaf/model/request"
 	"HomeWaf/wafdb"
 	"HomeWaf/wafdb/dialect"
@@ -133,10 +132,6 @@ func InvalidateShardCounts() {
 		return true
 	})
 	shardCountCacheN.Store(0)
-	webLogShardSelect.Range(func(k, _ any) bool {
-		webLogShardSelect.Delete(k)
-		return true
-	})
 	wafdb.InvalidateShardTierCache()
 }
 
@@ -154,7 +149,6 @@ type logQuery struct {
 	db          *gorm.DB
 	tier        wafdb.TierTables
 	shardName   string
-	logTable    string
 	forceIndex  string
 	whereField  string
 	whereValues []interface{}
@@ -169,8 +163,6 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 	}
 	splitFilterBys := strings.Split(req.FilterBy, "|")
 	splitFilterValues := strings.Split(req.FilterValue, "|")
-	// 解析当前分片的三层表：访问日志视图读 access_log，安全事件视图读 security_event；
-	// 分层改造之前切出去的归档只有 web_logs，回落到它（列交集会自适应它的结构）。
 	tier := wafdb.ResolveTierTables(shardName)
 	if tier.Err != nil {
 		return nil, tier.Err
@@ -182,15 +174,8 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 		logTable = tier.Event
 	}
 	if logTable == "" {
-		logTable = tier.WebLog
-	}
-	if logTable == "" {
 		return nil, errShardNoTable
 	}
-	// 老分片上的安全事件视图：web_logs 里按事件条件过滤（与引擎 abnormal 判定同一条规则）
-	legacyEventView := isEventView && logTable == tier.WebLog
-	isLegacyTable := strings.HasPrefix(logTable, wafdb.LogTableName)
-
 	/*where条件*/
 	var whereField = ""
 	var whereValues []interface{}
@@ -200,12 +185,6 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 		// 按识别码直查时不带时间条件：识别码是主键，用户手里往往只有这串码、并不知道是哪天
 		if !ignoreTime {
 			whereField = whereField + " (unix_add_time>=? and unix_add_time<=?)"
-		}
-		if legacyEventView {
-			if len(whereField) > 0 {
-				whereField = whereField + " and "
-			}
-			whereField = whereField + " (action<>? or rule<>? or log_only_mode=1) "
 		}
 		if len(req.HostCode) > 0 {
 			if len(whereField) > 0 {
@@ -264,11 +243,7 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 				if len(whereField) > 0 {
 					whereField = whereField + " and "
 				}
-				if by == "guest_identification" {
-					// Match the same read-side identity shown for historical pipeline logs.
-					by = "(case when host_code like 'pipeline-%' and coalesce(guest_id_entification,'') in ('','正常访客') then '未识别访客' else guest_id_entification end)"
-				}
-				if by == "header" && !isLegacyTable {
+				if by == "header" {
 					// header 随报文搬进 event_payload：访问日志视图没有这一列，
 					// 安全事件视图走报文子查询（该视图行数小、且必有报文）。
 					if !isEventView {
@@ -302,13 +277,11 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 	//强制索引
 	forceIndex := logTable
 	{
-		idxTime, idxIP := "idx_web_time_desc_tenant_user_code", "idx_web_time_desc_tenant_user_code_ip"
-		if strings.HasPrefix(logTable, model.AccessLogTableName) {
-			idxTime, idxIP = "idx_al_time", "idx_al_ip_time"
-		} else if strings.HasPrefix(logTable, model.SecurityEventTableName) {
+		idxTime, idxIP := "idx_al_time", "idx_al_ip_time"
+		if isEventView {
 			idxTime, idxIP = "idx_se_time", "idx_se_ip_time"
 		}
-		// 历史分区不跑迁移，早年切出来的可能没有这些索引：有才强制，没有交给优化器
+		// Archive indexes can have different names after server-side table rotation.
 		if strings.Contains(whereField, "unix_add_time") && !strings.Contains(whereField, "src_ip") {
 			if wafdb.ShardHasIndex(logDB, shardName, logTable, idxTime) {
 				forceIndex = dialect.Get().ForceIndexClause(logTable, idxTime)
@@ -338,9 +311,6 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 		if !ignoreTime {
 			whereValues = append(whereValues, unixBegin)
 			whereValues = append(whereValues, unixEnd)
-		}
-		if legacyEventView {
-			whereValues = append(whereValues, "放行", "")
 		}
 		if len(req.HostCode) > 0 {
 			whereValues = append(whereValues, req.HostCode)
@@ -404,7 +374,6 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 		db:          logDB,
 		tier:        tier,
 		shardName:   shardName,
-		logTable:    logTable,
 		forceIndex:  forceIndex,
 		whereField:  whereField,
 		whereValues: whereValues,
@@ -429,16 +398,14 @@ func (q *logQuery) find(ctx context.Context, offset, limit int, orderOverride st
 		order = orderOverride
 	}
 	var rows []innerbean.WebLog
-	sel := webLogSelect(q.db, q.shardName, q.logTable, getWebLogListColumns(), "list")
 	// 错误必须往上抛：吞掉它就只剩「有分页、没数据」，连从哪查起都不知道
-	if err := q.db.WithContext(ctx).Select(sel).Table(q.forceIndex).Limit(limit).Offset(offset).
+	if err := q.db.WithContext(ctx).Select("*").Table(q.forceIndex).Limit(limit).Offset(offset).
 		Where(q.whereField, q.whereValues...).Order(order).Find(&rows).Error; err != nil {
 		return nil, fmt.Errorf("查询日志失败: %w", err)
 	}
 	// 标上来源分区：跨分区时界面要能说明这行从哪来，详情链接也能据此直达
 	for i := range rows {
 		rows[i].ShardName = q.shardName
-		rows[i].NormalizePipelineVisitorIdentity()
 	}
 	// 安全事件视图每页补一回报文（事件必有报文）：「请求」列与详情都靠它
 	if q.isEventView && len(rows) > 0 {
@@ -517,9 +484,11 @@ func candidateShards(fromMs, toMs int64, ignoreTime bool) []logShard {
 // 三条路：填了识别码走直查（忽略时间与分区）／auto 走按时间范围扇出／指定了分区就只查它。
 func (receiver *WafLogService) GetListApiWithMeta(req request.WafAttackLogSearch) ([]innerbean.WebLog, int64, LogQueryMeta, error) {
 	var meta LogQueryMeta
+	if req.PageSize < 0 || req.PageSize > 1000 || req.PageIndex < 0 || req.PageIndex > 1_000_000 {
+		return nil, 0, meta, errors.New("日志分页参数超出范围")
+	}
 	shardName := strings.TrimSpace(req.CurrrentDbName)
-	// 只有明确传 auto 才扇出。空值沿用旧语义（实时库）——存量调用方与 Vue3 还在传空，
-	// 悄悄改成扇出会让它们的每次查询都多打几个分区
+	// auto fans out across the time range. An empty or explicit shard name queries one shard.
 	auto := shardName == AutoShard
 
 	req.ReqUuid = strings.TrimSpace(req.ReqUuid)
@@ -551,8 +520,6 @@ func (receiver *WafLogService) GetListApiWithMeta(req request.WafAttackLogSearch
 			return nil, 0, meta, err
 		}
 		// 先取数再统计：取一页走时间索引、凑够一页就停；统计要数完整个分区。
-		// 分层改造之前的大分片上，安全事件视图得逐行看 action/rule，统计可能超出时间预算——
-		// 这时仍把这一页给出去并标 partial，而不是整页报错。
 		offset := req.PageSize * (req.PageIndex - 1)
 		rows, err := q.find(ctx, offset, req.PageSize, "")
 		if err != nil {
@@ -823,7 +790,7 @@ func ResolveDetailShard(shardName, reqUuid string) string {
 		if tier.DB == nil {
 			continue
 		}
-		for _, table := range []string{tier.Event, tier.Access, tier.WebLog} {
+		for _, table := range []string{tier.Event, tier.Access} {
 			if table == "" {
 				continue
 			}

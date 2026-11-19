@@ -13,7 +13,6 @@ require (
 	github.com/corazawaf/coraza/v3 v3.8.1
 	github.com/corazawaf/libinjection-go v0.3.5
 	github.com/denisbrodbeck/machineid v1.0.1
-	github.com/dsnet/compress v0.0.1
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/gin-contrib/gzip v1.2.10
 	github.com/gin-contrib/pprof v1.5.8
@@ -28,14 +27,13 @@ require (
 	github.com/kardianos/service v1.3.0
 	github.com/klauspost/compress v1.20.3
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20261028042204-6a276cc7c4f9
+	github.com/mattn/go-isatty v0.0.24
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/oschwald/geoip2-golang/v2 v2.5.0
 	github.com/oschwald/maxminddb-golang/v2 v2.9.0
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pingcap/errors v0.11.5-0.20260310054046-9c8b3586e4b2
-	github.com/pires/go-proxyproto v0.16.0
 	github.com/pquerna/otp v1.5.0
-	github.com/quic-go/quic-go v0.65.0
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/rs/zerolog v1.35.1
 	github.com/shirou/gopsutil/v4 v4.26.10
@@ -44,8 +42,8 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
 	github.com/twmb/franz-go v1.22.2
-	github.com/xuri/excelize/v2 v2.11.1
 	go.uber.org/zap v1.28.0
+	go.yaml.in/yaml/v3 v3.0.6
 	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/crypto v0.58.1-0.20261009181718-2f1f834330b2
 	golang.org/x/image v0.47.0
@@ -202,7 +200,6 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20261101121723-be84dd9509a0 // indirect
 	github.com/magefile/mage v1.17.2 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
-	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/miekg/dns v1.1.73 // indirect
 	github.com/mimuret/golang-iij-dpf v0.9.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -237,10 +234,9 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20260916203055-22a1a467d9f0 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
+	github.com/quic-go/quic-go v0.65.0 // indirect
 	github.com/regfish/regfish-dnsapi-go v0.1.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/richardlehane/mscfb v1.0.9 // indirect
-	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/sacloud/api-client-go v0.3.5 // indirect
 	github.com/sacloud/go-http v0.1.9 // indirect
@@ -265,7 +261,6 @@ require (
 	github.com/tidwall/gjson v1.20.2 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.3.0 // indirect
-	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect
@@ -279,8 +274,6 @@ require (
 	github.com/vinyldns/go-vinyldns v0.9.17 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.242 // indirect
 	github.com/vultr/govultr/v3 v3.31.0 // indirect
-	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
-	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/yandex-cloud/go-genproto v0.73.0 // indirect
 	github.com/yandex-cloud/go-sdk/services/dns v0.0.54 // indirect
 	github.com/yandex-cloud/go-sdk/v2 v2.92.0 // indirect
@@ -297,7 +290,6 @@ require (
 	go.uber.org/atomic v1.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/ratelimit v0.3.1 // indirect
-	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/arch v0.32.0 // indirect
 	golang.org/x/exp v0.0.0-20261106192419-47ce03d25ef0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
@@ -313,6 +305,3 @@ require (
 	modernc.org/memory v1.12.1 // indirect
 	rsc.io/binaryregexp v0.2.0 // indirect
 )
-
-// 引入fork分支是为了使用BBR，一旦未来原分支支持，即可使用原分支并删除此replace。
-replace github.com/quic-go/quic-go => github.com/qiulaidongfeng/quic-go v0.0.0-20261108163454-291d013e1594

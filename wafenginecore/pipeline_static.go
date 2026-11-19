@@ -17,7 +17,6 @@ func PipelineStaticHandler(business wafpipeline.StaticBusiness) (http.Handler, e
 	if config.StaticSitePath == "" {
 		return nil, errors.New("静态站点根目录不能为空")
 	}
-	engine := &WafEngine{}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" && r.Method != "HEAD" {
 			http.Error(w, "Method not allowed", 405)
@@ -28,7 +27,7 @@ func PipelineStaticHandler(business wafpipeline.StaticBusiness) (http.Handler, e
 			return
 		}
 		relative := strings.TrimPrefix(r.URL.Path, config.StaticSitePrefix)
-		if engine.containsEncodedThreats(relative) || engine.containsPathTraversal(relative) || engine.isSensitivePath(relative, config) || engine.isSensitiveFile(relative, config) {
+		if containsEncodedThreats(relative) || containsPathTraversal(relative) || isSensitivePath(relative, config) || isSensitiveFile(relative, config) {
 			http.Error(w, "Forbidden", 403)
 			return
 		}
@@ -76,11 +75,11 @@ func PipelineStaticHandler(business wafpipeline.StaticBusiness) (http.Handler, e
 			info, err = file.Stat()
 		}
 		defer file.Close()
-		if err != nil || info.IsDir() || !engine.isAllowedFileType(relative, config) {
+		if err != nil || info.IsDir() || !isAllowedFileType(relative, config) {
 			http.Error(w, "Forbidden", 403)
 			return
 		}
-		engine.setSecurityHeaders(w, config)
+		setSecurityHeaders(w, config)
 		http.ServeContent(w, r, relative, info.ModTime(), file)
 	}), nil
 }

@@ -8,8 +8,9 @@ func TestCheckCaptchaBehavior(t *testing.T) {
 		raw  string
 		want bool
 	}{
-		{"无数据放行（旧页面兼容）", "", true},
-		{"旧版格式只判自动化特征", `{"mouseTrack":[{"x":1,"y":2}],"timing":1730000000000,"pattern":[]}`, true},
+		{"缺少行为数据拒绝", "", false},
+		{"缺少数据版本拒绝", `{"mouseTrack":[{"x":1,"y":2}],"timing":1730000000000,"pattern":[]}`, false},
+		{"未知数据版本拒绝", `{"v":2,"mousePoints":5,"clicks":3,"elapsedMs":3000}`, false},
 		{"旧版格式命中自动化特征仍拒绝", `{"mouseTrack":[],"timing":1,"auto":1}`, false},
 		{"非法 JSON 拒绝", `{oops`, false},
 		{"自动化特征拒绝", `{"v":1,"auto":1,"mousePoints":9,"pointerPoints":9,"clicks":3,"elapsedMs":3000}`, false},

@@ -312,9 +312,13 @@ func (receiver *WafStatService) StatHomeSysinfo(c *gin.Context) (response2.WafHo
 	if tokenInfo.LoginAccount == "" {
 		return response2.WafHomeSysinfoStat{}, errors.New("token可能已经失效")
 	}
+	var services int64
+	if err := global.GWAF_LOCAL_DB.Model(&model.PortConfig{}).Count(&services).Error; err != nil {
+		return response2.WafHomeSysinfoStat{}, err
+	}
 	return response2.WafHomeSysinfoStat{
 		IsDefaultAccount: WafAccountServiceApp.IsExistDefaultAccount(),
-		IsEmptyHost:      WafHostServiceApp.IsEmptyHost(),
+		IsEmptyHost:      services == 0,
 		IsEmptyOtp:       WafOtpServiceApp.IsEmptyOtp(tokenInfo.LoginAccount),
 	}, nil
 }
@@ -744,15 +748,6 @@ func (receiver *WafStatService) StatHomeRumtimeSysinfo() []response2.WafNameValu
 		data = append(data, response2.WafNameValue{Name: "运行环境", Value: env})
 	}
 	data = append(data, response2.WafNameValue{Name: "编译器版本", Value: fmt.Sprintf("%v", runtime.Version())})
-	// Win7内核只在 Windows 下才有意义，其它系统不展示
-	if osDetail.IsWindows {
-		data = append(data, response2.WafNameValue{Name: "Win7内核", Value: func() string {
-			if global.GWAF_RUNTIME_WIN7_VERSION == "true" {
-				return "是"
-			}
-			return "否"
-		}()})
-	}
 	// 获取开机时间
 	boottime, _ := host.BootTime()
 	ntime := time.Now().Unix()

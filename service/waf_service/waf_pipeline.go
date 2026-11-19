@@ -31,10 +31,8 @@ type WafPipelineService struct {
 	mu     sync.Mutex
 	issues map[uint16]string
 	// Set during startup, before management starts accepting requests.
-	OnChange          func(old, next *wafpipeline.Snapshot) error
-	Prepare           func(*wafpipeline.Snapshot) error
-	NormalizeBaseline func([]byte, string, string) ([]byte, string, error)
-	LegacyPlugins     func() ([]string, map[string]wafpipeline.PluginLaunch)
+	OnChange func(old, next *wafpipeline.Snapshot) error
+	Prepare  func(*wafpipeline.Snapshot) error
 }
 
 var WafPipelineServiceApp = &WafPipelineService{}
@@ -60,6 +58,19 @@ func ValidateGatePassword(username, password string) error {
 	return accessgate.ValidatePassword(username, password)
 }
 func (s *WafPipelineService) Load() error {
+	return s.load(false)
+}
+
+// Reload reconciles listeners with persisted port policies while retaining a working
+// snapshot whenever a replacement policy cannot be prepared or bound.
+func (s *WafPipelineService) Reload() error {
+	if s.OnChange == nil {
+		return errors.New("服务监听管理器未就绪")
+	}
+	return s.load(true)
+}
+
+func (s *WafPipelineService) load(reconcile bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.issues = map[uint16]string{}
@@ -72,11 +83,13 @@ func (s *WafPipelineService) Load() error {
 		return err
 	}
 	var failures []error
+	known := make(map[uint16]bool, len(ports))
 	for _, port := range ports {
 		if port < 1 || port > 65535 {
 			failures = append(failures, fmt.Errorf("invalid stored port %d", port))
 			continue
 		}
+		known[uint16(port)] = true
 		var row model.PortConfig
 		if err := db.Where("port = ?", port).First(&row).Error; err != nil {
 			s.issues[uint16(port)] = "端口记录或密钥无法读取"
@@ -103,8 +116,35 @@ func (s *WafPipelineService) Load() error {
 			wafpipeline.CloseRetiredProxy(snap, current)
 			s.issues[uint16(port)] = err.Error()
 			failures = append(failures, err)
-		} else {
-			wafpipeline.CloseRetiredProxy(previous, snap)
+			continue
+		}
+		if reconcile {
+			if err = s.OnChange(previous, snap); err != nil {
+				if previous == nil {
+					wafpipeline.Ports.Remove(snap.Config.Port)
+				} else {
+					_ = wafpipeline.Ports.Publish(snap.Config.Port, func() (*wafpipeline.Snapshot, error) { return previous, nil })
+				}
+				wafpipeline.CloseRetiredProxy(snap, previous)
+				s.issues[snap.Config.Port] = err.Error()
+				failures = append(failures, fmt.Errorf("port %d reload: %w", port, err))
+				continue
+			}
+		}
+		wafpipeline.CloseRetiredProxy(previous, snap)
+	}
+	if reconcile && len(ports) <= wafpipeline.Ports.Limit() {
+		for _, port := range wafpipeline.Ports.Ports() {
+			if known[port] {
+				continue
+			}
+			previous, _ := wafpipeline.Ports.Get(port)
+			if err := s.OnChange(previous, nil); err != nil {
+				failures = append(failures, err)
+				continue
+			}
+			wafpipeline.Ports.Remove(port)
+			wafpipeline.CloseRetiredProxy(previous, nil)
 		}
 	}
 	return errors.Join(failures...)
@@ -138,7 +178,6 @@ func decodePort(row model.PortConfig) (*wafpipeline.Snapshot, error) {
 		return nil, errors.New("port identity mismatch")
 	}
 	c.Revision = row.Revision
-	c.Policy.RuleSet.CompleteSynologyRules()
 	return &wafpipeline.Snapshot{Config: c, Secrets: secrets, PublishedAt: time.Now()}, nil
 }
 func (s *WafPipelineService) List() ([]wafpipeline.PortConfig, error) {
@@ -170,7 +209,6 @@ func (s *WafPipelineService) List() ([]wafpipeline.PortConfig, error) {
 			continue
 		}
 		config.Revision = row.Revision
-		config.Policy.RuleSet.CompleteSynologyRules()
 		out = append(out, config)
 	}
 	return out, nil
@@ -228,7 +266,6 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	pipelineGroupReferenceMu.RLock()
 	defer pipelineGroupReferenceMu.RUnlock()
 	c := wafpipeline.CloneConfig(req.Config)
-	c.Policy.RuleSet.CompleteSynologyRules()
 	if err := wafpipeline.ValidateConfig(c, uint16(global.GWAF_LOCAL_SERVER_PORT)); err != nil {
 		return c, err
 	}
@@ -251,7 +288,7 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	var oldSnap *wafpipeline.Snapshot
 	secrets := wafpipeline.PortSecrets{}
 	if isNew {
-		if c.Policy.Defense == nil || !c.Policy.Defense.Enabled {
+		if !c.Policy.Defense.Enabled {
 			return c, errors.New("接入服务前必须选择并启用一种异常访问处置方式")
 		}
 		var count int64
@@ -476,7 +513,7 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 			return c, errors.New("动态口令须使用表单登录")
 		}
 		var accounts []model.GateUser
-		if err := db.Where("port_id = ? AND enabled = ? AND (expires_at = 0 OR expires_at > ?)", wafpipeline.PortID(c.Port), true, time.Now().Unix()).Limit(1001).Find(&accounts).Error; err != nil {
+		if err := activeGateUsers(db, wafpipeline.PortID(c.Port)).Limit(1001).Find(&accounts).Error; err != nil {
 			return c, err
 		}
 		for _, account := range accounts {
@@ -486,7 +523,7 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 		}
 	}
 	var users int64
-	if err = db.Model(&model.GateUser{}).Where("port_id = ? AND enabled = ? AND (expires_at = 0 OR expires_at > ?)", wafpipeline.PortID(c.Port), true, time.Now().Unix()).Count(&users).Error; err != nil {
+	if err = activeGateUsers(db, wafpipeline.PortID(c.Port)).Count(&users).Error; err != nil {
 		return c, err
 	}
 	if c.Policy.Gate.Enabled && users == 0 && req.Username == "" {
@@ -495,31 +532,7 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	if c.ListenEnabled && c.Policy.Gate.RequireToken && len(secrets.ServiceTokenHashes) == 0 {
 		return c, errors.New("服务令牌认证开始监听前必须生成令牌；请先保存为未监听，再到登录门设置生成令牌")
 	}
-	if isNew {
-		var hosts []model.Hosts
-		if err = db.Where("global_host = ?", 0).Find(&hosts).Error; err != nil {
-			return c, err
-		}
-		for _, h := range hosts {
-			for _, l := range utils.ResolveHostListens(h) {
-				if l.Port == int(c.Port) && !wafpipeline.OwnsLegacyPort(c.Port) {
-					return c, errors.New("端口已属于现有站点，请选择未占用端口")
-				}
-			}
-		}
-	}
 	if oldSnap != nil {
-		if oldSnap.Config.Policy.Defense != nil && !req.defenseWrite {
-			if !reflect.DeepEqual(c.Policy.Honeypot, oldSnap.Config.Policy.Honeypot) {
-				return c, errors.New("蜜罐内容已由统一蜜罐页面管理，端口中的旧蜜罐配置只读")
-			}
-			if c.Policy.HitPolicy.Lockdown.Enabled || c.Policy.HitPolicy.BanScope != "port" {
-				return c, errors.New("新端口处置不再使用旧多来源自保或跨端口自动封禁")
-			}
-		}
-		if oldSnap.Config.Policy.Defense != nil && c.Policy.Defense == nil {
-			return c, errors.New("异常访问处置配置不能删除；如需暂停，请关闭处置开关")
-		}
 		if !req.defenseWrite {
 			c.DefenseState = oldSnap.Config.DefenseState
 			modeChanged := defenseModeChanged(oldSnap.Config.Policy.Defense, c.Policy.Defense)
@@ -535,18 +548,9 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	if isNew {
 		c.DefenseState = nil
 	}
-	if c.Policy.Defense != nil {
-		c.Policy.Honeypot.Enabled, c.Policy.Honeypot.CaptureDenied = false, false
-		c.Policy.Honeypot.DropAfterHits, c.Policy.Honeypot.DistributedDrop.Enabled = 0, false
-		c.Policy.HitPolicy.Lockdown.Enabled = false
-		c.Policy.HitPolicy.BanScope = "port"
-		if c.Policy.IPGroup.UnlistedAction == wafpipeline.Honeypot {
-			c.Policy.IPGroup.UnlistedAction = wafpipeline.Deny
-		}
-		if !req.defenseWrite {
-			if err := validateDefenseAvailability(c); err != nil {
-				return c, err
-			}
+	if !req.defenseWrite {
+		if err := validateDefenseAvailability(c); err != nil {
+			return c, err
 		}
 	}
 	if isNew || req.accessIntent || oldSnap != nil && oldSnap.Config.Policy.Access.Enabled != c.Policy.Access.Enabled {
@@ -576,18 +580,6 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 	row.SecretsJSON = string(secretRaw)
 	row.Revision = c.Revision
 	row.UPDATE_TIME = customtype.JsonTime(time.Now())
-	var migration model.PipelinePortMigration
-	hasMigration := false
-	if db.Migrator().HasTable(&model.PipelinePortMigration{}) {
-		e := db.First(&migration, "port = ?", c.Port).Error
-		if e == nil {
-			hasMigration = true
-		} else if !errors.Is(e, gorm.ErrRecordNotFound) {
-			return c, e
-		}
-	}
-	previousMigration := migration
-	previousOwner := wafpipeline.OwnsLegacyPort(c.Port)
 	wasLockingDSM := oldSnap != nil && oldSnap.Config.Policy.RuleSet.LocksDSMLogins()
 	locksDSM := c.Policy.RuleSet.LocksDSMLogins()
 	if isNew || !wasLockingDSM && locksDSM {
@@ -618,17 +610,15 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 			if err != nil {
 				return err
 			}
-			u := model.GateUser{BaseOrm: pipelineORM(), PortID: wafpipeline.PortID(c.Port), Username: req.Username, PasswordHash: hash, TOTPSecret: req.InitialTOTP, Enabled: true}
+			version, err := pipelineSecret()
+			if err != nil {
+				return err
+			}
+			u := model.GateUser{BaseOrm: pipelineORM(), PortID: wafpipeline.PortID(c.Port), Username: req.Username, PasswordHash: hash, TOTPSecret: req.InitialTOTP, AuthVersion: version, Enabled: true}
 			if err := tx.Create(&u).Error; err != nil {
 				return err
 			}
 			createdUserID = u.Id
-		}
-		if hasMigration && c.ListenEnabled && migration.State != "active" {
-			migration.State = "active"
-			if err := tx.Save(&migration).Error; err != nil {
-				return err
-			}
 		}
 		return nil
 	})
@@ -654,9 +644,6 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 					return e
 				}
 			}
-			if hasMigration {
-				return tx.Save(&previousMigration).Error
-			}
 			return nil
 		})
 	}
@@ -665,9 +652,6 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 			return c, fmt.Errorf("配置发布失败且回滚失败: %w", restoreErr)
 		}
 		return c, err
-	}
-	if hasMigration && migration.State == "active" {
-		wafpipeline.SetLegacyPortOwner(c.Port, true)
 	}
 	if s.OnChange != nil && req.TamperUpdates == nil {
 		if err = s.OnChange(oldSnap, snap); err != nil {
@@ -684,7 +668,6 @@ func (s *WafPipelineService) saveLocked(req PortSaveRequest) (wafpipeline.PortCo
 				wafpipeline.Ports.Remove(c.Port)
 			}
 			wafpipeline.CloseRetiredProxy(snap, oldSnap)
-			wafpipeline.SetLegacyPortOwner(c.Port, previousOwner)
 			return c, err
 		}
 	}
@@ -770,7 +753,6 @@ func (s *WafPipelineService) Templates() ([]wafpipeline.Template, error) {
 		if err = wafpipeline.StrictDecode([]byte(r.ConfigJSON), &t); err != nil {
 			return nil, err
 		}
-		t.Policy.RuleSet.CompleteSynologyRules()
 		out = append(out, t)
 	}
 	return out, nil
@@ -864,7 +846,6 @@ func (s *WafPipelineService) Copy(source, target uint16, includeIPs bool) (wafpi
 		c.ScriptGroups = nil
 	}
 	c.Policy.Gate.Enabled = false
-	c.ACMEHosts = nil
 	if c.Policy.RuleSet.Plugins != nil {
 		c.Policy.RuleSet.Plugins.Mode = wafpipeline.ModeOff
 	}
@@ -926,17 +907,6 @@ func (s *WafPipelineService) CheckNewPort(c wafpipeline.PortConfig) error {
 	}
 	if count != 0 {
 		return errors.New("端口已有独立配置")
-	}
-	var hosts []model.Hosts
-	if err = db.Where("global_host = ?", 0).Find(&hosts).Error; err != nil {
-		return err
-	}
-	for _, h := range hosts {
-		for _, listen := range utils.ResolveHostListens(h) {
-			if listen.Port == int(c.Port) {
-				return errors.New("端口已属于现有站点")
-			}
-		}
 	}
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(int(c.Port)))
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func (waf *WafEngine) applyLifecycleCertificate(order model.SslOrder) {
+func applyLifecycleCertificate(order model.SslOrder) {
 	fail := func(err error) {
 		_ = waf_service.RecordCertificateFailure(order, err, time.Now())
 		_ = wafSslOrderService.AppendLog(order.Id, "error", waf_service.SafeCertificateMessage(order, err.Error()))

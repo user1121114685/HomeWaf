@@ -126,10 +126,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p .cache/functional
-          go build -trimpath -ldflags '-X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v0.0.0-functional-test' -o .cache/functional/old ./cmd/homewaf
-          go build -trimpath -ldflags '-X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v0.0.1' -o .cache/functional/next ./cmd/homewaf
-          node scripts/verify-graceful-update.mjs .cache/functional/old .cache/functional/next v0.0.1
-          node scripts/verify-graceful-update.mjs .cache/functional/old .cache/functional/next v0.0.1 --via-installer
+          go build -tags homewaf_update_fixture -trimpath -ldflags '-X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v3.0.0-functional-test' -o .cache/functional/old ./cmd/homewaf
+          go build -tags homewaf_update_fixture -trimpath -ldflags '-X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v3.0.1' -o .cache/functional/next ./cmd/homewaf
+          node scripts/verify-graceful-update.mjs .cache/functional/old .cache/functional/next v3.0.1
+          node scripts/verify-graceful-update.mjs .cache/functional/old .cache/functional/next v3.0.1 --via-installer
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

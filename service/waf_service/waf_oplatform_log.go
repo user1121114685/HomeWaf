@@ -35,7 +35,7 @@ func (receiver *WafOPlatformLogService) GetDetailApi(req request.WafOPlatformLog
 	if err := global.GWAF_LOCAL_LOG_DB.Where("id = ?", req.Id).Take(&bean).Error; err != nil {
 		return model.OPlatformLog{}, err
 	}
-	result, err := wafsec.DataDecrypt(bean.MCPResult, nil)
+	result, err := wafsec.DataDecrypt(bean.MCPResult)
 	if err != nil {
 		return model.OPlatformLog{}, errors.New("无法解密已记录的 MCP 返回内容，请检查实例数据密钥")
 	}

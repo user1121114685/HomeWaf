@@ -79,22 +79,6 @@
             @submit.prevent="savePolicy"
           >
             <p class="certificate-muted">本次仅保存策略。关闭后不再创建自动任务，已开始的任务仍可能完成。</p>
-            <ElFormItem v-if="record.renewal.status === 'unresolved'" label="选择确认的签发来源"
-              ><ElSelect v-model="draft.source_order_id" placeholder="请选择来源" @change="chooseSource"
-                ><ElOption
-                  v-for="source in record.sources"
-                  :key="source.id"
-                  :value="source.id"
-                  :label="
-                    source.host_code +
-                    ' · ' +
-                    source.apply_platform +
-                    ' · ' +
-                    (source.apply_dns || source.apply_method) +
-                    ' / ' +
-                    source.private_group_name
-                  " /></ElSelect
-            ></ElFormItem>
             <ElFormItem label="自动续期"><ElCheckbox v-model="draft.enabled">启用自动续期</ElCheckbox></ElFormItem>
             <ElFormItem label="验证方式"
               ><ElSelect v-model="draft.apply_method"
@@ -117,9 +101,6 @@
               ></template
             >
             <ElFormItem label="联系邮箱"><ElInput v-model="draft.apply_email" type="email" /></ElFormItem>
-            <ElCheckbox v-if="record.renewal.status === 'unresolved'" v-model="draft.confirm_source"
-              >我已核对当前服务、域名、CA 与凭据，采用此来源</ElCheckbox
-            >
             <p v-if="saveError" role="alert" class="certificate-error">{{ saveError }}；输入已保留。</p>
             <div class="certificate-form-actions">
               <ElButton native-type="submit" type="primary" :loading="saving">保存续期设置</ElButton
@@ -352,7 +333,7 @@ const recordsLink = computed(() => ({
 }));
 const active = computed(() => ['queued', 'running', 'deploying'].includes(record.value?.renewal?.status));
 const canRenew = computed(
-  () => record.value?.renewal && !['manual', 'unresolved'].includes(record.value.renewal.status),
+  () => record.value?.renewal && record.value.renewal.status !== 'manual',
 );
 const dirty = computed(() => editing.value && JSON.stringify(draft.value) !== snapshot.value);
 const metadataFields = {
@@ -422,25 +403,10 @@ function beginEdit() {
     apply_email: p.apply_email,
     private_group_name: p.private_group_name,
     skip_dns_verify: p.skip_dns_verify,
-    confirm_source: false,
-    source_order_id: '',
   };
   snapshot.value = JSON.stringify(draft.value);
   editing.value = true;
   saveError.value = '';
-}
-function chooseSource(value: string) {
-  const source = record.value?.sources?.find((item: any) => item.id === value);
-  if (source)
-    Object.assign(draft.value, {
-      source_order_id: source.id,
-      enabled: source.enabled,
-      apply_method: source.apply_method,
-      apply_dns: source.apply_dns,
-      private_group_name: source.private_group_name,
-      apply_email: source.apply_email,
-      skip_dns_verify: source.skip_dns_verify,
-    });
 }
 async function discard() {
   if (saving.value || renewing.value) return false;

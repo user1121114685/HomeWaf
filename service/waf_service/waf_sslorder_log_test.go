@@ -2,8 +2,6 @@ package waf_service
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -63,33 +61,6 @@ func TestSSLOrderLogsAreBoundedIsolatedAndDeletedWithOrder(t *testing.T) {
 	var count int64
 	if err := db.Model(&model.SslOrderLog{}).Where("order_id = ?", order.Id).Count(&count).Error; err != nil || count != 0 {
 		t.Fatalf("orphan logs: %d %v", count, err)
-	}
-}
-
-func TestSSLOrderLegacyLogsRespectDomainTimeAndRedaction(t *testing.T) {
-	start := time.Date(2026, 11, 15, 0, 0, 0, 0, time.Local)
-	order := model.SslOrder{ApplyDomain: "example.com", ApplyStatus: "fail"}
-	order.CREATE_TIME = customtype.JsonTime(start)
-	order.UPDATE_TIME = customtype.JsonTime(start.Add(time.Minute))
-	path := filepath.Join(t.TempDir(), "log.log")
-	lines := []string{
-		"2026-11-14 23:59:59.000\tINFO\tACME证书: 域名=example.com outside time",
-		"2026-11-15 00:00:01.000\tINFO\tACME证书: 域名=other.example.com unrelated",
-		"2026-11-15 00:00:02.000\t\x1b[34mINFO\x1b[0m\tACME证书: 域名=example.com token=legacy-secret 请求=https://dns.example/update?key=hidden\t{\"pid\":\"1\"}",
-		"2026-11-15 00:02:00.000\tINFO\tACME证书: 域名=example.com future time",
-	}
-	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600); err != nil {
-		t.Fatal(err)
-	}
-	entries, err := readLegacySSLOrderLogs(path, order)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 1 || entries[0].Level != "info" {
-		t.Fatalf("wrong legacy matches: %+v", entries)
-	}
-	if strings.Contains(entries[0].Message, "legacy-secret") || strings.Contains(entries[0].Message, "hidden") {
-		t.Fatal("legacy log leaked credential")
 	}
 }
 

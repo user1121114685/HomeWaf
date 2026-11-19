@@ -17,26 +17,6 @@ export interface UpstreamRoute {
   balance?: string;
   backends?: Array<{ upstream: string; dial_ip?: string; weight: number }>;
 }
-export interface LegacySource {
-  code: string;
-  name: string;
-  enabled: boolean;
-}
-export interface LegacyPortSummary {
-  port: number;
-  sources: LegacySource[];
-  imported: boolean;
-  state: string;
-}
-export interface LegacyPortPreview extends LegacyPortSummary {
-  config: PortConfig;
-  policy_host: string;
-  preview_token: string;
-  account_names: string[];
-  requires_totp?: boolean;
-  warnings: string[];
-  blockers: string[];
-}
 export interface PortConfig {
   defense_state?: {
     id: string;
@@ -116,14 +96,13 @@ export function detectorMode(ruleset: Policy, rule: { category: string; mode: Ru
   const options = detectorOptions(ruleset, rule.category);
   return options && options.is_enable !== 1 ? 'off' : rule.mode;
 }
-export const sections = ['access', 'ip_group', 'ruleset', 'gate', 'hit_policy', 'honeypot', 'defense', 'network'];
+export const sections = ['access', 'ip_group', 'ruleset', 'gate', 'hit_policy', 'defense', 'network'];
 export const sectionNames: Record<string, string> = {
   access: '1 · 访问开关',
   ip_group: '2 · IP 组',
   ruleset: '3 · 规则集',
   gate: '3 · 登录门',
   hit_policy: '4 · 命中限制',
-  honeypot: '4 · 旧蜜罐内容',
   defense: '4 · 异常访问处置',
   network: '5 · 业务代理',
 };
@@ -211,7 +190,6 @@ export function newPort(template: PolicyTemplate, port = 0): PortConfig {
     duration_seconds: 10800,
     tcp_action: 'reset',
   };
-  policy.honeypot.enabled = false;
   policy.hit_policy.lockdown.enabled = false;
   policy.hit_policy.ban_scope = 'port';
   if (policy.ip_group.unlisted_action === 'honeypot') policy.ip_group.unlisted_action = 'deny';
@@ -233,7 +211,6 @@ export function observationConfig(config: PortConfig): PortConfig {
   next.policy.hit_policy.enabled = false;
   next.policy.hit_policy.lockdown.enabled = false;
   if (next.policy.defense) next.policy.defense.enabled = false;
-  next.policy.honeypot.enabled = false;
   next.policy.ruleset.qps.mode = 'observe';
   next.policy.ruleset.cc.mode = 'observe';
   next.policy.ruleset.bot = 'observe';
@@ -573,7 +550,7 @@ export const fields: Record<string, Field[]> = {
       path: 'exempt_ips',
       label: '只免登录的IP/CIDR',
       kind: 'lines',
-      help: '只跳过登录门，不跳过IP黑名单与攻击检测；从旧SSO/IP组迁入后独立保存。',
+      help: '只跳过登录门，不跳过IP黑名单与攻击检测。',
     },
     {
       path: 'protect',
@@ -633,7 +610,7 @@ export const fields: Record<string, Field[]> = {
     {
       path: 'token_header',
       label: '预共享令牌头',
-      help: '推荐X-HomeWaf-Token；可迁入旧SSO专用X-头，但不能使用转发地址或内部控制头。每端口独立，令牌只显示一次，回源前剥离。',
+      help: '推荐X-HomeWaf-Token；请使用专用请求头。每端口独立，令牌只显示一次，回源前剥离。',
     },
   ],
   hit_policy: [
@@ -730,140 +707,6 @@ export const fields: Record<string, Field[]> = {
       help: '所有其他端口不受影响。',
     },
   ],
-  honeypot: [
-    {
-      path: 'enabled',
-      label: '启用内置蜜罐',
-      kind: 'bool',
-      help: '仿真登录页不会触达真实上游；合法用户误入可在处罚列表一键释放。',
-    },
-    {
-      path: 'capture_denied',
-      label: '将受限请求导入蜜罐',
-      kind: 'bool',
-      help: '默认关闭。开启蜜罐后，将黑名单、名单外拒绝及攻击规则拦截改为仿真响应；保留命中证据。访问关闭、自保锁定、登录门和策略故障仍按原策略响应。',
-    },
-    {
-      path: 'lures',
-      label: '仿真提示与展示权重（JSON）',
-      kind: 'json-array',
-      help: '每项填写 id、title、message、weight（1–10000），最多32项。同一来源稳定选择；所有文案按纯文本显示，不执行脚本、命令或AI指令。',
-    },
-    {
-      path: 'drop_after_hits',
-      label: '单来源命中多少次后丢弃',
-      kind: 'number',
-      min: 0,
-      max: 100000,
-      help: '0关闭。自动处罚启用后生效；达到阈值后，后续请求直接关闭连接或复位，不回源。IPv6按聚合前缀计数。',
-    },
-    {
-      path: 'drop_window_seconds',
-      label: '单来源命中窗口（秒）',
-      kind: 'number',
-      min: 0,
-      max: 86400,
-      help: '0使用600秒。窗口内累计蜜罐请求，按请求ID去重。',
-    },
-    {
-      path: 'drop_seconds',
-      label: '单来源丢弃持续时间（秒）',
-      kind: 'number',
-      min: 0,
-      max: 604800,
-      help: '0使用10800秒（3小时）；支持在当前处罚中释放。',
-    },
-    {
-      path: 'distributed_drop.enabled',
-      label: '多来源触发本端口丢弃',
-      kind: 'bool',
-      help: '默认关闭，需启用自动处罚。只影响当前业务端口的新请求；管理端、可信与受保护来源保留原豁免。HTTP层断开不等于系统防火墙静默丢包。',
-    },
-    {
-      path: 'distributed_drop.window_seconds',
-      label: '多来源统计窗口（秒）',
-      kind: 'number',
-      min: 0,
-      max: 86400,
-      help: '0使用600秒；过期来源不计数。',
-    },
-    {
-      path: 'distributed_drop.distinct_ips',
-      label: '触发丢弃的不同来源数',
-      kind: 'number',
-      min: 0,
-      max: 1000,
-      help: '0使用10。相同IP重复命中只算一个来源；IPv6按聚合前缀去重。',
-    },
-    {
-      path: 'distributed_drop.seconds',
-      label: '端口丢弃持续时间（秒）',
-      kind: 'number',
-      min: 0,
-      max: 604800,
-      help: '0使用10800秒（3小时）。生效后不因后续命中无限续期；可人工释放，释放后冷却60秒。',
-    },
-    {
-      path: 'archive_body',
-      label: '归档脱敏后的提交内容',
-      kind: 'bool',
-      help: '默认关闭。仅保存有界结构化样本及摘要；口令/令牌脱敏，未知、二进制、截断正文仅留摘要。内容不执行、不解压、不交给AI，也不作为HTML预览。',
-    },
-    {
-      path: 'archive_max_bytes',
-      label: '归档正文采样上限（字节）',
-      kind: 'number',
-      min: 0,
-      max: 65536,
-      help: '0使用16384；有效范围1024–65536。样本作为Base64日志数据，沿用日志队列、权限和保留策略。',
-    },
-    {
-      path: 'ttl_seconds',
-      label: '蜜罐持续时间（秒）',
-      kind: 'number',
-      min: 1,
-      max: 86400,
-      help: '默认 3600；到期恢复。蜜罐内提交登录或触碰陷阱会升级封禁。',
-    },
-    {
-      path: 'auth_fail_threshold',
-      label: '5分钟登录失败阈值',
-      kind: 'number',
-      min: 1,
-      max: 10000,
-      help: '默认 5 次导入蜜罐；持续失败另由登录封禁阈值处理。',
-    },
-    {
-      path: 'weak_password_threshold',
-      label: '5分钟弱口令尝试阈值',
-      kind: 'number',
-      min: 1,
-      max: 10000,
-      help: '默认 3 次；仅记录命中与长度/HMAC，不记录明文密码。',
-    },
-    {
-      path: 'max_concurrent',
-      label: '蜜罐并发',
-      kind: 'number',
-      min: 1,
-      max: 32,
-      help: '总额度64、单端口有效最多32，避免延迟耗尽工作资源。',
-    },
-    {
-      path: 'max_delay_ms',
-      label: '随机延迟上限（毫秒）',
-      kind: 'number',
-      min: 0,
-      max: 2000,
-      help: '0为不延迟；延迟不阻塞其他端口。',
-    },
-    {
-      path: 'trap_paths',
-      label: '确认不存在的陷阱路径',
-      kind: 'lines',
-      help: '仅填本站绝不存在的路径；真实 /wp-login.php 等业务路径不可填入。',
-    },
-  ],
   network: [
     {
       path: 'listen_ip_version',
@@ -875,7 +718,7 @@ export const fields: Record<string, Field[]> = {
         ['ipv4', '仅IPv4'],
         ['ipv6', '仅IPv6'],
       ],
-      help: '变更前须停止监听；迁入保留原有IP监听范围。',
+      help: '变更前须停止监听。',
     },
     {
       path: 'trusted_proxies',

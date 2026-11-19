@@ -109,24 +109,10 @@ if ($Action -eq 'uninstall') {
     Write-Host "HomeWaf program removed. Configuration, data and keys remain in $Directory unless -PurgeData -Yes was specified."
     return
 }
-if ($Action -eq 'upgrade' -and -not $Docker) {
-    if (-not (Test-Path -LiteralPath $binary)) { throw "HomeWaf is not installed in $Directory" }
-    if ((Test-CommandExit $binary @('update','--help')) -and -not $ArchivePath -and -not $ChecksumsPath) {
-        Push-Location -LiteralPath $Directory
-        try {
-            & $binary apikey init
-            if ($LASTEXITCODE -ne 0) { throw 'Cannot initialize the local update credential.' }
-            & $binary update --version $Version --wait 15m
-            if ($LASTEXITCODE -ne 0) { throw 'Update did not complete; inspect update --status before retrying.' }
-        } finally { Pop-Location }
-        return
-    }
-}
 if ($Action -eq 'upgrade' -and $Docker) {
     if (-not (Test-CommandExit 'docker' @('container','inspect','homewaf'))) { throw 'No existing HomeWaf container; use install first.' }
 }
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('homewaf-install-' + [Guid]::NewGuid().ToString('N'))
-$helper = $null
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
     if ($Version -eq 'latest') {
@@ -135,6 +121,7 @@ try {
         $Version = $release.tag_name
     }
     if ($Version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([+-][A-Za-z0-9.-]+)?$') { throw "Invalid release version: $Version" }
+    if ($Version -match '^v[012]\.') { throw 'Use the installer supplied with the requested release for versions before v3.' }
     $number = $Version.Substring(1)
     $asset = "HomeWaf_Windows_x86_64_$number.zip"
     $checksumName = "HomeWaf_${number}_checksums.txt"
@@ -167,11 +154,13 @@ try {
         }
         & docker load --input $archive
         if ($LASTEXITCODE -ne 0) { throw 'Cannot load the Docker release image.' }
+        & docker run --rm --network none -v homewaf-data:/app/data:ro -v homewaf-keys:/app/.homewaf-keys:ro "homewaf:$Version" check-install-format /app
+        if ($LASTEXITCODE -ne 0) { throw 'Existing HomeWaf volumes require a fresh installation. See the format check above.' }
         & docker image tag "homewaf:$Version" homewaf:latest
         if ($LASTEXITCODE -ne 0) { throw 'Cannot tag the Docker release image.' }
         if ($oldImage) { & docker stop --time 120 homewaf; if ($LASTEXITCODE -ne 0) { throw 'Cannot stop the existing container.' }; & docker rm homewaf; if ($LASTEXITCODE -ne 0) { throw 'Cannot remove the stopped container.' } }
         $runArgs = @('-d','--name','homewaf','--label','io.homewaf.installer=release','--restart','unless-stopped',
-            '-p','127.0.0.1:26666:26666','-p','80:80','-p','443:443','-p','443:443/udp',
+            '-p','127.0.0.1:26666:26666','-p','80:80','-p','443:443',
             '-v','homewaf-conf:/app/conf','-v','homewaf-data:/app/data','-v','homewaf-keys:/app/.homewaf-keys',
             '-v','homewaf-logs:/app/logs','-v','homewaf-ssl:/app/ssl')
         & docker run @runArgs "homewaf:$Version"
@@ -206,17 +195,15 @@ try {
     foreach ($required in @('HomeWaf64.exe','LICENSE','NOTICE','THIRD_PARTY_NOTICES.md','LICENSES')) {
         if (-not (Test-Path -LiteralPath (Join-Path $unpacked $required))) { throw "Missing $required" }
     }
+    & (Join-Path $unpacked 'HomeWaf64.exe') check-install-format $Directory
+    if ($LASTEXITCODE -ne 0) { throw 'HomeWaf installation format check failed.' }
     if ($Action -eq 'upgrade') {
-        # A verified new CLI can upgrade an older instance even when its WebUI
-        # is broken. The running server owns download validation and restart.
-        $helper = Join-Path $Directory ('.homewaf-upgrade-' + [Guid]::NewGuid().ToString('N') + '.exe')
-        Copy-Item -LiteralPath (Join-Path $unpacked 'HomeWaf64.exe') -Destination $helper
-        if (-not (Test-CommandExit $helper @('update','--help'))) { throw 'This release has no command-line update client; choose a newer release.' }
+        if (-not (Test-Path -LiteralPath $binary)) { throw "HomeWaf is not installed in $Directory" }
         Push-Location -LiteralPath $Directory
         try {
             & $binary apikey init
             if ($LASTEXITCODE -ne 0) { throw 'Cannot initialize the local update credential.' }
-            & $helper update --version $Version --wait 15m
+            & $binary update --version $Version --wait 15m
             if ($LASTEXITCODE -ne 0) { throw 'Update did not complete; inspect update --status before retrying.' }
         } finally { Pop-Location }
         return
@@ -241,35 +228,12 @@ try {
         if (-not $existing) { Invoke-HomeWaf 'install' }
         Invoke-HomeWaf 'start'
         (Get-Service HomeWafService).WaitForStatus('Running', [TimeSpan]::FromSeconds(60))
-        if (Test-CommandExit $binary @('console-info','--help')) {
-            & $binary console-info --wait 90s --show-initial-password
-            if ($LASTEXITCODE -ne 0) { throw 'HomeWaf console is not ready; check the service and logs.' }
-        } else {
-            Write-Host 'HomeWaf service started. Open a server IP reachable from your device:'
-            $addresses = [Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
-                Where-Object { $_.OperationalStatus -eq 'Up' -and $_.NetworkInterfaceType -ne 'Loopback' } |
-                ForEach-Object { $_.GetIPProperties().UnicastAddresses } |
-                Where-Object { $_.Address.AddressFamily -eq 'InterNetwork' } |
-                ForEach-Object { $_.Address.IPAddressToString } | Select-Object -Unique
-            foreach ($address in $addresses) { Write-Host "  http://${address}:26666/" }
-            if (-not $addresses) { Write-Host '  http://<server-ip>:26666/ (replace <server-ip> with this server address)' }
-            $ready = $false
-            for ($attempt = 0; $attempt -lt 90; $attempt++) {
-                try { if ((Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:26666/ -TimeoutSec 2).StatusCode -eq 200) { $ready = $true; break } } catch {}
-                Start-Sleep -Seconds 1
-            }
-            if (-not $ready) { throw 'Management console did not become ready. Check the HomeWaf service and logs.' }
-            $initialPassword = Join-Path $Directory 'data/initial_password.txt'
-            if (Test-Path -LiteralPath $initialPassword -PathType Leaf) {
-                Write-Host 'Initial credentials (valid only until the password is changed):'
-                Get-Content -LiteralPath $initialPassword -Encoding UTF8
-            } else { Write-Host 'Existing instance: use your current password.' }
-        }
+        & $binary console-info --wait 90s --show-initial-password
+        if ($LASTEXITCODE -ne 0) { throw 'HomeWaf console is not ready; check the service and logs.' }
     } else { Write-Host "Installed. Start with: & '$binary'" }
     Write-Host "Account: admin. Initial credentials are also saved in $Directory\data\initial_password.txt."
     Write-Host "Keep $Directory\.homewaf-keys together with your backups."
 } finally {
-    if ($helper -and (Test-Path -LiteralPath $helper)) { Remove-Item -LiteralPath $helper -Force }
     $temporaryFull = [IO.Path]::GetFullPath($temporary)
     $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]@('\','/')) + [IO.Path]::DirectorySeparatorChar
     if (-not $temporaryFull.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid temporary cleanup target.' }

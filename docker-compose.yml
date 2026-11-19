@@ -8,7 +8,6 @@ services:
       - "127.0.0.1:26666:26666"
       - "80:80"
       - "443:443"
-      - "443:443/udp"
     volumes:
       - ./conf:/app/conf
       - ./data:/app/data

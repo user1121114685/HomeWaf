@@ -1,7 +1,7 @@
 // Reproduce a stale startup CPU peak with WebSocket pushes disconnected.
 // Run against the isolated console fixture, never a live management API.
 import { chromium, expect } from '@playwright/test';
-import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const origin = process.env.CONSOLE_TEST_ORIGIN || 'http://127.0.0.1:3118';
 if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) throw new Error('Use a local isolated fixture');
@@ -20,9 +20,10 @@ try {
   let mode = 'normal';
   let cpu = 8;
   await context.route('**/api/**', async route => {
+    if (await handleTransportHandshake(route)) return;
     const endpoint = new URL(route.request().url()).pathname.split('/api/v1/')[1] || '';
     if (endpoint !== 'monitor/system_info') {
-      return route.fulfill({ json: { code: 1, data: AesEncrypt('{}'), msg: 'Isolated monitor fixture' } });
+      return route.fulfill({ json: { code: 1, data: routeSession(route).encrypt('{}'), msg: 'Isolated monitor fixture' } });
     }
     requests++;
     active++;
@@ -34,7 +35,7 @@ try {
       await route.fulfill({ json: {
         code: failure ? 1 : 0,
         msg: failure ? 'Simulated monitor outage' : '',
-        data: AesEncrypt(JSON.stringify({ cpu: { usage_percent: sample }, memory: { usage_percent: 32 }, disk: [] })),
+        data: routeSession(route).encrypt(JSON.stringify({ cpu: { usage_percent: sample }, memory: { usage_percent: 32 }, disk: [] })),
       } });
     } finally { active--; }
   });

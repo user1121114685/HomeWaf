@@ -7,6 +7,7 @@ import (
 	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
 	"HomeWaf/utils"
+	"HomeWaf/wafpipeline"
 	"fmt"
 	"github.com/go-acme/lego/v4/acme"
 	"strings"
@@ -16,10 +17,13 @@ import (
 
 func TestCertificateLifecyclePolicyHistoryAndRetry(t *testing.T) {
 	db := setupSslExportTestDB(t)
-	for _, m := range []any{&model.Hosts{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}, &model.CertificateDelivery{}} {
+	for _, m := range []any{&model.PrivateInfo{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}, &model.CertificateDelivery{}} {
 		if err := db.AutoMigrate(m); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := WafPrivateInfoServiceApp.AddApi(request.WafPrivateInfoAddReq{PrivateGroupBelongCloud: "hurricane", PrivateGroupName: "renewal", PrivateKey: "HURRICANE_TOKENS", PrivateValue: "nas.example.test:fixture-token"}); err != nil {
+		t.Fatal(err)
 	}
 	now := time.Now()
 	base := func(id string) baseorm.BaseOrm {
@@ -33,24 +37,14 @@ func TestCertificateLifecyclePolicyHistoryAndRetry(t *testing.T) {
 	if err := db.Create(&c).Error; err != nil {
 		t.Fatal(err)
 	}
-	h := model.Hosts{BaseOrm: base("host"), Code: "nas", Host: "nas.example.test", Port: 80, Ssl: 0, BindSslId: c.Id, Certfile: cert, Keyfile: key}
-	if err := db.Create(&h).Error; err != nil {
-		t.Fatal(err)
-	}
 	enabled := true
-	source := model.SslOrder{BaseOrm: base("source"), HostCode: h.Code, ApplyDomain: h.Host, ApplyPlatform: "letsencrypt", ApplyMethod: "http01", ApplyEmail: "owner@example.test", AutoRenew: &enabled, ApplyStatus: "success", ApplyKey: "private-account-material", ResultCertificate: []byte(cert), ResultPrivateKey: []byte(key), ResultValidTo: c.ValidTo}
+	source := model.SslOrder{BaseOrm: base("source"), ApplyDomain: "nas.example.test", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", ApplyEmail: "owner@example.test", PrivateGroupName: "renewal", AutoRenew: &enabled, ApplyStatus: "success", ApplyKey: "private-account-material", ResultCertificate: []byte(cert), ResultPrivateKey: []byte(key), ResultValidTo: c.ValidTo}
 	if err := db.Create(&source).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := MigrateCertificatePolicies(); err != nil {
+	p := newCertificatePolicy(c, source, "")
+	if err := db.Create(&p).Error; err != nil {
 		t.Fatal(err)
-	}
-	var p model.SslRenewalPolicy
-	if err := db.First(&p, "id = ?", c.Id).Error; err != nil {
-		t.Fatal(err)
-	}
-	if !p.Enabled || p.Version != 1 || p.HostCode != "nas" {
-		t.Fatalf("bad migration: %+v", p)
 	}
 	var raw string
 	db.Raw("SELECT issuance_context FROM ssl_renewal_policies WHERE id = ?", p.Id).Scan(&raw)
@@ -116,7 +110,10 @@ func (e testCertificateError) Error() string { return string(e) }
 
 func TestCertificateLifecycleRateLimitsAndRetryBudget(t *testing.T) {
 	db := setupSslExportTestDB(t)
-	if err := db.AutoMigrate(&model.Hosts{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}); err != nil {
+	if err := db.AutoMigrate(&model.PrivateInfo{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := WafPrivateInfoServiceApp.AddApi(request.WafPrivateInfoAddReq{PrivateGroupBelongCloud: "hurricane", PrivateGroupName: "retry", PrivateKey: "HURRICANE_TOKENS", PrivateValue: "retry.example.test:fixture-token"}); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now().Truncate(time.Second)
@@ -128,10 +125,10 @@ func TestCertificateLifecycleRateLimitsAndRetryBudget(t *testing.T) {
 	if err := c.FillByCertAndKey(cert, key); err != nil {
 		t.Fatal(err)
 	}
-	h := model.Hosts{BaseOrm: base("retry-host"), Code: "retry", Host: "retry.example.test", Port: 80, BindSslId: c.Id, Certfile: cert, Keyfile: key}
-	source := model.SslOrder{HostCode: h.Code, ApplyDomain: h.Host, ApplyPlatform: "letsencrypt", ApplyMethod: "http01", ApplyEmail: "owner@example.test"}
-	p := newCertificatePolicy(c, source, h.Id)
-	for _, row := range []any{&c, &h, &p} {
+	enabled := true
+	source := model.SslOrder{ApplyDomain: "retry.example.test", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", ApplyEmail: "owner@example.test", PrivateGroupName: "retry", AutoRenew: &enabled}
+	p := newCertificatePolicy(c, source, "")
+	for _, row := range []any{&c, &p} {
 		if err := db.Create(row).Error; err != nil {
 			t.Fatal(err)
 		}
@@ -185,7 +182,7 @@ func TestCertificateLifecycleRateLimitsAndRetryBudget(t *testing.T) {
 
 func TestCertificateLifecycleInitialSubmissionWithSingleConnection(t *testing.T) {
 	db := setupSslExportTestDB(t)
-	for _, m := range []any{&model.Hosts{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}} {
+	for _, m := range []any{&model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}} {
 		if err := db.AutoMigrate(m); err != nil {
 			t.Fatal(err)
 		}
@@ -195,11 +192,7 @@ func TestCertificateLifecycleInitialSubmissionWithSingleConnection(t *testing.T)
 		t.Fatal(err)
 	}
 	sqlDB.SetMaxOpenConns(1)
-	host := model.Hosts{BaseOrm: baseorm.BaseOrm{Id: "single-host", USER_CODE: global.GWAF_USER_CODE, Tenant_ID: global.GWAF_TENANT_ID}, Code: "single", Host: "single.example.test", Port: 80}
-	if err := db.Create(&host).Error; err != nil {
-		t.Fatal(err)
-	}
-	order, created, err := WafSSLOrderServiceApp.Submit(request.WafSslorderaddReq{RequestID: "initial-single", HostCode: host.Code, ApplyDomain: host.Host, ApplyMethod: "http01", ApplyPlatform: "letsencrypt", ApplyEmail: "owner@example.test"}, "")
+	order, created, err := WafSSLOrderServiceApp.Submit(request.WafSslorderaddReq{RequestID: "initial-single", ApplyDomain: "single.example.test", ApplyMethod: "dns01", ApplyPlatform: "letsencrypt", ApplyEmail: "owner@example.test"}, "")
 	if err != nil || !created || order.Operation != "issuance" || order.BindingSnapshot == "" {
 		t.Fatalf("initial submission not persisted: %v", err)
 	}
@@ -209,23 +202,24 @@ func TestCertificateLifecycleInitialSubmissionWithSingleConnection(t *testing.T)
 }
 
 func TestCertificateLifecycleDeploymentAndEncryptedMaterial(t *testing.T) {
-	db := setupSslExportTestDB(t)
-	for _, m := range []any{&model.Hosts{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}, &model.CertificateDelivery{}} {
+	s, db := nativePortFixture(t)
+	for _, m := range []any{&model.PrivateInfo{}, &model.SslConfig{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}, &model.CertificateDelivery{}} {
 		if err := db.AutoMigrate(m); err != nil {
 			t.Fatal(err)
 		}
 	}
 	now := time.Now()
-	base := func(id string) baseorm.BaseOrm {
-		return baseorm.BaseOrm{Id: id, USER_CODE: global.GWAF_USER_CODE, Tenant_ID: global.GWAF_TENANT_ID, CREATE_TIME: customtype.JsonTime(now), UPDATE_TIME: customtype.JsonTime(now)}
+	config := wafpipeline.PortConfig{Schema: 1, Port: 15001, Name: "NAS", Protocol: "http", HostNames: []string{"nas.example.test"}, Upstream: "http://127.0.0.1:5000", Policy: newServicePolicyFixture()}
+	config.Policy.Gate.Enabled = false
+	config, err := s.Save(PortSaveRequest{Config: config})
+	if err != nil {
+		t.Fatal(err)
 	}
-	original, key := genExportTestCert(t, "nas.example.test")
-	h := model.Hosts{BaseOrm: base("host"), Code: "nas", Host: "nas.example.test", Port: 80, Certfile: original, Keyfile: key}
-	if err := db.Create(&h).Error; err != nil {
+	if err := WafPrivateInfoServiceApp.AddApi(request.WafPrivateInfoAddReq{PrivateGroupBelongCloud: "hurricane", PrivateGroupName: "native-service", PrivateKey: "HURRICANE_TOKENS", PrivateValue: "nas.example.test:fixture-token"}); err != nil {
 		t.Fatal(err)
 	}
 	enabled := true
-	job := model.SslOrder{BaseOrm: base("initial"), HostCode: h.Code, ApplyDomain: h.Host, ApplyPlatform: "letsencrypt", ApplyMethod: "http01", ApplyEmail: "owner@example.test", AutoRenew: &enabled, ApplyStatus: "applying", ApplyKey: "account-key-private"}
+	job := model.SslOrder{BaseOrm: pipelineORM(), HostCode: config.HostCode, ApplyDomain: "nas.example.test", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", ApplyEmail: "owner@example.test", PrivateGroupName: "native-service", AutoRenew: &enabled, ApplyStatus: "applying", ApplyKey: "account-key-private"}
 	if err := PrepareInitialCertificateOrder(&job); err != nil {
 		t.Fatal(err)
 	}
@@ -255,13 +249,19 @@ func TestCertificateLifecycleDeploymentAndEncryptedMaterial(t *testing.T) {
 	if err := CompleteCertificateOrder(job, now); err != nil {
 		t.Fatal(err)
 	}
-	var stored model.Hosts
-	db.First(&stored, "id = ?", h.Id)
-	if stored.BindSslId != job.CertificateID || stored.Certfile != certificate || stored.Keyfile != newKey {
-		t.Fatal("certificate not bound to intended host")
+	var stored model.PortConfig
+	if err := db.First(&stored, "port = ?", config.Port).Error; err != nil {
+		t.Fatal(err)
 	}
-	if stored.Ssl != h.Ssl || stored.Port != h.Port {
-		t.Fatal("issuance changed listener protocol")
+	snapshot, err := decodePort(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Secrets.TLSCert != certificate || snapshot.Secrets.TLSKey != newKey || managedCertificateID(snapshot.Secrets) != job.CertificateID {
+		t.Fatal("certificate not bound to intended native service")
+	}
+	if snapshot.Config.Protocol != config.Protocol || snapshot.Config.ListenEnabled != config.ListenEnabled || snapshot.Config.Policy.Defense.Enabled != config.Policy.Defense.Enabled {
+		t.Fatal("issuance changed listener state or protection policy")
 	}
 	var policy model.SslRenewalPolicy
 	db.First(&policy, "id = ?", job.CertificateID)
@@ -277,13 +277,18 @@ func TestCertificateLifecycleDeploymentAndEncryptedMaterial(t *testing.T) {
 		t.Fatalf("renew after history removal: %v", err)
 	}
 	// A later manual certificate must not be overwritten by an in-flight job.
-	different, otherKey := genExportTestCert(t, "nas.example.test")
-	db.Model(&model.SslConfig{}).Where("id = ?", policy.Id).Update("cert_content", different)
+	renewed, claimed, err := WafSSLOrderServiceApp.Claim(renewed.Id)
+	if err != nil || !claimed {
+		t.Fatalf("renewal claim: %v", err)
+	}
+	different, _ := genExportTestCert(t, "nas.example.test")
+	if err := db.Model(&model.SslConfig{}).Where("id = ?", policy.Id).Update("cert_content", different).Error; err != nil {
+		t.Fatal(err)
+	}
 	renewed.ResultCertificate, renewed.ResultPrivateKey = []byte(certificate), []byte(newKey)
 	if err := DeployCertificateOrder(&renewed); err == nil {
 		t.Fatal("in-flight job overwrote a manual replacement")
 	}
-	_ = otherKey
 }
 func TestCertificateLifecycleNotificationRetryAndMonitoringState(t *testing.T) {
 	db := setupSslExportTestDB(t)

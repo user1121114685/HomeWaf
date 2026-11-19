@@ -309,7 +309,7 @@ import {defineComponent} from 'vue';
 
 
 import { prefix } from '@/config/global';
-import { allhost } from '@/apis/host';
+import { listServices } from '@/apis/services';
 import {
   wafPathRuleListApi,
   wafPathRuleDelApi,
@@ -431,7 +431,7 @@ export default defineComponent({
     },
     loadHostList() {
       return new Promise((resolve, reject) => {
-        allhost()
+        listServices()
           .then((res) => {
             if (res.code === 0) {
               res.data.forEach((item) => { this.host_dic[item.value] = item.label; });

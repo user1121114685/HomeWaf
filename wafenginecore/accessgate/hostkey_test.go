@@ -65,9 +65,8 @@ func TestTokenCookieNamePerSite(t *testing.T) {
 	if len(a) != len(want)+16 || a[:len(want)] != want {
 		t.Fatalf("Cookie 名格式不符：%q", a)
 	}
-	// 派生不出来时回退旧名，保持可用而不是把人锁在外面
-	if got := TokenCookieName("samwaf_ac", ""); got != "samwaf_ac_tk" {
-		t.Fatalf("空 host 应回退到旧名，got=%q", got)
+	if got := TokenCookieName("samwaf_ac", ""); got != "" {
+		t.Fatalf("empty host received a token cookie name: %q", got)
 	}
 	if got := LegacyTokenCookieName(""); got != "samwaf_ac_tk" {
 		t.Fatalf("LegacyTokenCookieName 空前缀应回落默认，got=%q", got)

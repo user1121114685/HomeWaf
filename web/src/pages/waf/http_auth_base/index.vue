@@ -95,8 +95,8 @@ import {defineComponent} from 'vue';
     prefix
   } from '@/config/global';
   import {
-    allhost
-  } from '@/apis/host';
+    listServices
+  } from '@/apis/services';
 
   import {
     wafHttpAuthBaseListApi,wafHttpAuthBaseDelApi,wafHttpAuthBaseEditApi,wafHttpAuthBaseAddApi,wafHttpAuthBaseDetailApi
@@ -242,7 +242,7 @@ import {defineComponent} from 'vue';
     methods: {
       loadHostList() {
         return new Promise((resolve, reject) => {
-          allhost()
+          listServices()
             .then((res) => {
               let resdata = res;
               console.log(resdata);

@@ -25,7 +25,7 @@ import (
 //	同时还有 wafqueue/message_queue.go 与 waftask/task_delay_msg.go 在广播
 //
 // gorilla 只允许一个并发 writer（conn.go 里 isWriting 的 best-effort 检测）。
-// 修复后写出口统一收敛到 SendToSession / Broadcast，内部按连接加锁串行化。
+// 修复后写出口统一收敛到 SendToSession / BroadcastBuild，内部按连接加锁串行化。
 // 本用例复刻「多广播方 + 每连接回显」的并发形态，跑 go test -race 必须干净。
 func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 	const (
@@ -56,7 +56,7 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 			t.Errorf("upgrade 失败: %v", err)
 			return
 		}
-		sessionID := online.AddWebSocket("tenant-user-admin", ws)
+		sessionID := online.AddWebSocketWithKey("tenant-user-admin", "test-key", ws)
 
 		serverWG.Add(1)
 		defer func() {
@@ -83,7 +83,7 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "?keyid=test-key"
 
 	// 建立 N 条客户端连接，每条都开一个只管收的 goroutine（模拟浏览器正常消费）
 	var received int64
@@ -121,7 +121,7 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 	var wg sync.WaitGroup
 	var broadcastSent int64
 
-	// 写入方一：广播（wafqueue/message_queue.go、waftask/task_delay_msg.go 的写法）
+	// 写入方一：按连接密钥组装的广播（wafqueue/message_queue.go、waftask/task_delay_msg.go 的写法）
 	for b := 0; b < broadcasters; b++ {
 		wg.Add(1)
 		go func(b int) {
@@ -129,7 +129,9 @@ func TestConcurrentWrite_NoPanicNoRace(t *testing.T) {
 			payload := []byte(strings.Repeat(fmt.Sprintf("broadcast-%d;", b), 64))
 			guard(fmt.Sprintf("broadcast(%d)", b), func() {
 				for i := 0; i < broadcastTimes; i++ {
-					atomic.AddInt64(&broadcastSent, int64(online.Broadcast(Wssocket.MessageText, payload)))
+					atomic.AddInt64(&broadcastSent, int64(online.BroadcastBuild(Wssocket.MessageText, func(string) ([]byte, error) {
+						return payload, nil
+					})))
 					time.Sleep(time.Millisecond)
 				}
 			})
@@ -193,13 +195,13 @@ func TestBroadcast_StalledClientTimesOutAndIsRemoved(t *testing.T) {
 			t.Errorf("upgrade 失败: %v", err)
 			return
 		}
-		registered <- online.AddWebSocket("tenant-user-admin", ws)
+		registered <- online.AddWebSocketWithKey("tenant-user-admin", "test-key", ws)
 		select {}
 	}))
 	defer srv.Close()
 
 	// 客户端连上之后完全不读，模拟卡死 / 掉线未察觉的浏览器
-	client, _, err := Wssocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http"), nil)
+	client, _, err := Wssocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http")+"?keyid=test-key", nil)
 	if err != nil {
 		t.Fatalf("客户端连接失败: %v", err)
 	}
@@ -210,7 +212,9 @@ func TestBroadcast_StalledClientTimesOutAndIsRemoved(t *testing.T) {
 	start := time.Now()
 	// 先把内核发送缓冲灌满（本机实测 2~3MB），再往后写就会卡住并触发写超时
 	for i := 0; i < 4096; i++ {
-		if online.Broadcast(Wssocket.MessageText, payload) == 0 {
+		if online.BroadcastBuild(Wssocket.MessageText, func(string) ([]byte, error) {
+			return payload, nil
+		}) == 0 {
 			break
 		}
 		if time.Since(start) > WriteWait+10*time.Second {
@@ -239,7 +243,7 @@ func TestSessionLifecycle(t *testing.T) {
 			t.Errorf("upgrade 失败: %v", err)
 			return
 		}
-		registered <- online.AddWebSocket("same-user", ws)
+		registered <- online.AddWebSocketWithKey("same-user", "test-key", ws)
 		for {
 			if _, _, err := readMessage(ws); err != nil {
 				return
@@ -248,7 +252,7 @@ func TestSessionLifecycle(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "?keyid=test-key"
 	var clients []*Wssocket.Conn
 	var sessions []string
 	for i := 0; i < 2; i++ {
@@ -291,6 +295,21 @@ func TestSessionLifecycle(t *testing.T) {
 	// 向已摘除的会话发送应返回错误而不是 panic
 	if err := online.SendToSession(sessions[0], Wssocket.MessageText, []byte("x")); err == nil {
 		t.Fatal("向已关闭会话发送应当返回错误")
+	}
+}
+
+func TestAddWebSocketWithKeyRequiresKeyIDAndConnection(t *testing.T) {
+	online := InitWafWebSocket()
+	conn := &Wssocket.Conn{}
+
+	if sessionID := online.AddWebSocketWithKey("user", "", conn); sessionID != "" {
+		t.Fatalf("empty key ID registered session %q", sessionID)
+	}
+	if sessionID := online.AddWebSocketWithKey("user", "test-key", nil); sessionID != "" {
+		t.Fatalf("nil connection registered session %q", sessionID)
+	}
+	if got := online.OnlineCount(); got != 0 {
+		t.Fatalf("invalid connection was registered, count = %d", got)
 	}
 }
 

@@ -14,7 +14,6 @@ import (
 	"HomeWaf/global"
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"HomeWaf/model"
-	"HomeWaf/model/baseorm"
 	"HomeWaf/model/request"
 	"HomeWaf/model/spec"
 	"HomeWaf/service/waf_service"
@@ -33,7 +32,7 @@ func TestSSLOrderRetryReusesSavedConfigurationAndDeduplicates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&model.Hosts{}, &model.PrivateInfo{}, &model.SslOrder{}, &model.SslOrderLog{}); err != nil {
+	if err := db.AutoMigrate(&model.PrivateInfo{}, &model.SslOrder{}, &model.SslOrderLog{}, &model.SslRenewalPolicy{}, &model.CertificateEvent{}, &model.CertificateDelivery{}, &model.NotifySubscription{}, &model.NotifyChannel{}); err != nil {
 		t.Fatal(err)
 	}
 	oldDB, oldQueue := global.GWAF_LOCAL_DB, global.GWAF_CHAN_SSLOrder
@@ -49,13 +48,11 @@ func TestSSLOrderRetryReusesSavedConfigurationAndDeduplicates(t *testing.T) {
 	if err := wafdb.RegisterTenantQueryScope(db); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Create(&model.Hosts{BaseOrm: baseorm.BaseOrm{Id: "host", Tenant_ID: global.GWAF_TENANT_ID, USER_CODE: global.GWAF_USER_CODE}, Code: "nas", Host: "example.com", Port: 8443}).Error; err != nil {
-		t.Fatal(err)
-	}
+	service := createCertificateTestService(t, db)
 	if err := waf_service.WafPrivateInfoServiceApp.AddApi(request.WafPrivateInfoAddReq{PrivateGroupBelongCloud: "hurricane", PrivateGroupName: "household", PrivateKey: "HURRICANE_TOKENS", PrivateValue: "example.com:fixture-ddns-secret"}); err != nil {
 		t.Fatal(err)
 	}
-	source := model.SslOrder{HostCode: "nas", ApplyStatus: "fail", Progress: "申请任务已中断", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", ApplyDomain: "example.com", ApplyEmail: "owner@example.com", PrivateGroupName: "household", ResultError: "interrupted", ApplyKey: "fixture-account-secret"}
+	source := model.SslOrder{HostCode: service.HostCode, ApplyStatus: "fail", Progress: "申请任务已中断", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", ApplyDomain: "example.com", ApplyEmail: "owner@example.com", PrivateGroupName: "household", ResultError: "interrupted", ApplyKey: "fixture-account-secret"}
 	source.Id = "failed-source"
 	disabled := false
 	source.AutoRenew = &disabled

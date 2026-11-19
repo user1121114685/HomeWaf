@@ -19,7 +19,7 @@ func TestRuleBanKeyIPv6(t *testing.T) {
 }
 
 func TestRuleBanKeyRejectForeignPrefix(t *testing.T) {
-	if _, _, ok := ParseRuleBanKey("CACHE_CCVISITBAN_PRE_global|host|1.2.3.4"); ok {
+	if _, _, ok := ParseRuleBanKey("foreign_cache_key|host|1.2.3.4"); ok {
 		t.Fatalf("非规则封禁前缀被误解析")
 	}
 }

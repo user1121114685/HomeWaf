@@ -98,12 +98,6 @@ func ExtractJSONFieldValues(body string) (fields, values []string) {
 	return fields, values
 }
 
-// ExtractJSONStringValues 仅取值（向后兼容）。
-func ExtractJSONStringValues(body string) []string {
-	_, values := ExtractJSONFieldValues(body)
-	return values
-}
-
 // IsJSONBody 报告 body 是否为合法 JSON 对象/数组。用于 SQLi：JSON 体走逐值检测即可，
 // 不再整块喂 libinjection（整块含大量 , : " { } 结构字符，正常数字/结构 JSON 会被误判）。
 func IsJSONBody(body string) bool {

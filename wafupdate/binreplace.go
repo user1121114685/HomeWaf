@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -59,6 +60,9 @@ func stagePath(dir, exeName, suffix string) string {
 func oldPrefix(exeName string) string {
 	return "." + exeName + stageOldSuffix
 }
+
+// uniqueOldPath appends the process ID and an RFC 4648 base32 token from rand.Text.
+var oldExecutableSuffix = regexp.MustCompile(`^[1-9][0-9]*\.[A-Z2-7]{26,}$`)
 
 // uniqueOldPath 生成一个当前目录中一定不存在的 .old 路径，形如
 //
@@ -151,7 +155,7 @@ func sweepLeftovers(dir, exeName string, includeStaging bool) (removed, kept int
 		return 0, 0
 	}
 	// 用前缀匹配而不是 filepath.Glob——exe 名可能含 '[' 等 glob 元字符。
-	oldPre := oldPrefix(exeName)
+	oldPre := oldPrefix(exeName) + "."
 	newPath := stagePath(dir, exeName, stageNewSuffix)
 	rollbackPath := stagePath(dir, exeName, stageRollbackSuffix)
 
@@ -160,7 +164,8 @@ func sweepLeftovers(dir, exeName string, includeStaging bool) (removed, kept int
 			continue
 		}
 		full := filepath.Join(dir, e.Name())
-		isOld := strings.HasPrefix(e.Name(), oldPre)
+		suffix, hasPrefix := strings.CutPrefix(e.Name(), oldPre)
+		isOld := hasPrefix && oldExecutableSuffix.MatchString(suffix)
 		isStaging := includeStaging && (full == newPath || full == rollbackPath)
 		if !isOld && !isStaging {
 			continue
@@ -186,9 +191,9 @@ func sweepLeftovers(dir, exeName string, includeStaging bool) (removed, kept int
 	return removed, kept
 }
 
-// CleanupLegacyLeftovers 供进程启动时调用：清扫上一轮升级/回退遗留的临时二进制。
+// CleanupStagedExecutables 在进程启动时清扫上一轮升级或回退遗留的临时二进制。
 // 幂等、不返回错误、不阻塞启动。
-func CleanupLegacyLeftovers() {
+func CleanupStagedExecutables() {
 	exePath, err := os.Executable()
 	if err != nil {
 		return

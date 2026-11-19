@@ -5,16 +5,13 @@ package wafenginecore
 import (
 	"HomeWaf/model"
 	"HomeWaf/utils"
-	"bytes"
-	"io"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
 // maybeApplyResponseCompress 在上游未设置 Content-Encoding 时，按站点配置与 Accept-Encoding 压缩响应体。
 // 若已存在 Content-Encoding（含经 compressContent 按上游格式重压的情况），则不处理。
-func (waf *WafEngine) maybeApplyResponseCompress(req *http.Request, resp *http.Response, body []byte, cfg model.ResponseCompressConfig) []byte {
+func maybeApplyResponseCompress(req *http.Request, resp *http.Response, body []byte, cfg model.ResponseCompressConfig) []byte {
 	if cfg.IsEnable != 1 || len(body) == 0 {
 		return body
 	}
@@ -69,99 +66,6 @@ func (waf *WafEngine) maybeApplyResponseCompress(req *http.Request, resp *http.R
 	resp.Header.Set("Content-Encoding", enc)
 	appendVaryAcceptEncoding(resp.Header)
 	return out
-}
-
-// maybeCompressStaticAssistResponse 对静态协助类响应读体后尝试压缩（需配置 compress_when_static_assist）。
-func (waf *WafEngine) maybeCompressStaticAssistResponse(req *http.Request, resp *http.Response, cfg model.ResponseCompressConfig) {
-	if cfg.IsEnable != 1 || cfg.CompressWhenStaticAssist != 1 {
-		return
-	}
-	if resp == nil || req == nil || resp.Body == nil || resp.Body == http.NoBody {
-		return
-	}
-	if strings.TrimSpace(resp.Header.Get("Content-Encoding")) != "" {
-		return
-	}
-	if resp.Header.Get("Accept-Ranges") == "bytes" {
-		return
-	}
-	if resp.StatusCode != http.StatusOK {
-		return
-	}
-	if strings.Contains(strings.ToLower(resp.Header.Get("Cache-Control")), "no-transform") {
-		return
-	}
-	raw, err := io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-	if err != nil {
-		resp.Body = io.NopCloser(bytes.NewReader(nil))
-		return
-	}
-	if len(raw) == 0 {
-		resp.Body = io.NopCloser(bytes.NewReader(nil))
-		return
-	}
-	minLen := cfg.MinLength
-	if minLen <= 0 {
-		minLen = 256
-	}
-	if len(raw) < minLen {
-		resp.Body = io.NopCloser(bytes.NewReader(raw))
-		resp.ContentLength = int64(len(raw))
-		resp.Header.Set("Content-Length", strconv.FormatInt(int64(len(raw)), 10))
-		return
-	}
-	urlPath := req.URL.Path
-	if matchResponseCompressExcludePath(urlPath, cfg.ExcludePaths) {
-		resp.Body = io.NopCloser(bytes.NewReader(raw))
-		resp.ContentLength = int64(len(raw))
-		resp.Header.Set("Content-Length", strconv.FormatInt(int64(len(raw)), 10))
-		return
-	}
-	if ext := pathExtensionLower(urlPath); ext != "" && matchResponseCompressExcludeExt(ext, cfg.ExcludeExtensions) {
-		resp.Body = io.NopCloser(bytes.NewReader(raw))
-		resp.ContentLength = int64(len(raw))
-		resp.Header.Set("Content-Length", strconv.FormatInt(int64(len(raw)), 10))
-		return
-	}
-	if !responseCompressTypeOrExtMatches(resp.Header.Get("Content-Type"), urlPath, cfg) {
-		resp.Body = io.NopCloser(bytes.NewReader(raw))
-		resp.ContentLength = int64(len(raw))
-		resp.Header.Set("Content-Length", strconv.FormatInt(int64(len(raw)), 10))
-		return
-	}
-	enc := chooseCompressEncoding(getAcceptEncoding(req), cfg.Prefer)
-	if enc == "" {
-		resp.Body = io.NopCloser(bytes.NewReader(raw))
-		resp.ContentLength = int64(len(raw))
-		resp.Header.Set("Content-Length", strconv.FormatInt(int64(len(raw)), 10))
-		return
-	}
-	var out []byte
-	switch enc {
-	case "br":
-		out, err = utils.BrotliEncode(raw)
-	case "gzip":
-		out, err = utils.GZipEncode(raw)
-	case "zstd":
-		out, err = utils.ZstdEncode(raw)
-	default:
-		resp.Body = io.NopCloser(bytes.NewReader(raw))
-		resp.ContentLength = int64(len(raw))
-		resp.Header.Set("Content-Length", strconv.FormatInt(int64(len(raw)), 10))
-		return
-	}
-	if err != nil || len(out) >= len(raw) {
-		resp.Body = io.NopCloser(bytes.NewReader(raw))
-		resp.ContentLength = int64(len(raw))
-		resp.Header.Set("Content-Length", strconv.FormatInt(int64(len(raw)), 10))
-		return
-	}
-	resp.Header.Set("Content-Encoding", enc)
-	appendVaryAcceptEncoding(resp.Header)
-	resp.ContentLength = int64(len(out))
-	resp.Header.Set("Content-Length", strconv.FormatInt(int64(len(out)), 10))
-	resp.Body = io.NopCloser(bytes.NewReader(out))
 }
 
 func appendVaryAcceptEncoding(h http.Header) {

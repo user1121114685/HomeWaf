@@ -1,12 +1,6 @@
 package wafenginecore
 
 import (
-	"HomeWaf/cache"
-	"HomeWaf/common/queue"
-	"HomeWaf/global"
-	"HomeWaf/model"
-	"HomeWaf/model/wafenginmodel"
-	"HomeWaf/wafenginecore/accessgate"
 	"HomeWaf/wafpipeline"
 	"bytes"
 	"encoding/json"
@@ -25,55 +19,6 @@ import (
 	"time"
 )
 
-func phase9LegacyEngine(t testing.TB) (*WafEngine, *httptest.Server, *atomic.Int64) {
-	t.Helper()
-	memoryCache := cache.InitWafCache()
-	t.Cleanup(memoryCache.Close)
-	global.GCACHE_WAFCACHE = memoryCache
-	global.GQEQUE_LOG_DB = queue.NewQueue()
-	global.GQEQUE_MESSAGE_DB = queue.NewQueue()
-	global.GWAF_GLOBAL_HOST_CODE = "p0-global"
-	global.GWAF_GLOBAL_HOST_NAME = "p0-global:0"
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = "abnormal" })
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_MAX_BODY_LENGTH = 1024 * 1024 })
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_ENABLE_OWASP = 0 })
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = "block" })
-	// This fixture has no production DLP initialization; only synthetic data is used.
-	global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = 0 })
-	accessgate.SetConfig(nil)
-	hits := &atomic.Int64{}
-	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hits.Add(1)
-		data, _ := io.ReadAll(r.Body)
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(200)
-		if len(data) > 0 {
-			_, _ = w.Write(data)
-		} else {
-			_, _ = io.WriteString(w, "audit-origin-ok")
-		}
-	}))
-	t.Cleanup(origin.Close)
-	w := &WafEngine{ServerOnline: wafenginmodel.NewSafeServerMap()}
-	w.InitRouting()
-	hs := &wafenginmodel.HostSafe{Host: model.Hosts{Code: "p0-host", Host: "audit.test", Port: 5000, GUARD_STATUS: 1, IPSourceMode: "nic", DEFENSE_JSON: `{"sqli":1,"xss":1,"scan":1,"rce":1,"traversal":1}`, IsEnableResponseBuffering: 0, ResponseTimeOut: 10}, TargetHost: origin.URL}
-	w.withWriteTable(func(rt *routingTable) {
-		rt.HostCode["p0-host"] = "audit.test:5000"
-		rt.HostTarget["audit.test:5000"] = hs
-		rt.HostCode[global.GWAF_GLOBAL_HOST_CODE] = global.GWAF_GLOBAL_HOST_NAME
-		rt.HostTarget[global.GWAF_GLOBAL_HOST_NAME] = &wafenginmodel.HostSafe{}
-	})
-	front := httptest.NewServer(w)
-	t.Cleanup(front.Close)
-	t.Cleanup(func() {
-		w.TransportMux.Lock()
-		defer w.TransportMux.Unlock()
-		for _, tr := range w.TransportPool {
-			tr.CloseIdleConnections()
-		}
-	})
-	return w, front, hits
-}
 func runPhase9HTTPBenchmark(t *testing.T, front *httptest.Server, hits *atomic.Int64, label string) {
 	const n = 12000
 	for _, workers := range []int{1, 16} {
@@ -147,27 +92,6 @@ func TestPhase9FullChainBenchmark(t *testing.T) {
 	if os.Getenv("HOMEWAF_PIPELINE_PERF") != "1" {
 		t.Skip("set HOMEWAF_PIPELINE_PERF=1 for the phase-0 matched performance run")
 	}
-	oldCache, oldLogs, oldMessages := global.GCACHE_WAFCACHE, global.GQEQUE_LOG_DB, global.GQEQUE_MESSAGE_DB
-	oldCode, oldName, oldType := global.GWAF_GLOBAL_HOST_CODE, global.GWAF_GLOBAL_HOST_NAME, global.CurrentSettings().GWAF_RUNTIME_RECORD_LOG_TYPE
-	oldLimit, oldOWASP, oldMode, oldDLP := global.CurrentSettings().GCONFIG_RECORD_MAX_BODY_LENGTH, global.CurrentSettings().GCONFIG_RECORD_ENABLE_OWASP, global.CurrentSettings().GCONFIG_BODY_DETECT_MODE, global.CurrentSettings().GCONFIG_RECORD_LOG_DESENSITIZE
-	oldAccess := accessgate.Get()
-	t.Cleanup(func() {
-		global.GCACHE_WAFCACHE = oldCache
-		global.GQEQUE_LOG_DB = oldLogs
-		global.GQEQUE_MESSAGE_DB = oldMessages
-		global.GWAF_GLOBAL_HOST_CODE = oldCode
-		global.GWAF_GLOBAL_HOST_NAME = oldName
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GWAF_RUNTIME_RECORD_LOG_TYPE = oldType })
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_MAX_BODY_LENGTH = oldLimit })
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_ENABLE_OWASP = oldOWASP })
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_BODY_DETECT_MODE = oldMode })
-		global.UpdateSettings(func(cfg *global.RuntimeSettings) { cfg.GCONFIG_RECORD_LOG_DESENSITIZE = oldDLP })
-		accessgate.SetConfig(oldAccess)
-	})
-	t.Run("legacy", func(t *testing.T) {
-		_, front, hits := phase9LegacyEngine(t)
-		runPhase9HTTPBenchmark(t, front, hits, "legacy")
-	})
 	t.Run("pipeline", func(t *testing.T) {
 		hits := &atomic.Int64{}
 		back := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -12,15 +12,10 @@ import (
 
 // RunSSLOrderQueue keeps slow DNS/CA requests off the service configuration
 // event loop. Database scans recover submitted work after missed notifications.
-func (waf *WafEngine) RunSSLOrderQueue(ctx context.Context) {
-	if waf_service.CertificateLifecycleAvailable() {
-		if err := waf_service.MigrateCertificatePolicies(); err != nil {
-			zlog.Error("证书策略迁移失败", err.Error())
-		}
-		go runCertificateMaintenance(ctx)
-	}
+func RunSSLOrderQueue(ctx context.Context) {
+	go runCertificateMaintenance(ctx)
 
-	runSSLOrderQueue(ctx, func(kind int, order model.SslOrder) { waf.applySSLOrder(ctx, kind, order) })
+	runSSLOrderQueue(ctx, func(kind int, order model.SslOrder) { applySSLOrder(ctx, order) })
 }
 
 func runSSLOrderQueue(ctx context.Context, apply func(int, model.SslOrder)) {

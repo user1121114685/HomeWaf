@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const origin = process.env.CONFIG_EDIT_TEST_ORIGIN || 'http://127.0.0.1:3001';
@@ -51,22 +51,17 @@ await context.addInitScript(() => {
 });
 await context.routeWebSocket('**/api/**', (ws) => ws.close());
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const request = route.request(),
     url = new URL(request.url()),
     endpoint = url.pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '' } });
-  const fail = (msg) => route.fulfill({ json: { code: 1, msg, data: AesEncrypt('{}') } });
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '' } });
+  const fail = (msg) => route.fulfill({ json: { code: 1, msg, data: routeSession(route).encrypt('{}') } });
+  if (endpoint === 'sysinfo/checkversion')
     return fail('Isolated config-edit fixture');
   let input = {};
   if (request.postData()) {
-    try {
-      input = JSON.parse(AesDecrypt(request.postData()));
-    } catch {
-      try {
-        input = JSON.parse(request.postData());
-      } catch {}
-    }
+    input = JSON.parse(routeSession(route).decrypt(request.postData()));
   }
   const port = Number(url.searchParams.get('port') || input.port || input.config?.port);
   if (endpoint === 'iplocation/status')

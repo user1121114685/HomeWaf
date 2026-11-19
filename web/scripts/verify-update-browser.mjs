@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { fixtureSession, handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 import { listenLoopbackForTest } from '../../scripts/test-listener.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -34,11 +34,12 @@ const fullCommit = '47f4857bfeb7788b9a7f2e8d111825ec5072c838';
 let updateAllowed = true, version = 'v2.0.3', failure = 'server', running = false, history = true;
 const calls = [], checks = [], errors = [];
 await context.route('**/api/**', async route => {
+  if (await handleTransportHandshake(route)) return;
   const request = route.request();
   const url = new URL(request.url());
   const endpoint = url.pathname.split('/api/v1/')[1] || '';
-  const reply = (code, data, msg = '') => route.fulfill({ json: { code, data: AesEncrypt(JSON.stringify(data)), msg } });
-  if (endpoint.includes('handshake') || endpoint === 'public/seckey') return reply(1, {}, 'Isolated fixture');
+  const reply = (code, data, msg = '') => route.fulfill({ json: { code, data: routeSession(route).encrypt(JSON.stringify(data)), msg } });
+
   if (endpoint === 'sysinfo/checkversion') {
     checks.push(url.searchParams.get('cached'));
     return reply(0, {
@@ -66,7 +67,7 @@ await context.route('**/api/**', async route => {
   });
   if (endpoint === 'sysinfo/version') return reply(0, { version: 'v2.0.1' });
   if (['account/info', 'account/current', 'account/detail'].includes(endpoint)) return reply(0, { user_name: 'fixture', name: 'fixture' });
-  if (endpoint.includes('allhost') || endpoint.includes('options')) return reply(0, []);
+  if (endpoint === 'waflog/services' || endpoint.includes('options')) return reply(0, []);
   return reply(0, { list: [], total: 0 });
 });
 const page = await context.newPage();
@@ -83,7 +84,7 @@ const open = async () => {
 };
 const pushRelease = () => socket.send(JSON.stringify({
   msg_code: '200', msg_cmd_type: 'UPDATE_AVAILABLE',
-  msg_data: AesEncrypt(JSON.stringify({ message_type: '新版本发布', message_data: version, message_unread_status: true })),
+  msg_data: fixtureSession(new URL(socket.url()).searchParams.get('keyid')).encrypt(JSON.stringify({ message_type: '新版本发布', message_data: version, message_unread_status: true })),
 }));
 const summary = [];
 try {

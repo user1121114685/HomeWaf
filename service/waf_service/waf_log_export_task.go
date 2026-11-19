@@ -777,7 +777,7 @@ func (s *WafLogExportService) execute(ctx context.Context, t model.LogExportTask
 			}
 		}
 		for table, ts := range st.Tables {
-			statuses = append(statuses, waflogexport.SourceStatus{ID: sourceID, Driver: st.Driver, Table: table, Status: ts.State, SnapshotTime: st.SnapshotTime.Format(time.RFC3339), MissingColumns: ts.MissingColumns})
+			statuses = append(statuses, waflogexport.SourceStatus{ID: sourceID, Driver: st.Driver, Table: table, Status: ts.State, SnapshotTime: st.SnapshotTime.Format(time.RFC3339)})
 		}
 		global.GWAF_LOCAL_DB.Model(&model.LogExportTask{}).Where("id = ? AND owner = ? AND status = ?", t.Id, s.owner, "running").Update("source_done", i+1)
 	}

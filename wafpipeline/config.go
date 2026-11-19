@@ -89,7 +89,6 @@ type CCConfig struct {
 	ChallengeSeconds int    `json:"challenge_seconds"`
 }
 type RuleSetConfig struct {
-	SynologyLogin     *SynologyLoginPolicy        `json:"synology_login,omitempty"`
 	Plugins           *PluginPolicy               `json:"plugins,omitempty"`
 	Callback          *CallbackPolicy             `json:"callback,omitempty"`
 	Sensitive         *SensitivePolicy            `json:"sensitive,omitempty"`
@@ -140,31 +139,31 @@ type Threshold struct {
 	Count         int `json:"count"`
 	BanSeconds    int `json:"ban_seconds"`
 }
-type LockdownConfig struct {
-	Enabled         bool   `json:"enabled"`
-	WindowSeconds   int    `json:"window_seconds"`
-	DistinctIPs     int    `json:"distinct_ips"`
-	Seconds         int    `json:"seconds"`
-	CooldownSeconds int    `json:"cooldown_seconds"`
-	Action          Action `json:"action"`
-}
 type HitPolicyConfig struct {
 	Enabled         bool               `json:"enabled"`
-	BanScope        string             `json:"ban_scope"`
 	IPv6Prefix      int                `json:"ipv6_prefix"`
 	Critical        Threshold          `json:"critical"`
 	High            Threshold          `json:"high"`
 	Medium          Threshold          `json:"medium"`
-	Lockdown        LockdownConfig     `json:"lockdown"`
-	ProtectPrivate  bool               `json:"protect_private"`
 	MaxKeys         int                `json:"max_keys"`
 	ResponseSignals bool               `json:"response_signals"`
 	IgnorePaths     []string           `json:"ignore_paths,omitempty"`
 	BusinessLogin   []LoginObservation `json:"business_login,omitempty"`
 	LoginBan        Threshold          `json:"login_ban"`
-	Response404     Threshold          `json:"response_404"`
-	ResponseAuth    Threshold          `json:"response_auth"`
-	Response5xx     Threshold          `json:"response_5xx"`
+}
+type HoneypotConfig struct {
+	MaxConcurrent   int            `json:"max_concurrent"`
+	MaxDelayMillis  int            `json:"max_delay_ms"`
+	TrapPaths       []string       `json:"trap_paths,omitempty"`
+	Lures           []HoneypotLure `json:"lures,omitempty"`
+	ArchiveBody     bool           `json:"archive_body"`
+	ArchiveMaxBytes int            `json:"archive_max_bytes"`
+}
+type HoneypotLure struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	Message string `json:"message"`
+	Weight  int    `json:"weight"`
 }
 type LoginObservation struct {
 	Path                  string `json:"path"`
@@ -175,37 +174,6 @@ type LoginObservation struct {
 	SuccessLocationPrefix string `json:"success_location_prefix,omitempty"`
 	SuccessBodyContains   string `json:"success_body_contains,omitempty"`
 	BodyPrefixBytes       int    `json:"body_prefix_bytes"`
-}
-type HoneypotConfig struct {
-	Enabled               bool                    `json:"enabled"`
-	CaptureDenied         bool                    `json:"capture_denied"`
-	TTLSeconds            int                     `json:"ttl_seconds"`
-	MaxConcurrent         int                     `json:"max_concurrent"`
-	MaxDelayMillis        int                     `json:"max_delay_ms"`
-	TrapPaths             []string                `json:"trap_paths,omitempty"`
-	AuthFailThreshold     int                     `json:"auth_fail_threshold"`
-	WeakPasswordThreshold int                     `json:"weak_password_threshold"`
-	Lures                 []HoneypotLure          `json:"lures,omitempty"`
-	DropAfterHits         int                     `json:"drop_after_hits"`
-	DropWindowSeconds     int                     `json:"drop_window_seconds"`
-	DropSeconds           int                     `json:"drop_seconds"`
-	DistributedDrop       HoneypotDistributedDrop `json:"distributed_drop"`
-	ArchiveBody           bool                    `json:"archive_body"`
-	ArchiveMaxBytes       int                     `json:"archive_max_bytes"`
-}
-
-type HoneypotLure struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Message string `json:"message"`
-	Weight  int    `json:"weight"`
-}
-
-type HoneypotDistributedDrop struct {
-	Enabled       bool `json:"enabled"`
-	WindowSeconds int  `json:"window_seconds"`
-	DistinctIPs   int  `json:"distinct_ips"`
-	Seconds       int  `json:"seconds"`
 }
 type NetworkConfig struct {
 	MaxProxyHops          int            `json:"max_proxy_hops"`
@@ -223,14 +191,14 @@ type NetworkConfig struct {
 	PreserveHost          bool           `json:"preserve_host"`
 }
 type Policy struct {
-	Defense   *DefenseConfig  `json:"defense,omitempty"`
+	Defense   *DefenseConfig  `json:"defense"`
 	Access    AccessConfig    `json:"access"`
 	IPGroup   IPGroupConfig   `json:"ip_group"`
 	RuleSet   RuleSetConfig   `json:"ruleset"`
 	HitPolicy HitPolicyConfig `json:"hit_policy"`
-	Honeypot  HoneypotConfig  `json:"honeypot"`
-	Gate      GateConfig      `json:"gate"`
-	Network   NetworkConfig   `json:"network"`
+
+	Gate    GateConfig    `json:"gate"`
+	Network NetworkConfig `json:"network"`
 }
 type TemplateSource struct {
 	ID        string `json:"id,omitempty"`
@@ -239,7 +207,6 @@ type TemplateSource struct {
 }
 type PortConfig struct {
 	DefenseState    *DefenseState       `json:"defense_state,omitempty"`
-	ACMEHosts       map[string]string   `json:"acme_hosts,omitempty"`
 	Schema          int                 `json:"schema_version"`
 	Port            uint16              `json:"port"`
 	Name            string              `json:"name"`
@@ -337,11 +304,12 @@ func DefaultPolicy() Policy {
 		rules = append(rules, Rule{ID: category, Category: category, Severity: severity, Mode: mode})
 	}
 	return Policy{
-		Access: AccessConfig{Enabled: true, DisabledAction: Deny, DrainSeconds: 30}, IPGroup: IPGroupConfig{Entries: []IPEntry{}, Regions: []Region{}, UnlistedAction: Continue},
+		Defense: func() *DefenseConfig { d := DefaultDefense(); return &d }(),
+		Access:  AccessConfig{Enabled: true, DisabledAction: Deny, DrainSeconds: 30}, IPGroup: IPGroupConfig{Entries: []IPEntry{}, Regions: []Region{}, UnlistedAction: Continue},
 		RuleSet:   RuleSetConfig{Rules: rules, QPS: RateConfig{Mode: ModeBlock, PerIP: 30, PerPort: 300, Burst: 100, StaticMultiplier: 4}, CC: CCConfig{Mode: ModeObserve, WindowSeconds: 10, Threshold: 150, Action: Challenge, ByPath: true, ExcludeStatic: true, ChallengeSeconds: 300}, BOT: ModeObserve, BudgetMillis: 20, View: DefaultViewLimits(), AllowedMethods: []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "PROPFIND", "MKCOL", "MOVE", "COPY", "LOCK", "UNLOCK"}, CSRFMissingOrigin: "observe", OWASP: ModeOff},
 		Gate:      GateConfig{Mode: "form", Prefix: "/__homewaf/gate", Title: "HomeWaf 访问验证", IdleSeconds: 7200, AbsoluteSeconds: 86400, BypassTrusted: true, LoginPerMinute: 10},
-		HitPolicy: HitPolicyConfig{Enabled: true, BanScope: "global", IPv6Prefix: 64, Critical: Threshold{600, 1, 3600}, High: Threshold{600, 3, 1800}, Medium: Threshold{600, 10, 600}, Lockdown: LockdownConfig{WindowSeconds: 60, DistinctIPs: 5, Seconds: 600, CooldownSeconds: 60, Action: Deny}, ProtectPrivate: true, MaxKeys: 1000, IgnorePaths: []string{"/favicon.ico", "/robots.txt"}},
-		Honeypot:  HoneypotConfig{TTLSeconds: 3600, MaxConcurrent: 32, MaxDelayMillis: 250, AuthFailThreshold: 5, WeakPasswordThreshold: 3, DropWindowSeconds: 600, DropSeconds: 10800, DistributedDrop: HoneypotDistributedDrop{WindowSeconds: 600, DistinctIPs: 10, Seconds: 10800}, ArchiveMaxBytes: 16 << 10}, Network: NetworkConfig{MaxProxyHops: 10, TrustedProxies: []string{}, RealIPHeader: "X-Forwarded-For", MaxHeaderBytes: 32 << 10, ReadHeaderSeconds: 10},
+		HitPolicy: HitPolicyConfig{Enabled: true, IPv6Prefix: 64, Critical: Threshold{600, 1, 3600}, High: Threshold{600, 3, 1800}, Medium: Threshold{600, 10, 600}, MaxKeys: 1000, IgnorePaths: []string{"/favicon.ico", "/robots.txt"}},
+		Network:   NetworkConfig{MaxProxyHops: 10, TrustedProxies: []string{}, RealIPHeader: "X-Forwarded-For", MaxHeaderBytes: 32 << 10, ReadHeaderSeconds: 10},
 	}
 }
 func StrictDecode(data []byte, out any) error {
@@ -366,17 +334,6 @@ func CloneConfig(c PortConfig) PortConfig {
 }
 func ValidMode(m Mode) bool { return m == ModeOff || m == ModeObserve || m == ModeBlock }
 func ValidateConfig(c PortConfig, managePort uint16) error {
-	if err := ValidateDefense(c.Policy.Defense); err != nil {
-		return err
-	}
-	if len(c.ACMEHosts) > 100 {
-		return fmt.Errorf("too many certificate challenge hosts")
-	}
-	for host, source := range c.ACMEHosts {
-		if host == "" || len(host) > 253 || strings.ContainsAny(host, "/\\\r\n@*") || source == "" || len(source) > 128 || strings.Contains(source, "..") || strings.ContainsAny(source, "/\\\r\n\x00") {
-			return fmt.Errorf("invalid certificate challenge binding")
-		}
-	}
 	if c.Schema != SchemaVersion {
 		return fmt.Errorf("unsupported schema version")
 	}
@@ -603,6 +560,9 @@ func upstreamDialOverrides(c PortConfig) (map[string]string, error) {
 	return out, nil
 }
 func ValidatePolicy(p Policy) error {
+	if err := ValidateDefense(p.Defense); err != nil {
+		return err
+	}
 	if p.Network.MaxProxyHops < 0 || p.Network.MaxProxyHops > 64 {
 		return fmt.Errorf("invalid proxy hop limit")
 	}
@@ -643,7 +603,7 @@ func ValidatePolicy(p Policy) error {
 	if p.Access.DrainSeconds < 0 || p.Access.DrainSeconds > 300 {
 		return fmt.Errorf("drain_seconds outside 0..300")
 	}
-	if p.IPGroup.UnlistedAction != Continue && p.IPGroup.UnlistedAction != Deny && p.IPGroup.UnlistedAction != Honeypot {
+	if p.IPGroup.UnlistedAction != Continue && p.IPGroup.UnlistedAction != Deny {
 		return fmt.Errorf("invalid unlisted action")
 	}
 	if len(p.IPGroup.Entries) > 100000 || len(p.IPGroup.Regions) > 1000 || len(p.IPGroup.DeniedRegions) > 1000 || len(p.IPGroup.AllowGroups)+len(p.IPGroup.DenyGroups) > 256 {
@@ -680,11 +640,6 @@ func ValidatePolicy(p Policy) error {
 		}
 	}
 	r := p.RuleSet
-	if legacy := r.SynologyLogin; legacy != nil {
-		if !ValidMode(legacy.Admin) || !ValidMode(legacy.FailureMode) || legacy.Failures.Count < 1 || legacy.Failures.Count > 1000 || legacy.Failures.WindowSeconds < 1 || legacy.Failures.WindowSeconds > 86400 || legacy.Failures.BanSeconds < 1 || legacy.Failures.BanSeconds > 7*86400 {
-			return fmt.Errorf("无效的群晖登录模式或阈值")
-		}
-	}
 	if err := validateExtensions(r); err != nil {
 		return err
 	}
@@ -799,19 +754,8 @@ func ValidatePolicy(p Policy) error {
 		return err
 	}
 	h := p.HitPolicy
-	for _, threshold := range []Threshold{h.LoginBan, h.Response404, h.ResponseAuth, h.Response5xx} {
-		if threshold == (Threshold{}) {
-			continue
-		}
-		if threshold.WindowSeconds < 1 || threshold.WindowSeconds > 86400 || threshold.Count < 1 || threshold.Count > 100000 || threshold.BanSeconds < 0 || threshold.BanSeconds > 7*86400 {
-			return fmt.Errorf("invalid response or login threshold")
-		}
-	}
-	if h.LoginBan != (Threshold{}) && h.LoginBan.BanSeconds == 0 {
-		return fmt.Errorf("login ban duration is required")
-	}
-	if h.Response404.Count > 128 {
-		return fmt.Errorf("distinct 404 path limit is 128")
+	if t := h.LoginBan; t != (Threshold{}) && (t.WindowSeconds < 1 || t.WindowSeconds > 86400 || t.Count < 1 || t.Count > 100000 || t.BanSeconds < 1 || t.BanSeconds > 7*86400) {
+		return fmt.Errorf("invalid login ban threshold")
 	}
 	if len(h.BusinessLogin) > 10 {
 		return fmt.Errorf("too many business login observers")
@@ -826,9 +770,6 @@ func ValidatePolicy(p Policy) error {
 			}
 		}
 	}
-	if h.BanScope != "global" && h.BanScope != "port" {
-		return fmt.Errorf("invalid ban scope")
-	}
 	if h.IPv6Prefix < 32 || h.IPv6Prefix > 128 || h.MaxKeys < 100 || h.MaxKeys > 100000 {
 		return fmt.Errorf("invalid state quota")
 	}
@@ -837,24 +778,13 @@ func ValidatePolicy(p Policy) error {
 			return fmt.Errorf("invalid hit threshold")
 		}
 	}
-	l := h.Lockdown
-	if l.WindowSeconds < 1 || l.WindowSeconds > 3600 || l.DistinctIPs < 2 || l.DistinctIPs > 1000 || l.Seconds < 1 || l.Seconds > 86400 || l.CooldownSeconds < 0 || l.CooldownSeconds > 86400 || (l.Action != Deny && l.Action != Drop) {
-		return fmt.Errorf("invalid lockdown configuration")
-	}
-	hp := p.Honeypot
-	if len(hp.TrapPaths) > 128 || len(h.IgnorePaths) > 128 {
+	if len(h.IgnorePaths) > 128 {
 		return fmt.Errorf("too many signal paths")
 	}
-	for _, path := range append(append([]string{}, hp.TrapPaths...), h.IgnorePaths...) {
+	for _, path := range h.IgnorePaths {
 		if !strings.HasPrefix(path, "/") || len(path) > 1024 || NormalizePath(path) != path {
 			return fmt.Errorf("signal paths must be canonical absolute paths")
 		}
-	}
-	if hp.TTLSeconds < 1 || hp.TTLSeconds > 86400 || hp.MaxConcurrent < 1 || hp.MaxConcurrent > 256 || hp.MaxDelayMillis < 0 || hp.MaxDelayMillis > 2000 || hp.AuthFailThreshold < 1 || hp.WeakPasswordThreshold < 1 {
-		return fmt.Errorf("invalid honeypot configuration")
-	}
-	if err := validateHoneypotControls(hp); err != nil {
-		return err
 	}
 	if p.Network.MaxHeaderBytes < 4096 || p.Network.MaxHeaderBytes > 1<<20 || p.Network.ReadHeaderSeconds < 1 || p.Network.ReadHeaderSeconds > 60 || len(p.Network.TrustedProxies) > 256 {
 		return fmt.Errorf("invalid network limits")

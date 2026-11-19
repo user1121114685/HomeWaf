@@ -10,7 +10,9 @@ import (
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
+	"HomeWaf/model/request"
 	"HomeWaf/model/spec"
+	"HomeWaf/service/waf_service"
 	"HomeWaf/wafdb"
 	"HomeWaf/wafdb/dialect"
 	"HomeWaf/wafsec"
@@ -33,7 +35,7 @@ func TestSSLOrderScheduledRenewalNeedsNoExpiryMonitor(t *testing.T) {
 	}
 	conn, _ := db.DB()
 	defer conn.Close()
-	if err := db.AutoMigrate(&model.Hosts{}, &model.SslOrder{}, &model.SslOrderLog{}); err != nil {
+	if err := db.AutoMigrate(&model.PrivateInfo{}, &model.SslConfig{}, &model.SslRenewalPolicy{}, &model.SslOrder{}, &model.SslOrderLog{}); err != nil {
 		t.Fatal(err)
 	}
 	oldDB, oldQueue := global.GWAF_LOCAL_DB, global.GWAF_CHAN_SSLOrder
@@ -50,18 +52,22 @@ func TestSSLOrderScheduledRenewalNeedsNoExpiryMonitor(t *testing.T) {
 	if err := wafdb.RegisterTenantQueryScope(db); err != nil {
 		t.Fatal(err)
 	}
+	if err := waf_service.WafPrivateInfoServiceApp.AddApi(request.WafPrivateInfoAddReq{PrivateGroupBelongCloud: "hurricane", PrivateGroupName: "household", PrivateKey: "HURRICANE_TOKENS", PrivateValue: "example.com:fixture-token"}); err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		name    string
 		days    int
 		enabled bool
 	}{{"due", 15, true}, {"disabled", 15, false}, {"fresh", 60, true}} {
-		base := baseorm.BaseOrm{Id: tc.name, Tenant_ID: global.GWAF_TENANT_ID, USER_CODE: global.GWAF_USER_CODE, CREATE_TIME: customtype.JsonTime(time.Now()), UPDATE_TIME: customtype.JsonTime(time.Now())}
-		host := model.Hosts{BaseOrm: base, Code: tc.name, Host: tc.name + ".example.com", Port: 8443, Ssl: 1, BindSslId: "cert-" + tc.name}
-		if err := db.Create(&host).Error; err != nil {
+		base := baseorm.BaseOrm{Id: "cert-" + tc.name, Tenant_ID: global.GWAF_TENANT_ID, USER_CODE: global.GWAF_USER_CODE, CREATE_TIME: customtype.JsonTime(time.Now()), UPDATE_TIME: customtype.JsonTime(time.Now())}
+		validTo := customtype.JsonTime(time.Now().Add(time.Duration(tc.days) * 24 * time.Hour))
+		certificate := model.SslConfig{BaseOrm: base, CertContent: "fixture-cert-" + tc.name, ValidTo: validTo}
+		if err := db.Create(&certificate).Error; err != nil {
 			t.Fatal(err)
 		}
-		order := model.SslOrder{BaseOrm: base, HostCode: tc.name, ApplyDomain: host.Host, ApplyStatus: "success", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDns: "hurricane", ApplyEmail: "owner@example.com", PrivateGroupName: "household", AutoRenew: &tc.enabled, ResultCertificate: []byte("fixture-cert"), ResultPrivateKey: []byte("fixture-key"), ResultValidTo: customtype.JsonTime(time.Now().Add(time.Duration(tc.days) * 24 * time.Hour))}
-		if err := db.Create(&order).Error; err != nil {
+		policy := model.SslRenewalPolicy{BaseOrm: base, Version: 1, Enabled: tc.enabled, ApplyDomain: "example.com", ApplyPlatform: "letsencrypt", ApplyMethod: "dns01", ApplyDNS: "hurricane", ApplyEmail: "owner@example.com", CredentialGroup: "household", IssuanceContext: `{"AccountKey":"fixture-account"}`, Status: "idle"}
+		if err := db.Create(&policy).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -71,7 +77,7 @@ func TestSSLOrderScheduledRenewalNeedsNoExpiryMonitor(t *testing.T) {
 	if err := db.Where("apply_status = ?", "submitted").Find(&pending).Error; err != nil {
 		t.Fatal(err)
 	}
-	if len(pending) != 1 || pending[0].RenewFrom != "due" || !pending[0].AutoRenewEnabled() || pending[0].PrivateGroupName != "household" {
+	if len(pending) != 1 || pending[0].CertificateID != "cert-due" || pending[0].Trigger != "automatic" || pending[0].ApplyDns != "hurricane" || pending[0].PrivateGroupName != "household" {
 		t.Fatal("scheduled renewal ignored preference, due date or saved credentials")
 	}
 	if len(global.GWAF_CHAN_SSLOrder) != 1 {

@@ -4,7 +4,7 @@
 //   - Linux/BSD/macOS：SO_REUSEPORT（+ SO_REUSEADDR）
 //   - Windows：SO_REUSEADDR（无 SO_REUSEPORT，语义较弱，配合 Supervisor 快速交接兜底）
 //
-// 该包仅依赖标准库与 golang.org/x/sys，可被 wafenginecore / wafhttpserver / wafmangeweb
+// 该包仅依赖标准库与 golang.org/x/sys，可被 wafpipeline / wafmangeweb
 // 等任意上层包引用而不产生导入环。平台相关的 reusePortControl 见 reuseport_unix.go / reuseport_windows.go。
 package wafnet
 
@@ -23,15 +23,4 @@ func ReusePortTCPListen(addr string) (net.Listener, error) {
 func ReusePortTCPListenNetwork(network, addr string) (net.Listener, error) {
 	lc := net.ListenConfig{Control: reusePortControl}
 	return lc.Listen(context.Background(), network, addr)
-}
-
-// ReusePortPacketConn 创建开启端口复用的 UDP PacketConn，供 HTTP/3(QUIC) 使用。
-func ReusePortPacketConn(addr string) (net.PacketConn, error) {
-	return ReusePortPacketConnNetwork("udp", addr)
-}
-
-// ReusePortPacketConnNetwork 同上，network 取 udp/udp4/udp6，与 TCP 侧保持同一 IP 版本。
-func ReusePortPacketConnNetwork(network, addr string) (net.PacketConn, error) {
-	lc := net.ListenConfig{Control: reusePortControl}
-	return lc.ListenPacket(context.Background(), network, addr)
 }

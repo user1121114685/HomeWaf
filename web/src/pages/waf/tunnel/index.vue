@@ -91,8 +91,8 @@ import {
   prefix
 } from '@/config/global';
 import {
-  allhost
-} from '@/apis/host';
+  listServices
+} from '@/apis/services';
 
 import {
   wafTunnelListApi, wafTunnelDelApi, wafTunnelEditApi, wafTunnelAddApi, wafTunnelDetailApi
@@ -295,7 +295,7 @@ export default defineComponent({
     },
     loadHostList() {
       return new Promise((resolve, reject) => {
-        allhost()
+        listServices()
           .then((res) => {
             let resdata = res;
             console.log(resdata);

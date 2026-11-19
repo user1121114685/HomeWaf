@@ -37,15 +37,13 @@
       </template>
       <template v-else
         ><strong>{{
-          status.legacy
-            ? '尚未配置异常访问处置'
-            : !status.enabled
-              ? '自动处置未启用'
-              : status.mode === 'honeypot'
-                ? status.honeypot_ready
-                  ? '统一蜜罐导流已启用'
-                  : '统一蜜罐尚未就绪'
-                : '当前未触发自动限制'
+          !status.enabled
+            ? '自动处置未启用'
+            : status.mode === 'honeypot'
+              ? status.honeypot_ready
+                ? '统一蜜罐导流已启用'
+                : '统一蜜罐尚未就绪'
+              : '当前未触发自动限制'
         }}</strong
         ><span>本轮累计 {{ status.failures }} 次 · 近 30 天成功网段 {{ status.success_prefixes }} 个</span></template
       >

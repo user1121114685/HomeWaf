@@ -29,22 +29,22 @@ type LogNarrow struct {
 	PROVINCE string `gorm:"size:100" json:"province"`
 	CITY     string `gorm:"size:100" json:"city"`
 
-	ACTION             string `gorm:"size:100" json:"action"`
-	RULE               string `gorm:"type:text" json:"rule"`
-	STATUS             string `gorm:"size:50" json:"status"`
-	STATUS_CODE        int    `json:"status_code"`
-	RISK_LEVEL         int    `json:"risk_level"`
-	AI_SCORE           float64 `json:"ai_score"`
-	IsBot              int    `json:"is_bot"`
-	LogOnlyMode        int    `json:"log_only_mode"`
-	GUEST_IDENTIFICATION string `gorm:"column:guest_id_entification;size:191" json:"guest_identification"`
+	ACTION               string  `gorm:"size:100" json:"action"`
+	RULE                 string  `gorm:"type:text" json:"rule"`
+	STATUS               string  `gorm:"size:50" json:"status"`
+	STATUS_CODE          int     `json:"status_code"`
+	RISK_LEVEL           int     `json:"risk_level"`
+	AI_SCORE             float64 `json:"ai_score"`
+	IsBot                int     `json:"is_bot"`
+	LogOnlyMode          int     `json:"log_only_mode"`
+	GUEST_IDENTIFICATION string  `gorm:"column:guest_identification;size:191" json:"guest_identification"`
 
-	TimeSpent        int64  `json:"time_spent"`
-	CONTENT_LENGTH   int64  `json:"content_length"`
-	ResContentLength int64  `json:"res_content_length"`
-	PreCheckCost     int64  `json:"pre_check_cost"`
-	ForwardCost      int64  `json:"forward_cost"`
-	BackendCheckCost int64  `json:"backend_check_cost"`
+	TimeSpent        int64 `json:"time_spent"`
+	CONTENT_LENGTH   int64 `json:"content_length"`
+	ResContentLength int64 `json:"res_content_length"`
+	PreCheckCost     int64 `json:"pre_check_cost"`
+	ForwardCost      int64 `json:"forward_cost"`
+	BackendCheckCost int64 `json:"backend_check_cost"`
 
 	IsBalance   int    `json:"is_balance"`
 	BalanceInfo string `gorm:"size:255" json:"balance_info"`
@@ -57,8 +57,8 @@ type LogNarrow struct {
 	// actor_key 的索引不在 tag 里建：LogNarrow 同时嵌进 access_log 与 security_event，
 	// 而 SQLite/PG 的索引名全库唯一，同名会撞——改在迁移里按表各建各的（idx_al_actor/idx_se_actor）。
 	ActorKey string `gorm:"size:100" json:"actor_key"` // 访问者身份，目前只有 ip: 前缀的来源 IP
-	UaHash   string `gorm:"size:64" json:"ua_hash"`                       // UA 指纹，供「同一人多少种 UA」
-	PathNorm string `gorm:"size:512" json:"path_norm"`                    // 路径模板：数字段/UUID/hex 归一
+	UaHash   string `gorm:"size:64" json:"ua_hash"`    // UA 指纹，供「同一人多少种 UA」
+	PathNorm string `gorm:"size:512" json:"path_norm"` // 路径模板：数字段/UUID/hex 归一
 
 	CREATE_TIME   string `gorm:"size:32" json:"create_time"`
 	UNIX_ADD_TIME int64  `json:"unix_add_time"`

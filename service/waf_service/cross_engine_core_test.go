@@ -37,7 +37,7 @@ func runCoreCases(t *testing.T, db *gorm.DB) {
 	runCoreCRUDCasesB(t, db)
 	// 名单条目启用开关（is_enable）三库回归
 	runListEnableSwitchCases(t, db)
-	// 日志导出任务 user_code 缺列升级回归
+	// 在新库上按租户查询日志导出任务
 	runLogExportCases(t, db)
 	// ————— 升级须知：生成幂等 / 状态流转 / 降级不生成 —————
 	runUpgradeNoticeCases(t, db)
@@ -69,14 +69,6 @@ func runModifyMapCases(t *testing.T, db *gorm.DB) {
 		must(t, db.Create(&model.URLBlockList{BaseOrm: newBase(id), HostCode: "h1", CompareType: "suffix", Url: "/b"}).Error)
 		fatalIf(t, WafBlockUrlServiceApp.ModifyApi(request.WafBlockUrlEditReq{Id: id, HostCode: "h2", CompareType: "prefix", Url: "/b", Remarks: "r"}))
 		assertHostCode(t, db, &model.URLBlockList{}, id)
-	})
-	t.Run("AntiCC", func(t *testing.T) {
-		id := uuid.GenUUID()
-		must(t, db.Create(&model.AntiCC{BaseOrm: newBase(id), HostCode: "h1", Rate: 1, Limit: 1, LimitMode: "window"}).Error)
-		fatalIf(t, WafAntiCCServiceApp.ModifyApi(request.WafAntiCCEditReq{
-			Id: id, HostCode: "h2", Rate: 5, Limit: 5, LockIPMinutes: 5, LimitMode: "window",
-		}))
-		assertHostCode(t, db, &model.AntiCC{}, id)
 	})
 	t.Run("Ldp", func(t *testing.T) {
 		id := uuid.GenUUID()
@@ -134,8 +126,6 @@ func getHostCode(v interface{}) string {
 		return x.HostCode
 	case *model.URLAllowList:
 		return x.HostCode
-	case *model.AntiCC:
-		return x.HostCode
 	case *model.LDPUrl:
 		return x.HostCode
 	default:
@@ -186,24 +176,6 @@ func runCoreCRUDCases(t *testing.T, db *gorm.DB) {
 		}
 		fatalIf(t, WafCaServerInfoServiceApp.DelApi(request.WafCaServerInfoDelReq{Id: bean.Id}))
 		assertGone(t, db, &model.CaServerInfo{}, bean.Id)
-	})
-
-	t.Run("BlockingPage", func(t *testing.T) {
-		name := "bp_" + sfx()
-		fatalIf(t, WafBlockingPageServiceApp.AddApi(request.WafBlockingPageAddReq{
-			BlockingPageName: name, BlockingType: "intercept", AttackType: "cc_attack", HostCode: "h1", ResponseCode: "403", ResponseContent: "blocked",
-		}))
-		var bean model.BlockingPage
-		firstBy(t, db, &bean, "blocking_page_name = ?", name)
-		fatalIf(t, WafBlockingPageServiceApp.ModifyApi(request.WafBlockingPageEditReq{
-			Id: bean.Id, BlockingPageName: name, BlockingType: "intercept", AttackType: "cc_attack", HostCode: "h2", ResponseCode: "503", ResponseContent: "x",
-		}))
-		got := WafBlockingPageServiceApp.GetDetailByIdApi(bean.Id)
-		if got.ResponseCode != "503" || got.HostCode != "h2" {
-			t.Fatalf("BlockingPage 更新未落库: %+v", got)
-		}
-		fatalIf(t, WafBlockingPageServiceApp.DelApi(request.WafBlockingPageDelReq{Id: bean.Id}))
-		assertGone(t, db, &model.BlockingPage{}, bean.Id)
 	})
 
 	t.Run("CacheRule", func(t *testing.T) {
@@ -331,15 +303,17 @@ func runCoreCRUDCases(t *testing.T, db *gorm.DB) {
 	t.Run("BatchTask", func(t *testing.T) {
 		name := "bt_" + sfx()
 		fatalIf(t, WafBatchServiceApp.AddApi(request.BatchTaskAddReq{
-			BatchTaskName: name, BatchType: "ipdeny", BatchSourceType: "local", BatchTriggerType: "manual", BatchSource: "/tmp/x", BatchExecuteMethod: "append",
+			BatchTaskName: name, BatchType: "sensitive", BatchSourceType: "remote", BatchTriggerType: "manual",
+			BatchSource: "https://example.test/first", BatchExecuteMethod: "append",
 		}))
 		var bean model.BatchTask
 		firstBy(t, db, &bean, "batch_task_name = ?", name)
 		fatalIf(t, WafBatchServiceApp.ModifyApi(request.BatchTaskEditReq{
-			Id: bean.Id, BatchTaskName: name, BatchType: "ipdeny", BatchSourceType: "local", BatchTriggerType: "manual", BatchSource: "/tmp/y", BatchExecuteMethod: "append",
+			Id: bean.Id, BatchTaskName: name, BatchType: "sensitive", BatchSourceType: "remote", BatchTriggerType: "manual",
+			BatchSource: "https://example.test/second", BatchExecuteMethod: "append",
 		}))
 		got := WafBatchServiceApp.GetDetailByIdApi(bean.Id)
-		if got.BatchSource != "/tmp/y" {
+		if got.BatchSource != "https://example.test/second" || got.BatchSourceType != "remote" {
 			t.Fatalf("BatchTask 更新未落库: %+v", got)
 		}
 		fatalIf(t, WafBatchServiceApp.DelApi(request.BatchTaskDeleteReq{Id: bean.Id}))

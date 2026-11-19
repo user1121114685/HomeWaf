@@ -115,7 +115,7 @@ func genAccessSecret() (string, error) {
 //
 // 现在只会传 scope=sso（登录只发生在认证中心），会话服务所有站点，BindHost 留空。
 // scope=local 是老方案留下的，只服务 bindHost 一个域名，仅用于兼容升级前建的存量会话。
-func (receiver *WafAccessSessionService) CreateSession(acct model.AccessAccount, scope, bindHost,
+func (receiver *WafAccessSessionService) CreateSession(acct model.AccessAccount,
 	clientIP, fingerprint, userAgent string, cfg *accessgate.Config) (string, model.AccessSession, error) {
 
 	plain, err := genAccessSecret()
@@ -139,8 +139,7 @@ func (receiver *WafAccessSessionService) CreateSession(acct model.AccessAccount,
 		SessionCode:    HashAccessCode(plain),
 		AccountCode:    acct.Id,
 		AccountName:    acct.AccountName,
-		Scope:          scope,
-		BindHost:       strings.ToLower(bindHost),
+		Scope:          model.AccessScopeSSO,
 		ClientIP:       clientIP,
 		Fingerprint:    fingerprint,
 		UserAgent:      truncate(userAgent, 500),
@@ -284,7 +283,7 @@ func (receiver *WafAccessSessionService) ValidateToken(plain, host, hostCode, cl
 }
 
 // ValidateSSOSession 校验中心会话 Cookie（认证中心域名上使用）。
-func (receiver *WafAccessSessionService) ValidateSSOSession(plain, host, clientIP, fingerprint string,
+func (receiver *WafAccessSessionService) ValidateSSOSession(plain, clientIP, fingerprint string,
 	cfg *accessgate.Config) *model.AccessSession {
 
 	if plain == "" {
@@ -293,11 +292,6 @@ func (receiver *WafAccessSessionService) ValidateSSOSession(plain, host, clientI
 	code := HashAccessCode(plain)
 	sess := receiver.loadValidSession(code, cfg)
 	if sess == nil {
-		return nil
-	}
-	// 老的 local 会话只服务它绑定的那个域名（现在不再签发，见 CreateSession）
-	if sess.Scope == model.AccessScopeLocal && sess.BindHost != "" &&
-		!strings.EqualFold(sess.BindHost, host) {
 		return nil
 	}
 	if cfg.BindIP && sess.ClientIP != "" && sess.ClientIP != clientIP {
@@ -317,7 +311,7 @@ func (receiver *WafAccessSessionService) loadValidSession(sessionCode string, cf
 	}
 	var cachedSess model.AccessSession
 	if err := global.GCACHE_WAFCACHE.GetAs(enums.CACHE_ACCESS_SESSION+sessionCode, &cachedSess); err == nil &&
-		cachedSess.SessionCode != "" && cachedSess.Status == model.AccessStatusValid && time.Time(cachedSess.ExpireTime).After(time.Now()) {
+		cachedSess.SessionCode != "" && cachedSess.Scope == model.AccessScopeSSO && cachedSess.Status == model.AccessStatusValid && time.Time(cachedSess.ExpireTime).After(time.Now()) {
 		if receiver.sessionIdle(sessionCode, time.Time(cachedSess.LastActiveTime), time.Now(), cfg.IdleTimeout) {
 			return nil
 		}
@@ -329,7 +323,7 @@ func (receiver *WafAccessSessionService) loadValidSession(sessionCode string, cf
 		return nil
 	}
 	now := time.Now()
-	if time.Time(sess.ExpireTime).Before(now) {
+	if sess.Scope != model.AccessScopeSSO || time.Time(sess.ExpireTime).Before(now) {
 		return nil
 	}
 	if receiver.sessionIdle(sessionCode, time.Time(sess.LastActiveTime), now, cfg.IdleTimeout) {

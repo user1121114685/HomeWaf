@@ -17,7 +17,7 @@ import (
 // 历史实现把裸 *websocket.Conn 交给外部（消息队列 / 定时任务 / ping 回显）各写各的，
 // 撞在一起就会触发 "concurrent write to websocket connection" panic。
 //
-// 现在写出口全部收敛到本包：外部只能拿到会话 ID，通过 SendToSession / Broadcast 发送，
+// 现在写出口全部收敛到本包：外部只能拿到会话 ID，通过 SendToSession / BroadcastBuild 发送，
 // 内部按连接加锁串行化，并且强制写超时——避免一个卡死的客户端把广播方无限期吊住。
 const (
 	// WriteWait 单次写的最长等待时间。客户端卡死时最多把发送方挂住这么久。
@@ -32,7 +32,7 @@ type WebSocketConnection struct {
 	Conn      *Wssocket.Conn
 	SessionID string
 	UserKey   string
-	// KeyID 是该连接建连时声明的传输会话密钥标识（v2 客户端才有，旧客户端为空）。
+	// KeyID 是该连接建连时声明的传输会话密钥标识。
 	// 广播时按连接各自加密，所以这个值必须跟着连接走。
 	KeyID     string
 	CreatedAt time.Time
@@ -81,13 +81,11 @@ func (wafWebsocket *WebSocketOnline) generateSessionID() string {
 	return fmt.Sprintf("%x-%d", bytes, time.Now().UnixNano())
 }
 
-// 添加WebSocket连接，返回会话ID
-func (wafWebsocket *WebSocketOnline) AddWebSocket(userKey string, conn *Wssocket.Conn) string {
-	return wafWebsocket.AddWebSocketWithKey(userKey, "", conn)
-}
-
-// AddWebSocketWithKey 同 AddWebSocket，并记下该连接声明的传输会话密钥标识
+// AddWebSocketWithKey 记录连接声明的传输会话密钥标识。
 func (wafWebsocket *WebSocketOnline) AddWebSocketWithKey(userKey string, keyID string, conn *Wssocket.Conn) string {
+	if keyID == "" || conn == nil {
+		return ""
+	}
 	wafWebsocket.Mux.Lock()
 	defer wafWebsocket.Mux.Unlock()
 
@@ -158,26 +156,8 @@ func (wafWebsocket *WebSocketOnline) SendToSession(sessionID string, messageType
 	return wsConn.SafeWriteMessage(messageType, data)
 }
 
-// Broadcast 广播给所有在线连接，返回发送成功的连接数。
-// 写失败的连接直接关闭并摘除：死连接留在表里只会让后续每一轮广播都白等一次写超时。
-func (wafWebsocket *WebSocketOnline) Broadcast(messageType Wssocket.MessageType, data []byte) int {
-	successCount := 0
-	for _, wsConn := range wafWebsocket.snapshot() {
-		if wsConn == nil {
-			continue
-		}
-		if err := wsConn.SafeWriteMessage(messageType, data); err != nil {
-			wafWebsocket.CloseSession(wsConn.SessionID)
-			continue
-		}
-		successCount++
-	}
-	return successCount
-}
-
-// BroadcastBuild 广播给所有在线连接，但报文按连接单独组装——v2 通道下每条连接的
-// 会话密钥不同，没法像 Broadcast 那样一份密文发给所有人。
-// build 收到该连接的 KeyID（旧客户端为空串），返回该连接要收到的字节；返回错误则跳过这条连接。
+// BroadcastBuild 广播给所有在线连接，并按连接单独组装报文。
+// build 收到该连接的 KeyID，返回该连接要收到的字节；返回错误则跳过这条连接。
 // 加解密逻辑放在调用方，本包不依赖 wafsec。
 func (wafWebsocket *WebSocketOnline) BroadcastBuild(messageType Wssocket.MessageType, build func(keyID string) ([]byte, error)) int {
 	successCount := 0

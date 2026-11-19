@@ -505,28 +505,18 @@ export default defineComponent({
     navToHelper() {
       window.open(this.homewafglobalconfig.getOnlineUrl(), '_blank', 'noopener,noreferrer');
     },
-    resetServer() {
-      let that = this;
-      that.isResetloading = true;
-      this.$request
-        .get('/resetWAF')
-        .then((res) => {
-          let resdata = res;
-          console.log(resdata);
-          if (resdata.code === 0) {
-            that.$message.success(resdata.msg);
-            setTimeout(function () {
-              that.isResetloading = false;
-            }, 3000); // 定时时间
-          } else {
-            that.$message.warning(resdata.msg);
-          }
-        })
-        .catch((e: Error) => {
-          console.log(e);
-          that.isResetloading = false;
-        })
-        .finally(() => {});
+    async resetServer() {
+      if (this.isResetloading) return;
+      this.isResetloading = true;
+      try {
+        const result = await this.$request.post('/pipeline/reload', {});
+        if (result.code === 0) this.$message.success(result.msg);
+        else this.$message.warning(result.msg);
+      } catch (error) {
+        this.$message.warning(error instanceof Error ? error.message : String(error));
+      } finally {
+        this.isResetloading = false;
+      }
     },
     sendMail() {
       window.location.href = `/#/help`;

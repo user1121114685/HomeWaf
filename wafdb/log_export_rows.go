@@ -6,10 +6,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -41,9 +39,8 @@ type ExportRowBatch struct {
 	Rows  []map[string]interface{}
 }
 type ExportTableStatus struct {
-	State          string   `json:"state"`
-	MissingColumns []string `json:"missing_columns,omitempty"`
-	Rows           int64    `json:"rows"`
+	State string `json:"state"`
+	Rows  int64  `json:"rows"`
 }
 type ExportSourceStatus struct {
 	Driver       string                       `json:"driver"`
@@ -52,7 +49,7 @@ type ExportSourceStatus struct {
 	Tables       map[string]ExportTableStatus `json:"tables"`
 }
 
-var exportSuffixRE = regexp.MustCompile(`^(?:[0-9]{6}(?:_[0-9]{2,})?|[0-9]{8}|[0-9]{14})$`)
+const exportBatchSize = 1000
 
 // ReadExportSource requires the caller's read lease from enumeration through completion.
 func ReadExportSource(ctx context.Context, ident, tenant, start, end string, tables []string, onBatch func(ExportRowBatch) error) (ExportSourceStatus, error) {
@@ -126,7 +123,7 @@ func ReadExportSourceWithOptions(ctx context.Context, ident, tenant, start, end 
 	for _, name := range existing {
 		names[name] = true
 	}
-	if suffix != "" && !names[model.AccessLogTableName+suffix] && !names[model.SecurityEventTableName+suffix] {
+	if !isLiveIdent(ident) && !names[model.AccessLogTableName+suffix] && !names[model.SecurityEventTableName+suffix] {
 		return status, ErrExportSourceMapping
 	}
 	type readTable struct {
@@ -140,32 +137,12 @@ func ReadExportSourceWithOptions(ctx context.Context, ident, tenant, start, end 
 			status.Tables[table] = ExportTableStatus{State: "missing"}
 			continue
 		}
-		cctx, cancel := context.WithTimeout(ctx, opts.BatchTimeout)
-		cols, e := dialect.Get().ColumnInfo(tx.WithContext(cctx), physical)
-		cancel()
-		if e != nil {
-			return status, e
-		}
-		available := map[string]bool{}
-		for _, col := range cols {
-			available[strings.ToLower(col.Name)] = true
-		}
-		for _, required := range []string{"req_uuid", "create_time", "tenant_id", "user_code"} {
-			if !available[required] {
-				return status, fmt.Errorf("EXPORT_SOURCE_REQUIRED_COLUMN: %s", required)
-			}
-		}
 		fields, _ := waflogexport.Fields(table)
-		ts := ExportTableStatus{State: "ready"}
 		p := readTable{logical: table, physical: physical}
 		for _, field := range fields {
-			if available[field.Column] {
-				p.columns = append(p.columns, field.Column)
-			} else {
-				ts.MissingColumns = append(ts.MissingColumns, field.Column)
-			}
+			p.columns = append(p.columns, field.Column)
 		}
-		status.Tables[table] = ts
+		status.Tables[table] = ExportTableStatus{State: "ready"}
 		plans = append(plans, p)
 	}
 	// Pin the server snapshot before any consumer callback can run.
@@ -210,9 +187,6 @@ func ReadExportSourceWithOptions(ctx context.Context, ident, tenant, start, end 
 					if b, ok := v.([]byte); ok {
 						row[k] = string(b)
 					}
-				}
-				for _, missing := range status.Tables[p.logical].MissingColumns {
-					row[missing] = nil
 				}
 			}
 			last, ok := rows[len(rows)-1]["req_uuid"].(string)
@@ -270,13 +244,8 @@ func openExportSource(ctx context.Context, ident string) (*gorm.DB, string, stri
 		if live {
 			return db, "", "", noop, nil
 		}
-		for _, base := range []string{model.AccessLogTableName, LogTableName} {
-			if strings.HasPrefix(ident, base+"_") {
-				suffix := strings.TrimPrefix(ident, base+"_")
-				if exportSuffixRE.MatchString(suffix) {
-					return db, "_" + suffix, "", noop, nil
-				}
-			}
+		if suffix := ArchiveTableSuffix(ident); suffix != "" {
+			return db, "_" + suffix, "", noop, nil
 		}
 		return nil, "", "", noop, errors.New("invalid export source identifier")
 	}

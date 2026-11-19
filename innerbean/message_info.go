@@ -41,16 +41,6 @@ type UpdateResultMessageInfo struct {
 	Success string `json:"success"`
 }
 
-/*
-*
-导出日志结果
-*/
-type ExportResultMessageInfo struct {
-	BaseMessageInfo
-	Msg     string `json:"msg"`
-	Success string `json:"success"`
-}
-
 // 日志统一导出任务完成通知：仅携带任务定位信息，前端从任务接口申请下载票据。
 type LogExportReadyMessageInfo struct {
 	BaseMessageInfo

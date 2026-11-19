@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const dist = path.join(root, 'web', 'dist');
@@ -71,21 +71,16 @@ const mask = (row) => {
   return result;
 };
 await context.route('**/api/**', async (route) => {
+  if (await handleTransportHandshake(route)) return;
   const request = route.request(),
     endpoint = new URL(request.url()).pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '' } });
-  const fail = (msg) => route.fulfill({ json: { code: -1, data: AesEncrypt('{}'), msg } });
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '' } });
+  const fail = (msg) => route.fulfill({ json: { code: -1, data: routeSession(route).encrypt('{}'), msg } });
+  if (endpoint === 'sysinfo/checkversion')
     return fail('Isolated notification fixture');
   let input = {};
   if (request.postData()) {
-    try {
-      input = JSON.parse(AesDecrypt(request.postData()));
-    } catch {
-      try {
-        input = JSON.parse(request.postData());
-      } catch {}
-    }
+    input = JSON.parse(routeSession(route).decrypt(request.postData()));
   }
   if (endpoint === 'notify/channel/types') return ok(catalogue);
   if (endpoint === 'notify/channel/list')

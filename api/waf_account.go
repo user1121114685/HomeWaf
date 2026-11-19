@@ -18,23 +18,13 @@ import (
 type WafAccountApi struct {
 }
 
-// currentRole 从上下文取当前登录角色（经鉴权中间件归一化）
-func currentRole(c *gin.Context) string {
-	if v, ok := c.Get("userRole"); ok {
-		if r, ok := v.(string); ok {
-			return enums.NormalizeRole(r)
-		}
-	}
-	return enums.ROLE_SUPER_ADMIN
-}
-
 // AddApi 新增账号
 func (w *WafAccountApi) AddApi(c *gin.Context) {
 	var req request.WafAccountAddReq
 	err := c.ShouldBindJSON(&req)
 	if err == nil {
 		// N7 防提权：账号创建集中到超级管理员，杜绝 systemAdmin 横向新建 security/audit/其它 system 管理员自我提权。
-		if currentRole(c) != enums.ROLE_SUPER_ADMIN {
+		if c.GetString("userRole") != enums.ROLE_SUPER_ADMIN {
 			response.ForbiddenWithMessage("仅超级管理员可创建管理账号", c)
 			return
 		}
@@ -92,7 +82,7 @@ func (w *WafAccountApi) DelAccountApi(c *gin.Context) {
 	err := c.ShouldBind(&req)
 	if err == nil {
 		// N7 防提权：账号删除集中到超级管理员，防止 systemAdmin 删除超管/他域账号（原先无任何角色/目标校验）。
-		if currentRole(c) != enums.ROLE_SUPER_ADMIN {
+		if c.GetString("userRole") != enums.ROLE_SUPER_ADMIN {
 			response.ForbiddenWithMessage("仅超级管理员可删除管理账号", c)
 			return
 		}
@@ -117,7 +107,7 @@ func (w *WafAccountApi) ModifyAccountApi(c *gin.Context) {
 	if err == nil {
 		// N7 防提权：角色变更仅超级管理员可为（在 service 内按目标账号"当前角色"精确判定，
 		// 只拦真正的角色变化，不影响非角色字段的正常编辑）。
-		err = wafAccountService.ModifyApi(req, currentRole(c))
+		err = wafAccountService.ModifyApi(req, c.GetString("userRole"))
 		if err != nil {
 			response.FailWithMessage(err.Error(), c)
 		} else {
@@ -218,7 +208,7 @@ func (w *WafAccountApi) ResetAccountOTPApi(c *gin.Context) {
 		}
 		// N4 修复：原判断写反（== "admin"）——把 admin/超管自己挡在门外，却放行其它 systemAdmin 删他人 2FA。
 		// 正确策略：仅超级管理员可重置他人 2FA（角色经 Auth 中间件归一化后写入上下文）。
-		if currentRole(c) != enums.ROLE_SUPER_ADMIN {
+		if c.GetString("userRole") != enums.ROLE_SUPER_ADMIN {
 			response.ForbiddenWithMessage("仅超级管理员可以重置双因素认证(2FA)", c)
 			return
 		}

@@ -3,7 +3,6 @@ package wafenginecore
 import (
 	"HomeWaf/global"
 	"HomeWaf/innerbean"
-	"HomeWaf/model/wafenginmodel"
 	"HomeWaf/utils"
 	"HomeWaf/wafpipeline"
 	"net"
@@ -16,7 +15,7 @@ import (
 // RecordPipelineWebLog connects completed port requests to the existing access,
 // security-event, statistics and export sinks. Pipeline traces remain separate:
 // state changes and protocol diagnostics are not additional HTTP requests.
-func (waf *WafEngine) RecordPipelineWebLog(s *wafpipeline.Snapshot, c *wafpipeline.RequestContext, result wafpipeline.Result) {
+func RecordPipelineWebLog(s *wafpipeline.Snapshot, c *wafpipeline.RequestContext, result wafpipeline.Result) {
 	if global.GQEQUE_LOG_DB == nil || s == nil || s.Preview || c == nil || c.DryRun || c.Request == nil {
 		return
 	}
@@ -71,15 +70,7 @@ func (waf *WafEngine) RecordPipelineWebLog(s *wafpipeline.Snapshot, c *wafpipeli
 			lg.LogOnlyMode = 1
 		}
 	}
-	// Resolve exclusions by the configured site identity, never an untrusted Host.
-	host := &wafenginmodel.HostSafe{}
-	if waf != nil {
-		table := waf.rt()
-		if existing := table.HostTarget[table.HostCode[lg.HOST_CODE]]; existing != nil {
-			host = existing
-		}
-	}
-	if !shouldRecordWebLog(lg, host) {
+	if !shouldRecordWebLog(lg) {
 		return
 	}
 	region, resolved := utils.GetCountryEx(lg.SRC_IP)

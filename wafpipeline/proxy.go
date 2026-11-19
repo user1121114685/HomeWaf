@@ -640,7 +640,7 @@ func (f *Forwarder) Serve(s *Snapshot, c *RequestContext, w http.ResponseWriter)
 		if target.responseHeaders != nil {
 			applyBusinessHeaders(w.Header(), target.responseHeaders(c.Request, c.ClientIP.String()))
 		}
-		writer := &localResponseWriter{w: w, state: &forwardRequest{snapshot: s, request: c, response: record}, f: f, noBuffer: !bodyResponsePolicyActive(s, c) && s.Config.Policy.Network.Response.Compression.IsEnable != 1 && !(record.login != nil && s.Config.Policy.Defense != nil && s.Config.Policy.Defense.Enabled)}
+		writer := &localResponseWriter{w: w, state: &forwardRequest{snapshot: s, request: c, response: record}, f: f, noBuffer: !bodyResponsePolicyActive(s, c) && s.Config.Policy.Network.Response.Compression.IsEnable != 1 && !(record.login != nil && s.Config.Policy.Defense.Enabled)}
 		target.handler.ServeHTTP(writer, c.Request.WithContext(ctx))
 		writer.finish()
 		record.status = writer.status
@@ -701,7 +701,7 @@ func (f *Forwarder) observe(s *Snapshot, c *RequestContext, target *ProxyTarget,
 		if success {
 			responseHit(c, "business_auth_success", "business_login", true, r.status)
 		} else {
-			responseHit(c, "auth_fail", "business_login", !policy.ResponseSignals && (s.Config.Policy.Defense == nil || !s.Config.Policy.Defense.Enabled), r.status)
+			responseHit(c, "auth_fail", "business_login", !policy.ResponseSignals && !s.Config.Policy.Defense.Enabled, r.status)
 			if r.weak {
 				responseHit(c, "weak_pwd", "business_login", !policy.ResponseSignals, r.status)
 			}

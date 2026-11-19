@@ -34,9 +34,8 @@ var (
 	GWAF_DEBUG_WORKER_HEADER bool   = false
 	GWAF_WORKER_TAG          string = "" //当前进程标识(pid+启动时间)
 
-	GWAF_RUNTIME_WIN7_VERSION string = "false" //是否是win7内部版本
-	GWAF_RUNTIME_QPS          uint64 = 0       //当前qps (累积值)
-	GWAF_RUNTIME_LOG_PROCESS  uint64 = 0       //log 处理速度 (累积值)
+	GWAF_RUNTIME_QPS         uint64 = 0 //当前qps (累积值)
+	GWAF_RUNTIME_LOG_PROCESS uint64 = 0 //log 处理速度 (累积值)
 
 	// QPS实时计算相关变量 (用于差分计算)
 	GWAF_LAST_QPS_VALUE           uint64 = 0 //上次QPS计数值
@@ -109,7 +108,6 @@ var (
 	GWAF_OWASP_MANAGER *wafowasp.OwaspManager //owasp 管理器（支持热重载）
 	/**链聚合**/
 	GWAF_CHAN_HOST                                  = make(chan model.Hosts, 10)         //主机链
-	GWAF_CHAN_ENGINE                                = make(chan int, 10)                 //引擎链
 	GWAF_CHAN_MSG                                   = make(chan spec.ChanCommonHost, 10) //全局通讯包
 	GWAF_CHAN_COMMON_MSG                            = make(chan spec.ChanCommon, 10)     //全局共用通讯包
 	GWAF_CHAN_UPDATE                                = make(chan int, 10)                 //升级后处理链
@@ -121,10 +119,8 @@ var (
 	GWAF_CHAN_TASK                                  = make(chan string, 10)              //手工执行任务
 	GWAF_CHAN_TASK_RELOAD                           = make(chan model.Task, 10)          //任务重新加载
 	GWAF_CHAN_CLEAR_CC_WINDOWS                      = make(chan int, 10)                 //清除cc缓存信息
-	GWAF_CHAN_CLEAR_CC_IP                           = make(chan string, 10)              //清除cc缓存信息IP
 	GWAF_QUEUE_SHUTDOWN_SIGNAL        chan struct{} = make(chan struct{})                // 队列关闭信号
 	GWAF_CHAN_MANAGER_RESTART                       = make(chan int, 1)                  // 管理端重启信号
-	GWAF_CHAN_HTTP3                                 = make(chan int, 1)                  // HTTP/3 开关变更信号(配置热生效)
 
 	GWAF_SHUTDOWN_SIGNAL bool = false // 系统关闭信号
 	/*****CACHE相关*********/
@@ -207,7 +203,7 @@ var (
 	GWebSocket *gwebsocket.WebSocketOnline
 
 	//升级相关
-	GUPDATE_VERSION_URL        string = "" // Optional publisher manifest root; also used by announcement/data services.
+	GUPDATE_VERSION_URL        string = "" // Optional announcement and data service root.
 	GUPDATE_RELEASE_URL        string = "https://api.github.com/repos/user1121114685/HomeWaf/releases/latest"
 	GUPDATE_GITHUB_VERSION_URL string = "" // Optional prerelease metadata endpoint.
 	//GUPDATE_GITHUB_VERSION_URL string = ""
@@ -258,7 +254,6 @@ var (
 	GWAF_DEFAULT_ACCOUNT string = "admin" //默认创建的账户
 
 	//通讯加密
-	GWAF_COMMUNICATION_KEY = []byte("7E@u*has$d*@s5YX") //通讯加密密钥
 
 	//资源下载
 	GWAF_BOT_IP_URL_MAIN string = ""
@@ -288,18 +283,6 @@ func IncrementQPS() {
 // IncrementLogQPS 增加日志处理QPS计数 (只增加累积计数)
 func IncrementLogQPS() {
 	atomic.AddUint64(&GWAF_RUNTIME_LOG_PROCESS, 1)
-}
-
-// NotifyHTTP3ConfigChanged 投递一次 HTTP/3 配置变更信号，让引擎重新对齐 QUIC 监听。
-//
-// cap=1 + select/default：连续多次改动只留一次待处理信号(reconcile 本身幂等)；
-// 且在引擎/主循环尚未就绪时(启动期加载配置)也绝不会阻塞调用方 ——
-// 信号会留在缓冲里，等主循环起来后被消费。
-func NotifyHTTP3ConfigChanged() {
-	select {
-	case GWAF_CHAN_HTTP3 <- 1:
-	default:
-	}
 }
 
 // UpdateRealtimeQPS 更新实时QPS (基于差分计算，定时调用)

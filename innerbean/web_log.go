@@ -36,15 +36,15 @@ type WebLog struct {
 	RES_BODY           string `gorm:"type:text" json:"res_body"`  //返回信息
 	POST_FORM          string `gorm:"type:text" json:"post_form"` //提交的表单数据
 	// ── S1 检测归一化副本（gorm:"-" 不落库、json:"-" 不外传，仅供各 check 使用）──
-	BodyDecoded          string   `gorm:"-" json:"-"`                                                        //body 多轮URL解码（RCE 等按整串匹配用）
-	CookiesDecoded       string   `gorm:"-" json:"-"`                                                        //cookie 多轮URL解码
-	BodyValues           []string `gorm:"-" json:"-"`                                                        //JSON 请求体逐值提取(已解码)，供 XSS/SQLi/RCE 逐值检测降误报
-	BodyFields           []string `gorm:"-" json:"-"`                                                        //与 BodyValues 平行的直接父键名，供“按字段排除”(E)
-	TASK_FLAG            int      `json:"task_flag" gorm:"default:-1;index"`                                 //任务处理标记 -1 等待处理；1 可以进行处理；2 处理完毕
-	UNIX_ADD_TIME        int64    `json:"unix_add_time" gorm:"index"`                                        //添加日期unix
-	RISK_LEVEL           int      `json:"risk_level"`                                                        //危险等级 0:正常 1:轻微 2:有害 3:严重 4:特别严重
-	GUEST_IDENTIFICATION string   `gorm:"column:guest_id_entification;size:191" json:"guest_identification"` //访客身份识别
-	IsBot                int      `json:"is_bot"`                                                            //是否是机器人  0 不是机器人 1 机器人
+	BodyDecoded          string   `gorm:"-" json:"-"`                                              //body 多轮URL解码（RCE 等按整串匹配用）
+	CookiesDecoded       string   `gorm:"-" json:"-"`                                              //cookie 多轮URL解码
+	BodyValues           []string `gorm:"-" json:"-"`                                              //JSON 请求体逐值提取(已解码)，供 XSS/SQLi/RCE 逐值检测降误报
+	BodyFields           []string `gorm:"-" json:"-"`                                              //与 BodyValues 平行的直接父键名，供“按字段排除”(E)
+	TASK_FLAG            int      `json:"task_flag" gorm:"default:-1;index"`                       //任务处理标记 -1 等待处理；1 可以进行处理；2 处理完毕
+	UNIX_ADD_TIME        int64    `json:"unix_add_time" gorm:"index"`                              //添加日期unix
+	RISK_LEVEL           int      `json:"risk_level"`                                              //危险等级 0:正常 1:轻微 2:有害 3:严重 4:特别严重
+	GUEST_IDENTIFICATION string   `gorm:"column:guest_identification" json:"guest_identification"` //访客身份识别
+	IsBot                int      `json:"is_bot"`                                                  //是否是机器人  0 不是机器人 1 机器人
 	// BotVerifyStrong 爬虫身份是否走完完整验证闭环（正向确认的反向DNS / 厂商公布网段）。
 	// 仅进程内使用，不落库也不出接口：它只影响运行期判定，存下来没有意义。
 	BotVerifyStrong  int     `gorm:"-" json:"-"`
@@ -122,23 +122,10 @@ func (w *WebLog) GetHeaderValue(headerName string) string {
 	return ""
 }
 
-// 在 GORM 的 Model 方法中定义复合索引
-func (WebLog) TableName() string {
-	return "web_logs"
-}
-
 // IsSafeBot 判断是否是安全bot
 // Only a fully verified identity may bypass ordinary failure accounting.
 func (w *WebLog) IsSafeBot() bool {
 	return w.IsBot == 1 && w.RISK_LEVEL == 0 && w.BotVerifyStrong == 1
-}
-
-// NormalizePipelineVisitorIdentity corrects the old pipeline placeholder on read.
-// A request outcome does not establish a visitor identity or trust level.
-func (w *WebLog) NormalizePipelineVisitorIdentity() {
-	if strings.HasPrefix(w.HOST_CODE, "pipeline-") && (w.GUEST_IDENTIFICATION == "" || w.GUEST_IDENTIFICATION == "正常访客") {
-		w.GUEST_IDENTIFICATION = "未识别访客"
-	}
 }
 
 // IsSecurityEvent 判断这条请求算不算「安全事件」——命中了规则、被拦了、或处于仅记录模式。

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { AesEncrypt, AesDecrypt } from '../src/utils/legacyCipher.ts';
+import { handleTransportHandshake, routeSession } from './transport-fixture.mjs';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const origin = process.env.DIAGNOSTICS_TEST_ORIGIN || 'http://127.0.0.1:3118';
 if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) throw new Error('An isolated local fixture is required');
@@ -106,18 +106,15 @@ await context.route('**/*', async (route) => {
     url = new URL(request.url());
   if (url.origin !== origin) return route.abort();
   if (!url.pathname.startsWith('/api/')) return route.continue();
+  if (await handleTransportHandshake(route)) return;
   const endpoint = url.pathname.split('/api/v1/')[1] || '';
-  const ok = (data) => route.fulfill({ json: { code: 0, data: AesEncrypt(JSON.stringify(data)), msg: '' } });
-  const fail = (msg) => route.fulfill({ json: { code: 1, data: AesEncrypt('{}'), msg } });
-  if (endpoint.includes('handshake') || ['public/seckey', 'sysinfo/checkversion'].includes(endpoint))
+  const ok = (data) => route.fulfill({ json: { code: 0, data: routeSession(route).encrypt(JSON.stringify(data)), msg: '' } });
+  const fail = (msg) => route.fulfill({ json: { code: 1, data: routeSession(route).encrypt('{}'), msg } });
+  if (endpoint === 'sysinfo/checkversion')
     return fail('Isolated fixture');
   let input = {};
   if (request.postData()) {
-    try {
-      input = JSON.parse(AesDecrypt(request.postData()));
-    } catch {
-      input = JSON.parse(request.postData());
-    }
+    input = JSON.parse(routeSession(route).decrypt(request.postData()));
   }
   const port = Number(url.searchParams.get('port') || input.port || input.config?.port);
   report.requests.push({ endpoint, port });
@@ -197,7 +194,7 @@ await context.route('**/*', async (route) => {
   if (endpoint.startsWith('pipeline/gate/')) return ok([]);
   if (endpoint === 'upgradenotice/summary') return ok({ pending_count: 0, popup_items: [], need_popup: false });
   if (endpoint === 'statsysinfo') return ok({ is_default_account: false, is_empty_otp: false, is_empty_host: false });
-  if (endpoint === 'wafhost/host/allhost')
+  if (endpoint === 'waflog/services')
     return ok(configs.map((config) => ({ value: config.host_code, label: config.name, source: 'pipeline' })));
   if (endpoint === 'wafstatsiteoverview')
     return ok({

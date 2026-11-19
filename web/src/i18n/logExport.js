@@ -2,7 +2,7 @@
 
 export const zh = {
   title: '导出日志', tasks: '我的导出任务', create: '创建导出任务', refresh: '刷新', close: '关闭',
-  scope: '仅导出所选时间内已保存的两类概要日志；不含详细报文和旧 web_logs，不应用当前列表的 IP、URL、站点、分页或排序。两表可能记录同一请求，条数分别统计。',
+  scope: '仅导出所选时间内已保存的两类概要日志；不含详细报文，不应用当前列表的 IP、URL、站点、分页或排序。两表可能记录同一请求，条数分别统计。',
   tables: '日志表', access: '访问日志', event: '安全事件', time: '时间范围', custom: '精确时间', days: '按整天', daysBoundary: '按当前浏览器时区，包含开始和结束日期的整天；结束边界为结束日期次日零点。', daysValidation: '请选择至少一张日志表和有效日期范围，开始日期不得晚于结束日期。', recent: '最近4小时', all: '全部现存日志',
   boundary: '包含开始时间，不包含结束时间。全部范围在受理时固定结束边界。', allWarning: '全部现存日志可能耗时较长并占用较多空间，建议按时间分批导出。',
   format: '文件格式', jsonl: 'JSONL（推荐，大批量分析）', csv: 'CSV（Excel / WPS 分析）', sqlite: 'SQLite（标准数据库）',
@@ -19,13 +19,13 @@ export const zh = {
   resolving: '解析来源', reading: '读取日志', complete: '处理完成', cancel: '取消', download: '下载 ZIP', delete: '删除', detail: '查看任务',
   partialHint: '部分来源未完成，此包不代表所选范围的完整数据。请查看 ZIP 清单中的来源摘要。',
   expiredHint: '产物已回收，请重新创建任务；可用数据仍受当前日志保留期限制。', failedHint: '任务没有生成可下载的完整产物，请按错误提示调整范围后重新创建。',
-  emptyHint: '全部预期来源读取成功，写出0条，属于有效空结果。', payload: '报文', legacyLogs: '旧版日志 web_logs', progressHint: '显示实际写出条数、字节与来源完成数；关闭弹窗只停止页面轮询，不取消服务端任务。',
+  emptyHint: '全部预期来源读取成功，写出0条，属于有效空结果。', payload: '报文', progressHint: '显示实际写出条数、字节与来源完成数；关闭弹窗只停止页面轮询，不取消服务端任务。',
   cancelTitle: '取消导出任务', cancelBody: '停止此任务并释放执行资源？', deleteTitle: '删除导出任务', deleteBody: '删除任务产物；运行中的任务会先取消。此操作不能恢复产物。',
-  confirm: '确认', keep: '保留', taskId: '任务编号', readyNotice: '日志导出任务已更新，请查看任务后下载。', oldNotice: '收到旧版日志导出通知。请在访问日志中使用新的导出任务入口，并确认前后端版本一致。'
+  confirm: '确认', keep: '保留', taskId: '任务编号', readyNotice: '日志导出任务已更新，请查看任务后下载。'
 };
 export const en = {
   title: 'Export logs', tasks: 'My export tasks', create: 'Create export task', refresh: 'Refresh', close: 'Close',
-  scope: 'Exports only saved access and security event summaries in the selected time range. Detailed payloads and legacy web_logs are excluded. Current list filters, site, pagination and sorting do not apply. A request may appear in both tables; rows are counted separately.',
+  scope: 'Exports only saved access and security event summaries in the selected time range. Detailed payloads are excluded. Current list filters, site, pagination and sorting do not apply. A request may appear in both tables; rows are counted separately.',
   tables: 'Log tables', access: 'Access log', event: 'Security events', time: 'Time range', custom: 'Exact time', days: 'Whole days', daysBoundary: 'Uses your browser’s time zone and includes both selected dates. The end boundary is midnight after the last selected date.', daysValidation: 'Select at least one table and a valid date range, with the start date on or before the end date.', recent: 'Last 4 hours', all: 'All existing logs',
   boundary: 'Start inclusive, end exclusive. For all existing logs, the end boundary is fixed when accepted.', allWarning: 'Exporting all existing logs may take considerable time and storage. Prefer smaller time ranges.',
   format: 'File format', jsonl: 'JSONL (recommended, bulk analysis)', csv: 'CSV (Excel / WPS analysis)', sqlite: 'SQLite (standard database)',
@@ -42,7 +42,7 @@ export const en = {
   resolving: 'Resolving sources', reading: 'Reading logs', complete: 'Complete', cancel: 'Cancel', download: 'Download ZIP', delete: 'Delete', detail: 'View task',
   partialHint: 'Some sources did not complete. This package is incomplete for the selected range. Check the source summary in the ZIP manifest.',
   expiredHint: 'The package has expired. Create a new task; available data still depends on log retention.', failedHint: 'No complete downloadable package was generated. Review the error and create a new task with an adjusted range.',
-  emptyHint: 'All expected sources were read successfully and zero rows were written. This is a valid empty result.', payload: 'Payloads', legacyLogs: 'Legacy web_logs', progressHint: 'Shows actual rows, bytes and completed sources. Closing this dialog stops polling only; the server task continues.',
+  emptyHint: 'All expected sources were read successfully and zero rows were written. This is a valid empty result.', payload: 'Payloads', progressHint: 'Shows actual rows, bytes and completed sources. Closing this dialog stops polling only; the server task continues.',
   cancelTitle: 'Cancel export task', cancelBody: 'Stop this task and release its resources?', deleteTitle: 'Delete export task', deleteBody: 'Delete the package. A running task will be cancelled first. Deleted packages cannot be recovered.',
-  confirm: 'Confirm', keep: 'Keep', taskId: 'Task ID', readyNotice: 'A log export task has been updated. View the task to download it.', oldNotice: 'A legacy log export notification was received. Use the new export task entry on the access log page and check frontend/backend compatibility.'
+  confirm: 'Confirm', keep: 'Keep', taskId: 'Task ID', readyNotice: 'A log export task has been updated. View the task to download it.'
 };

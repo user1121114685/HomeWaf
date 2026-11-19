@@ -11,7 +11,7 @@ import (
 
 // RequireRole 基于角色的访问控制中间件（三权分立强制点）。
 // 规则：
-//   - 超级管理员(superAdmin) 恒通过（含空角色兜底，保证向后兼容）
+//   - 显式授权的超级管理员(superAdmin) 可访问各角色域
 //   - OpenAPI Key 调用（is_openapi）放行：API Key 已经过独立校验，
 //     其细粒度授权属于开放平台 Key 体系，不在账号角色范围内，避免影响既有自动化
 //   - 角色命中 allowedRoles 通过，否则返回 403
@@ -27,14 +27,12 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			}
 		}
 
-		roleVal, exists := c.Get("userRole")
-		role, valid := roleVal.(string)
-		if !exists || !valid {
+		role := c.GetString("userRole")
+		if !enums.IsValidRole(role) {
 			response.ForbiddenWithMessage("未获取到有效账号角色", c)
 			c.Abort()
 			return
 		}
-		role = enums.NormalizeRole(role)
 
 		// 超级管理员恒通过
 		if role == enums.ROLE_SUPER_ADMIN {

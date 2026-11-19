@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { AesEncrypt } from '../src/utils/legacyCipher.ts';
+import { acceptHandshake, fixtureSession } from './transport-fixture.mjs';
 const webRoot = fileURLToPath(new URL('..', import.meta.url));
 const dist = path.join(webRoot, 'dist');
 const channelCatalogue = JSON.parse(fs.readFileSync(path.join(webRoot, '../wafnotify/channels/catalog.json'), 'utf8'));
@@ -55,7 +55,7 @@ const mime = {
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
 };
-const server = http.createServer((request, response) => {
+const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1:3118');
   const send = (data, code = 0) => {
     response.writeHead(200, { 'Content-Type': 'application/json' });
@@ -63,23 +63,34 @@ const server = http.createServer((request, response) => {
       JSON.stringify({
         code,
         msg: code ? 'Isolated fixture: unsupported operation' : '',
-        data: AesEncrypt(JSON.stringify(data)),
+        data: fixtureSession(request.headers['x-key-id']).encrypt(JSON.stringify(data)),
       }),
     );
   };
   if (url.pathname.startsWith('/api/')) {
     const endpoint = url.pathname.split('/api/v1/')[1] || '';
-    if (endpoint.includes('handshake') || endpoint === 'public/seckey' || endpoint === 'sysinfo/checkversion')
+    if (endpoint === 'public/seckey') {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const reply = acceptHandshake(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      return response.end(JSON.stringify(reply));
+    }
+    if (!request.headers['x-key-id']) {
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      return response.end(JSON.stringify({ code: -5, data: '', msg: 'Session required' }));
+    }
+    if (endpoint === 'heartbeat') return send({ login_account: 'fixture', role: 'superAdmin' });
+    if (endpoint === 'sysinfo/checkversion')
       return send({}, 1);
     if (request.method !== 'GET' && !endpoint.endsWith('/list')) return send({}, 1);
     if (endpoint === 'notify/channel/types') return send(channelCatalogue);
-    if (endpoint === 'wafhost/host/allhost') return send(ports.map(row => ({value:row.config.host_code,label:row.config.name,source:'pipeline'})));
+    if (endpoint === 'waflog/services') return send(ports.map(row => ({value:row.config.host_code,label:row.config.name,source:'pipeline'})));
     if (endpoint === 'statrumtimesysinfo') return send([{name:'运行环境',value:'隔离预览'},{name:'数据来源',value:'本地模拟响应，不连接防护实例'}]);
     if (endpoint === 'pipeline/overview') return send({ ports, issues: {}, punishment: {}, log_queue: {} });
     if (endpoint === 'pipeline/templates') return send(templates);
     if (
       [
-        'pipeline/migration/legacy',
         'pipeline/regions',
         'pipeline/gate/users',
         'pipeline/gate/sessions',

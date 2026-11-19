@@ -12,8 +12,10 @@ import (
 	"HomeWaf/cache"
 	"HomeWaf/enums"
 	"HomeWaf/global"
+	"HomeWaf/internal/transporttest"
 	"HomeWaf/model"
 	"HomeWaf/model/common/response"
+	"HomeWaf/wafsec"
 	"github.com/gin-gonic/gin"
 )
 
@@ -55,7 +57,7 @@ func TestAllBackendRouteAuthenticationBoundaries(t *testing.T) {
 	global.UpdateSettings(func(s *global.RuntimeSettings) {
 		s.GCONFIG_RECORD_DEBUG_ENABLE = 1
 		s.GCONFIG_RECORD_DEBUG_PWD = ""
-		s.GCONFIG_COMM_LEGACY_KEY = true
+
 		s.GCONFIG_ENABLE_STRICT_IP_BINDING = 0
 		s.GCONFIG_ENABLE_DEVICE_FINGERPRINT = 0
 		s.GCONFIG_RECORD_FORCE_BIND_2FA = 0
@@ -104,6 +106,7 @@ func TestAllBackendRouteAuthenticationBoundaries(t *testing.T) {
 	actual := gin.New()
 	web.RegisterRoutes(actual)
 	store.SetWithTTl(enums.CACHE_TOKEN+"audit-invalid-role", model.TokenInfo{LoginAccount: "audit-fixture", Role: "invalid-role"}, time.Hour)
+	store.SetWithTTl(enums.CACHE_TOKEN+"audit-empty-role", model.TokenInfo{LoginAccount: "audit-fixture"}, time.Hour)
 	store.SetWithTTl(enums.CACHE_TOKEN+"audit-role", model.TokenInfo{LoginAccount: "audit-fixture", Role: enums.ROLE_AUDIT_ADMIN}, time.Hour)
 	store.SetWithTTl(enums.CACHE_TOKEN+"audit-system-role", model.TokenInfo{LoginAccount: "audit-fixture", Role: enums.ROLE_SYSTEM_ADMIN}, time.Hour)
 	store.SetWithTTl(enums.CACHE_TOKEN+"audit-security-role", model.TokenInfo{LoginAccount: "audit-fixture", Role: enums.ROLE_SECURITY_ADMIN}, time.Hour)
@@ -141,7 +144,7 @@ func TestAllBackendRouteAuthenticationBoundaries(t *testing.T) {
 				}
 			})
 		}
-		for _, token := range []string{"", "audit-expired-token", "audit-invalid-role"} {
+		for _, token := range []string{"", "audit-expired-token", "audit-invalid-role", "audit-empty-role"} {
 			t.Run(route.Method+" "+route.Path+"/"+token, func(t *testing.T) {
 				request := httptest.NewRequest(route.Method, auditURL(route.Path), nil)
 				if token != "" {
@@ -164,14 +167,26 @@ func TestAllBackendRouteAuthenticationBoundaries(t *testing.T) {
 			})
 		}
 	}
-	t.Logf("audited %d routes: %d protected routes × 3 rejection cases; %d public/ticket routes separately inventoried", len(routes), protected, public)
+	t.Logf("audited %d routes: %d protected routes × 4 rejection cases; %d public/ticket routes separately inventoried", len(routes), protected, public)
 	// Audit administrators must not mutate service policy, credentials, files,
 	// certificate orders, or send test notifications. Run the real middleware.
 	global.UpdateSettings(func(s *global.RuntimeSettings) { s.GCONFIG_ENABLE_REPLAY_PROTECT = 0 })
+	keyID := transporttest.Session(t)
 	for _, path := range []string{"/api/v1/public/login", "/api/v1/public/seckey"} {
 		t.Run("public-empty/"+path, func(t *testing.T) {
-			req := httptest.NewRequest("POST", path, strings.NewReader("{}"))
+			body := "{}"
+			if path == "/api/v1/public/login" {
+				encrypted, err := wafsec.TransportEncrypt(keyID, []byte(body))
+				if err != nil {
+					t.Fatal(err)
+				}
+				body = encrypted
+			}
+			req := httptest.NewRequest("POST", path, strings.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
+			if path == "/api/v1/public/login" {
+				req.Header.Set(response.HeaderKeyID, keyID)
+			}
 			rec := httptest.NewRecorder()
 			actual.ServeHTTP(rec, req)
 			var result struct {
@@ -198,6 +213,7 @@ func TestAllBackendRouteAuthenticationBoundaries(t *testing.T) {
 			t.Run("write-role/"+route.method+route.path+"/"+token, func(t *testing.T) {
 				req := httptest.NewRequest(route.method, auditURL(route.path), nil)
 				req.Header.Set("X-Token", token)
+				req.Header.Set(response.HeaderKeyID, keyID)
 				rec := httptest.NewRecorder()
 				actual.ServeHTTP(rec, req)
 				var result struct {

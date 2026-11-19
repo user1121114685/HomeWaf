@@ -192,7 +192,6 @@ func main() {
 		policy.RuleSet.QPS.Burst = 10000
 		policy.Gate.Enabled = i%2 == 0
 		policy.Gate.TokenHeader = "X-HomeWaf-Token"
-		policy.Honeypot.Enabled = true
 		token := randomSecret()
 		sum := sha256.Sum256([]byte(token))
 		s := &wafpipeline.Snapshot{Config: wafpipeline.PortConfig{Schema: 1, Port: port, Name: "soak", Protocol: "http", Upstream: back.URL, ListenEnabled: true, Policy: policy}, Secrets: wafpipeline.PortSecrets{GateKey: randomSecret(), ServiceTokenHashes: []string{hex.EncodeToString(sum[:])}}}

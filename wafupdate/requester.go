@@ -30,6 +30,15 @@ func newUpdateHTTPClient(dial, tlsHandshake, respHeader time.Duration) *http.Cli
 	return &http.Client{
 		// 0 = 不限总时长
 		Timeout: 0,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if req.URL.Scheme != "https" {
+				return fmt.Errorf("release redirect requires HTTPS")
+			}
+			if len(via) >= 10 {
+				return fmt.Errorf("too many release redirects")
+			}
+			return nil
+		},
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{

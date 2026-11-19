@@ -46,80 +46,27 @@ type route struct {
 }
 
 var registeredRoutes = []route{
-	// ── IP 白名单 ──────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/ipwhite/add", "新增IP白名单"},
-	{"GET", "/api/v1/wafhost/ipwhite/detail", "获取IP白名单详情"},
-	{"POST", "/api/v1/wafhost/ipwhite/list", "获取IP白名单列表"},
-	{"GET", "/api/v1/wafhost/ipwhite/del", "删除IP白名单"},
-	{"POST", "/api/v1/wafhost/ipwhite/edit", "编辑IP白名单"},
-
-	// ── URL 白名单 ─────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/urlwhite/add", "新增URL白名单"},
-	{"GET", "/api/v1/wafhost/urlwhite/detail", "获取URL白名单详情"},
-	{"POST", "/api/v1/wafhost/urlwhite/list", "获取URL白名单列表"},
-	{"GET", "/api/v1/wafhost/urlwhite/del", "删除URL白名单"},
-	{"POST", "/api/v1/wafhost/urlwhite/edit", "编辑URL白名单"},
-
-	// ── IP 黑名单 ──────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/ipblock/add", "新增IP黑名单"},
-	{"GET", "/api/v1/wafhost/ipblock/detail", "获取IP黑名单详情"},
-	{"POST", "/api/v1/wafhost/ipblock/list", "获取IP黑名单列表"},
-	{"GET", "/api/v1/wafhost/ipblock/del", "删除IP黑名单"},
-	{"POST", "/api/v1/wafhost/ipblock/edit", "编辑IP黑名单"},
-
-	// ── URL 黑名单 ─────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/urlblock/add", "新增URL黑名单"},
-	{"GET", "/api/v1/wafhost/urlblock/detail", "获取URL黑名单详情"},
-	{"POST", "/api/v1/wafhost/urlblock/list", "获取URL黑名单列表"},
-	{"GET", "/api/v1/wafhost/urlblock/del", "删除URL黑名单"},
-	{"POST", "/api/v1/wafhost/urlblock/edit", "编辑URL黑名单"},
-
-	// ── Anti-CC ────────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/anticc/add", "新增Anti-CC规则"},
-	{"GET", "/api/v1/wafhost/anticc/detail", "获取Anti-CC规则详情"},
-	{"POST", "/api/v1/wafhost/anticc/list", "获取Anti-CC规则列表"},
-	{"GET", "/api/v1/wafhost/anticc/del", "删除Anti-CC规则"},
-	{"POST", "/api/v1/wafhost/anticc/edit", "编辑Anti-CC规则"},
+	{"GET", "/api/v1/pipeline/ports/index", "受保护服务列表"},
+	{"GET", "/api/v1/pipeline/ports/detail", "服务详情"},
+	{"POST", "/api/v1/pipeline/ports/draft", "新服务草稿"},
+	{"POST", "/api/v1/pipeline/ports/check", "校验服务配置"},
+	{"POST", "/api/v1/pipeline/ports/save", "保存服务策略"},
+	{"POST", "/api/v1/pipeline/ports/access", "修改访问状态"},
+	{"POST", "/api/v1/pipeline/ports/delete", "删除服务"},
+	{"GET", "/api/v1/pipeline/state", "服务处罚记录"},
+	{"POST", "/api/v1/pipeline/state/manage", "管理服务处罚"},
+	{"GET", "/api/v1/pipeline/cc/hits", "CC 规则命中"},
+	{"POST", "/api/v1/pipeline/cc/recommend", "推荐 CC 阈值"},
+	{"POST", "/api/v1/wafhost/rule/format", "格式化规则"},
+	{"POST", "/api/v1/wafhost/rule/test", "校验规则"},
 
 	// ── IP 失败封禁 ────────────────────────────────────────────────
-	{"GET", "/api/v1/wafhost/ipfailure/config", "获取IP失败封禁配置"},
-	{"POST", "/api/v1/wafhost/ipfailure/config", "设置IP失败封禁配置"},
-	{"GET", "/api/v1/wafhost/ipfailure/baniplist", "获取IP失败封禁列表"},
 
 	// ── 防火墙 IP 封禁 ─────────────────────────────────────────────
 	{"POST", "/api/v1/firewall/ipblock/add", "新增防火墙IP封禁"},
 	{"POST", "/api/v1/firewall/ipblock/list", "获取防火墙IP封禁列表"},
 	{"GET", "/api/v1/firewall/ipblock/del", "删除防火墙IP封禁"},
 	{"POST", "/api/v1/firewall/ipblock/edit", "编辑防火墙IP封禁"},
-
-	// ── WAF 规则 ───────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/rule/add", "新增WAF规则"},
-	{"GET", "/api/v1/wafhost/rule/detail", "获取WAF规则详情"},
-	{"POST", "/api/v1/wafhost/rule/list", "获取WAF规则列表"},
-	{"GET", "/api/v1/wafhost/rule/del", "删除WAF规则"},
-	{"POST", "/api/v1/wafhost/rule/edit", "编辑WAF规则"},
-	{"GET", "/api/v1/wafhost/rule/rulestatus", "修改WAF规则状态"},
-
-	// ── 敏感词 ─────────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/sensitive/add", "新增敏感词"},
-	{"GET", "/api/v1/wafhost/sensitive/detail", "获取敏感词详情"},
-	{"POST", "/api/v1/wafhost/sensitive/list", "获取敏感词列表"},
-	{"GET", "/api/v1/wafhost/sensitive/del", "删除敏感词"},
-	{"POST", "/api/v1/wafhost/sensitive/edit", "编辑敏感词"},
-
-	// ── 缓存规则 ───────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/cacherule/add", "新增缓存规则"},
-	{"GET", "/api/v1/wafhost/cacherule/detail", "获取缓存规则详情"},
-	{"POST", "/api/v1/wafhost/cacherule/list", "获取缓存规则列表"},
-	{"GET", "/api/v1/wafhost/cacherule/del", "删除缓存规则"},
-	{"POST", "/api/v1/wafhost/cacherule/edit", "编辑缓存规则"},
-
-	// ── 负载均衡 ───────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/loadbalance/add", "新增负载均衡"},
-	{"GET", "/api/v1/wafhost/loadbalance/detail", "获取负载均衡详情"},
-	{"POST", "/api/v1/wafhost/loadbalance/list", "获取负载均衡列表"},
-	{"GET", "/api/v1/wafhost/loadbalance/del", "删除负载均衡"},
-	{"POST", "/api/v1/wafhost/loadbalance/edit", "编辑负载均衡"},
 
 	// ── 一键修改 ───────────────────────────────────────────────────
 	{"GET", "/api/v1/wafhost/onekeymod/detail", "获取一键修改详情"},
@@ -157,15 +104,6 @@ var registeredRoutes = []route{
 	{"POST", "/api/v1/wafhost/privategroup/listbybelongcloud", "按云获取私有分组列表"},
 	{"GET", "/api/v1/wafhost/privategroup/del", "删除私有分组"},
 	{"POST", "/api/v1/wafhost/privategroup/edit", "编辑私有分组"},
-
-	// ── 网站管理 ───────────────────────────────────────────────────
-	{"POST", "/api/v1/wafhost/host/add", "新增站点"},
-	{"GET", "/api/v1/wafhost/host/detail", "获取站点详情"},
-	{"POST", "/api/v1/wafhost/host/list", "获取站点列表"},
-	{"GET", "/api/v1/wafhost/host/del", "删除站点"},
-	{"POST", "/api/v1/wafhost/host/edit", "编辑站点"},
-	{"GET", "/api/v1/wafhost/host/guardstatus", "修改防护状态"},
-	{"GET", "/api/v1/wafhost/host/startstatus", "修改启动状态"},
 
 	// ── SSL 证书 ───────────────────────────────────────────────────
 	{"POST", "/api/v1/sslconfig/add", "新增SSL证书"},
@@ -262,7 +200,7 @@ var registeredRoutes = []route{
 	{"GET", "/api/v1/logfilewrite/variables", "获取日志变量"},
 
 	// ── WAF 引擎 ───────────────────────────────────────────────────
-	{"GET", "/api/v1/resetWAF", "重启WAF引擎"},
+	{"POST", "/api/v1/pipeline/reload", "重新加载受保护服务"},
 
 	// ── OWASP 规则管理 ─────────────────────────────────────────────
 	{"GET", "/api/v1/owasp/rules", "获取OWASP规则列表"},

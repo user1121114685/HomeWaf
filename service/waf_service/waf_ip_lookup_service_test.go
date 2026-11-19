@@ -4,12 +4,15 @@ package waf_service
 
 import (
 	"path/filepath"
-	"strings"
+	"time"
+
+	"HomeWaf/wafpipeline"
 	"testing"
 
 	"HomeWaf/global"
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
+	"HomeWaf/model/response"
 
 	sqlite "HomeWaf/internal/sqlitedialect"
 	"gorm.io/gorm"
@@ -27,12 +30,14 @@ func setupIPLookupTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("打开测试库失败: %v", err)
 	}
 	if err := db.AutoMigrate(
-		&model.IPGroup{}, &model.IPGroupItem{}, &model.IPBlockList{},
-		&model.IPAllowList{}, &model.Hosts{}, &model.FirewallIPBlock{},
+		&model.IPGroup{}, &model.IPGroupItem{}, &model.FirewallIPBlock{},
 	); err != nil {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
 
+	previousPorts := wafpipeline.Ports
+	wafpipeline.Ports = wafpipeline.NewRegistry[wafpipeline.Snapshot](10)
+	t.Cleanup(func() { wafpipeline.Ports = previousPorts })
 	oldDB, oldTenant, oldUser := global.GWAF_LOCAL_DB, global.GWAF_TENANT_ID, global.GWAF_USER_CODE
 	global.GWAF_LOCAL_DB = db
 	global.GWAF_TENANT_ID, global.GWAF_USER_CODE = "SamWafCom", "user-uuid-iplookup"
@@ -51,12 +56,22 @@ func newLookupBase(id string) baseorm.BaseOrm {
 	return baseorm.BaseOrm{Id: id, USER_CODE: global.GWAF_USER_CODE, Tenant_ID: global.GWAF_TENANT_ID}
 }
 
+func publishLookupService(t *testing.T, port uint16, group wafpipeline.IPGroupConfig) {
+	t.Helper()
+	config := wafpipeline.PortConfig{Name: "Family", Port: port, Policy: wafpipeline.DefaultPolicy()}
+	config.Policy.IPGroup = group
+	if err := wafpipeline.Ports.Publish(port, func() (*wafpipeline.Snapshot, error) {
+		return &wafpipeline.Snapshot{Config: config}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestLookupMatchesCIDR 网段必须能命中：用户填的是 1.2.3.0/24，查 1.2.3.4 得算命中。
 // 这条最容易写错成字符串相等，一旦退化就会误报「这个IP不在黑名单里」。
 func TestLookupMatchesCIDR(t *testing.T) {
-	db := setupIPLookupTestDB(t)
-	db.Create(&model.Hosts{BaseOrm: newLookupBase("h1"), Code: "hostA", Host: "www.demo.com"})
-	db.Create(&model.IPBlockList{IsEnable: 1, BaseOrm: newLookupBase("b1"), HostCode: "hostA", Ip: "1.2.3.0/24", Remarks: "网段封禁"})
+	setupIPLookupTestDB(t)
+	publishLookupService(t, 14001, wafpipeline.IPGroupConfig{Entries: []wafpipeline.IPEntry{{Type: "deny", Value: "1.2.3.0/24"}}})
 
 	resp, err := WafIPLookupServiceApp.Lookup("1.2.3.4", nil)
 	if err != nil {
@@ -72,44 +87,61 @@ func TestLookupMatchesCIDR(t *testing.T) {
 	if h.Matched != "1.2.3.0/24" {
 		t.Fatalf("应回显实际命中的那条规则，实际 %q", h.Matched)
 	}
-	if h.Scope != "www.demo.com" {
+	if h.Port != 14001 || h.Scope != "Family (:14001)" {
 		t.Fatalf("host_code 应翻成域名，实际 %q", h.Scope)
 	}
 }
 
-// TestLookupGlobalScope host_code 为空表示全局网站，必须标成「全局」，
-// 否则用户会以为这条只影响某一个站点
-func TestLookupGlobalScope(t *testing.T) {
-	db := setupIPLookupTestDB(t)
-	db.Create(&model.IPAllowList{IsEnable: 1, BaseOrm: newLookupBase("a1"), HostCode: "", Ip: "10.0.0.1"})
-
-	resp, _ := WafIPLookupServiceApp.Lookup("10.0.0.1", nil)
-	if len(resp.Hits) != 1 || resp.Hits[0].Scope != "全局" {
-		t.Fatalf("空 host_code 应显示为全局，实际 %+v", resp.Hits)
-	}
-	// 全局站点其实是 hosts 表里一条 host="全局网站" 的普通记录，走站点名即可
-	db.Create(&model.Hosts{BaseOrm: newLookupBase("hg"), Code: "uuid-global", Host: "全局网站"})
-	db.Create(&model.IPAllowList{IsEnable: 1, BaseOrm: newLookupBase("a2"), HostCode: "uuid-global", Ip: "10.0.0.2"})
-	if r2, _ := WafIPLookupServiceApp.Lookup("10.0.0.2", nil); r2.Hits[0].Scope != "全局网站" {
-		t.Fatalf("全局站点应显示站点名，实际 %q", r2.Hits[0].Scope)
-	}
-	// 指向已删除站点的名单不会生效，必须标出来而不是显示一串 uuid
-	db.Create(&model.IPAllowList{IsEnable: 1, BaseOrm: newLookupBase("a3"), HostCode: "gone-uuid", Ip: "10.0.0.3"})
-	if r3, _ := WafIPLookupServiceApp.Lookup("10.0.0.3", nil); !strings.Contains(r3.Hits[0].Scope, "不生效") {
-		t.Fatalf("站点不存在应提示不生效，实际 %q", r3.Hits[0].Scope)
-	}
-	if resp.Hits[0].Effect != "allow" {
-		t.Fatalf("白名单效果应为 allow，实际 %q", resp.Hits[0].Effect)
+func TestLookupServiceScopeAndExpiry(t *testing.T) {
+	setupIPLookupTestDB(t)
+	group := wafpipeline.IPGroupConfig{Entries: []wafpipeline.IPEntry{
+		{Type: "allow", Value: "10.0.0.1", Trust: "trusted"},
+		{Type: "deny", Value: "10.0.0.1", ExpiresAt: time.Now().Add(-time.Minute).Unix()},
+	}}
+	publishLookupService(t, 14001, group)
+	resp, err := WafIPLookupServiceApp.Lookup("10.0.0.1", nil)
+	if err != nil || len(resp.Hits) != 1 || resp.Hits[0].Effect != "allow" || resp.Hits[0].Port != 14001 {
+		t.Fatalf("service scope or expiry lost: %+v, %v", resp, err)
 	}
 }
 
-// TestLookupGroupRefEffect IP组本身不决定放行/拦截，取决于谁引用了它。
-// 同时被黑白名单引用时白名单先判，实际是放行——这个结论不能报反。
+func TestLookupServiceBanUsesCurrentPunisher(t *testing.T) {
+	setupIPLookupTestDB(t)
+	previous := WafPipelineStateServiceApp
+	punisher := wafpipeline.NewPunisher()
+	WafPipelineStateServiceApp = &WafPipelineStateService{Punisher: punisher}
+	t.Cleanup(func() { WafPipelineStateServiceApp = previous })
+	record := wafpipeline.PunishmentRecord{
+		ID: "ban|port:14002|2001:db8::/64", Kind: "ban", PortID: "port:14002", Scope: "port",
+		Prefix: "2001:db8::/64", Reason: "cc",
+	}
+	if err := punisher.Restore([]wafpipeline.PunishmentRecord{record}); err != nil {
+		t.Fatal(err)
+	}
+	lookup := func() []response.IPLookupHit {
+		t.Helper()
+		result, err := WafIPLookupServiceApp.Lookup("2001:db8::1", []string{srcServiceBan})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result.Hits
+	}
+	if hits := lookup(); len(hits) != 1 || hits[0].Port != 14002 || hits[0].Matched != record.Prefix {
+		t.Fatalf("native ban missing owning service or prefix: %+v", hits)
+	}
+	if err := punisher.Manage(record.PortID, record.ID, "release"); err != nil {
+		t.Fatal(err)
+	}
+	if hits := lookup(); len(hits) != 0 {
+		t.Fatalf("released ban still shown: %+v", hits)
+	}
+}
+
 func TestLookupGroupRefEffect(t *testing.T) {
 	db := setupIPLookupTestDB(t)
 	db.Create(&model.IPGroup{BaseOrm: newLookupBase("g1"), GroupName: "办公出口", GroupCode: "office"})
 	db.Create(&model.IPGroupItem{BaseOrm: newLookupBase("gi1"), GroupCode: "office", Ip: "192.168.1.0/24"})
-	db.Create(&model.IPBlockList{IsEnable: 1, BaseOrm: newLookupBase("b1"), HostCode: "hostA", IpType: model.IPEntryTypeGroup, GroupCode: "office"})
+	publishLookupService(t, 14001, wafpipeline.IPGroupConfig{DenyGroups: []string{"office"}})
 
 	resp, _ := WafIPLookupServiceApp.Lookup("192.168.1.9", nil)
 	if len(resp.Hits) != 1 {
@@ -119,11 +151,10 @@ func TestLookupGroupRefEffect(t *testing.T) {
 		t.Fatalf("被黑名单引用的组应判 block，实际 %+v", resp.Hits[0])
 	}
 
-	// 再加一个白名单引用，效果应翻成放行
-	db.Create(&model.IPAllowList{IsEnable: 1, BaseOrm: newLookupBase("a1"), HostCode: "hostA", IpType: model.IPEntryTypeGroup, GroupCode: "office"})
-	resp2, _ := WafIPLookupServiceApp.Lookup("192.168.1.9", nil)
-	if resp2.Hits[0].Effect != "allow" {
-		t.Fatalf("黑白名单同时引用同一组时白名单优先，应为 allow，实际 %q", resp2.Hits[0].Effect)
+	publishLookupService(t, 14001, wafpipeline.IPGroupConfig{AllowGroups: []string{"office"}, DenyGroups: []string{"office"}})
+	resp, _ = WafIPLookupServiceApp.Lookup("192.168.1.9", nil)
+	if len(resp.Hits) != 1 || resp.Hits[0].Effect != "block" {
+		t.Fatalf("service deny groups must take precedence: %+v", resp.Hits)
 	}
 }
 
@@ -189,7 +220,7 @@ func TestLookupSystemLayerFlag(t *testing.T) {
 	}
 
 	// WAF 层的黑名单不该被误标成系统层，否则每次加白都会弹一个无关的警告
-	db.Create(&model.IPBlockList{IsEnable: 1, BaseOrm: newLookupBase("b1"), HostCode: "", Ip: "6.6.6.6"})
+	publishLookupService(t, 14001, wafpipeline.IPGroupConfig{Entries: []wafpipeline.IPEntry{{Type: "deny", Value: "6.6.6.6"}}})
 	resp2, _ := WafIPLookupServiceApp.Lookup("6.6.6.6", nil)
 	if len(resp2.Hits) != 1 || resp2.Hits[0].SystemLayer {
 		t.Fatalf("IP黑名单只在WAF层，不该标系统层，实际 %+v", resp2.Hits)
@@ -208,8 +239,8 @@ func TestLandsOnSystem(t *testing.T) {
 // TestLookupAcceptsCIDR 从「查看IP」列表点进来时传的是网段，
 // 不能直接判非法——取代表IP查，并如实说明查的是哪个
 func TestLookupAcceptsCIDR(t *testing.T) {
-	db := setupIPLookupTestDB(t)
-	db.Create(&model.IPBlockList{IsEnable: 1, BaseOrm: newLookupBase("b1"), HostCode: "", Ip: "1.2.3.0/24"})
+	setupIPLookupTestDB(t)
+	publishLookupService(t, 14001, wafpipeline.IPGroupConfig{Entries: []wafpipeline.IPEntry{{Type: "deny", Value: "1.2.3.0/24"}}})
 
 	resp, err := WafIPLookupServiceApp.Lookup("1.2.3.0/24", nil)
 	if err != nil {

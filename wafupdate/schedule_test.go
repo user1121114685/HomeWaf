@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"HomeWaf/global"
+	"HomeWaf/internal/releasetest"
 )
 
 func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
@@ -21,22 +22,19 @@ func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
 	published.Store("v2.0.2")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
-		if !strings.HasSuffix(r.URL.Path, ".json") {
-			t.Errorf("unexpected request for %s", r.URL.Path)
-		}
 		version := published.Load().(string)
 		if version == "" {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]any{"Version": version, "Sha256": make([]byte, 32)})
+		json.NewEncoder(w).Encode(releasetest.Metadata(version, "scheduled release"))
 	}))
 	defer server.Close()
-	oldRoot, oldBeta, oldVersion := global.GUPDATE_VERSION_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION
+	oldManifest, oldRoot, oldBeta, oldVersion := global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION
 	t.Cleanup(func() {
-		global.GUPDATE_VERSION_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION = oldRoot, oldBeta, oldVersion
+		global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION = oldManifest, oldRoot, oldBeta, oldVersion
 	})
-	global.GUPDATE_VERSION_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION = server.URL+"/", "", "v2.0.1"
+	global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION = "", server.URL, "", "v2.0.1"
 
 	dir := t.TempDir()
 	monitor := NewReleaseMonitor(dir)
@@ -110,6 +108,8 @@ func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
 		t.Fatalf("incorrect release notifications: %v", notifications)
 	}
 
+	published.Store("v2.0.3")
+	run(readPlan().NextCheck)
 	published.Store("")
 	due := readPlan().NextCheck
 	if err := monitor.CheckDue(due, notify); err == nil {
@@ -119,7 +119,7 @@ func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
 	monitor = NewReleaseMonitor(dir)
 	run(due)
 	stale, err := monitor.Check(true)
-	if err != nil || stale.Version != "v2.0.4-rc.1" || stale.CheckWarning == "" || calls.Load() != before {
+	if err != nil || stale.Version != "v2.0.3" || stale.CheckWarning == "" || calls.Load() != before {
 		t.Fatalf("failure lost known release or retried in the same window: %+v %v", stale, err)
 	}
 	published.Store("v2.0.4")
