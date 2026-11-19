@@ -91,7 +91,15 @@ async function prepareInstaller() {
     const packer = path.join(dir, 'pack-fixture.ps1');
     fs.writeFileSync(packer, "param([string]$Source,[string]$Destination)\n$ErrorActionPreference='Stop'\n$files=@(Get-ChildItem -LiteralPath $Source | ForEach-Object { $_.FullName })\nCompress-Archive -LiteralPath $files -DestinationPath $Destination\n");
     await runProcess('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', packer, stage, archivePath]);
-  } else await runProcess('tar', ['-czf', archivePath, '-C', stage, '.']);
+  } else await runProcess('tar', [
+    '-czf', archivePath,
+    '-C', stage,
+    nativeName,
+    'LICENSE',
+    'NOTICE',
+    'THIRD_PARTY_NOTICES.md',
+    'LICENSES',
+  ]);
   const digest = createHash('sha256');
   for await (const data of fs.createReadStream(archivePath)) digest.update(data);
   const checksumsPath = path.join(dir, 'fixture-checksums.txt');
