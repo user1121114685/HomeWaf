@@ -289,6 +289,16 @@ async function capture(name, scope = page) {
       await expect
         .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
         .toBeLessThanOrEqual(2);
+      await expect
+        .poll(() =>
+          page.locator('.el-dialog:visible').evaluateAll((elements) =>
+            elements.every((el) => {
+              const rect = el.getBoundingClientRect();
+              return rect.left >= 0 && rect.right <= innerWidth + 1;
+            }),
+          ),
+        )
+        .toBe(true);
       const dialogs = await page.locator('.el-dialog:visible').evaluateAll((elements) =>
         elements.map((el) => {
           const rect = el.getBoundingClientRect();

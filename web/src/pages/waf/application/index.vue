@@ -155,7 +155,7 @@
     <hw-dialog
       :header="$t('page.application.op_password_title')"
       v-model:visible="opPasswordDialogVisible"
-      :width="420"
+      :width="'min(420px, calc(100vw - 24px))'"
       :confirm-btn="{ loading: opPwdVerifying, content: $t('common.confirm') }"
       @confirm="onOpPasswordConfirm"
       :onCancel="onOpPasswordCancel"

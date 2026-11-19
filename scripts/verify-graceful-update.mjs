@@ -22,7 +22,7 @@ fs.mkdirSync(path.join(dir, 'conf'));
 const report = { requests: 0, failures: [], failureSamples: {}, versions: [], checks: [], directory: dir };
 const freePort = async () => { const s = net.createServer(); const p = await listen(s); await new Promise((r) => s.close(r)); return p; };
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const waitFor = async (fn, timeout = 60000) => { const end = Date.now() + timeout; let last; while (Date.now() < end) { try { const value = await fn(); if (value) return value; } catch (err) { last = err; } await delay(100); } throw new Error('Timed out waiting for smoke check: ' + (last?.message || 'condition not satisfied') + (last?.cause?.message ? ` (${last.cause.message})` : '')); };
+const waitFor = async (fn, timeout = 60000, interval = 100) => { const end = Date.now() + timeout; let last; while (Date.now() < end) { try { const value = await fn(); if (value) return value; } catch (err) { last = err; } await delay(interval); } throw new Error('Timed out waiting for smoke check: ' + (last?.message || 'condition not satisfied') + (last?.cause?.message ? ` (${last.cause.message})` : '')); };
 const keyPath = path.join(dir, 'publisher.key');
 const caPath = path.join(dir, 'publisher.pem');
 execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
@@ -183,10 +183,18 @@ try {
   if (!viaInstaller) await updateCompletion;
   // A script waits for the upgrade to finish. Observe takeover and release long
   // connections concurrently, rather than keeping them open until drain timeout.
-  const after = await Promise.race([
-    waitFor(() => { const s = readState(); return s.active_pid && s.active_pid !== before.active_pid ? s : false; }),
+  const handoff = await Promise.race([
+    waitFor(async () => {
+      const state = readState();
+      if (state.active_pid && state.active_pid !== before.active_pid) return { state };
+      const progress = await api('updateprogress');
+      if (progress.state === 'failed') return { error: progress.error || 'Worker handoff failed', progress };
+      return false;
+    }, 150000, 1000),
     updateCompletion.then(() => new Promise(() => {})),
   ]);
+  if (handoff.error) throw new Error(`Worker handoff failed at ${handoff.progress.error_stage || 'unknown stage'}: ${handoff.error}`);
+  const after = handoff.state;
   report.newWorker = after.active_pid;
   if (!after.pids.includes(before.active_pid)) throw new Error('Old worker exited before the long connection was released');
   const echo = new Promise((resolve, reject) => {
@@ -219,8 +227,13 @@ try {
   fs.writeFileSync(path.join(root, 'artifacts', 'graceful-update-verification.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
-  fs.writeFileSync(path.join(root, 'artifacts', 'graceful-update-verification.json'), JSON.stringify({ ...report, error: error.message }, null, 2));
-  console.error(JSON.stringify({ requests: report.requests, versions: report.versions, samples: Object.values(report.failureSamples).map((s) => ({ request: s.request, status: s.status, text: s.body.replace(/<[^>]*>/g, ' ').slice(-1200) })), directory: dir }));
+  const diagnosticLog = path.join(dir, 'process.log');
+  const logTail = fs.existsSync(diagnosticLog)
+    ? fs.readFileSync(diagnosticLog, 'utf8').split(/\r?\n/).slice(-160).join('\n')
+    : '';
+  const failure = { ...report, error: error.message, logTail };
+  fs.writeFileSync(path.join(root, 'artifacts', 'graceful-update-verification.json'), JSON.stringify(failure, null, 2));
+  console.error(JSON.stringify({ requests: report.requests, versions: report.versions, samples: Object.values(report.failureSamples).map((s) => ({ request: s.request, status: s.status, text: s.body.replace(/<[^>]*>/g, ' ').slice(-1200) })), error: error.message, logTail, directory: dir }));
   throw error;
 } finally {
   stopped = true;
