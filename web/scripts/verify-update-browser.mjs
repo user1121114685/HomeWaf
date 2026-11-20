@@ -82,10 +82,15 @@ const open = async () => {
   if (!(await dialog().isVisible())) await page.locator('.header-update-btn').click();
   await expect(dialog()).toBeVisible();
 };
-const pushRelease = () => socket.send(JSON.stringify({
-  msg_code: '200', msg_cmd_type: 'UPDATE_AVAILABLE',
-  msg_data: fixtureSession(new URL(socket.url()).searchParams.get('keyid')).encrypt(JSON.stringify({ message_type: '新版本发布', message_data: version, message_unread_status: true })),
+const pushMessage = (command, type, message) => socket.send(JSON.stringify({
+  msg_code: '200', msg_cmd_type: command,
+  msg_data: fixtureSession(new URL(socket.url()).searchParams.get('keyid')).encrypt(JSON.stringify({ message_type: type, message_data: message, message_unread_status: true })),
 }));
+const pushRelease = () => pushMessage('UPDATE_AVAILABLE', '新版本发布', version);
+const setTheme = theme => page.evaluate(theme => {
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+}, theme);
 const summary = [];
 try {
   version = '';
@@ -106,10 +111,7 @@ try {
   expect(await page.evaluate(() => window.__releaseXss)).toBeUndefined();
   for (const width of [1440, 768, 390]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 1000 });
-    await page.evaluate(theme => {
-      document.documentElement.dataset.theme = theme;
-      document.documentElement.classList.toggle('dark', theme === 'dark');
-    }, theme);
+    await setTheme(theme);
     const bounds = await dialog().boundingBox();
     expect(bounds.x).toBeGreaterThanOrEqual(0);
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(width + 1);
@@ -169,6 +171,46 @@ try {
   await confirmation.getByRole('button', { name: '取消', exact: true }).click();
   expect(calls.length).toBe(3);
   summary.push('Prerelease updates retain their second confirmation.');
+  await dialog().getByRole('button', { name: '取消', exact: true }).click();
+
+  const result = page.getByRole('dialog', { name: '升级结果', exact: true });
+  const body = result.locator('.el-dialog__body');
+  const refresh = result.getByRole('button', { name: '确认并刷新', exact: true });
+  const message = '升级成功，当前版本为：v2.0.4';
+  pushMessage('RELOAD_PAGE', '升级结果', message);
+  await expect(body).toHaveText(message);
+  const initialLoad = await page.evaluate(() => performance.timeOrigin);
+  for (const [width, height] of [[1440, 900], [700, 960], [390, 844]]) {
+    await page.setViewportSize({ width, height });
+    const panel = await body.evaluate(el => el.parentElement.getBoundingClientRect().toJSON());
+    expect(panel.width).toBeLessThanOrEqual(480);
+    expect(panel.x).toBeGreaterThanOrEqual(12);
+    expect(panel.right).toBeLessThanOrEqual(width - 12);
+    await expect(refresh).toBeInViewport({ ratio: 1 });
+  }
+  await result.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(result).toBeHidden();
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(initialLoad);
+
+  const notes = (fullCommit + ' 修复升级提示。\n').repeat(120);
+  pushMessage('RELOAD_PAGE', '升级结果', message + '\n' + notes);
+  await expect(body).toContainText(fullCommit);
+  for (const [width, height] of [[1440, 900], [760, 960], [390, 844], [667, 375], [320, 568]]) {
+    await page.setViewportSize({ width, height });
+    for (const theme of ['light', 'dark']) {
+      await setTheme(theme);
+      expect(await body.evaluate(el => el.scrollHeight > el.clientHeight && el.scrollWidth <= el.clientWidth)).toBe(true);
+      await expect(refresh).toBeInViewport({ ratio: 1 });
+      await page.screenshot({ path: path.join(output, `result-${width}-${theme}.png`), animations: 'disabled' });
+    }
+  }
+  version = '';
+  const reload = page.waitForEvent('domcontentloaded');
+  await refresh.click();
+  await reload;
+  expect(await page.evaluate(() => performance.getEntriesByType('navigation')[0].type)).toBe('reload');
+  await expect(result).toBeHidden();
+  summary.push('Upgrade results stay compact across viewports; long notes scroll, cancel keeps the page and confirmation reloads it.');
   expect(errors).toEqual([]);
   await fs.writeFile(path.join(output, 'report.json'), JSON.stringify({ summary, calls, errors }, null, 2));
   console.log(summary.join('\n'));

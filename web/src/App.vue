@@ -24,7 +24,6 @@ import {defineComponent} from 'vue';
 
 
 import websocket from "@/utils/websocket.js";
-import { DialogPlugin } from '@/ui';
 import { ensureSecSession, invalidateSecSession } from './utils/seccrypto';
 import { clearLocalStorageExceptPreserved, saveCurrentUrl } from '@/constants';
 const env = import.meta.env.MODE || 'development';
@@ -265,17 +264,13 @@ export default defineComponent({
               this.mydialog =null
             }
             this.mydialog = this.$dialog({
-                    header: wsData.msg_data.message_type,
-                    body: wsData.msg_data.message_data,
-                    className: 't-dialog-new-class1 t-dialog-new-class2',
-                    style: 'color: rgba(0, 0, 0, 0.6)',
-                    confirmBtn:'确认并刷新',
-                    onConfirm: ({ e }) => {
-                      window.location.reload()
-                      this.mydialog.hide();
-                    },
-                  });
-              return
+              header: msgData.message_type,
+              body: msgData.message_data,
+              bodyClass: 'upgrade-result-notes',
+              confirmBtn: '确认并刷新',
+              onConfirm: () => window.location.reload(),
+            });
+            return;
           }else if(wsData.msg_cmd_type==="LOG_EXPORT_READY"){
             const attach = wsData.msg_data && wsData.msg_data.message_attach;
             const taskId = attach && typeof attach.task_id === 'string' ? attach.task_id : '';

@@ -49,7 +49,7 @@ const catalogue = {
       description: `服务接口 ${i}`,
       param_example: '{"port":15000}',
       response_example: '{"code":0}',
-      curl_example: 'curl http://your-samwaf-host:26666/api/v1/sample -H "X-API-Key: YOUR_KEY"',
+      curl_example: 'curl http://your-homewaf-host:26666/api/v1/sample -H "X-API-Key: YOUR_KEY"',
     })),
   },
 };

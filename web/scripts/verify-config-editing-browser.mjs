@@ -39,7 +39,11 @@ for (const port of [5000, 5001]) {
   users.set(port, [{ username: 'owner', enabled: true, expires_at: 0, remark: '初始备注' }]);
 }
 const otherPort = JSON.stringify(configs.get(5001));
-let sharedHoneypot = { revision: 0, configured: false, config: clone(configs.get(5000).policy.honeypot) };
+let sharedHoneypot = {
+  revision: 0,
+  configured: false,
+  config: { max_concurrent: 32, max_delay_ms: 250, archive_max_bytes: 16384, lures: [], trap_paths: [] },
+};
 let failNextSave = false;
 const report = { checks: [], errors: [], writes: [], confirmations: [], origin };
 const browser = await chromium.launch({ channel: 'chrome', headless: true });

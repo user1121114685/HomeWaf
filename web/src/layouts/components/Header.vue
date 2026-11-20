@@ -150,7 +150,7 @@ Windows PowerShell:
           $t('menu.dashboard.screen_title')
         }}</router-link>
         <!-- 系统监控 -->
-        <system-monitor @open-wechat="navToHelper" />
+        <system-monitor />
         <!-- 搜索框 -->
         <search />
         <!-- 全局通知 -->

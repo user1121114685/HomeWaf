@@ -205,7 +205,7 @@
     <hw-dialog
       :header="$t('page.attack_log.attack_ip_visit_detail_list_header')"
       v-model:visible="attackIpVisible"
-      width="100%"
+      width="min(1180px, 92vw)"
       :confirmOnEnter="true"
       :onConfirm="() => { this.resetChildState() }"
       :onClose="() => {  this.resetChildState() }"

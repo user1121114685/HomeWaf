@@ -580,7 +580,7 @@
     <hw-dialog
       :header="$t('page.visit_log.pop_detail_header')"
       v-model:visible="visitDetailVisible"
-      width="80%"
+      width="clamp(640px, 80vw, 1180px)"
       :confirmOnEnter="true"
       :onConfirm="
         () => {

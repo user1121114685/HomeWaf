@@ -222,6 +222,7 @@ const HwForm = defineComponent({
       );
   },
 });
+const renderDialogText = (value: unknown) => (typeof value === 'string' ? h('div', value) : value);
 function dialog(drawer = false) {
   return defineComponent({
     name: drawer ? 'HwDrawer' : 'HwDialog',
@@ -286,7 +287,7 @@ function dialog(drawer = false) {
             onOpened: () => emit('opened'),
           },
           {
-            default: slots.body || slots.default || (() => attrs.body || ''),
+            default: slots.body || slots.default || (() => renderDialogText(attrs.body || '')),
             header: slots.header,
             footer:
               p.footer === false
@@ -855,7 +856,7 @@ export const NotifyPlugin: any = Object.assign(
 NotifyPlugin.close = (instance: any) => instance?.close?.();
 NotifyPlugin.closeAll = () => E.ElNotification.closeAll();
 function openDialog(options: any) {
-  const state = reactive({ width: 'min(480px, calc(100vw - 32px))', ...options, visible: true });
+  const state = reactive({ ...options, visible: true });
   const mount = document.createElement('div');
   document.body.append(mount);
   let rootNode: any;
@@ -895,7 +896,7 @@ function openDialog(options: any) {
                 ? state.body(h)
                 : typeof state.content === 'function'
                   ? state.content(h)
-                  : state.body || state.content,
+                  : renderDialogText(state.body || state.content),
           },
         ),
     }),

@@ -44,6 +44,8 @@ func correctMimeTypeMiddleware() gin.HandlerFunc {
 			c.Header("Content-Type", "text/css; charset=utf-8")
 		case ".json":
 			c.Header("Content-Type", "application/json; charset=utf-8")
+		case ".svg":
+			c.Header("Content-Type", "image/svg+xml")
 		case ".wasm":
 			c.Header("Content-Type", "application/wasm")
 		}
@@ -139,6 +141,7 @@ func Static(r *gin.Engine, noRoute func(handlers ...gin.HandlerFunc)) {
 		defer faviconFile.Close()
 
 		c.Header("Content-Type", "image/x-icon")
+		c.Header("Cache-Control", "no-cache")
 		c.Status(http.StatusOK)
 		_, _ = io.Copy(c.Writer, faviconFile)
 	})
@@ -165,6 +168,7 @@ func Static(r *gin.Engine, noRoute func(handlers ...gin.HandlerFunc)) {
 			assetPrefix := html.EscapeString((&url.URL{Path: secPath}).EscapedPath())
 			index = strings.ReplaceAll(index, ` src="/assets/`, ` src="`+assetPrefix+`/assets/`)
 			index = strings.ReplaceAll(index, ` href="/assets/`, ` href="`+assetPrefix+`/assets/`)
+			index = strings.ReplaceAll(index, ` href="/favicon.ico"`, ` href="`+assetPrefix+`/favicon.ico"`)
 			pathJSON, _ := json.Marshal(secPath)
 			script := `<script>window.__SAMWAF_SECURITY_PATH__=` + string(pathJSON) + `;</script>`
 			index = strings.Replace(index, "</head>", script+"</head>", 1)

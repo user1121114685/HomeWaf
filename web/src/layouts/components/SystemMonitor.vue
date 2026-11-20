@@ -39,7 +39,7 @@
 
           <!-- 监控数据内容 - 始终显示 -->
           <div class="monitor-data" :class="{ 'data-loading': loading }">
-            <!-- 运行环境：数据库 / 缓存（含连接目标与切换方式） -->
+            <!-- 运行环境：数据库 / 缓存 -->
             <div class="env-section">
               <div class="section-title">{{ $t('topNav.runtime_env') }}</div>
               <div class="env-row">
@@ -49,13 +49,6 @@
               <div class="env-row">
                 <span class="item-label">{{ $t('topNav.runtime_cache') }}</span>
                 <span class="item-value">{{ cacheDetail }}</span>
-              </div>
-              <div class="env-tip">
-                <div>{{ $t('topNav.runtime_switch_tip') }}</div>
-                <div class="env-migrate">
-                  {{ $t('topNav.runtime_migrate_tip') }}
-                  <hw-link theme="primary" hover="color" @click="openWechat">{{ $t('topNav.wechat_account_name') }}</hw-link>
-                </div>
               </div>
             </div>
 
@@ -324,11 +317,6 @@ export default defineComponent({
       this.isMonitorVisible = false; // 关闭弹窗
     },
 
-    // 打开微信公众号二维码（复用头部的二维码弹窗）
-    openWechat() {
-      this.isMonitorVisible = false;
-      this.$emit('open-wechat');
-    },
 
     // 根据使用率获取颜色
     getUsageColor(percentage) {
@@ -496,15 +484,6 @@ export default defineComponent({
     align-items: center;
   }
 
-  .env-tip {
-    font-size: 13px;
-    color: var(--td-text-color-placeholder);
-    line-height: 1.5;
-
-    .env-migrate {
-      margin-top: 4px;
-    }
-  }
 }
 
 /* 监控项样式 */
