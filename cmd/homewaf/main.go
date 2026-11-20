@@ -3,46 +3,45 @@
 package main
 
 import (
-	"HomeWaf/cache"
-	"HomeWaf/common/gwebsocket"
-	"HomeWaf/common/tasklog"
-	"HomeWaf/common/wafexec"
-	"HomeWaf/common/zlog"
-	"HomeWaf/enums"
-	"HomeWaf/global"
-	"HomeWaf/globalobj"
-	"HomeWaf/innerbean"
+	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/instance/globalobj"
+	"HomeWaf/internal/instance/supervisor"
+	"HomeWaf/internal/instance/wafcli"
+	"HomeWaf/internal/instance/wafconfig"
+	"HomeWaf/internal/instance/wafdiag"
+	"HomeWaf/internal/instance/wafinit"
+	"HomeWaf/internal/instance/wafipc"
+	"HomeWaf/internal/instance/wafreg"
+	"HomeWaf/internal/instance/wafupdate"
+	"HomeWaf/internal/jobs/wafnotify"
+	"HomeWaf/internal/jobs/wafqueue"
+	"HomeWaf/internal/jobs/waftask"
 	"HomeWaf/internal/licensing"
-	"HomeWaf/iplocation"
-	"HomeWaf/model"
+	"HomeWaf/internal/management"
+	"HomeWaf/internal/model"
+	"HomeWaf/internal/model/enums"
+	"HomeWaf/internal/model/innerbean"
+	"HomeWaf/internal/platform/common/gwebsocket"
+	"HomeWaf/internal/platform/common/tasklog"
+	"HomeWaf/internal/platform/common/wafexec"
+	"HomeWaf/internal/platform/common/zlog"
+	"HomeWaf/internal/platform/utils"
+	"HomeWaf/internal/platform/wafnet"
+	"HomeWaf/internal/platform/wafsec"
+	"HomeWaf/internal/protection/iplocation"
+	"HomeWaf/internal/protection/wafenginecore"
+	"HomeWaf/internal/protection/wafenginecore/wafcaptcha"
+	"HomeWaf/internal/protection/wafhostguard"
+	"HomeWaf/internal/protection/wafipban"
+	"HomeWaf/internal/protection/wafowasp"
+	"HomeWaf/internal/protection/wafpipeline"
+	"HomeWaf/internal/services/waf_service"
+	"HomeWaf/internal/services/wafappengine"
+	"HomeWaf/internal/services/waftunnelengine"
+	"HomeWaf/internal/storage/cache"
+	"HomeWaf/internal/storage/wafdb"
 	"HomeWaf/plugin"
 	"HomeWaf/public"
-	"HomeWaf/service/waf_service"
-	"HomeWaf/supervisor"
-	"HomeWaf/utils"
-	"HomeWaf/wafappengine"
-	"HomeWaf/wafcli"
-	"HomeWaf/wafconfig"
-	"HomeWaf/wafdb"
-	"HomeWaf/wafdiag"
-	"HomeWaf/wafenginecore"
-	"HomeWaf/wafenginecore/wafcaptcha"
-	"HomeWaf/wafhostguard"
-	"HomeWaf/wafinit"
-	"HomeWaf/wafipban"
-	"HomeWaf/wafipc"
-	"HomeWaf/wafmangeweb"
-	"HomeWaf/wafnet"
-	"HomeWaf/wafnotify"
-	"HomeWaf/wafowasp"
-	"HomeWaf/wafpipeline"
-	"HomeWaf/wafqueue"
-	"HomeWaf/wafreg"
-	"HomeWaf/wafsafeclear"
-	"HomeWaf/wafsec"
-	"HomeWaf/waftask"
-	"HomeWaf/waftunnelengine"
-	"HomeWaf/wafupdate"
 	"context"
 	"embed"
 	_ "embed"
@@ -68,7 +67,6 @@ import (
 	"github.com/kardianos/service"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gorm.io/gorm"
 )
 
 //go:embed exedata/ip2region.xdb
@@ -109,7 +107,7 @@ type wafSystenService struct {
 	sslWorkerCancel context.CancelFunc
 }
 
-var webmanager *wafmangeweb.WafWebManager // web管理端
+var webmanager *management.WafWebManager // web管理端
 
 // Start 是服务启动时调用的方法
 func (m *wafSystenService) Start(s service.Service) error {
@@ -319,7 +317,6 @@ func (m *wafSystenService) run() {
 	waf_service.WafHostGuardServiceApp.InitEventSink()
 
 	//提前初始化
-	global.GDATA_CURRENT_LOG_DB_MAP = map[string]*gorm.DB{}
 	rversion := "初始化系统 编译器版本:" + runtime.Version() + " 程序版本号：" + global.GWAF_RELEASE_VERSION_NAME + "(" + global.GWAF_RELEASE_VERSION + ") 前端版本：" + global.GWAF_WEB_VERSION
 	if global.GWAF_RELEASE == "false" {
 		rversion = rversion + " 调试版本"
@@ -464,7 +461,7 @@ func (m *wafSystenService) run() {
 	}
 	wafupdate.SoftwareReleases = wafupdate.NewReleaseMonitor(filepath.Join(utils.GetCurrentDir(), "data"))
 	//启动管理界面
-	webmanager = &wafmangeweb.WafWebManager{LogName: "WebManager", StartupReady: &m.startup}
+	webmanager = &management.WafWebManager{LogName: "WebManager", StartupReady: &m.startup}
 	go func() {
 		webmanager.StartLocalServer()
 	}()
@@ -596,7 +593,6 @@ func (m *wafSystenService) run() {
 			zlog.Info("[Fresh Install] A random initial admin password has been generated, please see file: data/initial_password.txt and change it right after first login")
 		}
 	}
-	waf_service.WafPipelineServiceApp.OnChange = wafpipeline.Listeners.Apply
 	initializePortPipeline()
 	if err := waf_service.WafPipelineServiceApp.Load(); err != nil {
 		zlog.Warn("部分端口配置未加载，其他端口继续启动", zap.Error(err))
@@ -905,7 +901,7 @@ func (m *wafSystenService) Graceful() {
 		logExportWorkerLifecycle.stop(waf_service.WafLogExportServiceApp.Stop)
 		zlog.Info("Shutdown HomeWaf LogExport finished")
 		m.stopHomeWaf()
-		wafsafeclear.SafeClear() // 最后关闭数据库连接
+		wafdb.Close()
 		zlog.Info("[Graceful] 优雅停止完成")
 	})
 }

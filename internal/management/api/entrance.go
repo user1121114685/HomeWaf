@@ -1,0 +1,166 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+
+package api
+
+import "HomeWaf/internal/services/waf_service"
+
+type APIGroup struct {
+	WafStatApi
+	WafLogAPi
+	WafRuleAPi
+	WafEngineApi
+	WafAllowIpApi
+	WafAllowUrlApi
+	WafLdpUrlApi
+	WafBlockIpApi
+	WafIPGroupApi
+	WafAccessAccountApi
+	WafAccessConfigApi
+	WafAccessSessionApi
+	WafAccessAuditApi
+	WafIPGroupItemApi
+	WafBlockUrlApi
+	WafAccountApi
+	WafAccountLogApi
+	WafLoginHistoryApi
+	WafLoginApi
+	WafSecKeyApi
+	WafSysLogApi
+	WafWebSocketApi
+	WafSysInfoApi
+	WafSystemConfigApi
+	WafCommonApi
+	WafOneKeyModApi
+	WafLicenseApi
+	WafSensitiveApi
+	WafLoadBalanceApi
+	WafSslConfigApi
+	WafBatchTaskApi
+	WafSslOrderApi
+	WafSslExpireApi
+	WafHttpAuthBaseApi
+	WafHttpAuthSessionApi
+	WafTaskApi
+	WafOtpApi
+	WafAnalysisApi
+	WafPrivateInfoApi
+	WafPrivateGroupApi
+	WafCacheRuleApi
+	WafTamperRuleApi
+	WafTunnelApi
+	WafVpConfigApi
+	WafFileApi
+	WafSystemMonitorApi
+	WafDiagnosticApi
+	WafCaServerInfoApi
+	WafSqlQueryApi
+	WafNotifyChannelApi
+	WafNotifySubscriptionApi
+	WafNotifyLogApi
+	WafFirewallIPBlockApi
+	WafHostGuardApi
+	WafHostConnApi
+	WafThreatIPApi
+	WafThreatIPExcludeApi
+	WafCDNIPApi
+	WafIPLookupApi
+	WafLogFileWriteApi
+	WafIPLocationApi
+	WafOPlatformKeyApi
+	WafOPlatformLogApi
+	WafOPlatformDocApi
+	WafDataRetentionApi
+	WafOwaspApi
+	WafHostPathRuleApi
+	WafAppApi
+	WafUIPreferenceApi
+	WafUpgradeNoticeApi
+}
+
+var APIGroupAPP = new(APIGroup)
+var (
+	wafLogService         = waf_service.WafLogServiceApp
+	wafIPWatchlistService = waf_service.WafIPWatchlistServiceApp
+	wafStatService        = waf_service.WafStatServiceApp
+	wafRuleService        = waf_service.WafRuleServiceApp
+	wafIpAllowService     = waf_service.WafWhiteIpServiceApp
+	wafUrlAllowService    = waf_service.WafWhiteUrlServiceApp
+	wafLdpUrlService      = waf_service.WafLdpUrlServiceApp
+
+	wafIpBlockService  = waf_service.WafBlockIpServiceApp
+	wafUrlBlockService = waf_service.WafBlockUrlServiceApp
+
+	wafIPGroupService       = waf_service.WafIPGroupServiceApp
+	wafAccessAccountService = waf_service.WafAccessAccountServiceApp
+	wafAccessConfigService  = waf_service.WafAccessConfigServiceApp
+	wafAccessSessionService = waf_service.WafAccessSessionServiceApp
+	wafAccessAuditService   = waf_service.WafSecurityAuditServiceApp
+	wafIPGroupItemService   = waf_service.WafIPGroupItemServiceApp
+
+	wafAccountService      = waf_service.WafAccountServiceApp
+	wafAccountLogService   = waf_service.WafAccountLogServiceApp
+	wafLoginHistoryService = waf_service.WafLoginHistoryServiceApp
+	wafTokenInfoService    = waf_service.WafTokenInfoServiceApp
+
+	wafSysLogService       = waf_service.WafSysLogServiceApp
+	wafSystemConfigService = waf_service.WafSystemConfigServiceApp
+	wafDelayMsgService     = waf_service.WafDelayMsgServiceApp
+
+	wafShareDbService = waf_service.WafShareDbServiceApp
+
+	wafOneKeyModService = waf_service.WafOneKeyModServiceApp
+
+	wafSensitiveService = waf_service.WafSensitiveServiceApp
+
+	wafLoadBalanceService = waf_service.WafLoadBalanceServiceApp
+
+	wafSslConfigService = waf_service.WafSslConfigServiceApp
+
+	wafBatchTaskService = waf_service.WafBatchServiceApp
+
+	wafSslOrderService = waf_service.WafSSLOrderServiceApp
+
+	wafSslExpireService = waf_service.WafSslExpireServiceApp
+
+	wafHttpAuthBaseService    = waf_service.WafHttpAuthBaseServiceApp
+	wafHttpAuthSessionService = waf_service.WafHttpAuthSessionServiceApp
+
+	wafTaskService = waf_service.WafTaskServiceApp
+
+	wafOtpService = waf_service.WafOtpServiceApp
+
+	wafAnalysisService     = waf_service.WafAnalysisServiceApp
+	wafAnalysisViewService = waf_service.WafAnalysisViewServiceApp
+
+	wafPrivateInfoService  = waf_service.WafPrivateInfoServiceApp
+	wafPrivateGroupService = waf_service.WafPrivateGroupServiceApp
+	wafCacheRuleService    = waf_service.WafCacheRuleServiceApp
+	wafTamperRuleService   = waf_service.WafTamperRuleServiceApp
+	wafTunnelService       = waf_service.WafTunnelServiceApp
+
+	wafCaServerInfoService = waf_service.WafCaServerInfoServiceApp
+
+	wafSqlQueryService = waf_service.WafSqlQueryServiceApp
+
+	wafFirewallIPBlockService = waf_service.WafFirewallIPBlockServiceApp
+	wafHostGuardService       = waf_service.WafHostGuardServiceApp
+	wafHostConnService        = waf_service.WafHostConnServiceApp
+	wafThreatIPService        = waf_service.WafThreatIPServiceApp
+	wafCDNIPService           = waf_service.WafCDNIPServiceApp
+
+	wafThreatIPExcludeService      = waf_service.WafThreatIPExcludeServiceApp
+	wafThreatIPExcludeAuditService = waf_service.WafThreatIPExcludeAuditApp
+	wafIPLookupService             = waf_service.WafIPLookupServiceApp
+
+	wafOPlatformKeyService = waf_service.WafOPlatformKeyServiceApp
+	wafOPlatformLogService = waf_service.WafOPlatformLogServiceApp
+
+	wafDataRetentionService = waf_service.WafDataRetentionServiceApp
+	wafHostPathRuleService  = waf_service.WafHostPathRuleServiceApp
+	wafAppService           = waf_service.WafAppServiceApp
+	wafAppChangeLogService  = waf_service.WafAppChangeLogServiceApp
+
+	wafUIPreferenceService = waf_service.WafUIPreferenceServiceApp
+
+	wafUpgradeNoticeService = waf_service.WafUpgradeNoticeServiceApp
+)

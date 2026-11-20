@@ -3,7 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import { configDefaults, parseProviderConfig, providerValidationError, serializeProviderConfig, fieldVisible, CONFIG_CLEAR } from '../src/pages/waf/notify_channel/provider_config.ts';
 
-const catalogue = JSON.parse(fs.readFileSync(new URL('../../wafnotify/channels/catalog.json', import.meta.url), 'utf8'));
+const catalogue = JSON.parse(fs.readFileSync(new URL('../../internal/jobs/wafnotify/channels/catalog.json', import.meta.url), 'utf8'));
 const definition = type => catalogue.find(item => item.type === type);
 
 test('all direct providers have independent defaults and no Android dependency', () => {

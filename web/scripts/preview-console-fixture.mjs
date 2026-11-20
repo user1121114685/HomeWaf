@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { acceptHandshake, fixtureSession } from './transport-fixture.mjs';
 const webRoot = fileURLToPath(new URL('..', import.meta.url));
 const dist = path.join(webRoot, 'dist');
-const channelCatalogue = JSON.parse(fs.readFileSync(path.join(webRoot, '../wafnotify/channels/catalog.json'), 'utf8'));
+const channelCatalogue = JSON.parse(fs.readFileSync(path.join(webRoot, '../internal/jobs/wafnotify/channels/catalog.json'), 'utf8'));
 const templates = JSON.parse(
   execFileSync('go', ['run', './scripts/pipeline-fixtures'], {
     cwd: path.dirname(webRoot),

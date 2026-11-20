@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"HomeWaf/internal/model"
+	"HomeWaf/internal/model/baseorm"
 	sqlite "HomeWaf/internal/sqlitedialect"
-	"HomeWaf/model"
-	"HomeWaf/model/baseorm"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

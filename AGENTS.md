@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Architecture
-HomeWaf protects websites and home services. `cmd/homewaf/` starts the supervisor and workers; `wafmangeweb/` exposes the management server. Follow `router/` → `middleware/` → `api/` → `service/waf_service/` → `model/` and `wafdb/`. `wafpipeline/` owns per-port protection; `wafenginecore/` supplies proxy/runtime integrations. Keep authorization and configuration validation server-side.
+Start with [the architecture guide](docs/ARCHITECTURE.md) for package ownership, process boundaries, and the port configuration write path. Management HTTP, authorization middleware, and MCP live under `internal/management/`.
 
 `web/` contains Vue 3, TypeScript, Vite, Element Plus, and Pinia. Routes live in `web/src/router/`, views in `pages/`, request clients in `apis/`, shared controls/tokens in `ui/`, and navigation in `layouts/`. Use `utils/request.ts` for authenticated/encrypted requests. Static assets live in `web/public/`; builds embed them into `public/dist/`.
 
@@ -19,7 +19,7 @@ Use the versions in `go.mod` and `web/package.json` (currently Go 1.27.4 and Nod
 - `node scripts/build.mjs`: install locked dependencies, type-check, and build frontend/backend into `artifacts/`.
 - `node scripts/verify.mjs`: compile every Go package and execute focused regressions.
 - `npm run typecheck --prefix web`, `npm test --prefix web`, `npm run build --prefix web`: frontend checks.
-- `go test ./wafpipeline -run TestName -count=1`: target a changed behavior.
+- `go test ./internal/protection/wafpipeline -run TestName -count=1`: target a changed behavior.
 
 ## Coding & UI Standards
 Format Go with `gofmt`; use lowercase packages and descriptive exported names. Frontend formatting follows `web/.editorconfig` and `.prettierrc.cjs`: two spaces, single quotes, semicolons, LF. Use PascalCase Vue components and camelCase functions.
@@ -55,6 +55,7 @@ This is an application, not a marketing site. Marketing heroes, full-screen sect
 - Keep dangerous actions scoped and explicit about the affected object and consequences. Do not remove authentication, validation, confirmation, or recovery behavior to shorten a flow.
 
 ### Refactoring Workflow and Preservation
+- Prefer completing a change in one step. Update the implementation, all in-repository callers, tests, and documentation together, then remove superseded paths. Keep a compatibility layer only for an explicit requirement or a verified dependency that must continue using the old contract.
 - Read the affected route, component, API, persistence/runtime consumer and relevant tests before editing. Use available history to distinguish intentional removals from regressions; do not restore retired features merely because old code exists.
 - Resolve the task's object, scope, entry/exit, main action, failure recovery and acceptance criteria before restructuring it. This reasoning does not require a document. Keep confirmed gaps separate from hypotheses.
 - Trace retained capabilities through API → client → reachable control → persistence/runtime, including secondary screens. An unused endpoint alone is not a missing feature, and a referenced endpoint does not prove its response fields are usable. Run the existing audit tools only when relevant to the change; their output stays in ignored artifacts.

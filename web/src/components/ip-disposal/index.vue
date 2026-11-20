@@ -110,7 +110,7 @@ export default defineComponent({
       listServices()
         .then((res) => {
           if (res.code === 0) {
-            // 服务列表返回的 json 字段就叫 value / label（见 model/response/all_host.go 的 tag），
+            // 服务列表返回的 json 字段就叫 value / label（见 internal/model/response/all_host.go 的 tag），
             // 不是 code / host——取错的话下拉项全是空白、选中值会显示成 undefined
             this.hostOptions = (res.data || [])
               .filter((h) => h && h.value)

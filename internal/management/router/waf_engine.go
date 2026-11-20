@@ -1,0 +1,22 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+
+package router
+
+import (
+	"HomeWaf/internal/management/api"
+	"HomeWaf/internal/management/middleware"
+	"HomeWaf/internal/model/enums"
+
+	"github.com/gin-gonic/gin"
+)
+
+type EngineRouter struct {
+}
+
+func (receiver *EngineRouter) InitEngineRouter(group *gin.RouterGroup) {
+	engineApi := api.APIGroupAPP.WafEngineApi
+	wafEngineRouter := group.Group("")
+	// N7：重启/重载 WAF 引擎属高危系统操作，仅系统管理员(或超管)可执行
+	wafEngineRouter.POST("/api/v1/pipeline/reload", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), engineApi.ReloadServices)
+
+}

@@ -51,6 +51,7 @@ jobs:
             NOTICE
             THIRD_PARTY_NOTICES.md
             LICENSES/THIRD_PARTY.txt
+            LICENSES/ThirdLicense
             LICENSES/ip2region/LICENSE.txt
             cmd/homewaf/exedata/ip2region_v6.source.json
             README.md

@@ -4,6 +4,8 @@ Component inventory for the backend runtime graph, frontend lockfile and embedde
 
 See [NOTICE](NOTICE) for upstream attribution and [LICENSES/THIRD_PARTY.txt](LICENSES/THIRD_PARTY.txt) for complete license texts. Development and optional platform packages are identified separately.
 
+The original upstream notices, including the binarydist attribution, are preserved in [LICENSES/ThirdLicense](LICENSES/ThirdLicense).
+
 The license bundle groups only byte-identical texts and retains every original source label and copyright notice. The labels inside the bundle are an index, not separate repository files. Licenses beside copied source files remain in place.
 
 When dependencies or embedded assets change, update this inventory and the corresponding texts in the license bundle. Keep package versions in `go.mod` / `go.sum` and `web/package-lock.json`; store temporary audit reports and SBOM exports under ignored `artifacts/` or `.cache/` directories.
@@ -449,7 +451,7 @@ MapLibre GL JS and its added dependency license texts are retained in [LICENSES/
 | ip2region IPv4 XDB | Apache-2.0 OR MIT; LICENSES/THIRD_PARTY.txt |
 | ip2region IPv6 XDB | Apache-2.0 OR MIT; LICENSES/ip2region/LICENSE.txt; pinned source, size and hashes in cmd/homewaf/exedata/ip2region_v6.source.json |
 | HomeWaf logos, CSS backgrounds and click challenge UI | Original HomeWaf additions; root LICENSE |
-| Short weak-password rejection list in wafenginecore/accessgate/password.go | Project-authored list of common trivial passwords; no external password corpus imported; root LICENSE. Shared by account creation and login/honeypot classification. Attempted passwords are not retained in plaintext. |
+| Short weak-password rejection list in internal/protection/wafenginecore/accessgate/password.go | Project-authored list of common trivial passwords; no external password corpus imported; root LICENSE. Shared by account creation and login/honeypot classification. Attempted passwords are not retained in plaintext. |
 | Monitoring screen country polygons, borders, country and city coordinates | Derived from Natural Earth 1:110m countries and 1:10m populated places, public domain; web/src/pages/dashboard/screen/README.md documents source and generation |
 
 DOMPurify is used under its Apache-2.0 alternative. Geist and Geist Mono are bundled locally under SIL OFL-1.1; Chinese system fonts are referenced by family name and are not redistributed.

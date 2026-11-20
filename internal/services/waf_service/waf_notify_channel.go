@@ -1,0 +1,190 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+
+package waf_service
+
+import (
+	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/jobs/wafnotify/channels"
+	"HomeWaf/internal/jobs/wafnotify/webhook"
+	"HomeWaf/internal/model"
+	"HomeWaf/internal/model/baseorm"
+	"HomeWaf/internal/model/customtype"
+	"HomeWaf/internal/model/request"
+	"HomeWaf/internal/platform/common/uuid"
+	"HomeWaf/internal/platform/utils"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+)
+
+type WafNotifyChannelService struct{}
+
+var WafNotifyChannelServiceApp = new(WafNotifyChannelService)
+
+// MaskNotifyChannelSecret 列表/详情接口对渠道的 Secret/AccessToken 抹空、只回“是否已配置”。
+// 只处理页面回显，不改库内数据；发送通知走 GetAllChannels 等内部读取，拿到的是真实值。
+func MaskNotifyChannelSecret(bean *model.NotifyChannel) {
+	if bean == nil {
+		return
+	}
+	bean.HasSecret = strings.TrimSpace(bean.Secret) != ""
+	bean.HasAccessToken = strings.TrimSpace(bean.AccessToken) != ""
+	bean.Secret = ""
+	bean.AccessToken = ""
+	bean.ConfigJSON, bean.HasConfigSecrets = channels.MaskConfig(bean.Type, bean.ConfigJSON)
+}
+
+// AddApi 添加通知渠道
+func (receiver *WafNotifyChannelService) AddApi(req request.WafNotifyChannelAddReq) error {
+	var bean = &model.NotifyChannel{
+		BaseOrm: baseorm.BaseOrm{
+			Id:          uuid.GenUUID(),
+			USER_CODE:   global.GWAF_USER_CODE,
+			Tenant_ID:   global.GWAF_TENANT_ID,
+			CREATE_TIME: customtype.JsonTime(time.Now()),
+			UPDATE_TIME: customtype.JsonTime(time.Now()),
+		},
+		Name:        req.Name,
+		Type:        req.Type,
+		WebhookURL:  req.WebhookURL,
+		Secret:      req.Secret,
+		AccessToken: req.AccessToken,
+		ConfigJSON:  req.ConfigJSON,
+		Status:      req.Status,
+		Remarks:     req.Remarks,
+	}
+	return global.GWAF_LOCAL_DB.Create(bean).Error
+}
+
+// CheckIsExistApi 检查是否存在
+func (receiver *WafNotifyChannelService) CheckIsExistApi(req request.WafNotifyChannelAddReq) error {
+	return global.GWAF_LOCAL_DB.First(&model.NotifyChannel{}, "name = ? ", req.Name).Error
+}
+
+// ModifyApi 修改通知渠道
+func (receiver *WafNotifyChannelService) ModifyApi(req request.WafNotifyChannelEditReq) error {
+	editMap := map[string]interface{}{
+		"Name":        req.Name,
+		"Type":        req.Type,
+		"WebhookURL":  req.WebhookURL,
+		"Secret":      req.Secret,
+		"AccessToken": req.AccessToken,
+		"ConfigJSON":  req.ConfigJSON,
+		"Status":      req.Status,
+		"Remarks":     req.Remarks,
+		"UPDATE_TIME": customtype.JsonTime(time.Now()),
+	}
+	return global.GWAF_LOCAL_DB.Model(model.NotifyChannel{}).Where("id = ?", req.Id).Updates(editMap).Error
+}
+
+// GetDetailApi 获取详情
+func (receiver *WafNotifyChannelService) GetDetailApi(req request.WafNotifyChannelDetailReq) model.NotifyChannel {
+	var bean model.NotifyChannel
+	global.GWAF_LOCAL_DB.Where("id=?", req.Id).Find(&bean)
+	return bean
+}
+
+// GetListApi 获取列表
+func (receiver *WafNotifyChannelService) GetListApi(req request.WafNotifyChannelSearchReq) ([]model.NotifyChannel, int64, error) {
+	var list []model.NotifyChannel
+	var total int64 = 0
+
+	var whereField = ""
+	var whereValues []interface{}
+
+	if len(req.Name) > 0 {
+		if len(whereField) > 0 {
+			whereField = whereField + " and "
+		}
+		whereField = whereField + " name like ? "
+		whereValues = append(whereValues, "%"+req.Name+"%")
+	}
+
+	if len(req.Type) > 0 {
+		if len(whereField) > 0 {
+			whereField = whereField + " and "
+		}
+		whereField = whereField + " type = ? "
+		whereValues = append(whereValues, req.Type)
+	}
+
+	if req.Status > 0 {
+		if len(whereField) > 0 {
+			whereField = whereField + " and "
+		}
+		whereField = whereField + " status = ? "
+		whereValues = append(whereValues, req.Status)
+	}
+
+	global.GWAF_LOCAL_DB.Model(&model.NotifyChannel{}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
+	global.GWAF_LOCAL_DB.Model(&model.NotifyChannel{}).Where(whereField, whereValues...).Count(&total)
+
+	return list, total, nil
+}
+
+// DelApi 删除
+func (receiver *WafNotifyChannelService) DelApi(req request.WafNotifyChannelDelReq) error {
+	var bean model.NotifyChannel
+	err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&bean).Error
+	if err != nil {
+		return err
+	}
+
+	// 删除关联的订阅
+	global.GWAF_LOCAL_DB.Where("channel_id = ?", req.Id).Delete(&model.NotifySubscription{})
+
+	// 删除渠道
+	return global.GWAF_LOCAL_DB.Where("id = ?", req.Id).Delete(&model.NotifyChannel{}).Error
+}
+
+// TestChannelApi 测试通知渠道
+func (receiver *WafNotifyChannelService) TestChannelApi(req request.WafNotifyChannelTestReq) error {
+	var channel model.NotifyChannel
+	err := global.GWAF_LOCAL_DB.Where("id = ?", req.Id).First(&channel).Error
+	if err != nil {
+		return errors.New("通知渠道不存在")
+	}
+
+	title := "HomeWaf 测试通知"
+	if global.GWAF_NOTICE_TITLE != "" {
+		title = "[" + global.GWAF_NOTICE_TITLE + "] " + title
+	}
+	content := "这是一条测试消息，发送时间：" + time.Now().Format("2006-01-02 15:04:05")
+
+	_, err = WafNotifySenderServiceApp.deliverToChannel(channel, model.NotifySubscription{}, model.MSG_TYPE_OPERATION_NOTICE, title, content)
+	return err
+}
+
+// ValidateChannelConfig 渠道配置校验（新增/编辑保存前调用）
+//
+// webhook 渠道的地址、方法、请求头都是用户自由填写的，保存时就把非法配置挡掉，
+// 否则用户要等到真正触发告警、去翻通知日志才知道配错了。
+func ValidateChannelConfig(channelType, configJSON string) error {
+	if channelType == "webhook" {
+		_, err := webhook.ParseConfig(configJSON)
+		return err
+	}
+	if channelType == "email" {
+		return nil
+	}
+	_, err := channels.Parse(channelType, configJSON)
+	return err
+}
+
+// ValidateNotifyChannel validates the complete configuration after masked secrets
+// have been merged. Saved legacy configurations remain compatible.
+func ValidateNotifyChannel(kind, configJSON, webhookURL, accessToken string) error {
+	if err := ValidateChannelConfig(kind, configJSON); err != nil {
+		return err
+	}
+	if kind == "dingtalk" || kind == "feishu" || kind == "wechatwork" {
+		if ok, _ := utils.PrecheckOutboundURL(webhookURL); !ok {
+			return fmt.Errorf("请填写允许的机器人 Webhook 地址")
+		}
+	}
+	if kind == "serverchan" && strings.TrimSpace(accessToken) == "" {
+		return fmt.Errorf("Server酱 SendKey 不能为空")
+	}
+	return nil
+}

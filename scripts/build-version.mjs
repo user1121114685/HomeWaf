@@ -18,5 +18,5 @@ export function resolveBuildVersion({ root = process.cwd(), version = process.en
 }
 
 export function buildMetadataFlags(info) {
-  return `-X HomeWaf/global.GWAF_BUILD_ID=${info.buildId} -X HomeWaf/global.GWAF_BUILD_COMMIT=${info.commit} -X HomeWaf/global.GWAF_BUILD_TIME=${info.builtAt} -X HomeWaf/global.GWAF_BUILD_CHANNEL=${info.channel}`;
+  return `-X HomeWaf/internal/instance/global.GWAF_BUILD_ID=${info.buildId} -X HomeWaf/internal/instance/global.GWAF_BUILD_COMMIT=${info.commit} -X HomeWaf/internal/instance/global.GWAF_BUILD_TIME=${info.builtAt} -X HomeWaf/internal/instance/global.GWAF_BUILD_CHANNEL=${info.channel}`;
 }

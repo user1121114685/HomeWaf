@@ -22,7 +22,7 @@ COPY . .
 COPY --from=web /src/web/dist ./public/dist
 RUN mkdir -p public/dist/legal && cp LICENSE NOTICE THIRD_PARTY_NOTICES.md public/dist/legal/ && cp -R LICENSES public/dist/legal/
 ARG HOMEWAF_VERSION=v3.0.0-dev
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=${HOMEWAF_VERSION}" -o /out/homewaf ./cmd/homewaf
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X HomeWaf/internal/instance/global.GWAF_RELEASE=true -X HomeWaf/internal/instance/global.GWAF_RELEASE_VERSION=${HOMEWAF_VERSION}" -o /out/homewaf ./cmd/homewaf
 
 FROM alpine:latest@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 LABEL org.opencontainers.image.title="HomeWaf"

@@ -1,8 +1,14 @@
 # HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
 
 .git
+.agents
+.aider-desk
+.idea
+.taste-skill
 .cache
 artifacts
+web/.cache
+web/.taste-skill
 web/node_modules
 web/dist
 public/dist

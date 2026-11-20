@@ -1,15 +1,15 @@
 package main
 
 import (
-	"HomeWaf/common/zlog"
-	"HomeWaf/global"
+	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/platform/common/zlog"
+	"HomeWaf/internal/platform/utils"
+	"HomeWaf/internal/protection/wafenginecore"
+	"HomeWaf/internal/protection/wafenginecore/ipset"
+	"HomeWaf/internal/protection/wafhostguard"
+	"HomeWaf/internal/protection/wafpipeline"
+	"HomeWaf/internal/services/waf_service"
 	"HomeWaf/plugin/manager"
-	"HomeWaf/service/waf_service"
-	"HomeWaf/utils"
-	"HomeWaf/wafenginecore"
-	"HomeWaf/wafenginecore/ipset"
-	"HomeWaf/wafhostguard"
-	"HomeWaf/wafpipeline"
 	"context"
 	"errors"
 	"net/http"
@@ -36,6 +36,13 @@ func shutdownPortPipeline() {
 }
 
 func initializePortPipeline() {
+	waf_service.WafPipelineServiceApp.OnChange = func(old, next *wafpipeline.Snapshot) error {
+		if err := wafpipeline.Listeners.Apply(old, next); err != nil {
+			return err
+		}
+		wafpipeline.CloseRetiredProxy(old, next)
+		return nil
+	}
 	if raw := os.Getenv("HOMEWAF_PIPELINE_MAX_PORTS"); raw != "" {
 		if limit, err := strconv.Atoi(raw); err == nil && limit >= 1 && limit <= 2000 && len(wafpipeline.Ports.Ports()) == 0 {
 			wafpipeline.Ports = wafpipeline.NewRegistry[wafpipeline.Snapshot](limit)
@@ -111,13 +118,6 @@ func initializePortPipeline() {
 	forwarder.CaptureTamper = tamperService.Capture
 	wafpipeline.Live.ForwardPrepare = forwarder.Prepare
 	wafpipeline.Live.Forward = forwarder.Serve
-	waf_service.WafPipelineServiceApp.OnChange = func(old, next *wafpipeline.Snapshot) error {
-		if err := wafpipeline.Listeners.Apply(old, next); err != nil {
-			return err
-		}
-		wafpipeline.CloseRetiredProxy(old, next)
-		return nil
-	}
 	wafpipeline.Live.RuleSteps = func(s *wafpipeline.Snapshot) []wafpipeline.Step {
 		controls := rules.Steps(s)
 		withTrap := make([]wafpipeline.Step, 0, len(controls)+1)

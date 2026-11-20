@@ -53,7 +53,7 @@ const before = structuredClone(configs),
   checks = [];
 let failNextSave = false;
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light' });
 await context.addInitScript(() => {
   // LAN HTTP deployments do not expose the secure-context randomUUID method.
   Object.defineProperty(window.crypto, 'randomUUID', { value: undefined, configurable: true });
@@ -97,7 +97,7 @@ await context.route('**/api/**', async (route) => {
 const page = await context.newPage();
 page.on('pageerror', (e) => errors.push(e.message));
 try {
-  await page.goto(origin + '/?appearance=light#/waf-host/wafanticclist');
+  await page.goto(origin + '/?appearance=auto#/waf-host/wafanticclist');
   await expect(page.getByTestId('service-policy-page')).toBeVisible();
   await expect(page.locator('.service-scope-bar')).toContainText('群晖');
   await expect(page.getByRole('heading', { name: 'CC 防御', exact: true })).toBeVisible();

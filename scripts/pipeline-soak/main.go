@@ -3,12 +3,12 @@
 package main
 
 import (
-	"HomeWaf/common/queue"
-	"HomeWaf/global"
+	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/model"
+	"HomeWaf/internal/platform/common/queue"
+	"HomeWaf/internal/protection/wafpipeline"
+	"HomeWaf/internal/services/waf_service"
 	sqlite "HomeWaf/internal/sqlitedialect"
-	"HomeWaf/model"
-	"HomeWaf/service/waf_service"
-	"HomeWaf/wafpipeline"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"

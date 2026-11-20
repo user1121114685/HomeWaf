@@ -1,7 +1,7 @@
 package main
 
 import (
-	"HomeWaf/wafpipeline"
+	"HomeWaf/internal/protection/wafpipeline"
 	"context"
 	"io"
 	"net"

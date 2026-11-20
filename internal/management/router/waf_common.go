@@ -1,0 +1,18 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+
+package router
+
+import (
+	"HomeWaf/internal/management/api"
+	"github.com/gin-gonic/gin"
+)
+
+type WafCommonRouter struct {
+}
+
+func (receiver *WafCommonRouter) InitWafCommonRouter(group *gin.RouterGroup) {
+	api := api.APIGroupAPP.WafCommonApi
+	router := group.Group("")
+	//心跳数据
+	router.GET("/api/v1/heartbeat", api.HeartbeatApi)
+}

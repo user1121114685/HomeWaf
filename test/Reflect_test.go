@@ -3,7 +3,7 @@
 package test
 
 import (
-	"HomeWaf/model"
+	"HomeWaf/internal/model"
 	"encoding/json"
 	"fmt"
 	"reflect"

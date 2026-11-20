@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveBuildVersion } from './build-version.mjs';
 const now = new Date('2026-11-17T14:00:00.123Z');
-const git = (args) => ({ describe: 'v2.0.2', 'rev-parse': '2593713c1234', status: ' M service/waf_service/waf_pipeline.go' })[args[0]];
+const git = (args) => ({ describe: 'v2.0.2', 'rev-parse': '2593713c1234', status: ' M internal/services/waf_service/waf_pipeline.go' })[args[0]];
 test('local builds use their ancestor release with a distinct internal build identity', () => {
   const build = resolveBuildVersion({ now, git, version: '' });
   assert.equal(build.version, 'v2.0.2+local.20261117140000123.g2593713c1234.dirty');

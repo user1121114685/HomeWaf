@@ -65,7 +65,7 @@ if (!process.argv.includes("--web-only")) {
   const build = resolveBuildVersion({ root });
   const version = build.version;
   console.log(`Building ${version} (${build.channel}, build ${build.buildId})`);
-  let flags = `-s -w -X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=${version} -X HomeWaf/global.GWAF_RELEASE_VERSION_NAME=HomeWaf ${buildMetadataFlags(build)}`;
+  let flags = `-s -w -X HomeWaf/internal/instance/global.GWAF_RELEASE=true -X HomeWaf/internal/instance/global.GWAF_RELEASE_VERSION=${version} -X HomeWaf/internal/instance/global.GWAF_RELEASE_VERSION_NAME=HomeWaf ${buildMetadataFlags(build)}`;
   for (const [envName, target] of [
     [
       "HOMEWAF_LICENSE_PUBLIC_KEYS",

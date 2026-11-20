@@ -1,8 +1,8 @@
 package manager
 
 import (
+	"HomeWaf/internal/protection/wafpipeline"
 	"HomeWaf/plugin/process"
-	"HomeWaf/wafpipeline"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"

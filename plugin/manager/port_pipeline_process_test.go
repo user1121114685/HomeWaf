@@ -2,10 +2,10 @@ package manager
 
 import (
 	"HomeWaf/internal/licensing"
+	"HomeWaf/internal/protection/wafpipeline"
 	plugininterface "HomeWaf/plugin/interface"
 	"HomeWaf/plugin/process"
 	"HomeWaf/plugin/proto"
-	"HomeWaf/wafpipeline"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"

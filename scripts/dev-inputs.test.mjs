@@ -48,7 +48,7 @@ test("content changes and directory add, rename and delete reconcile actual inpu
 
 test("module and embedded assets trigger only on content changes", (t) => {
   const { put, inputs } = fixture(t);
-  const names = ["go.mod", "go.sum", "public/dist/.gitkeep", "public/dist/assets/app.js", "public/web_frontend.txt", "cmd/homewaf/exedata/capjs/index.js", "wafmangeweb/emergency_page.html"];
+  const names = ["go.mod", "go.sum", "public/dist/.gitkeep", "public/dist/assets/app.js", "public/web_frontend.txt", "cmd/homewaf/exedata/capjs/index.js", "internal/management/emergency_page.html"];
   for (const name of names) put(name, "v1");
   assert.deepEqual(inputs.scan(), names.sort());
   for (const name of names) put(name, "v1");

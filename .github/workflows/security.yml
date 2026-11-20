@@ -55,15 +55,15 @@ jobs:
       - name: Fetch pinned OWASP CRS attack data with source attribution
         run: node scripts/fetch-waf-corpus.mjs
       - name: Replay attacks and benign traffic through isolated protection fixtures
-        run: go test -trimpath ./wafpipeline -short -count=1
+        run: go test -trimpath ./internal/protection/wafpipeline -short -count=1
       - name: Report upstream corpus coverage
-        run: go test -trimpath ./wafpipeline -run '^TestCRSUpstreamAttackCorpus$' -count=1 -v
+        run: go test -trimpath ./internal/protection/wafpipeline -run '^TestCRSUpstreamAttackCorpus$' -count=1 -v
       - name: Fetch the current upstream attack corpus for continuous discovery
         run: node scripts/fetch-waf-corpus.mjs --latest
       - name: Test the latest corpus without changing shipped rules
         env:
           HOMEWAF_WAF_CORPUS: ${{ github.workspace }}/.cache/waf-corpus-latest
-        run: go test -trimpath ./wafpipeline -run '^TestCRSUpstreamAttackCorpus$' -count=1 -v
+        run: go test -trimpath ./internal/protection/wafpipeline -run '^TestCRSUpstreamAttackCorpus$' -count=1 -v
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
@@ -84,15 +84,15 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Mutate encoded requests and verify bounded inspection and exact upstream replay
-        run: go test -trimpath ./wafpipeline -run '^$' -fuzz '^FuzzNormalizedRequestReplay$' -fuzztime=30s -parallel=2
+        run: go test -trimpath ./internal/protection/wafpipeline -run '^$' -fuzz '^FuzzNormalizedRequestReplay$' -fuzztime=30s -parallel=2
       - name: Mutate imported policies and verify trust boundaries
-        run: go test -trimpath ./wafpipeline -run '^$' -fuzz '^FuzzTemplateImport$' -fuzztime=30s -parallel=2
+        run: go test -trimpath ./internal/protection/wafpipeline -run '^$' -fuzz '^FuzzTemplateImport$' -fuzztime=30s -parallel=2
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: HomeWaf-fuzz-reproducers
           retention-days: 14
-          path: wafpipeline/testdata/fuzz/
+          path: internal/protection/wafpipeline/testdata/fuzz/
   functional:
     strategy:
       fail-fast: false
@@ -126,8 +126,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p .cache/functional
-          go build -tags homewaf_update_fixture -trimpath -ldflags '-X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v3.0.0-functional-test' -o .cache/functional/old ./cmd/homewaf
-          go build -tags homewaf_update_fixture -trimpath -ldflags '-X HomeWaf/global.GWAF_RELEASE=true -X HomeWaf/global.GWAF_RELEASE_VERSION=v3.0.1' -o .cache/functional/next ./cmd/homewaf
+          go build -tags homewaf_update_fixture -trimpath -ldflags '-X HomeWaf/internal/instance/global.GWAF_RELEASE=true -X HomeWaf/internal/instance/global.GWAF_RELEASE_VERSION=v3.0.0-functional-test' -o .cache/functional/old ./cmd/homewaf
+          go build -tags homewaf_update_fixture -trimpath -ldflags '-X HomeWaf/internal/instance/global.GWAF_RELEASE=true -X HomeWaf/internal/instance/global.GWAF_RELEASE_VERSION=v3.0.1' -o .cache/functional/next ./cmd/homewaf
           node scripts/verify-graceful-update.mjs .cache/functional/old .cache/functional/next v3.0.1
           node scripts/verify-graceful-update.mjs .cache/functional/old .cache/functional/next v3.0.1 --via-installer
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

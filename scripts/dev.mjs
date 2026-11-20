@@ -108,7 +108,7 @@ async function rebuild() {
   const version = build.version;
   ++generation;
   log(`Building ${version}...`);
-  await run("go", ["build", `-ldflags=-X HomeWaf/global.GWAF_RELEASE=false -X HomeWaf/global.GWAF_RELEASE_VERSION=${version} ${buildMetadataFlags(build)}`, "-o", candidate, "./cmd/homewaf"]);
+  await run("go", ["build", `-ldflags=-X HomeWaf/internal/instance/global.GWAF_RELEASE=false -X HomeWaf/internal/instance/global.GWAF_RELEASE_VERSION=${version} ${buildMetadataFlags(build)}`, "-o", candidate, "./cmd/homewaf"]);
   if (stopping) return;
   const before = readState();
   if ((supervisor || attached) && before?.upgrading) throw new Error("Supervisor is already switching Workers; save again after it finishes");

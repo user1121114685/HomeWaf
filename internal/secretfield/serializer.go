@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"HomeWaf/wafsec"
+	"HomeWaf/internal/platform/wafsec"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"HomeWaf/internal/model"
+	"HomeWaf/internal/model/baseorm"
+	"HomeWaf/internal/platform/wafsec"
 	sqlite "HomeWaf/internal/sqlitedialect"
-	"HomeWaf/model"
-	"HomeWaf/model/baseorm"
-	"HomeWaf/wafsec"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

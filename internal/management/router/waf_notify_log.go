@@ -1,0 +1,21 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+
+package router
+
+import (
+	"HomeWaf/internal/management/api"
+	"HomeWaf/internal/management/middleware"
+	"HomeWaf/internal/model/enums"
+	"github.com/gin-gonic/gin"
+)
+
+type NotifyLogRouter struct {
+}
+
+func (receiver *NotifyLogRouter) InitNotifyLogRouter(group *gin.RouterGroup) {
+	api := api.APIGroupAPP.WafNotifyLogApi
+	router := group.Group("")
+	router.POST("/api/v1/notify/log/list", api.GetListApi)
+	router.GET("/api/v1/notify/log/detail", api.GetDetailApi)
+	router.GET("/api/v1/notify/log/del", middleware.RequireRole(enums.ROLE_SYSTEM_ADMIN), api.DelApi)
+}

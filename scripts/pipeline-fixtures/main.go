@@ -2,7 +2,7 @@
 package main
 
 import (
-	"HomeWaf/wafpipeline"
+	"HomeWaf/internal/protection/wafpipeline"
 	"encoding/json"
 	"os"
 )

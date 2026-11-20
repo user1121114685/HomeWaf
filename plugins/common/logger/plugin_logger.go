@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"HomeWaf/common/zlog"
+	"HomeWaf/internal/platform/common/zlog"
 	"fmt"
 	"io"
 	"log"

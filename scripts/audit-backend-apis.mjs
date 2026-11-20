@@ -9,7 +9,7 @@ process.chdir(root);
 const inventory = path.join(root, '.cache', 'backend-api-routes.json');
 fs.mkdirSync(path.dirname(inventory), { recursive: true });
 if (!process.argv.includes('--use-inventory')) {
-  const result = spawnSync('go', ['test', './wafmangeweb', '-run', '^TestAllBackendRouteAuthenticationBoundaries$', '-count=1'], {
+  const result = spawnSync('go', ['test', './internal/management', '-run', '^TestAllBackendRouteAuthenticationBoundaries$', '-count=1'], {
     stdio: 'inherit', env: { ...process.env, CGO_ENABLED: '0', HOMEWAF_API_AUDIT_OUTPUT: inventory },
   });
   if (result.error) throw result.error;

@@ -1,8 +1,8 @@
 package mask
 
 import (
+	"HomeWaf/internal/platform/wafsec"
 	"HomeWaf/internal/thirdparty/godlp/conf"
-	"HomeWaf/wafsec"
 	"encoding/hex"
 	"testing"
 )

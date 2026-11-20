@@ -1,0 +1,13 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+
+package model
+
+import "HomeWaf/internal/model/baseorm"
+
+type HttpAuthBase struct {
+	baseorm.BaseOrm
+	HostCode       string `gorm:"size:64" json:"host_code"`                     //网站唯一码（主要键）
+	UserName       string `gorm:"size:255" json:"user_name"`                    // 用户名
+	Password       string `gorm:"type:text;serializer:homewaf_secret" json:"-"` // bcrypt hash, encrypted at rest
+	PasswordHashed bool   `json:"-"`
+}

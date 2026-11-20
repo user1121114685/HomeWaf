@@ -53,7 +53,7 @@
 </template>
 
 <script lang="ts">
-// 标签按类别归类：标签原文来自后端 weblog 的 RULE 字段（见 waftask/stat_collector.go），
+// 标签按类别归类：标签原文来自后端 weblog 的 RULE 字段（见 internal/jobs/waftask/stat_collector.go），
 // 命中不了任何前缀/关键字的（比如用户自定义规则的标题）统一落到「其他」。
 const CATEGORY_ORDER = ['attack', 'owasp', 'list', 'other', 'pass'];
 

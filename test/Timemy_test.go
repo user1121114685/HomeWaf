@@ -3,7 +3,7 @@
 package test
 
 import (
-	"HomeWaf/utils"
+	"HomeWaf/internal/platform/utils"
 	"fmt"
 	"strconv"
 	"testing"

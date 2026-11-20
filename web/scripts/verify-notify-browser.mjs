@@ -11,7 +11,7 @@ const root = fileURLToPath(new URL('../..', import.meta.url));
 const dist = path.join(root, 'web', 'dist');
 const output = path.join(root, 'artifacts', 'notify-verification');
 fs.mkdirSync(output, { recursive: true });
-const catalogue = JSON.parse(fs.readFileSync(path.join(root, 'wafnotify/channels/catalog.json'), 'utf8'));
+const catalogue = JSON.parse(fs.readFileSync(path.join(root, 'internal/jobs/wafnotify/channels/catalog.json'), 'utf8'));
 const mime = {
   '.html': 'text/html',
   '.js': 'application/javascript',

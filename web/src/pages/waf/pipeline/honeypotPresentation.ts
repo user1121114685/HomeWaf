@@ -48,7 +48,7 @@ function escapeHTML(text: string) {
   );
 }
 
-// Mirrors wafpipeline/honeypot.go. The iframe is additionally sandboxed; it has
+// Mirrors internal/protection/wafpipeline/honeypot.go. The iframe is additionally sandboxed; it has
 // no scripts, network resources, credential collection or submission behavior.
 export function honeypotPreviewHTML(lure: Pick<HoneypotLure, 'title' | 'message'>, state: HoneypotPreviewState) {
   const head =

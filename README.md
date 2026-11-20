@@ -257,6 +257,8 @@ sudo ./HomeWafLinux64 rolling-restart
 
 ## 构建与运行
 
+开发者可以从[项目架构](docs/ARCHITECTURE.md)查找管理接口、端口配置和防护运行时的代码入口。
+
 ### 环境要求
 
 | 工具     | 仓库使用的版本或要求             |

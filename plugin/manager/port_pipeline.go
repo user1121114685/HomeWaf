@@ -1,9 +1,9 @@
 package manager
 
 import (
+	"HomeWaf/internal/protection/wafpipeline"
 	plugininterface "HomeWaf/plugin/interface"
 	process "HomeWaf/plugin/process"
-	"HomeWaf/wafpipeline"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"

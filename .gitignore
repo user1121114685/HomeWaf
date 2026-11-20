@@ -5,7 +5,7 @@
 /vue/dist/
 /conf/*
 /data/*
-/wafenginecore/data/
+/internal/protection/wafenginecore/data/
 /data/local_log.db
 /data/local_stats.db
 /data/local.db
@@ -19,7 +19,6 @@ dist/
 !/public/dist/.gitkeep
 /logs/*
 /ssl/
-/codetemplete/output/*
 /conf/config.yml
 *.log
 *.exe
@@ -30,13 +29,13 @@ dist/
 /docs/openapi/
 /.data/
 
-# go test ./wafsec/ 的产物：wafsec/rsa.go 的 GenRsaKey 按相对路径写在包目录下，
+# go test ./internal/platform/wafsec/ 的产物：internal/platform/wafsec/rsa.go 的 GenRsaKey 按相对路径写在包目录下，
 # 跑完测试就会多出这两个文件。私钥绝不能进仓库，这里直接挡掉。
-# 只挡 wafsec/ 下这两个固定文件名，不影响内嵌资源 publisher-owned signing keys。
-/wafsec/private_key.pem
-/wafsec/public_key.pem
-/wafinit/testdata/*
-!/wafinit/testdata/pack/
+# 只挡 internal/platform/wafsec/ 下这两个固定文件名，不影响内嵌资源 publisher-owned signing keys。
+/internal/platform/wafsec/private_key.pem
+/internal/platform/wafsec/public_key.pem
+/internal/instance/wafinit/testdata/*
+!/internal/instance/wafinit/testdata/pack/
 /download/
 
 # go test 各包时按包目录创建的日志导出跨进程锁文件（每包一份，互不争用）

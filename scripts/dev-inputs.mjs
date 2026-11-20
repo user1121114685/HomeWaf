@@ -14,7 +14,7 @@ export function ignoredInput(name) {
 
 function isBuildInput(name) {
   return (name.endsWith(".go") && !name.endsWith("_test.go")) ||
-    ["go.mod", "go.sum", "go.work", "go.work.sum", "public/web_frontend.txt", "wafmangeweb/emergency_page.html"].includes(name) ||
+    ["go.mod", "go.sum", "go.work", "go.work.sum", "public/web_frontend.txt", "internal/management/emergency_page.html"].includes(name) ||
     name.startsWith("cmd/homewaf/exedata/") || name.startsWith("public/dist/");
 }
 

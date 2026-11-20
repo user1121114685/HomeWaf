@@ -3,7 +3,7 @@
 package test
 
 import (
-	"HomeWaf/innerbean"
+	"HomeWaf/internal/model/innerbean"
 	"HomeWaf/internal/thirdparty/grule/ast"
 	"HomeWaf/internal/thirdparty/grule/builder"
 	"HomeWaf/internal/thirdparty/grule/engine"

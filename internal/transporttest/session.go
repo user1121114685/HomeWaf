@@ -2,7 +2,7 @@
 package transporttest
 
 import (
-	"HomeWaf/wafsec"
+	"HomeWaf/internal/platform/wafsec"
 	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"

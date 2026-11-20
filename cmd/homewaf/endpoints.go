@@ -3,7 +3,7 @@
 package main
 
 import (
-	"HomeWaf/global"
+	"HomeWaf/internal/instance/global"
 	"fmt"
 	"net"
 	"net/url"

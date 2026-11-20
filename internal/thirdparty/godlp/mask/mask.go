@@ -9,10 +9,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"HomeWaf/internal/platform/wafsec"
 	"HomeWaf/internal/thirdparty/godlp/conf"
 	"HomeWaf/internal/thirdparty/godlp/dlpheader"
 	"HomeWaf/internal/thirdparty/godlp/errlist"
-	"HomeWaf/wafsec"
 )
 
 const (

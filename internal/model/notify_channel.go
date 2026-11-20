@@ -1,0 +1,28 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+
+package model
+
+import (
+	"HomeWaf/internal/model/baseorm"
+)
+
+/*
+*
+通知渠道配置
+*/
+type NotifyChannel struct {
+	baseorm.BaseOrm
+	Name        string `gorm:"size:255" json:"name"`                                    // 渠道名称
+	Type        string `gorm:"size:50" json:"type"`                                     // 渠道类型：dingtalk, feishu, wechat, email等
+	WebhookURL  string `gorm:"type:text;serializer:homewaf_secret" json:"webhook_url"`  // Webhook地址
+	Secret      string `gorm:"type:text;serializer:homewaf_secret" json:"secret"`       // 密钥（用于签名验证）
+	AccessToken string `gorm:"type:text;serializer:homewaf_secret" json:"access_token"` // 访问令牌
+	ConfigJSON  string `gorm:"type:text;serializer:homewaf_secret" json:"config_json"`  // 额外配置（JSON格式）
+	Status      int    `json:"status"`                                                  // 状态：1启用，0禁用
+	Remarks     string `gorm:"size:500" json:"remarks"`                                 // 备注
+
+	//瞬态字段(不落库)：列表/详情接口不回显 Secret/AccessToken 原文，用下面两个布尔告知前端“是否已配置”。
+	HasConfigSecrets map[string]bool `gorm:"-" json:"has_config_secrets,omitempty"`
+	HasSecret        bool            `gorm:"-" json:"has_secret"`
+	HasAccessToken   bool            `gorm:"-" json:"has_access_token"`
+}

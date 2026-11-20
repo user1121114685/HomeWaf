@@ -1,7 +1,7 @@
 package main
 
 import (
-	"HomeWaf/wafmangeweb"
+	"HomeWaf/internal/management"
 	"context"
 	"errors"
 	"testing"
@@ -11,7 +11,7 @@ import (
 func TestWorkerReadinessWaitsForInitializationAndManager(t *testing.T) {
 	oldManager := webmanager
 	t.Cleanup(func() { webmanager = oldManager })
-	webmanager = &wafmangeweb.WafWebManager{}
+	webmanager = &management.WafWebManager{}
 	prg := &wafSystenService{}
 	for _, initialized := range []bool{false, true} {
 		if initialized {

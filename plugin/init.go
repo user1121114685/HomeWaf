@@ -3,11 +3,12 @@
 package plugin
 
 import (
-	"HomeWaf/common/zlog"
-	"HomeWaf/globalobj"
+	"HomeWaf/internal/instance/globalobj"
+	"HomeWaf/internal/platform/common/zlog"
+	"HomeWaf/internal/platform/utils"
 	pluginconfig "HomeWaf/plugin/config"
 	"HomeWaf/plugin/manager"
-	"HomeWaf/utils"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,7 +25,7 @@ func InitPluginSystem() error {
 	configPath := filepath.Join(utils.GetCurrentDir(), "conf", "plugins.yml")
 	systemConfig, err := loadPluginConfigFromFile(configPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			zlog.Info("未配置 HomeWaf 插件文件，保持禁用")
 		} else {
 			zlog.Error("加载插件配置文件失败", "path", configPath, "error", err)
@@ -83,12 +84,6 @@ func InitPluginSystem() error {
 
 // loadPluginConfigFromFile 从 YAML 配置文件加载插件配置
 func loadPluginConfigFromFile(configPath string) (*pluginconfig.PluginSystemConfig, error) {
-	// 检查文件是否存在
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("配置文件不存在: %s", configPath)
-	}
-
-	// 读取文件内容
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("读取配置文件失败: %w", err)

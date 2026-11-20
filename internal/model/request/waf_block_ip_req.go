@@ -1,0 +1,56 @@
+// HomeWaf modification (2026-11-09): independent distribution; see NOTICE.
+
+package request
+
+import "HomeWaf/internal/model/common/request"
+
+// Ip 字段去掉了 binding:"required"：条目类型为 group 时不填 Ip。
+// 必填校验改为按 IpType 在 api 层做（见 internal/management/api/waf_ip_entry_validate.go），
+// 否则老前端漏传 ip 会静默存下一条空行。
+type WafBlockIpAddReq struct {
+	HostCode        string `json:"host_code" binding:"required"` //网站唯一码（主要键）
+	Ip              string `json:"ip"`                           //Block ip：单IP / CIDR / 通配符(10.10.*.*) / 区间(起-止)
+	Remarks         string `json:"remarks"`                      //备注
+	IpType          string `json:"ip_type"`                      //条目类型: ""/ip(单条) | group(引用IP组)
+	GroupCode       string `json:"group_code"`                   //IpType=group 时的IP组短码
+	ConfirmBlockAll bool   `json:"confirm_block_all"`            //确认WAF全网封禁
+	IsEnable        *int   `json:"is_enable"`                    //启用状态：nil=新增默认启用/编辑不改动，0停用 1启用
+}
+
+type WafBlockIpEditReq struct {
+	Id              string `json:"id" binding:"required"`        //Block IP唯一键
+	HostCode        string `json:"host_code" binding:"required"` //网站唯一码（主要键）
+	Ip              string `json:"ip"`                           //Block ip：单IP / CIDR / 通配符 / 区间
+	Remarks         string `json:"remarks"`                      //备注
+	IpType          string `json:"ip_type"`                      //条目类型: ""/ip(单条) | group(引用IP组)
+	GroupCode       string `json:"group_code"`                   //IpType=group 时的IP组短码
+	ConfirmBlockAll bool   `json:"confirm_block_all"`            //确认WAF全网封禁
+	IsEnable        *int   `json:"is_enable"`                    //启用状态：nil=新增默认启用/编辑不改动，0停用 1启用
+}
+type WafBlockIpDelReq struct {
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //Block IP唯一键
+}
+
+type WafBlockIpSearchReq struct {
+	HostCode  string `json:"host_code" ` //主机码
+	Ip        string `json:"ip"`         //Block ip
+	GroupCode string `json:"group_code"` //按引用的IP组筛选（Ip 是精确匹配，对组引用行永远查不到）
+	request.PageInfo
+}
+
+type WafBlockIpDetailReq struct {
+	Id string `json:"id"  form:"id" binding:"required,max=64"` //Block IP唯一键
+}
+
+type WafBlockIpBatchDelReq struct {
+	Ids []string `json:"ids" binding:"required"` //Block IP唯一键数组
+}
+
+type WafBlockIpDelAllReq struct {
+	HostCode string `json:"host_code" form:"host_code"` //网站唯一码，为空则删除所有
+}
+
+type WafBlockIpToggleReq struct {
+	Id       string `json:"id" form:"id" binding:"required"`               //条目唯一键
+	IsEnable *int   `json:"is_enable" form:"is_enable" binding:"required"` //1启用 0停用（必填，防漏字段被当成停用）
+}

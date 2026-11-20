@@ -2,9 +2,9 @@
 package apicheck
 
 import (
-	"HomeWaf/api"
-	"HomeWaf/global"
-	"HomeWaf/wafmangeweb"
+	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/management"
+	"HomeWaf/internal/management/api"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -29,7 +29,7 @@ func fixtureURL(t *testing.T) string {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	_ = r.SetTrustedProxies(nil)
-	(&wafmangeweb.WafWebManager{}).RegisterRoutes(r)
+	(&management.WafWebManager{}).RegisterRoutes(r)
 	server := httptest.NewServer(r)
 	t.Cleanup(server.Close)
 	return server.URL

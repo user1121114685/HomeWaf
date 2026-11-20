@@ -1,0 +1,56 @@
+package router
+
+import (
+	"HomeWaf/internal/management/api"
+	"HomeWaf/internal/management/middleware"
+	"HomeWaf/internal/model/enums"
+	"github.com/gin-gonic/gin"
+)
+
+func InitPipelineRouter(group *gin.RouterGroup) {
+	r := group.Group("/api/v1/pipeline", middleware.RequireRole(enums.ROLE_SECURITY_ADMIN))
+	a := &api.WafPipelineApi{}
+	r.GET("/ports", a.ListPorts)
+	r.GET("/ports/index", api.MCPServiceIndex)
+	r.GET("/ports/detail", api.MCPServiceDetail)
+	r.GET("/overview", a.PipelineOverview)
+	r.GET("/stats", a.PipelineStats)
+	r.GET("/issues", a.PipelineIssues)
+	r.GET("/state", a.PipelineState)
+	r.GET("/defense", a.PipelineDefense)
+	r.GET("/defense/capabilities", a.PipelineDefenseCapabilities)
+	r.POST("/ports/access", a.PipelineAccess)
+	r.GET("/honeypot", a.SharedPipelineHoneypot)
+	r.GET("/honeypot/logs", a.SharedPipelineHoneypotLogs)
+	r.POST("/honeypot/save", a.SaveSharedPipelineHoneypot)
+	r.POST("/state/manage", a.ManagePipelineState)
+	r.GET("/logs", a.PipelineLogs)
+	r.GET("/cc/hits", a.PipelineCCHits)
+	r.POST("/cc/recommend", a.RecommendPipelineCC)
+	r.POST("/ports/save", a.SavePort)
+	r.POST("/ports/draft", api.NewServiceDraft)
+	r.POST("/ports/check", a.CheckPipelinePort)
+	r.POST("/tls/options", a.PipelineTLSOptions)
+	r.POST("/tls/check", a.CheckPipelineTLS)
+	r.POST("/ports/delete", a.DeletePort)
+	r.POST("/ports/copy", a.CopyPort)
+	r.GET("/templates", a.Templates)
+	r.POST("/templates/save", a.SaveTemplate)
+	r.POST("/templates/delete", a.DeleteTemplate)
+	r.POST("/templates/preview", a.PreviewTemplate)
+	r.POST("/templates/import-preview", a.PreviewTemplateImport)
+	r.GET("/templates/export", a.ExportTemplate)
+	r.POST("/upstream/test", a.TestUpstream)
+	r.POST("/explain", a.ExplainPort)
+	r.GET("/regions", a.PipelineRegions)
+	r.GET("/feed", a.FeedConfig)
+	r.POST("/feed/save", a.SaveFeed)
+	r.POST("/feed/sync", a.SyncFeed)
+	r.GET("/gate/users", a.GateUsers)
+	r.POST("/gate/users/save", a.SaveGateUser)
+	r.POST("/gate/users/delete", a.DeleteGateUser)
+	r.GET("/gate/sessions", a.GateSessions)
+	r.POST("/gate/sessions/kick", a.KickGateSession)
+	r.POST("/gate/sessions/revoke", a.RevokeGateSessions)
+	r.POST("/gate/token/rotate", a.RotateGateToken)
+}

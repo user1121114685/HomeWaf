@@ -68,7 +68,7 @@ import {defineComponent} from 'vue';
 import { prefix } from '@/config/global';
 import { wafAccessAuditListApi } from '@/apis/access';
 
-// 与后端 model/security_audit_log.go 的审计事件常量对应
+// 与后端 internal/model/security_audit_log.go 的审计事件常量对应
 const EVENTS = [
   'login_ok', 'login_fail', 'otp_fail', 'locked', 'logout', 'kick',
   'ticket_issue', 'ticket_consume', 'ticket_replay', 'bad_return_to',
