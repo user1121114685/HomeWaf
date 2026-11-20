@@ -335,21 +335,9 @@
           ><EditorSection
             ><template #title>自动处置</template
             ><ElAlert
-              :title="
-                draft.policy.defense
-                  ? '以下设置管理单来源封禁，trusted 和受保护来源保留豁免。整个端口的阈值与恢复时间在异常访问处置中配置。'
-                  : '第4步是异步旁路：只改变后续请求。当前请求动作由第3步决定。trusted和受保护来源只告警，不被自动处罚。'
-              "
+              title="以下设置管理单来源封禁，trusted 和受保护来源保留豁免。整个端口的阈值与恢复时间在异常访问处置中配置。"
               :closable="false"
-              class="space" /><Fields
-              :model="draft.policy.hit_policy"
-              :definitions="
-                draft.policy.defense
-                  ? fields.hit_policy.filter(
-                      (field) => !field.path.startsWith('lockdown.') && field.path !== 'ban_scope',
-                    )
-                  : fields.hit_policy
-              "
+              class="space" /><Fields :model="draft.policy.hit_policy" :definitions="fields.hit_policy"
           /></EditorSection>
           <EditorSection
             ><template #title>单IP累计阈值</template>
@@ -366,19 +354,15 @@
                   ><ElInputNumber
                     v-model="draft.policy.hit_policy[row.key].count"
                     :min="1"
-                    :max="row.key === 'response_404' ? 128 : 100000" /></template></ElTableColumn
+                    :max="100000" /></template></ElTableColumn
               ><ElTableColumn label="首次封禁时长"
                 ><template #default="{ row }"
                   ><ElInputNumber
-                    v-if="row.ban"
                     v-model="draft.policy.hit_policy[row.key].ban_seconds"
                     :min="1"
-                    :max="604800"
-                  /><span v-else>导入蜜罐，使用下方TTL</span></template
-                ></ElTableColumn
+                    :max="604800" /></template></ElTableColumn
               ></ElTable
             >
-            <p class="muted">提示、命中后丢弃和请求归档已移到独立的蜜罐设置。</p>
             <ElButton @click="activeTab = 'defense'">配置异常访问处置</ElButton></EditorSection
           >
           <EditorSection
@@ -774,13 +758,10 @@ const tightenRules = ref<string[]>([]),
   businessLoginJSON = ref('[]');
 const templatePreviewKey = ref('');
 const thresholdRows = [
-  { key: 'critical', label: 'critical', ban: true },
-  { key: 'high', label: 'high', ban: true },
-  { key: 'medium', label: 'medium', ban: true },
-  { key: 'login_ban', label: '持续登录失败', ban: true },
-  { key: 'response_404', label: '不同路径404', ban: false },
-  { key: 'response_auth', label: '401/403异常', ban: false },
-  { key: 'response_5xx', label: '可归因5xx', ban: false },
+  { key: 'critical', label: 'critical' },
+  { key: 'high', label: 'high' },
+  { key: 'medium', label: 'medium' },
+  { key: 'login_ban', label: '持续登录失败' },
 ];
 const basicFields: Field[] = [
   {
@@ -818,15 +799,7 @@ function normalize() {
   for (const r of p.ruleset.rules || []) {
     r.scope ||= {};
   }
-  const defaults = {
-    login_ban: [600, 20, 1800],
-    response_404: [60, 20, 0],
-    response_auth: [300, 10, 0],
-    response_5xx: [300, 5, 0],
-  };
-  for (const [key, v] of Object.entries(defaults)) {
-    if (!p.hit_policy[key]?.count) p.hit_policy[key] = { window_seconds: v[0], count: v[1], ban_seconds: v[2] };
-  }
+  if (!p.hit_policy.login_ban?.count) p.hit_policy.login_ban = { window_seconds: 600, count: 20, ban_seconds: 1800 };
   businessLoginJSON.value = JSON.stringify(p.hit_policy.business_login || [], null, 2);
 }
 normalize();

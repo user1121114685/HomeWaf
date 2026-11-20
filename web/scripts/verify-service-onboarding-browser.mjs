@@ -263,7 +263,7 @@ async function acceptConfirm() {
 try {
   await page.goto(origin + '/#/waf-pipeline/ports');
   await expect(page.getByRole('heading', { name: '接入你的第一个服务' })).toBeVisible();
-  await page.getByRole('button', { name: '接入服务', exact: true }).click();
+  await page.getByRole('button', { name: '开始接入服务', exact: true }).click();
   const guide = page.getByTestId('guided-setup');
   await expect(guide).toBeVisible();
   await page.screenshot({ animations: 'disabled', path: path.join(artifact, 'guided-scenes.png') });
@@ -305,6 +305,22 @@ try {
   await guide.getByRole('button', { name: '继续设置异常处置' }).click();
   await expect(guide.getByText('请只填写域名或 IP，不含协议、端口和路径：https://nas.example.test')).toBeVisible();
   await guide.getByLabel('允许的主机名（域名或 IP）', { exact: true }).fill('nas.example.test,192.0.2.10,2001:db8::1');
+  for (const [toggle, label] of [['限制允许访问的地区', '允许访问的地区'], ['启用IP黑名单', '禁止访问的地区']]) {
+    const checkbox = guide.getByRole('checkbox', { name: toggle }).locator('xpath=ancestor::label[1]');
+    await checkbox.click();
+    const input = guide.getByRole('combobox', { name: label });
+    for (const region of ['重庆', '浙江省']) {
+      await input.fill(region);
+      await page.getByRole('option', { name: new RegExp(region) }).click();
+      await expect(input).toHaveValue('');
+    }
+    const tags = input.locator('xpath=ancestor::*[contains(@class,"el-select__selection")][1]').locator('.el-tag');
+    await expect(tags).toHaveCount(2);
+    await expect(tags.first()).toContainText('重庆');
+    await input.press('Escape');
+    await checkbox.click();
+  }
+  report.checks.push('allowed and denied regions retain both selections and clear the filter after each choice');
   for (const [width, height] of [
     [1440, 1000],
     [820, 1180],
@@ -447,6 +463,9 @@ try {
   await editor.getByRole('button', { name: '保存端口配置', exact: true }).click();
   await expect(editor).toBeHidden();
   expect(configs.get(18480).policy.defense.count).toBe(15);
+  for (const retired of ['lockdown', 'ban_scope', 'response_404', 'response_auth', 'response_5xx']) {
+    expect(savePayloads.at(-1).config.policy.hit_policy).not.toHaveProperty(retired);
+  }
   report.checks.push('new service reopens with persisted defense and supports subsequent edits');
 
   await serviceCard.getByRole('button', { name: '更多服务操作' }).click();

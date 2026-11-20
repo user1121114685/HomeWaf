@@ -71,7 +71,7 @@
         </ol>
         <ElButton type="primary" :disabled="!templates.length || busy" @click="create"
           >开始接入服务<ArrowRight class="button-icon" aria-hidden="true" /></ElButton
-        ><span>原有站点可通过下方的迁移入口接入。</span>
+        >
       </div>
       <p v-else-if="!filteredPorts.length" class="service-no-results">
         没有找到匹配的服务。<ElButton text type="primary" @click="search = ''">清除搜索</ElButton>

@@ -10,10 +10,44 @@ import (
 	"HomeWaf/model"
 	"HomeWaf/model/baseorm"
 	"errors"
+	"gorm.io/gorm"
 	"time"
 )
 
 type WafTokenInfoService struct{}
+
+// PromoteManagementLogin replaces the previous web session only after the
+// candidate session and the new access policy have both been validated.
+func (receiver *WafTokenInfoService) PromoteManagementLogin(account, token, previewType string, persist func() error) error {
+	var old []model.TokenInfo
+	var session model.TokenInfo
+	err := global.GWAF_LOCAL_DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("login_account = ? AND access_token = ? AND login_type = ?", account, token, previewType).First(&session).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("login_account = ? AND login_type = ?", account, "web").Find(&old).Error; err != nil {
+			return err
+		}
+		for _, previous := range old {
+			if err := tx.Where("id = ?", previous.Id).Delete(&model.TokenInfo{}).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Model(&session).Update("login_type", "web").Error; err != nil {
+			return err
+		}
+		return persist()
+	})
+	if err != nil {
+		return err
+	}
+	session.LoginType = "web"
+	global.GCACHE_WAFCACHE.SetWithTTl(enums.CACHE_TOKEN+token, session, time.Duration(global.CurrentSettings().GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute)
+	for _, previous := range old {
+		global.GCACHE_WAFCACHE.Remove(enums.CACHE_TOKEN + previous.AccessToken)
+	}
+	return nil
+}
 
 var WafTokenInfoServiceApp = new(WafTokenInfoService)
 

@@ -190,8 +190,6 @@ export function newPort(template: PolicyTemplate, port = 0): PortConfig {
     duration_seconds: 10800,
     tcp_action: 'reset',
   };
-  policy.hit_policy.lockdown.enabled = false;
-  policy.hit_policy.ban_scope = 'port';
   if (policy.ip_group.unlisted_action === 'honeypot') policy.ip_group.unlisted_action = 'deny';
   return {
     schema_version: 1,
@@ -209,7 +207,6 @@ export function newPort(template: PolicyTemplate, port = 0): PortConfig {
 export function observationConfig(config: PortConfig): PortConfig {
   const next = clone(config);
   next.policy.hit_policy.enabled = false;
-  next.policy.hit_policy.lockdown.enabled = false;
   if (next.policy.defense) next.policy.defense.enabled = false;
   next.policy.ruleset.qps.mode = 'observe';
   next.policy.ruleset.cc.mode = 'observe';
@@ -309,7 +306,6 @@ export const fields: Record<string, Field[]> = {
       options: [
         ['continue', '继续检测'],
         ['deny', '拒绝（仅白名单可访问）'],
-        ['honeypot', '导入蜜罐'],
       ],
       help: '手动 deny 优先；trusted 可免检测；区域白名单只允许继续检测。',
     },
@@ -621,16 +617,6 @@ export const fields: Record<string, Field[]> = {
       help: '只影响后续请求；observe、trusted、私网、回环、本机和管理员来源不处罚。',
     },
     {
-      path: 'ban_scope',
-      label: '自动封禁作用域',
-      kind: 'select',
-      options: [
-        ['global', '共享至所有端口'],
-        ['port', '仅当前端口'],
-      ],
-      help: '其他端口的 trusted 不受共享封禁影响。手动黑名单始终只属于本端口。',
-    },
-    {
       path: 'ipv6_prefix',
       label: 'IPv6 聚合前缀长度',
       kind: 'number',
@@ -657,54 +643,6 @@ export const fields: Record<string, Field[]> = {
       label: '响应信号忽略路径',
       kind: 'lines',
       help: '每行一个前缀；默认忽略 favicon、robots，另自动忽略 .map。',
-    },
-    {
-      path: 'lockdown.enabled',
-      label: '多来源自保锁定',
-      kind: 'bool',
-      help: '攻击者可故意触发，让非trusted正常用户暂时不能访问；仅锁本端口，管理端与trusted仍可用。',
-    },
-    {
-      path: 'lockdown.window_seconds',
-      label: '锁定统计窗口（秒）',
-      kind: 'number',
-      min: 1,
-      max: 3600,
-      help: '只统计非观察、high以上的不同来源。',
-    },
-    {
-      path: 'lockdown.distinct_ips',
-      label: '触发锁定的不同 IP 数',
-      kind: 'number',
-      min: 2,
-      max: 1000,
-      help: '默认 60 秒内至少 5 个来源；IPv6 按设置的前缀聚合。',
-    },
-    {
-      path: 'lockdown.seconds',
-      label: '锁定时长（秒）',
-      kind: 'number',
-      min: 1,
-      max: 86400,
-      help: '默认 600；最后一次触发后无新触发才自动解除。',
-    },
-    {
-      path: 'lockdown.cooldown_seconds',
-      label: '解除后冷却（秒）',
-      kind: 'number',
-      min: 0,
-      max: 86400,
-      help: '避免管理员解除后立即再次锁定。',
-    },
-    {
-      path: 'lockdown.action',
-      label: '锁定响应',
-      kind: 'select',
-      options: [
-        ['deny', '503 页面'],
-        ['drop', '直接断开'],
-      ],
-      help: '所有其他端口不受影响。',
     },
   ],
   network: [

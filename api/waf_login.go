@@ -15,6 +15,7 @@ import (
 	"HomeWaf/model/request"
 	response2 "HomeWaf/model/response"
 	"HomeWaf/utils"
+	"HomeWaf/wafconfig"
 	"crypto/rand"
 	"fmt"
 	"strings"
@@ -145,6 +146,19 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 			if loginType == "" {
 				loginType = "web" // 默认为web类型
 			}
+			if loginType == wafconfig.ManagementPreviewLoginType {
+				response.FailWithMessage("无效的登录类型", c)
+				return
+			}
+			previewID := wafconfig.ManagementLoginPreviewID(c.Request, bean.LoginAccount)
+			if req.ManagementPreview != "" {
+				if req.ManagementPreview != previewID || loginType != "web" {
+					c.Header("Connection", "close")
+					response.FailWithMessage("验证链接已失效、账号不匹配或证书已更换，请从原入口重新打开验证链接", c)
+					return
+				}
+				loginType = wafconfig.ManagementPreviewLoginType
+			}
 
 			//如果存在旧的状态删除 相同帐号和登录类型 只允许一个
 			allTokenInfo := wafTokenInfoService.GetAllTokenInfoByLoginAccountAndType(req.LoginAccount, loginType)
@@ -174,6 +188,11 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 			if tokenErr != nil || tokenInfo == nil || tokenInfo.AccessToken != accessToken {
 				zlog.Error(fmt.Sprintf("登录会话创建失败，账号:%v 登录类型:%v 错误:%v", bean.LoginAccount, loginType, tokenErr))
 				response.FailWithMessage("登录状态创建失败，请重试；若持续失败请查看服务端日志", c)
+				return
+			}
+			if loginType == wafconfig.ManagementPreviewLoginType && !wafconfig.RecordManagementLogin(previewID, accessToken) {
+				_ = wafTokenInfoService.DelApi(bean.LoginAccount, accessToken)
+				response.FailWithMessage("入口验证已结束，请通过原入口重新准备", c)
 				return
 			}
 

@@ -44,10 +44,7 @@ func newConsoleInfoCommand(deps Deps) *cobra.Command {
 			}
 			out := cmd.OutOrStdout()
 			fmt.Fprintln(out, "HomeWaf console — open a server address reachable from your device:")
-			urls := utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, global.GWAF_SSL_ENABLE, entry)
-			if domain := wafconfig.GetManagementDomain(); domain != "" {
-				urls = []string{"https://" + net.JoinHostPort(domain, strconv.Itoa(global.GWAF_LOCAL_SERVER_PORT)) + "/" + entry}
-			}
+			urls := utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, global.GWAF_SSL_ENABLE, entry, wafconfig.GetManagementDomain())
 			for _, url := range urls {
 				fmt.Fprintln(out, "  "+url)
 			}
@@ -63,9 +60,9 @@ func newConsoleInfoCommand(deps Deps) *cobra.Command {
 				fmt.Fprintln(out, "HTTPS uses this instance's HomeWaf Local CA. Import its public root on your browsing device:")
 				fmt.Fprintln(out, "  Root certificate: "+paths.CACert)
 				fmt.Fprintln(out, "  SHA-256: "+ca.Fingerprint)
-				if wafconfig.GetManagementDomain() == "" {
+				if wafconfig.GetManagementDomain() == "" && !global.GWAF_SSL_FORCE_HTTPS {
 					fmt.Fprintln(out, "First visit: use HTTP to download the root certificate, verify its fingerprint, then open HTTPS:")
-					for _, url := range utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, false, entry) {
+					for _, url := range utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, false, entry, "") {
 						fmt.Fprintln(out, "  "+url)
 					}
 				}

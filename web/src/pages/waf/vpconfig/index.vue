@@ -318,7 +318,7 @@
         </template>
 
         <hw-loading :loading="sslLoading">
-          <ManagementAddress @changed="onManagementAddressChanged" />
+          <ManagementAddress ref="managementAddress" @changed="onManagementAddressChanged" />
           <hw-alert v-if="managementDomain" theme="info" :message="`当前只允许 ${managementDomain} 的 HTTPS 管理请求。更换域名或恢复 IP 模式，请使用上方管理地址表单。`" />
           <!-- 本次访问：常驻不可关闭。顶部横幅可按会话收起，这条不行——
                收起横幅不该等于信息消失，这里是它唯一"不消失"的落点。回环访问同样显示。 -->
@@ -1737,6 +1737,10 @@ import ManagementAddress from './ManagementAddress.vue';
       handleSaveAccessMode() {
         if (!this.accessDirty) return;
         const target = this.pickedAccessMode;
+        if (target === 'only') {
+          this.$refs.managementAddress?.prepareHttpsOnly();
+          return;
+        }
         if (target !== 'http' && !this.certUsable) {
           const why = this.certSource === 'none'
             ? this.$t('page.vpconfig.access_save_no_cert')

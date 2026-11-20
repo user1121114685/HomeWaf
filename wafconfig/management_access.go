@@ -1,11 +1,9 @@
 package wafconfig
 
 import (
-	"HomeWaf/global"
 	"HomeWaf/utils"
 	"HomeWaf/utils/localca"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -89,44 +87,6 @@ func EnsureInitialManagementTLS(baseDir string) error {
 	}
 	_, err = localca.IssueServerCert(p, sans, 0)
 	return err
-}
-
-// ConfigureManagementAddress commits the certificate and its access policy together.
-// A failed config write restores the previous certificate, without rotating the trusted root.
-func ConfigureManagementAddress(baseDir, domain string) error {
-	domain, err := NormalizeManagementDomain(domain)
-	if err != nil {
-		return err
-	}
-	configWriteMu.Lock()
-	defer configWriteMu.Unlock()
-	config, err := managementConfig(baseDir)
-	if err != nil {
-		return err
-	}
-	if config.GetString("security.ssl_bind_cert_id") != "" {
-		return errors.New("当前管理端绑定了证书资源，请先在证书来源中解除绑定，再使用本地管理证书")
-	}
-	sans := defaultManagementSANs()
-	if domain != "" {
-		sans = []string{domain}
-	}
-	p := localca.DefaultPaths(baseDir)
-	return localca.ReplaceServerCert(p, sans, func() error {
-		config.Set("security.management_domain", domain)
-		config.Set("security.domain_whitelist", domain)
-		config.Set("security.ssl_enable", true)
-		config.Set("security.ssl_force_https", domain != "")
-		config.Set("security.ssl_auto_local", true)
-		if err := writeManagementConfig(config); err != nil {
-			return fmt.Errorf("保存管理地址失败: %w", err)
-		}
-		global.GWAF_DOMAIN_WHITELIST = domain
-		global.GWAF_SSL_ENABLE = true
-		global.GWAF_SSL_FORCE_HTTPS = domain != ""
-		managementDomain.Store(domain)
-		return nil
-	})
 }
 
 func writeManagementConfig(config *viper.Viper) error {

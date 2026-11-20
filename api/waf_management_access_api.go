@@ -3,13 +3,13 @@ package api
 import (
 	"HomeWaf/global"
 	"HomeWaf/model/common/response"
+	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
 	"HomeWaf/utils/localca"
 	"HomeWaf/wafconfig"
 	"net"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +26,7 @@ func managementAddressInfo(c *gin.Context) gin.H {
 	if global.GWAF_SECURITY_ENTRY_ENABLE {
 		entry += global.GWAF_SECURITY_ENTRY_PATH + "/"
 	}
-	urls := utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, true, entry)
+	urls := utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, true, entry, domain)
 	if address, ok := c.Request.Context().Value(http.LocalAddrContextKey).(net.Addr); ok {
 		if host, _, err := net.SplitHostPort(address.String()); err == nil {
 			preferred := "https://" + net.JoinHostPort(host, strconv.Itoa(global.GWAF_LOCAL_SERVER_PORT)) + entry
@@ -38,11 +38,9 @@ func managementAddressInfo(c *gin.Context) gin.H {
 			}
 		}
 	}
-	if domain != "" {
-		urls = []string{"https://" + net.JoinHostPort(domain, strconv.Itoa(global.GWAF_LOCAL_SERVER_PORT)) + entry}
-	}
 	return gin.H{"domain": domain, "https_enabled": global.GWAF_SSL_ENABLE, "force_https": global.GWAF_SSL_FORCE_HTTPS, "urls": urls, "cert": localca.CurrentServerCert(p),
-		"ca": localca.CASummary(p), "ca_pem": string(caPEM), "is_local": localca.IsIssuedByLocalCA(p), "cert_usable": certProblem == "", "cert_problem": certProblem}
+		"pending": wafconfig.ManagementPreviewFor(c.Request, c.GetString("loginAccount"), c.GetHeader("X-Token")),
+		"ca":      localca.CASummary(p), "ca_pem": string(caPEM), "is_local": localca.IsIssuedByLocalCA(p), "cert_usable": certProblem == "", "cert_problem": certProblem}
 }
 
 func (w *WafVpConfigApi) GetManagementAddressApi(c *gin.Context) {
@@ -51,38 +49,42 @@ func (w *WafVpConfigApi) GetManagementAddressApi(c *gin.Context) {
 
 func (w *WafVpConfigApi) ConfigureManagementAddressApi(c *gin.Context) {
 	var req struct {
-		Domain        string `json:"domain"`
-		ConfirmDomain string `json:"confirm_domain"`
+		Action string `json:"action"`
+		Mode   string `json:"mode"`
+		ID     string `json:"id"`
+		Domain string `json:"domain"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.FailWithMessage("解析请求失败", c)
 		return
 	}
-	domain, err := wafconfig.NormalizeManagementDomain(req.Domain)
+	account, token := c.GetString("loginAccount"), c.GetHeader("X-Token")
+	if account == "" || token == "" || c.GetBool("is_openapi") {
+		response.ForbiddenWithMessage("请通过控制台使用系统管理账号验证新入口", c)
+		return
+	}
+	dir := utils.GetCurrentDir()
+	var err error
+	switch req.Action {
+	case "prepare":
+		var localIP string
+		if addr, ok := c.Request.Context().Value(http.LocalAddrContextKey).(net.Addr); ok {
+			localIP, _, _ = net.SplitHostPort(addr.String())
+		}
+		err = wafconfig.PrepareManagementChange(dir, account, req.Mode, req.Domain, localIP)
+	case "confirm", "cancel":
+		err = wafconfig.FinishManagementChange(dir, account, req.ID, req.Action, token, c.Request, func(persist func() error) error {
+			return waf_service.WafTokenInfoServiceApp.PromoteManagementLogin(account, token, wafconfig.ManagementPreviewLoginType, persist)
+		})
+	default:
+		response.FailWithMessage("请刷新控制台，再准备并登录新入口", c)
+		return
+	}
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	if domain != "" && req.ConfirmDomain != domain {
-		response.FailWithMessage("请确认管理域名已解析到本服务器；应用后只接受该域名的 HTTPS 管理访问", c)
-		return
-	}
-	if global.GWAF_CHAN_MANAGER_RESTART == nil {
-		response.FailWithMessage("管理端重启通道尚未就绪，请稍后重试", c)
-		return
-	}
-	if err := wafconfig.ConfigureManagementAddress(utils.GetCurrentDir(), domain); err != nil {
-		response.FailWithMessage(err.Error(), c)
-		return
-	}
-	response.OkWithDetailed(managementAddressInfo(c), "配置已保存，管理端将在 1 秒后重启；请导入根证书后验证新的 HTTPS 入口", c)
-	go func() {
-		time.Sleep(time.Second)
-		select {
-		case global.GWAF_CHAN_MANAGER_RESTART <- 1:
-		default:
-		}
-	}()
+	response.OkWithDetailed(managementAddressInfo(c), "操作成功", c)
 }
 
 // This unauthenticated bootstrap response contains public certificate data only.

@@ -10,6 +10,38 @@ import (
 // ReplaceServerCert stages and validates a leaf certificate before updating its policy.
 // Root material stays at its canonical paths and is never included in a download of private keys.
 func ReplaceServerCert(p Paths, sans []string, commit func() error) error {
+	stage, cleanup, err := StageServerCert(p, sans)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	return InstallServerCert(p, stage, commit)
+}
+
+// StageServerCert uses the instance CA without replacing the serving certificate.
+func StageServerCert(p Paths, sans []string) (Paths, func(), error) {
+	if err := os.MkdirAll(filepath.Dir(p.SrvCert), 0700); err != nil {
+		return Paths{}, nil, err
+	}
+	dir, err := os.MkdirTemp(filepath.Dir(p.SrvCert), ".certificate-*")
+	if err != nil {
+		return Paths{}, nil, err
+	}
+	cleanup := func() { _ = os.RemoveAll(dir) }
+	stage := p
+	stage.SrvCert, stage.SrvKey = filepath.Join(dir, "domain.crt"), filepath.Join(dir, "domain.key")
+	if _, err := IssueServerCert(stage, sans, 0); err != nil {
+		cleanup()
+		return Paths{}, nil, err
+	}
+	return stage, cleanup, nil
+}
+
+// InstallServerCert installs the exact pair that the browser verified.
+func InstallServerCert(p, stage Paths, commit func() error) error {
+	if err := CheckServerCert(stage); err != nil {
+		return err
+	}
 	var old = make(map[string][]byte)
 	for _, path := range []string{p.SrvCert, p.SrvKey} {
 		data, err := os.ReadFile(path)
@@ -17,22 +49,6 @@ func ReplaceServerCert(p Paths, sans []string, commit func() error) error {
 			return err
 		}
 		old[path] = data
-	}
-	if err := os.MkdirAll(filepath.Dir(p.SrvCert), 0700); err != nil {
-		return err
-	}
-	dir, err := os.MkdirTemp(filepath.Dir(p.SrvCert), ".certificate-*")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(dir)
-	stage := p
-	stage.SrvCert, stage.SrvKey = filepath.Join(dir, "domain.crt"), filepath.Join(dir, "domain.key")
-	if _, err := IssueServerCert(stage, sans, 0); err != nil {
-		return err
-	}
-	if err := CheckServerCert(stage); err != nil {
-		return err
 	}
 	restore := func(cause error) error {
 		for _, path := range []string{p.SrvCert, p.SrvKey} {

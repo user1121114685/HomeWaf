@@ -8,15 +8,20 @@ import (
 )
 
 // ConsoleURLs lists local interface addresses without contacting an IP discovery service.
-func ConsoleURLs(port int, tls bool, entry string) []string {
-	hosts := ConsoleIPs()
+func ConsoleURLs(port int, tls bool, entry, domain string) []string {
+	hosts := []string{domain}
+	if domain == "" {
+		hosts = ConsoleIPs()
+	} else {
+		tls = true
+	}
 	scheme := "http"
 	if tls {
 		scheme = "https"
 	}
 	suffix := "/"
-	if entry != "" {
-		suffix += strings.Trim(entry, "/") + "/"
+	if path := strings.Trim(entry, "/"); path != "" {
+		suffix += path + "/"
 	}
 	var urls []string
 	for _, host := range hosts {

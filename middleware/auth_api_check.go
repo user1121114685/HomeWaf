@@ -11,6 +11,7 @@ import (
 	"HomeWaf/model/common/response"
 	"HomeWaf/service/waf_service"
 	"HomeWaf/utils"
+	"HomeWaf/wafconfig"
 	"HomeWaf/wafhostguard"
 	"errors"
 	"fmt"
@@ -100,6 +101,14 @@ func Auth() gin.HandlerFunc {
 				response.AuthFailWithMessage("账号角色无效，请联系管理员", c)
 				c.Abort()
 				return
+			}
+			if tokenInfo.LoginType == wafconfig.ManagementPreviewLoginType {
+				view := wafconfig.ManagementPreviewFor(c.Request, tokenInfo.LoginAccount, tokenStr)
+				if view == nil || !view.CanConfirm {
+					response.AuthFailWithMessage("本次入口验证已结束或地址不匹配，请重新登录", c)
+					c.Abort()
+					return
+				}
 			}
 
 			// IP检查逻辑

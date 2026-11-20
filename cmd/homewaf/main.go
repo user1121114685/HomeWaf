@@ -584,7 +584,7 @@ func (m *wafSystenService) run() {
 	if global.GWAF_SECURITY_ENTRY_ENABLE {
 		zlog.Info("Use homewaf console-info to view the management entry address.")
 	} else {
-		for _, address := range utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, global.GWAF_SSL_ENABLE, "") {
+		for _, address := range utils.ConsoleURLs(global.GWAF_LOCAL_SERVER_PORT, global.GWAF_SSL_ENABLE, "", wafconfig.GetManagementDomain()) {
 			zlog.Info("Console address: " + address)
 		}
 	}

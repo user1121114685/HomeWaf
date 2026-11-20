@@ -23,7 +23,7 @@ function template() {
           { id: 'b', mode: 'off' },
         ],
       },
-      hit_policy: { enabled: true, lockdown: { enabled: true } },
+      hit_policy: { enabled: true, high: { window_seconds: 600, count: 3, ban_seconds: 1800 } },
       network: { trusted_proxies: ['10.0.0.0/8'] },
     },
   };
@@ -37,6 +37,7 @@ test('new port and applied template own independent mutable policy copies', () =
   a.policy.gate.enabled = false;
   assert.equal(b.policy.ruleset.rules[0].mode, 'block');
   assert.equal(source.policy.gate.enabled, true);
+  assert.deepEqual(a.policy.hit_policy, source.policy.hit_policy);
   assert.equal(a.listen_enabled, false);
   assert.equal(a.revision, 0);
 });
@@ -49,8 +50,7 @@ test('observation startup retains access controls and never activates disabled d
   assert.equal(next.policy.ruleset.rules[0].mode, 'observe');
   assert.equal(next.policy.ruleset.rules[1].mode, 'off');
   assert.equal(next.policy.ruleset.owasp, 'off');
-  assert.equal(next.policy.hit_policy.enabled, false);
-  assert.equal(next.policy.hit_policy.lockdown.enabled, false);
+  assert.deepEqual(next.policy.hit_policy, { ...original.policy.hit_policy, enabled: false });
   assert.equal(original.policy.ruleset.rules[0].mode, 'block');
   assert.equal(original.policy.hit_policy.enabled, true);
 });

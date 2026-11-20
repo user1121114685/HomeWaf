@@ -32,6 +32,7 @@
           :options="regionOptions"
           multiple
           filterable
+          :reserve-keyword="false"
           clearable
           :loading="loading"
           placeholder="搜索国家或省市，例如中国、重庆"
@@ -76,6 +77,7 @@
           :options="regionOptions"
           multiple
           filterable
+          :reserve-keyword="false"
           clearable
           :loading="loading"
           placeholder="选择要屏蔽的国家或省市"

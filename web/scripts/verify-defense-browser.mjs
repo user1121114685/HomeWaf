@@ -36,13 +36,12 @@ const configs = new Map(
     },
   ]),
 );
-configs.get(5001).policy.honeypot.enabled = true;
 for (const c of configs.values()) {
   c.policy.ip_group.unlisted_action = 'continue';
   c.policy.gate.enabled = false;
 }
 const otherPort = JSON.stringify(configs.get(5001));
-let shared = { configured: false, revision: 0, config: clone(templates[0].policy.honeypot) };
+let shared = { configured: false, revision: 0, config: { max_concurrent: 32, max_delay_ms: 250, archive_max_bytes: 16384, lures: [], trap_paths: [] } };
 let failSave = false,
   failSharedSave = false,
   failSharedRead = false,
@@ -103,7 +102,6 @@ await context.route('**/api/**', async (route) => {
       access_enabled: c.policy.access.enabled,
       mode: c.policy.defense?.mode || '',
       enabled: !!c.policy.defense?.enabled,
-      legacy: !c.policy.defense,
       honeypot_ready: shared.configured,
       failures: 4,
       success_prefixes: 12,
@@ -128,11 +126,6 @@ await context.route('**/api/**', async (route) => {
     if (old.revision !== input.config.revision) return fail('配置版本冲突');
     const value = clone(input.config);
     value.revision++;
-    if (value.policy.defense) {
-      value.policy.honeypot.enabled = false;
-      value.policy.hit_policy.lockdown.enabled = false;
-      value.policy.hit_policy.ban_scope = 'port';
-    }
     configs.set(port, value);
     return ok(value);
   }
@@ -155,9 +148,6 @@ await context.route('**/api/**', async (route) => {
     return ok({
       shared,
       sources: [...configs.values()].map((c) => ({ port: c.port, name: c.name })),
-      legacy: [...configs.values()]
-        .filter((c) => !c.policy.defense && c.policy.honeypot.enabled)
-        .map((c) => ({ port: c.port, name: c.name, config: c.policy.honeypot })),
       services: [...configs.values()]
         .filter((c) => c.policy.defense?.mode === 'honeypot' && c.policy.defense.enabled)
         .map((c) => ({ port: c.port, name: c.name })),
@@ -205,9 +195,7 @@ async function savePort() {
 try {
   await page.goto(origin + '/#/waf-pipeline/ports');
   await openDefense();
-  await panel().getByRole('button', { name: '配置异常访问处置' }).click();
-  await expect(editor().getByRole('button', { name: '保存端口配置' })).toBeDisabled();
-  await expect(panel().getByText('迁移确认', { exact: true })).toHaveCount(0);
+  await panel().getByRole('switch', { name: '启用异常访问处置' }).locator('..').click();
   await chooseMode('无提示拒绝');
   await expect(editor().getByRole('button', { name: '保存端口配置' })).toBeEnabled();
   await expect(panel().getByRole('spinbutton', { name: '累计异常的时间范围（分钟）' })).toHaveValue('30');
@@ -219,7 +207,7 @@ try {
   await savePort();
   await expect(editor()).toBeHidden();
   await openDefense();
-  await expect(panel().getByRole('button', { name: '配置异常访问处置' })).toHaveCount(0);
+  await expect(panel().getByRole('switch', { name: '启用异常访问处置' })).toBeChecked();
   if (configs.get(5000).policy.defense.mode !== 'quiet' || JSON.stringify(configs.get(5001)) !== otherPort)
     throw new Error('wrong persistence scope');
   report.checks.push(

@@ -3,9 +3,14 @@ package wafconfig
 import (
 	"HomeWaf/global"
 	"HomeWaf/utils/localca"
+	"crypto/sha256"
+	"errors"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func managementTestDir(t *testing.T, body string) string {
@@ -57,14 +62,52 @@ func TestManagementDomainPersistsStrictPolicyAndReusesRoot(t *testing.T) {
 		global.GWAF_SSL_FORCE_HTTPS = beforeForce
 	})
 	dir := managementTestDir(t, "local_port: 27777\nui:\n  admin_title: retained\n")
-	if err := ConfigureManagementAddress(dir, ""); err != nil {
-		t.Fatal(err)
+	switchAddress := func(domain, host string) {
+		t.Helper()
+		if err := PrepareManagementChange(dir, "admin", "address", domain, "127.0.0.1"); err != nil {
+			t.Fatal(err)
+		}
+		r := httptest.NewRequest("GET", "https://"+host+"/", nil)
+		sni := host
+		if host == "127.0.0.1" {
+			sni = ""
+		}
+		r.TLS.ServerName = sni
+		cert := ManagementPreviewCertificate(sni, "127.0.0.1:27777")
+		r = r.WithContext(WithManagementCertificate(r.Context(), sha256.Sum256(cert.Certificate[0])))
+		id := ManagementLoginPreviewID(r, "admin")
+		save := func(write func() error) error { return write() }
+		if id == "" || !RecordManagementLogin(id, "new-session") {
+			t.Fatal("preview login missing")
+		}
+		if err := FinishManagementChange(dir, "admin", id, "confirm", "old-session", r, save); err == nil {
+			t.Fatal("old session confirmed change")
+		}
+		if err := FinishManagementChange(dir, "another", id, "confirm", "new-session", r, save); err == nil {
+			t.Fatal("another account confirmed change")
+		}
+		if err := FinishManagementChange(dir, "admin", id, "confirm", "new-session", httptest.NewRequest("GET", "http://"+host+"/", nil), save); err == nil {
+			t.Fatal("plaintext request confirmed change")
+		}
+		before := leafFingerprint(localca.DefaultPaths(dir))
+		err := FinishManagementChange(dir, "admin", id, "confirm", "new-session", r, func(write func() error) error {
+			if err := write(); err != nil {
+				return err
+			}
+			return errors.New("session transaction failed")
+		})
+		if err == nil || leafFingerprint(localca.DefaultPaths(dir)) != before {
+			t.Fatal("failed transaction replaced the active certificate")
+		}
+		if err := FinishManagementChange(dir, "admin", id, "confirm", "new-session", r, save); err != nil {
+			t.Fatal(err)
+		}
 	}
+	t.Cleanup(ResetManagementServingCertificate)
+	switchAddress("", "127.0.0.1")
 	p := localca.DefaultPaths(dir)
 	root := localca.CASummary(p).Fingerprint
-	if err := ConfigureManagementAddress(dir, "WAF.LAN"); err != nil {
-		t.Fatal(err)
-	}
+	switchAddress("WAF.LAN", "waf.lan")
 	if GetManagementDomain() != "waf.lan" || global.GWAF_DOMAIN_WHITELIST != "waf.lan" || !global.GWAF_SSL_ENABLE || !global.GWAF_SSL_FORCE_HTTPS {
 		t.Fatal("strict access policy not active")
 	}
@@ -84,11 +127,22 @@ func TestManagementDomainPersistsStrictPolicyAndReusesRoot(t *testing.T) {
 	if UpdateSslEnable(false) == nil || UpdateSslForceHttps(false) == nil || UpdateDomainWhitelist("") == nil {
 		t.Fatal("legacy writes bypass domain-only policy")
 	}
-	if err := ConfigureManagementAddress(dir, ""); err != nil {
-		t.Fatal(err)
-	}
+	switchAddress("", "127.0.0.1")
 	if GetManagementDomain() != "" || global.GWAF_SSL_FORCE_HTTPS || !localca.ServerCertCoversHost(p, "127.0.0.1") {
 		t.Fatal("IP mode recovery failed")
+	}
+	if err := PrepareManagementChange(dir, "admin", "https_only", "127.0.0.1", "127.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+	managementHandoff.Lock()
+	managementHandoff.pending.Expires = time.Now().Add(-time.Second)
+	managementHandoff.Unlock()
+	if view := ManagementPreviewFor(httptest.NewRequest("GET", "/", nil), "admin", ""); view != nil || global.GWAF_SSL_FORCE_HTTPS {
+		t.Fatal("expired preview changed the active policy")
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "conf", "config.yml"))
+	if err != nil || !strings.Contains(string(data), "ssl_force_https: false") {
+		t.Fatal("expired preview persisted a restriction")
 	}
 }
 

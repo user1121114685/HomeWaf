@@ -4,6 +4,7 @@ package middleware
 
 import (
 	"HomeWaf/global"
+	"HomeWaf/wafconfig"
 	"github.com/gin-gonic/gin"
 	"net"
 	"net/http"
@@ -15,7 +16,7 @@ import (
 func DomainWhitelist() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		whitelist := strings.TrimSpace(global.GWAF_DOMAIN_WHITELIST)
-		if whitelist == "" {
+		if whitelist == "" || wafconfig.IsManagementPreview(c.Request) {
 			c.Next()
 			return
 		}

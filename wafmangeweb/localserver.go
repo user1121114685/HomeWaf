@@ -16,6 +16,7 @@ import (
 	"HomeWaf/wafnet"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
 	_ "embed"
@@ -120,7 +121,12 @@ type httpsRedirectHandler struct {
 }
 
 func (h *httpsRedirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if domain := wafconfig.GetManagementDomain(); domain != "" {
+	if hc, ok := r.Context().Value(hybridConnContextKey{}).(*hybridConn); ok && hc != nil && hc.tlsConn != nil {
+		state := hc.tlsConn.ConnectionState()
+		r.TLS = &state
+		r = r.WithContext(wafconfig.WithManagementCertificate(r.Context(), hc.fingerprint))
+	}
+	if domain := wafconfig.GetManagementDomain(); domain != "" && !wafconfig.IsManagementPreview(r) {
 		host := r.Host
 		if name, _, err := net.SplitHostPort(host); err == nil {
 			host = name
@@ -140,7 +146,7 @@ func (h *httpsRedirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
-	if global.GWAF_SSL_FORCE_HTTPS {
+	if global.GWAF_SSL_ENABLE && global.GWAF_SSL_FORCE_HTTPS {
 		if hc, ok := r.Context().Value(hybridConnContextKey{}).(*hybridConn); ok && hc != nil && !hc.isTLS {
 			target := "https://" + r.Host + r.RequestURI
 			http.Redirect(w, r, target, http.StatusMovedPermanently)
@@ -406,6 +412,7 @@ func isLoopbackOrigin(origin string) bool {
 
 // StartLocalServer 启动本地管理服务器
 func (web *WafWebManager) StartLocalServer() error {
+	wafconfig.ResetManagementServingCertificate()
 	ready := web.beginReadiness()
 	defer ready.Fail(errors.New("管理端监听已停止"))
 	if global.GWAF_RELEASE == "true" {
@@ -497,7 +504,7 @@ func (web *WafWebManager) StartLocalServer() error {
 	} else {
 		// 使用 HTTP 启动服务
 		zlog.Info(web.LogName, "启动 HTTP 管理端, port:", global.GWAF_LOCAL_SERVER_PORT)
-		if err := web.listenAndServeHTTPReuse(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := web.listenAndServeHybrid(tls.Certificate{}); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errMsg := fmt.Sprintf("启动管理界面失败: %s", err.Error())
 			zlog.Error(web.LogName, errMsg)
 			return err
@@ -545,7 +552,7 @@ func httpsRequiredHandler(reason string) http.Handler {
 func (web *WafWebManager) serveHTTPFallback(reason string) error {
 	if !global.GWAF_SSL_FORCE_HTTPS {
 		zlog.Info(web.LogName, "启动 HTTP 管理端（降级模式）, port:", global.GWAF_LOCAL_SERVER_PORT)
-		if err := web.listenAndServeHTTPReuse(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := web.listenAndServeHybrid(tls.Certificate{}); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errMsg := fmt.Sprintf("启动管理界面失败: %s", err.Error())
 			zlog.Error(web.LogName, errMsg)
 			return err
@@ -662,10 +669,11 @@ func (l *hybridListener) Accept() (net.Conn, error) {
 // hybridConn 混合连接，可以自动识别 HTTPS 和 HTTP
 type hybridConn struct {
 	net.Conn
-	cert      tls.Certificate
-	tlsConn   *tls.Conn
-	firstRead bool
-	isTLS     bool
+	cert        tls.Certificate
+	tlsConn     *tls.Conn
+	firstRead   bool
+	isTLS       bool
+	fingerprint [32]byte
 }
 
 func (c *hybridConn) Read(b []byte) (n int, err error) {
@@ -687,8 +695,18 @@ func (c *hybridConn) Read(b []byte) (n int, err error) {
 
 			// 创建 TLS 配置
 			tlsConfig := &tls.Config{
-				Certificates: []tls.Certificate{c.cert},
-				MinVersion:   tls.VersionTLS12,
+				GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					cert := wafconfig.ManagementPreviewCertificate(hello.ServerName, c.LocalAddr().String())
+					if cert == nil {
+						cert = &c.cert
+					}
+					if len(cert.Certificate) == 0 {
+						return nil, errors.New("management HTTPS is not configured for this address")
+					}
+					c.fingerprint = sha256.Sum256(cert.Certificate[0])
+					return cert, nil
+				},
+				MinVersion: tls.VersionTLS12,
 			}
 
 			// 创建 TLS 连接包装器

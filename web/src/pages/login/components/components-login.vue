@@ -184,6 +184,7 @@ export default defineComponent({
     onSubmit({ validateResult }) {
       if (validateResult === true) {
         loginapi({
+          management_preview: typeof this.$route.query.management_preview === 'string' ? this.$route.query.management_preview : undefined,
           login_account: this.formData.account,
           login_password: this.formData.password,
           login_otp_secret_code: this.formData.secret_code
@@ -238,7 +239,10 @@ export default defineComponent({
       this.$store.dispatch('sysparams/fetchParams');
       this.$message.success(this.$t('login.login_success'));
       await this.$nextTick();
-      await this.$router.replace(getSafeRedirectUrl());
+      const target = this.$route.query.redirect;
+      const redirect = typeof target === 'string' && /^\/(?!\/)/.test(target) && !target.includes('\\') && !target.startsWith('/login')
+        ? target : getSafeRedirectUrl();
+      await this.$router.replace(redirect);
     },
     handleCounter() {
       this.countDown = 60;

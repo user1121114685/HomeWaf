@@ -755,6 +755,10 @@ func (w *WafVpConfigApi) UpdateSslForceHttpsApi(c *gin.Context) {
 		response.FailWithMessage("解析请求失败", c)
 		return
 	}
+	if req.ForceHttps && !global.GWAF_SSL_FORCE_HTTPS {
+		response.FailWithMessage("请在管理地址中验证 HTTPS 登录后再启用仅 HTTPS", c)
+		return
+	}
 	if err := wafconfig.UpdateSslForceHttps(req.ForceHttps); err != nil {
 		response.FailWithMessage("更新仅HTTPS开关失败: "+err.Error(), c)
 		return

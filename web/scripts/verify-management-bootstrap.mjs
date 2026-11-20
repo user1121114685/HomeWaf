@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import net from 'node:net';
 import https from 'node:https';
+import { createHash, X509Certificate } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { fromBase64, toBase64, transportKeyPair, TransportSession } from '../src/utils/transportCipher.ts';
@@ -114,7 +115,11 @@ try {
     'PASS: random password shown by CLI; HTTP and certificate-verified HTTPS serve the console; public CA has no private key',
   );
 
-  browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const caKey = new X509Certificate(publicInfo.ca_pem).publicKey.export({ type: 'spki', format: 'der' });
+  browser = await chromium.launch({ channel: 'chrome', headless: true, args: [
+    '--no-proxy-server', '--host-resolver-rules=MAP console.homewaf.test 127.0.0.1',
+    '--ignore-certificate-errors-spki-list=' + createHash('sha256').update(caKey).digest('base64'),
+  ] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
   const pageErrors = [];
@@ -173,7 +178,8 @@ try {
   expect(submits).toBe(1);
   expect(pageErrors).toEqual([]);
   await context.close();
-  const again = await browser.newPage();
+  const managerContext = await browser.newContext();
+  const again = await managerContext.newPage();
   await again.goto(origin + '/#/login');
   await again.locator('input[autocomplete="username"]').fill('admin');
   await again.locator('input[autocomplete="current-password"]').fill(fresh);
@@ -183,7 +189,8 @@ try {
   await again.goto(origin + '/#/sys/VpConfig?section=access');
   const address = again.getByTestId('management-address');
   await expect(address).toBeVisible();
-  await expect(address.getByRole('button', { name: '生成证书并应用管理地址' })).toBeEnabled();
+  const prepare = address.getByRole('button', { name: '准备验证新入口' });
+  await expect(prepare).toBeEnabled();
   console.log(
     'PASS: first-login dialog works on desktop/tablet/phone in light/dark; forced change cannot close; failures preserve input; duplicate submit is suppressed; new password survives repeat login',
   );
@@ -197,26 +204,17 @@ try {
   expect(init.status).toBe(0);
   const key = fs.readFileSync(path.join(runtime, 'data/.keys/cli_api_key'), 'utf8').trim();
   await address.locator('input').first().fill('https://invalid.homewaf.test');
-  await address.getByText('我已配置该域名解析，并确认切换后不再通过 IP 管理').click();
-  await address.getByRole('button', { name: '生成证书并应用管理地址' }).click();
-  await again.getByRole('button', { name: '生成并应用', exact: true }).click();
+  await prepare.click();
   await expect(address.locator('.el-alert--error')).toBeVisible();
   await expect(address.locator('input').first()).toHaveValue('https://invalid.homewaf.test');
   await address.locator('input').first().fill('console.homewaf.test');
-  await address.getByText('我已配置该域名解析，并确认切换后不再通过 IP 管理').click();
-  await address.getByRole('button', { name: '生成证书并应用管理地址' }).click();
-  await again.getByRole('button', { name: '取消', exact: true }).last().click();
+  await prepare.click();
+  await address.getByRole('button', { name: '取消本次切换' }).click();
   await expect(address.locator('input').first()).toHaveValue('console.homewaf.test');
-  await address.getByRole('button', { name: '生成证书并应用管理地址' }).click();
-  await again.getByRole('button', { name: '生成并应用', exact: true }).click();
-  await expect(address).toContainText('新 HTTPS 入口');
-  await wait(async () => (await tlsRequest('console.homewaf.test')).status === 200);
-  await again.evaluate(async () => {
-    try {
-      await window.vm.$request({ url: 'vipconfig/managementAddress', method: 'get' });
-    } catch {}
-  });
-  await expect(address).toBeVisible();
+  await prepare.click();
+  await expect(address).toContainText('等待在新入口登录');
+  expect((await fetch(origin, { redirect: 'manual' })).status).toBe(200);
+  expect((await tlsRequest('console.homewaf.test')).status).toBe(200);
   const rootDownload = again.waitForEvent('download');
   await address.getByRole('button', { name: '下载 HomeWaf 根证书' }).click();
   expect((await rootDownload).suggestedFilename()).toBe('homewaf-local-ca.crt');
@@ -225,7 +223,27 @@ try {
     await address.scrollIntoViewIfNeeded();
     await address.screenshot({ path: path.join(shots, `management-address-${width}.png`) });
   }
-  expect((await fetch(origin, { redirect: 'manual' })).status).toBe(403);
+  async function signInAtTarget(opener, url) {
+    const target = await opener.context().newPage();
+    await target.goto(url);
+    await target.locator('input[autocomplete="username"]').fill('admin');
+    await target.locator('input[autocomplete="current-password"]').fill(fresh);
+    await target.locator('.login-password button[type="submit"]').click();
+    await expect(target.getByTestId('management-address')).toContainText('新入口登录已验证', { timeout: 15000 });
+    return target;
+  }
+  async function confirmAtTarget(target) {
+    await target.getByRole('button', {name:'确认切换管理入口'}).click();
+    await target.getByRole('button', {name:'确认切换', exact:true}).click();
+    await expect(target.getByTestId('management-address')).toContainText('已切换管理入口');
+  }
+  const next = await signInAtTarget(again, await address.getByRole('link', {name:/登录新入口/}).first().getAttribute('href'));
+  await address.getByRole('button', {name:'刷新状态'}).click();
+  await expect(address).toContainText('等待在新入口登录');
+  await expect(address.getByRole('button', {name:'确认切换管理入口'})).toHaveCount(0);
+  expect((await fetch(origin, { redirect: 'manual' })).status).toBe(200);
+  await confirmAtTarget(next);
+  await wait(async () => (await fetch(origin, {redirect:'manual'})).status === 403);
   const denied = await new Promise((resolve, reject) => {
     const req = https.get(
       {
@@ -250,12 +268,51 @@ try {
     { domain: '' },
     key,
   );
-  expect(JSON.parse(restored.body).code).toBe(0);
-  await wait(async () => (await tlsRequest('127.0.0.1')).status === 200);
-  expect((await fetch(origin)).status).toBe(200);
-  await again.goto(origin + '/#/sys/VpConfig?section=access');
-  await again.reload();
-  await expect(again.getByTestId('management-address').locator('input').first()).toHaveValue('');
+  expect(JSON.parse(restored.body).code).not.toBe(0);
+  await next.reload();
+  const newAddress = next.getByTestId('management-address');
+  await expect(newAddress.locator('input').first()).toHaveValue('console.homewaf.test');
+  await newAddress.locator('input').first().fill('');
+  await newAddress.getByRole('button', {name:'准备验证新入口'}).click();
+  await expect(newAddress).toContainText('等待在新入口登录');
+  const ipUrl = await newAddress.getByRole('link', {name:/登录新入口/}).first().getAttribute('href');
+  const ip = await signInAtTarget(next, ipUrl);
+  expect((await fetch(origin, {redirect:'manual'})).status).toBe(403);
+  await confirmAtTarget(ip);
+  await wait(async () => (await fetch(origin, {redirect:'manual'})).status === 200);
+  await ip.reload();
+  await expect(ip.getByTestId('management-address').locator('input').first()).toHaveValue('');
+  const plain = await managerContext.newPage();
+  await plain.goto(origin + '/#/login?redirect=' + encodeURIComponent('/sys/VpConfig?section=access'));
+  await plain.locator('input[autocomplete="username"]').fill('admin');
+  await plain.locator('input[autocomplete="current-password"]').fill(fresh);
+  await plain.locator('.login-password button[type="submit"]').click();
+  await expect(plain).not.toHaveURL(/#\/login/);
+  await plain.goto(origin + '/#/sys/VpConfig?section=access');
+  await expect(plain.getByTestId('management-address')).toBeVisible({timeout:10000});
+  const protocol = plain.locator('#vp-sec-access');
+  await protocol.locator('.acc-opt').filter({hasText:'仅 HTTPS'}).click();
+  await protocol.getByRole('button', {name:'保存配置',exact:true}).click();
+  const plainAddress = plain.getByTestId('management-address');
+  await plainAddress.getByRole('button', {name:'准备验证新入口'}).click();
+  const verifyLink = plainAddress.getByRole('link', {name:/登录新入口/}).first();
+  await expect(verifyLink).toBeVisible();
+  const targetUrl = await verifyLink.getAttribute('href');
+  const wrong = await managerContext.newPage();
+  await wrong.goto(targetUrl);
+  await wrong.locator('input[autocomplete="username"]').fill('admin');
+  await wrong.locator('input[autocomplete="current-password"]').fill('wrong-fixture-password');
+  await wrong.locator('.login-password button[type="submit"]').click();
+  await expect(wrong.locator('.login-password')).toContainText('登录密码错误');
+  await wrong.close();
+  expect((await fetch(origin, {redirect:'manual'})).status).toBe(200);
+  const secure = await signInAtTarget(plain, targetUrl);
+  expect((await fetch(origin, {redirect:'manual'})).status).toBe(200);
+  await confirmAtTarget(secure);
+  const redirect = await fetch(origin, {redirect:'manual'});
+  expect(redirect.status).toBe(301);
+  expect(redirect.headers.get('location')).toBe(origin.replace('http:', 'https:') + '/');
+  console.log('PASS: HTTPS-only preserves HTTP and the previous session until a verified HTTPS login explicitly confirms');
   console.log(
     'PASS: management address UI preserves invalid drafts and cancellation, applies the domain, keeps root download available after old-origin denial, and reopens in restored IP mode',
   );
