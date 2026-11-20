@@ -448,9 +448,12 @@ try {
   );
 
   }
-  await page.goto(origin + '/?verification=' + Date.now() + '#/application/AppList');
-  await expect(page.locator('.el-table__row').filter({ hasText: '测试应用' })).toBeVisible();
+  await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/application/app/list'),
+    page.goto(origin + '/?verification=' + Date.now() + '#/application/AppList'),
+  ]);
   const row = () => page.locator('.el-table__row').filter({ hasText: '测试应用' });
+  await expect(row()).toBeVisible();
   await row().getByRole('button', { name: '编辑', exact: true }).click();
   await expect(dialog().locator('input[type=password]')).toBeVisible();
   await dialog().locator('input[type=password]').fill('wrong-operation-password');

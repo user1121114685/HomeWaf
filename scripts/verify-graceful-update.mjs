@@ -40,9 +40,10 @@ const publisher = https.createServer({ key: fs.readFileSync(keyPath), cert: fs.r
   } else { res.writeHead(404); res.end(); }
 });
 const publisherPort = await listen(publisher);
+const finishSlowResponse = Promise.withResolvers();
 const origin = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': req.url === '/slow' ? 'text/event-stream' : 'text/plain' });
-  if (req.url === '/slow') { res.write('begin\n'); setTimeout(() => res.end('end\n'), 6500); }
+  if (req.url === '/slow') { res.write('begin\n'); finishSlowResponse.promise.then(() => res.end('end\n')); }
   else res.end('origin-ok');
 });
 origin.on('upgrade', (req, socket) => {
@@ -122,14 +123,16 @@ const api = async (name) => {
   if (response.status !== 200 || body.code !== 0) throw new Error(`${name}: ${body.msg || response.status}`);
   return body.data;
 };
-const proxyRequest = (urlPath = '/', firstChunk) => new Promise((resolve, reject) => {
+const ioTimeout = 20000;
+const handoffTimeout = 150000;
+const proxyRequest = (urlPath = '/', firstChunk, timeout = ioTimeout) => new Promise((resolve, reject) => {
   const request = http.get({ hostname: '127.0.0.1', port: proxyPort, path: urlPath, headers: { Host: `graceful.test:${proxyPort}` }, agent: proxyAgent }, (res) => {
     let body = '';
     res.on('data', (chunk) => { body += chunk; firstChunk?.(); });
     res.on('error', reject);
     res.on('end', () => resolve({ status: res.statusCode, body, worker: res.headers['x-samwaf-worker'] }));
   });
-  request.setTimeout(20000, () => request.destroy(new Error('proxy request timed out')));
+  request.setTimeout(timeout, () => request.destroy(new Error('proxy request timed out')));
   request.on('error', reject);
 });
 try {
@@ -174,18 +177,21 @@ try {
   });
   let began;
   const slowStarted = new Promise((r) => { began = r; });
-  const slow = proxyRequest('/slow', began);
-  // A later assertion can fail before this request is awaited; keep cleanup from
-  // turning its aborted socket into an unhandled rejection that hides the cause.
-  slow.catch(() => {});
-  await slowStarted;
+  const slow = proxyRequest('/slow', began, handoffTimeout + ioTimeout);
+  await Promise.race([slowStarted, slow]);
   upgraded = net.createConnection({ host: '127.0.0.1', port: proxyPort });
-  upgraded.setTimeout(20000, () => upgraded.destroy(new Error('upgrade socket timed out')));
-  await new Promise((resolve, reject) => {
+  const socketClosed = new Promise((_, reject) => {
     upgraded.once('error', reject);
+    upgraded.once('close', () => reject(new Error('WebSocket closed before the takeover echo')));
+  });
+  upgraded.setTimeout(ioTimeout, () => upgraded.destroy(new Error('upgrade socket timed out')));
+  const handshake = new Promise((resolve, reject) => {
     upgraded.once('connect', () => upgraded.write(`GET /upgrade HTTP/1.1\r\nHost: graceful.test:${proxyPort}\r\nConnection: upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n`));
     upgraded.once('data', (data) => String(data).includes('101') ? resolve() : reject(new Error('Upgrade rejected: ' + String(data).slice(0, 500))));
   });
+  await Promise.race([handshake, socketClosed]);
+  // The idle connection spans installer preparation. The handoff has its own deadline.
+  upgraded.setTimeout(0);
   const updateCompletion = viaInstaller ? runProcess(installerCommand, installerArgs('upgrade', upgradeArgs)) : api('update');
   updateCompletion.catch(() => {});
   if (!viaInstaller) await updateCompletion;
@@ -198,14 +204,16 @@ try {
       const progress = await api('updateprogress');
       if (progress.state === 'failed') return { error: progress.error || 'Worker handoff failed', progress };
       return false;
-    }, 150000, 1000),
+    }, handoffTimeout, 1000),
+    socketClosed,
     updateCompletion.then(() => new Promise(() => {})),
   ]);
   if (handoff.error) throw new Error(`Worker handoff failed at ${handoff.progress.error_stage || 'unknown stage'}: ${handoff.error}`);
   const after = handoff.state;
   report.newWorker = after.active_pid;
   if (!after.pids.includes(before.active_pid)) throw new Error('Old worker exited before the long connection was released');
-  const echo = new Promise((resolve, reject) => {
+  upgraded.setTimeout(ioTimeout);
+  const echo = new Promise(resolve => {
     let received = Buffer.alloc(0);
     const onData = data => {
       received = Buffer.concat([received, data]);
@@ -215,14 +223,14 @@ try {
       }
     };
     upgraded.on('data', onData);
-    upgraded.once('error', reject);
   });
   const message = Buffer.from('alive-after-takeover\n'), mask = Buffer.from([1, 2, 3, 4]);
   const masked = Buffer.from(message);
   for (let i = 0; i < masked.length; i++) masked[i] ^= mask[i % 4];
   upgraded.write(Buffer.concat([Buffer.from([0x81, 0x80 | masked.length]), mask, masked]));
-  if (await echo !== 'alive-after-takeover\n') throw new Error('Long connection did not survive takeover');
+  if (await Promise.race([echo, socketClosed]) !== 'alive-after-takeover\n') throw new Error('Long connection did not survive takeover');
   upgraded.end();
+  finishSlowResponse.resolve();
   const result = await slow;
   if (result.status !== 200 || result.body !== 'begin\nend\n') throw new Error('Slow request was interrupted');
   await waitFor(() => !readState().pids.includes(before.active_pid));

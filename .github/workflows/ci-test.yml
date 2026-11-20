@@ -12,8 +12,6 @@ concurrency:
   group: homewaf-ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  security:
-    uses: ./.github/workflows/security.yml
   verify:
     strategy:
       fail-fast: false
@@ -55,3 +53,24 @@ jobs:
             LICENSES/ip2region/LICENSE.txt
             cmd/homewaf/exedata/ip2region_v6.source.json
             README.md
+      - name: Run frontend behavior regressions
+        run: npm test --prefix web
+      - name: Install the isolated browser test runtime
+        run: node web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
+      - name: Verify the console update and retry flows
+        run: node web/scripts/verify-update-browser.mjs
+      - name: Verify application credentials and recovery
+        run: node web/scripts/verify-secondary-console-browser.mjs --application-only
+      - name: Verify real update API and automatic smooth restart using disposable binaries
+        shell: bash
+        run: bash scripts/check-upgrade.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: HomeWaf-functional-regressions-${{ runner.os }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            artifacts/update-browser/
+            artifacts/console-subpages/browser/
+            artifacts/graceful-update*.json

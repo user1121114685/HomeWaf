@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Only upstream data is downloaded. Never execute programs from the corpus.
-// Every security gate checks both a reviewed immutable revision and current main.
+// The scheduled security workflow checks a reviewed immutable revision and current main.
 const repository = 'coreruleset/coreruleset';
 const pinnedCommit = 'e03a4f6dabc7a30ebd8c52c97d28a154f590a48f'; // CRS v4.30.0, matching the bundled rules.
 const sources = [

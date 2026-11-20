@@ -182,10 +182,13 @@ try {
   const initialLoad = await page.evaluate(() => performance.timeOrigin);
   for (const [width, height] of [[1440, 900], [700, 960], [390, 844]]) {
     await page.setViewportSize({ width, height });
-    const panel = await body.evaluate(el => el.parentElement.getBoundingClientRect().toJSON());
-    expect(panel.width).toBeLessThanOrEqual(480);
-    expect(panel.x).toBeGreaterThanOrEqual(12);
-    expect(panel.right).toBeLessThanOrEqual(width - 12);
+    await expect(async () => {
+      const panel = await body.evaluate(el => el.parentElement.getBoundingClientRect().toJSON());
+      expect(panel.width).toBeGreaterThan(0);
+      expect(panel.width).toBeLessThanOrEqual(480);
+      expect(panel.x).toBeGreaterThanOrEqual(12);
+      expect(panel.right).toBeLessThanOrEqual(width - 12);
+    }).toPass({ timeout: 5000 });
     await expect(refresh).toBeInViewport({ ratio: 1 });
   }
   await result.getByRole('button', { name: '取消', exact: true }).click();
@@ -199,7 +202,7 @@ try {
     await page.setViewportSize({ width, height });
     for (const theme of ['light', 'dark']) {
       await setTheme(theme);
-      expect(await body.evaluate(el => el.scrollHeight > el.clientHeight && el.scrollWidth <= el.clientWidth)).toBe(true);
+      await expect.poll(() => body.evaluate(el => el.scrollHeight > el.clientHeight && el.scrollWidth <= el.clientWidth)).toBe(true);
       await expect(refresh).toBeInViewport({ ratio: 1 });
       await page.screenshot({ path: path.join(output, `result-${width}-${theme}.png`), animations: 'disabled' });
     }
