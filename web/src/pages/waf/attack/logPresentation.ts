@@ -1,7 +1,7 @@
 // HomeWaf modification (2026-11-14): readable, ordered access-log views.
 import dayjs from 'dayjs';
 
-export const recommendedLogColumns = ['outcome', 'create_time', 'service', 'src_ip', 'url', 'status_code', 'op'];
+export const recommendedLogColumns = ['outcome', 'create_time', 'service', 'src_ip', 'url', 'status_code', 'rule', 'op'];
 
 export function requestOutcome(row: Record<string, any>) {
   const blocked = ['阻止', '禁止'].includes(row.action);
@@ -21,8 +21,10 @@ export function normalizeLogColumns(columns: unknown, available: string[]) {
     host: 'service',
     status: 'status_code',
     host_nickname: 'service',
+    guest_identification: 'rule',
   };
-  const result = [...new Set(columns.map((key) => renamed[key] || key))].filter((key) => available.includes(key));
+  const keys = columns.includes('rule') ? columns.filter((key) => key !== 'guest_identification') : columns;
+  const result = [...new Set(keys.map((key) => renamed[key] || key))].filter((key) => available.includes(key));
   if (!result.includes('op')) result.push('op');
   return result;
 }
@@ -51,20 +53,13 @@ export function logColumns(text: (zh: string, en: string) => string) {
     { colKey: 'src_ip', title: text('来源 IP', 'Source IP'), minWidth: 150 },
     { colKey: 'url', title: text('访问路径', 'Request path'), minWidth: 210 },
     { colKey: 'status_code', title: text('响应码', 'HTTP status'), width: 95 },
-    { colKey: 'op', title: text('操作', 'Actions'), width: 90 },
     { colKey: 'rule', title: text('命中规则', 'Matched rule'), width: 170, ellipsis: true },
+    { colKey: 'op', title: text('操作', 'Actions'), width: 90 },
     { colKey: 'time_spent', title: text('耗时(ms)', 'Duration (ms)'), width: 110, sorter: true },
     { colKey: 'method', title: text('请求方法', 'Method'), width: 110 },
     { colKey: 'country', title: text('国家 / 地区', 'Country / region'), width: 130, ellipsis: true },
     { colKey: 'province', title: text('省份', 'Province'), width: 110, ellipsis: true },
     { colKey: 'city', title: text('城市', 'City'), width: 110, ellipsis: true },
-    {
-      colKey: 'guest_identification',
-      title: text('访客身份', 'Visitor'),
-      width: 150,
-      ellipsis: true,
-      filter: { type: 'input' },
-    },
     {
       colKey: 'req_uuid',
       title: text('请求编号', 'Request ID'),

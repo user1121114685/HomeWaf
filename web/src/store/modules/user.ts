@@ -23,6 +23,7 @@ const actions = {
   async login({ commit }: any) {
     const token = localStorage.getItem('access_token');
     if (!token) throw new Error('A verified backend login is required');
+    commit('notification/setMsgData', [], { root: true });
     commit('setUserInfo', { name: '', roles: [] });
     commit('setToken', token);
   },
@@ -37,6 +38,7 @@ const actions = {
     commit('setUserInfo', { name: result.data.login_account, role, roles: ['ALL_ROUTERS'] });
   },
   async logout({ commit }: any) {
+    commit('notification/setMsgData', [], { root: true });
     commit('removeToken');
     commit('setUserInfo', { name: '', roles: [] });
   },

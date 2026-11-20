@@ -158,7 +158,9 @@ type logQuery struct {
 
 // buildLogQuery 在指定分区上组装查询条件。ignoreTime=true 时不带时间范围（识别码直查用）。
 func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime bool) (*logQuery, error) {
-	if req.RequestOutcome != "" && req.RequestOutcome != "normal" && req.RequestOutcome != "observed" && req.RequestOutcome != "abnormal" {
+	switch req.RequestOutcome {
+	case "", "normal", "observed", "abnormal", "blocked":
+	default:
 		return nil, errors.New("访问情况筛选无效")
 	}
 	splitFilterBys := strings.Split(req.FilterBy, "|")
@@ -272,6 +274,8 @@ func buildLogQuery(req request.WafAttackLogSearch, shardName string, ignoreTime 
 			whereField += "(coalesce(action,'') = '放行' and coalesce(log_only_mode,0) = 1 and coalesce(status_code,0) < 400)"
 		case "abnormal":
 			whereField += "(coalesce(action,'') <> '放行' or coalesce(status_code,0) >= 400 or (coalesce(rule,'') <> '' and coalesce(log_only_mode,0) <> 1))"
+		case "blocked":
+			whereField += "action in ('阻止', '禁止')"
 		}
 	}
 	//强制索引

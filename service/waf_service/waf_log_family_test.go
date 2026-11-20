@@ -45,6 +45,7 @@ func TestLogRequestOutcomeFiltersObserveAndResponseFailures(t *testing.T) {
 		{"放行", "ssrf", 1, 200}, {"放行", "", 0, 500}, {"放行", "", 0, 404},
 		{"放行", "csrf", 1, 200}, {"放行", "csrf", 1, 500},
 		{"阻止", "sqli", 1, 403}, {"放行", "sqli", 0, 200}, {"", "", 1, 200},
+		{"禁止", "blocked", 0, 403},
 	}
 	for i, c := range cases {
 		row := model.LogNarrow{ReqUUID: fmt.Sprint(i), TenantId: global.GWAF_TENANT_ID, UserCode: global.GWAF_USER_CODE, HostCode: "pipeline-15000", ACTION: c.action, RULE: c.rule, LogOnlyMode: c.observe, STATUS_CODE: c.status, UNIX_ADD_TIME: at}
@@ -57,7 +58,7 @@ func TestLogRequestOutcomeFiltersObserveAndResponseFailures(t *testing.T) {
 	for _, c := range []struct {
 		value string
 		total int64
-	}{{"", 10}, {"normal", 1}, {"observed", 2}, {"abnormal", 7}} {
+	}{{"", 11}, {"normal", 1}, {"observed", 2}, {"abnormal", 8}, {"blocked", 3}} {
 		req.RequestOutcome = c.value
 		rows, count, _, err := WafLogServiceApp.GetListApiWithMeta(req)
 		if err != nil || count != c.total || int64(len(rows)) != c.total {

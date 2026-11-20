@@ -70,6 +70,12 @@ const mutations = {
     // eslint-disable-next-line no-param-reassign
     state.msgData= data;
   },
+  markMessageRead(state, id: string) {
+    const message = state.msgData.find((item) => item.message_id === id);
+    if (!message) return;
+    if (message.message_local) state.msgData = state.msgData.filter((item) => item !== message);
+    else message.message_unread_status = false;
+  },
   // 后端 WebSocket 推来的消息。同类型 + 同内容的未读消息合并计数 ——
   // 同一个 IP 命中同一条规则会在一两秒内连推好几条，逐条堆进去铃铛就没法看了。
   addMsgData(state, data) {

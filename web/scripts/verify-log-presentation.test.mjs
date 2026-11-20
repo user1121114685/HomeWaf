@@ -98,3 +98,12 @@ test('saved columns retain order and exclusions as fields are introduced', () =>
   assert.deepEqual(normalizeLogColumns(['src_ip', 'outcome', 'op'], available), ['src_ip', 'outcome', 'op']);
   assert.deepEqual(normalizeLogColumns(null, available), recommendedLogColumns);
 });
+
+test('the matched rule replaces visitor identity without moving an already selected rule', () => {
+  const available = logColumns((zh) => zh).map((column) => column.colKey);
+  assert.ok(!available.includes('guest_identification'));
+  assert.ok(recommendedLogColumns.includes('rule'));
+  assert.deepEqual(normalizeLogColumns(['url', 'guest_identification', 'src_ip'], available), ['url', 'rule', 'src_ip', 'op']);
+  assert.deepEqual(normalizeLogColumns(['guest_identification', 'url', 'rule', 'op'], available), ['url', 'rule', 'op']);
+  assert.deepEqual(normalizeLogColumns(['rule', 'url', 'guest_identification', 'op'], available), ['rule', 'url', 'op']);
+});

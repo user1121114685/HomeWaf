@@ -302,22 +302,22 @@ notes:
     kind: check
     level: high
     fresh_install: true
-    page: /sys/SystemConfig
+    page: /sys/VpConfig?section=proxy
     doc: /#/help?topic=quickstart/Update.html
     apply:
       type: navigate
     zh:
-      title: 管理端前面有反向代理时，需要声明可信代理网段
-      detail: 如果管理端（默认 26666 端口）前面还有 Nginx、云负载或 CDN，HomeWaf 默认只认直连来源 IP，取到的会是代理机的地址。请在 conf/config.yml 的 security.manage_trusted_proxies 或「参数设置」里填写可信代理网段（CIDR，逗号分隔）。管理端直接对外、前面没有任何代理时，不需要动。
-      effect_on: 配置后：管理端 IP 白名单、登录失败封禁、登录历史都基于真实客户端 IP 判定。
-      effect_off: 不配置：以上判定全部落在代理机 IP 上——IP 白名单形同虚设，一次爆破就可能把所有人一起挡在门外。
-      revert: 清空该配置即恢复为"只认直连 IP"。
+      title: 请勿将 HomeWaf 管理端口暴露在公网
+      detail: 公网只开放受保护服务的监听端口，例如网站的 80、443。管理端口（默认 26666）仅供本机或可信内网访问。请勿在路由器或云防火墙上向公网开放此端口，也不要通过公网反向代理或 CDN 发布管理入口。远程管理请先连接 VPN 或使用 SSH 隧道。
+      effect_on: 如果通过内网反向代理管理 HomeWaf，请在「管理配置 → 管理端可信代理网段」设置代理头，并仅信任实际代理的 IP 或专用网段。管理端会按识别出的客户端 IP 检查白名单、处理登录失败并记录登录历史。
+      effect_off: 本机或内网直连时可留空。经过内网代理时，留空会让多个管理员共用代理机的 IP 记录和登录锁定。
+      revert: 清空可信代理网段和代理头可恢复按直连 IP 识别来源。
     en:
-      title: Declare trusted proxy ranges if the console sits behind a reverse proxy
-      detail: If Nginx, a cloud load balancer or a CDN sits in front of the console (port 26666 by default), HomeWaf only trusts the direct peer address, which is the proxy's IP. Set security.manage_trusted_proxies in conf/config.yml (CIDR list, comma separated) or on the Parameter Settings page. Nothing to do if the console is exposed directly.
-      effect_on: Once configured, the console IP allowlist, login failure banning and login history all work off the real client IP.
-      effect_off: Left unset, all of those decisions are made against the proxy's IP - the IP allowlist becomes meaningless and a single brute-force burst can lock everyone out at once.
-      revert: Clearing the setting restores the "direct peer only" behaviour.
+      title: Keep the HomeWaf management port off the public internet
+      detail: Open only the listening ports of protected services to the internet, such as 80 and 443 for a website. Keep the management port (26666 by default) accessible only from localhost or a trusted private network. Do not open it on a public router or cloud firewall, or publish the console through a public reverse proxy or CDN. Use a VPN or SSH tunnel for remote administration.
+      effect_on: If an internal reverse proxy serves the console, set its client IP header under Manage Configuration and trust only the proxy's address or dedicated network range. The console uses the resulting client IP for its allowlist, login lockouts and login history.
+      effect_off: Leave these settings empty for direct local or private network access. Behind an internal proxy, leaving them empty makes administrators share the proxy's IP in login records and lockouts.
+      revert: Clear the trusted proxy ranges and proxy header to use the direct peer's IP again.
 
   - id: fresh_enable_otp
     version: v1.3.21
@@ -778,7 +778,7 @@ notes:
     version: v1.3.25
     kind: check
     level: high
-    page: /sys/SystemConfig
+    page: /sys/VpConfig?section=proxy
     doc: /#/help?topic=quickstart/Update.html
     apply:
       type: navigate

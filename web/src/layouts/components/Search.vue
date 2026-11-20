@@ -1,12 +1,4 @@
 <template>
-  <ElButton
-    text
-    class="search-trigger-btn"
-    :aria-label="$t('common.search_page')"
-    title="查找功能 · Ctrl K"
-    @click="visible = true"
-    ><Search
-  /></ElButton>
   <ElDialog
     v-model="visible"
     title="查找功能"
@@ -44,8 +36,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElButton, ElDialog, ElInput } from 'element-plus';
-import { ArrowRight, Search, TopRight } from '@element-plus/icons-vue';
+import { ElDialog, ElInput } from 'element-plus';
+import { ArrowRight, TopRight } from '@element-plus/icons-vue';
 import { navigationItems, filterNavigation } from '@/ui/navigation';
 import store from '@/store';
 const { t, locale } = useI18n();
@@ -75,14 +67,6 @@ onMounted(() => window.addEventListener('keydown', shortcut));
 onUnmounted(() => window.removeEventListener('keydown', shortcut));
 </script>
 <style scoped>
-.search-trigger-btn {
-  width: 40px;
-  padding: 8px;
-}
-.search-trigger-btn svg {
-  width: 18px;
-  height: 18px;
-}
 .search-field-label {
   display: block;
   font-size: 13px;

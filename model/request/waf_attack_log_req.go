@@ -15,7 +15,7 @@ type WafAttackLogDetailReq struct {
 type WafAttackLogSearch struct {
 	CurrrentDbName   string `json:"current_db_name"`
 	ViewType         string `json:"view_type" form:"view_type"` //视图：access=访问日志(默认) event=安全事件
-	RequestOutcome   string `json:"request_outcome" form:"request_outcome" binding:"omitempty,oneof=normal observed abnormal"`
+	RequestOutcome   string `json:"request_outcome" form:"request_outcome" binding:"omitempty,oneof=normal observed abnormal blocked"`
 	HostCode         string `json:"host_code" form:"host_code"`                        //主机码
 	Rule             string `json:"rule" form:"rule"`                                  //规则名
 	ReqUuid          string `json:"req_uuid" form:"req_uuid" binding:"max=64"`         //请求UUID

@@ -1,359 +1,377 @@
 <!-- HomeWaf modification (2026-11-09): independent distribution; see NOTICE. -->
-
 <template>
-  <hw-popup
-    expand-animation
-    placement="bottom-right"
+  <ElPopover
+    v-model:visible="open"
     trigger="click"
-    :visible="isNoticeVisible"
-    @visible-change="onPopupVisibleChange"
+    placement="bottom-end"
+    width="min(400px, calc(100vw - 24px))"
+    :teleported="true"
   >
-    <template #content>
-      <div class="header-msg">
-        <div class="header-msg-top">
-          <p>{{ $t('page.notice.notice_title') }}</p>
-          <hw-button v-if="currentList.length > 0" class="clear-btn" variant="text" theme="primary" @click="setRead('tab')"
-            >{{ $t('page.notice.clear') }}</hw-button
-          >
-        </div>
-
-        <!-- 防护告警与系统消息性质完全不同：一个是外面来的攻击，一个是软件自己的事。
-             混在一列里，攻击一多就会把连接异常冲走 -->
-        <div class="msg-tabs">
-          <div role="button" tabindex="0" @keydown.enter.prevent="switchTab('guard')" @keydown.space.prevent="switchTab('guard')" :class="['msg-tab', { active: activeTab === 'guard' }]" @click="switchTab('guard')">
-            <span>{{ $t('page.notice.tab_guard') }}</span>
-            <span v-if="guardMsg.length" :class="['tab-count', { mute: activeTab !== 'guard' }]">{{ guardMsg.length }}</span>
-          </div>
-          <div role="button" tabindex="0" @keydown.enter.prevent="switchTab('system')" @keydown.space.prevent="switchTab('system')" :class="['msg-tab', { active: activeTab === 'system' }]" @click="switchTab('system')">
-            <span>{{ $t('page.notice.tab_system') }}</span>
-            <span v-if="systemMsg.length" :class="['tab-count', { mute: activeTab !== 'system' }]">{{ systemMsg.length }}</span>
-          </div>
-        </div>
-
-        <hw-list v-if="currentList.length > 0" class="narrow-scrollbar" :split="true">
-          <hw-list-item v-for="(item, index) in currentList" :key="item.message_id || index">
-            <div>
-              <p class="msg-content">
-                <span v-if="item.message_local" class="msg-tag net">{{ $t('page.notice.kind_net') }}</span>
-                <span v-else-if="activeTab === 'system'" class="msg-tag ops">{{ $t('page.notice.kind_ops') }}</span>
-                {{ item.message_data }}
-                <span v-if="item.message_count > 1" class="msg-count">{{ item.message_count }}</span>
-              </p>
-              <p class="msg-type">{{ item.message_type }}</p>
-            </div>
-            <p class="msg-time">{{ item.message_datetime }}</p>
-            <template #action>
-              <hw-button size="small" variant="outline" @click="setRead('radio', item)"> {{ $t('page.notice.set_read') }} </hw-button>
-            </template>
-          </hw-list-item>
-        </hw-list>
-
-        <div v-else class="empty-list">
-          <empty-nothing-icon class="empty-icon" />
-          <p>{{ $t('page.notice.empty') }}</p>
-        </div>
-        <div class="header-msg-bottom">
-          <hw-button
-            v-if="currentList.length > 0"
-            class="header-msg-bottom-link"
-            variant="text"
-            theme="primary"
-            @click="goDetail"
-            >{{ $t('page.notice.all') }}</hw-button
-          >
-        </div>
-      </div>
+    <template #reference>
+      <hw-badge :count="badge">
+        <hw-button
+          class="notice-bell"
+          :class="{ 'has-net-error': netErrors > 0 }"
+          shape="square"
+          variant="text"
+          :aria-label="t('page.notice.notice_title')"
+          :aria-expanded="open"
+          :title="bellTitle"
+        >
+          <Bell />
+        </hw-button>
+      </hw-badge>
     </template>
-    <hw-badge :count="unreadMsg.length" :offset="[15, 21]">
-      <!-- 顶栏不放独立的连接状态灯：有连接异常时让铃铛本身变色，不额外占位置 -->
-      <hw-button
-        :class="['notice-bell', { 'has-net-error': netUnreadCount > 0 }]"
-        theme="default"
-        shape="square"
-        variant="text"
-        :title="bellTitle"
-        @click="isNoticeVisible = true"
-      >
-        <NotificationIcon />
-      </hw-button>
-    </hw-badge>
-  </hw-popup>
+    <section class="notice-panel" :aria-label="t('page.notice.notice_title')">
+      <header class="notice-heading">
+        <h2>{{ t('page.notice.notice_title') }}</h2>
+        <hw-button
+          variant="text"
+          shape="square"
+          :aria-label="t('common.refresh')"
+          :title="t('common.refresh')"
+          :disabled="notesLoading || logsLoading"
+          @click="refresh"
+          ><Refresh
+        /></hw-button>
+      </header>
+      <div class="notice-body">
+        <section v-if="canSeeNotes">
+          <div class="notice-heading">
+            <h3>{{ text('重要待办', 'Important tasks') }}</h3>
+            <RouterLink :to="{ name: 'UpgradeNotice' }">{{ t('menu.system.upgrade_notice_title') }}</RouterLink>
+          </div>
+          <p v-if="notesLoading" role="status">{{ text('正在读取待办…', 'Loading tasks…') }}</p>
+          <p v-else-if="notesError" role="alert">
+            {{ notesError }} <button class="t-button-link" @click="loadNotes">{{ t('topNav.retry') }}</button>
+          </p>
+          <ul v-else-if="notes.length">
+            <li v-for="item in notes.slice(0, 3)" :key="item.notice_id">
+              <RouterLink :to="noteLink(item)">{{ item.title }}</RouterLink>
+            </li>
+          </ul>
+          <p v-else>{{ text('没有待处理的重要升级事项。', 'No high-priority upgrade tasks are pending.') }}</p>
+        </section>
+        <section v-if="canSeeLogs">
+          <div class="notice-heading">
+            <h3>{{ text('最近 24 小时的拦截', 'Blocks in the last 24 hours') }}</h3>
+            <RouterLink :to="{ name: 'WafvisitLog', query: logFilters }">{{
+              text('查看记录', 'View logs')
+            }}</RouterLink>
+          </div>
+          <p v-if="logsLoading" role="status">{{ text('正在读取拦截记录…', 'Loading blocked requests…') }}</p>
+          <p v-else-if="logsError" role="alert">
+            {{ logsError }} <button class="t-button-link" @click="loadLogs">{{ t('topNav.retry') }}</button>
+          </p>
+          <template v-else>
+            <p v-if="partial">
+              {{
+                text(
+                  '部分日志分区未返回，记录可能不完整。',
+                  'Some archives were unavailable. Results may be incomplete.',
+                )
+              }}
+            </p>
+            <ul v-if="blocks.length">
+              <li v-for="row in blocks" :key="row.req_uuid">
+                <RouterLink :to="logLink(row)">
+                  <strong>{{ row.rule || text('已拦截请求', 'Blocked request') }}</strong>
+                  <small>{{ [row.src_ip, row.create_time].filter(Boolean).join(' · ') }}</small>
+                </RouterLink>
+              </li>
+            </ul>
+            <p v-else-if="!partial">{{ text('这段时间没有拦截记录。', 'No blocks were recorded in this period.') }}</p>
+          </template>
+        </section>
+        <section v-for="group in liveGroups" :key="group.key">
+          <div class="notice-heading">
+            <h3>{{ group.title }} ({{ group.items.length }})</h3>
+            <hw-button variant="text" size="small" @click="store.commit('notification/markCategoryRead', group.key)">
+              {{ text('全部设为已读', 'Mark all read') }}
+            </hw-button>
+          </div>
+          <ul>
+            <li v-for="item in group.items" :key="item.message_id">
+              <strong
+                >{{ item.message_type }}<span v-if="item.message_count > 1"> ×{{ item.message_count }}</span></strong
+              >
+              <p>{{ item.message_data }}</p>
+              <div class="notice-heading">
+                <small>{{ item.message_datetime }}</small>
+                <button class="t-button-link" @click="store.commit('notification/markMessageRead', item.message_id)">
+                  {{ t('page.notice.set_read') }}
+                </button>
+              </div>
+            </li>
+          </ul>
+        </section>
+      </div>
+      <RouterLink v-if="routeNames.has('VpConfig')" class="notice-safety" :to="{ name: 'VpConfig' }">
+        <Lock aria-hidden="true" />{{
+          text('管理端口仅供内网访问。检查管理配置', 'Keep console access private. Review settings')
+        }}
+      </RouterLink>
+    </section>
+  </ElPopover>
 </template>
 
-<script lang="ts">
-import {defineComponent} from 'vue';
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
+import { ElPopover } from 'element-plus';
+import { Bell, Lock, Refresh } from '@element-plus/icons-vue';
+import store from '@/store';
+import request from '@/utils/request';
+import { logDateRange, logTimeBounds } from '@/pages/waf/attack/logPresentation';
+import type { msgDataItem } from '@/store/modules/notification';
 
+interface Task {
+  notice_id: string;
+  title: string;
+  page?: string;
+}
+interface Block {
+  req_uuid: string;
+  rule: string;
+  src_ip: string;
+  create_time: string;
+  shard_name?: string;
+}
+const route = useRoute();
+const router = useRouter();
+const { t, locale } = useI18n();
+const text = (zh: string, en: string) => (locale.value === 'en_US' ? en : zh);
+const open = ref(false);
+const routeNames = computed(
+  () =>
+    new Set<string>(
+      store.getters['permission/routers'].flatMap((parent) => parent.children?.map((child) => child.name) || []),
+    ),
+);
+const canSeeNotes = computed(() => routeNames.value.has('UpgradeNotice'));
+const canSeeLogs = computed(() => routeNames.value.has('WafvisitLog'));
+const notes = ref<Task[]>([]);
+const blocks = ref<Block[]>([]);
+const notesLoading = ref(false);
+const logsLoading = ref(false);
+const notesError = ref('');
+const logsError = ref('');
+const partial = ref(false);
+const logFilters = ref({ request_outcome: 'blocked', date_begin: '', date_end: '' });
+let notesRequest = 0,
+  logsRequest = 0;
 
-import { mapState, mapGetters } from '@/store/helpers';
-import { MailIcon,NotificationIcon } from '@/ui/icons';
-
-import EmptyNothingIcon from '@/assets/assets-empty-nothing.svg';
-import { NotificationItem } from '@/interface';
-
-export default defineComponent({
-  components: {
-    MailIcon,
-    NotificationIcon,
-    EmptyNothingIcon
-  },
-  data() {
-    return {
-      isNoticeVisible: false,
-      // 为空表示「跟随默认规则」，用户手点过之后才固定下来
-      pickedTab: '',
-    };
-  },
-  computed: {
-    ...mapState('notification', ['msgData']),
-    ...mapGetters('notification', ['unreadMsg', 'guardMsg', 'systemMsg', 'netUnreadCount']),
-    // 连不上后端的时候，用户点开铃铛最想知道的就是这件事，不该让他再点一下页签
-    activeTab(): string {
-      if (this.pickedTab) return this.pickedTab;
-      return this.netUnreadCount > 0 ? 'system' : 'guard';
+const liveGroups = computed(() =>
+  [
+    {
+      key: 'guard',
+      title: text('实时防护告警', 'Live protection alerts'),
+      items: store.getters['notification/guardMsg'] as msgDataItem[],
     },
-    currentList(): Array<any> {
-      return this.activeTab === 'guard' ? this.guardMsg : this.systemMsg;
+    {
+      key: 'system',
+      title: text('系统消息', 'System messages'),
+      items: store.getters['notification/systemMsg'] as msgDataItem[],
     },
-    bellTitle(): string {
-      return this.netUnreadCount > 0
-        ? this.$t('page.notice.net_error_tip', { count: this.netUnreadCount })
-        : this.$t('page.notice.notice_title');
-    },
-  },
-  methods: {
-    switchTab(tab: string) {
-      this.pickedTab = tab;
-    },
-    onPopupVisibleChange(visible: boolean, context) {
-      if (context.trigger === 'trigger-element-click') {
-        this.isNoticeVisible = true;
-        return;
-      }
-      this.isNoticeVisible = visible;
-      // 关掉面板就把选择交回默认规则，下次打开仍能自动落到有异常的那一侧
-      if (!visible) this.pickedTab = '';
-    },
-    goDetail() {
-      // 两类消息的归档去处不同：攻击看日志页，系统消息看通知中心
-      this.$router.push(this.activeTab === 'guard' ? '/waf/wafattacklog' : '/detail/secondary');
-      this.isNoticeVisible = false;
-    },
-    setRead(type: string, item?: NotificationItem) {
-      // 只作用于当前页签：防护告警是安全记录、系统消息是状态回声，
-      // 一个按钮把两类一起抹掉，用户不敢点
-      if (type === 'tab') {
-        this.$store.commit('notification/markCategoryRead', this.activeTab);
-        return;
-      }
-      const changeMsg = this.msgData;
-      changeMsg.forEach((e) => {
-        if (e.message_id === item.message_id) {
-          e.message_unread_status = false;
-        }
-      });
-      this.$store.commit('notification/setMsgData', changeMsg);
-    },
-  },
-});
-</script>
+  ].filter((group) => group.items.length),
+);
+const netErrors = computed(() => store.getters['notification/netUnreadCount']);
+const badge = computed(() => notes.value.length + store.getters['notification/unreadMsg'].length);
+const bellTitle = computed(() =>
+  netErrors.value ? t('page.notice.net_error_tip', { count: netErrors.value }) : t('page.notice.notice_title'),
+);
 
-<style lang="less" scoped>
-@import '@/style/variables.less';
-
-.header-msg {
-  width: 400px;
-  height: 500px;
-
-  // 104 = 顶部 56 + 底部 48；加了页签栏之后再让出 38
-  .empty-list {
-    height: calc(100% - 142px);
-    text-align: center;
-    padding-top: 110px;
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-
-    .empty-icon {
-      width: 63px;
-      height: 63px;
-    }
-
-    p {
-      margin-top: 30px;
-    }
-  }
-
-  &-top {
-    position: relative;
-    height: 56px;
-    font-size: 16px;
-    color: var(--td-text-color-primary);
-    text-align: center;
-    line-height: 56px;
-    border-bottom: 1px solid var(--td-component-border);
-
-    .clear-btn {
-      position: absolute;
-      top: 12px;
-      right: 24px;
-    }
-  }
-
-  &-bottom {
-    height: 48px;
-    align-items: center;
-    display: flex;
-    justify-content: center;
-
-    &-link {
-      text-decoration: none;
-      font-size: 14px;
-      color: var(--td-brand-color);
-      line-height: 48px;
-      cursor: pointer;
-    }
-  }
-
-  .t-list {
-    height: calc(100% - 142px);
-  }
-
-  .t-list-item {
-    overflow: hidden;
-    width: 100%;
-    padding: 16px 24px;
-    border-radius: @border-radius;
-    font-size: 14px;
-    color: var(--td-text-color-primary);
-    line-height: 22px;
-    cursor: pointer;
-
-    &:hover {
-      transition: background 0.2s ease;
-      background: var(--td-bg-color-container-hover);
-
-      .msg-content {
-        color: var(--td-brand-color-8);
-      }
-
-      .t-list-item__action {
-        button {
-          bottom: 16px;
-          opacity: 1;
-        }
-      }
-
-      .msg-time {
-        bottom: -6px;
-        opacity: 0;
-      }
-    }
-
-    .msg-content {
-      margin-bottom: 16px;
-    }
-
-    .msg-type {
-      color: var(--td-text-color-secondary);
-    }
-
-    .t-list-item__action {
-      button {
-        opacity: 0;
-        position: absolute;
-        right: 24px;
-        bottom: -6px;
-      }
-    }
-
-    .msg-time {
-      transition: all 0.2s ease;
-      opacity: 1;
-      position: absolute;
-      right: 24px;
-      bottom: 16px;
-      color: var(--td-text-color-secondary);
-    }
-  }
-
-  // ---- 分类页签 ----
-  .msg-tabs {
-    display: flex;
-    padding: 0 16px;
-    height: 38px;
-    border-bottom: 1px solid var(--td-component-border);
-  }
-
-  .msg-tab {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0 12px;
-    font-size: 14px;
-    color: var(--td-text-color-secondary);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-
-    &.active {
-      color: var(--td-brand-color);
-      font-weight: 500;
-      border-bottom-color: var(--td-brand-color);
-    }
-  }
-
-  .tab-count {
-    background: var(--td-error-color);
-    color: #fff;
-    font-size: 13px;
-    line-height: 15px;
-    min-width: 15px;
-    text-align: center;
-    border-radius: 8px;
-    padding: 0 4px;
-
-    &.mute {
-      background: var(--td-text-color-placeholder);
-    }
-  }
-
-  // 「连接 / 运维」小标签：同在系统页签里，来源不同
-  .msg-tag {
-    display: inline-block;
-    font-size: 13px;
-    line-height: 16px;
-    border-radius: 2px;
-    padding: 0 5px;
-    margin-right: 6px;
-    vertical-align: 1px;
-
-    &.net {
-      background: var(--td-warning-color-light);
-      color: var(--td-warning-color-7);
-    }
-
-    &.ops {
-      background: var(--td-success-color-light);
-      color: var(--td-success-color-7);
-    }
-  }
-
-  // 同一条消息重复出现的次数
-  .msg-count {
-    display: inline-block;
-    background: var(--td-error-color);
-    color: #fff;
-    font-size: 13px;
-    line-height: 16px;
-    border-radius: 9px;
-    padding: 0 6px;
-    margin-left: 6px;
-    font-weight: 500;
+async function loadNotes() {
+  if (!canSeeNotes.value) return;
+  const seq = ++notesRequest;
+  notesLoading.value = true;
+  notesError.value = '';
+  try {
+    const res = await request({ url: 'upgradenotice/summary', method: 'get', params: { lang: locale.value } });
+    if (seq !== notesRequest) return;
+    if (res.code !== 0) throw new Error(res.msg);
+    const data = res.data;
+    // Go serializes an empty slice as null.
+    if (
+      !Number.isInteger(data?.high_pending_count) ||
+      (data.high_pending_count > 0 && !Array.isArray(data.popup_items))
+    )
+      throw new Error();
+    notes.value = data.popup_items || [];
+  } catch (error) {
+    if (seq !== notesRequest) return;
+    notes.value = [];
+    notesError.value =
+      (error instanceof Error && error.message) || text('无法读取重要待办。', 'Could not load pending tasks.');
+  } finally {
+    if (seq === notesRequest) notesLoading.value = false;
   }
 }
+async function loadLogs() {
+  if (!canSeeLogs.value) return;
+  const seq = ++logsRequest;
+  logsLoading.value = true;
+  logsError.value = '';
+  const range = logDateRange('24h');
+  logFilters.value = { request_outcome: 'blocked', date_begin: range[0], date_end: range[1] };
+  try {
+    const res = await request({
+      url: 'waflog/attack/list',
+      method: 'post',
+      background: true,
+      data: {
+        view_type: 'access',
+        current_db_name: 'auto',
+        request_outcome: 'blocked',
+        ...logTimeBounds(range),
+        sort_by: 'unix_add_time',
+        sort_descending: 'desc',
+        pageIndex: 1,
+        pageSize: 3,
+      },
+    });
+    if (seq !== logsRequest) return;
+    if (res.code !== 0) throw new Error(res.msg);
+    if (
+      !Number.isInteger(res.data?.total) ||
+      (!Array.isArray(res.data.list) && !(res.data.total === 0 && res.data.list === null))
+    )
+      throw new Error();
+    blocks.value = res.data.list || [];
+    partial.value = !!(res.data.partial || res.data.issues?.length);
+  } catch (error) {
+    if (seq !== logsRequest) return;
+    blocks.value = [];
+    logsError.value =
+      (error instanceof Error && error.message) || text('无法读取拦截记录。', 'Could not load blocked requests.');
+  } finally {
+    if (seq === logsRequest) logsLoading.value = false;
+  }
+}
+function refresh() {
+  loadNotes();
+  loadLogs();
+}
+function noteLink(item: Task) {
+  if (
+    item.page?.startsWith('/') &&
+    !item.page.startsWith('//') &&
+    routeNames.value.has(String(router.resolve(item.page).name))
+  )
+    return item.page;
+  return { name: 'UpgradeNotice' };
+}
+function logLink(row: Block) {
+  return routeNames.value.has('WafAttackLogDetail')
+    ? { name: 'WafAttackLogDetail', query: { req_uuid: row.req_uuid + '#' + (row.shard_name || 'auto') } }
+    : { name: 'WafvisitLog', query: { req_uuid: row.req_uuid } };
+}
+watch(open, (value) => {
+  if (value) refresh();
+});
+watch(
+  () => route.fullPath,
+  () => {
+    open.value = false;
+  },
+);
+watch(
+  [canSeeNotes, locale, () => store.state.user.token],
+  () => {
+    ++notesRequest;
+    ++logsRequest;
+    notes.value = [];
+    blocks.value = [];
+    if (store.state.user.token) {
+      loadNotes();
+      if (open.value) loadLogs();
+    }
+  },
+  { immediate: true },
+);
+</script>
 
-// 有未读连接异常时整颗铃铛套一层浅红底，替代原本设想的顶栏状态灯
+<style scoped>
+.notice-panel {
+  color: var(--hw-ink);
+}
+.notice-heading,
+.notice-safety {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notice-heading {
+  justify-content: space-between;
+}
+.notice-heading h2,
+.notice-heading h3,
+.notice-body p {
+  margin: 0;
+}
+.notice-heading h2 {
+  font-size: 16px;
+}
+.notice-heading h3 {
+  font-size: 14px;
+}
+.notice-body {
+  max-height: min(62dvh, 480px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.notice-body section {
+  padding: 12px 0;
+  border-top: 1px solid var(--hw-line);
+}
+.notice-body p,
+.notice-body small {
+  color: var(--hw-muted);
+  font-size: 13px;
+}
+.notice-body p,
+.notice-body ul {
+  margin: 6px 0 0;
+}
+.notice-body ul {
+  list-style: none;
+  padding: 0;
+}
+.notice-body li {
+  padding: 5px 0;
+  overflow-wrap: anywhere;
+}
+.notice-body li + li {
+  border-top: 1px solid var(--hw-line);
+}
+.notice-panel a {
+  color: var(--hw-accent);
+}
+.notice-body li a {
+  display: block;
+  padding: 4px 0;
+  color: var(--hw-ink);
+}
+.notice-body li a:hover {
+  color: var(--hw-accent);
+}
+.notice-body li strong,
+.notice-body li small {
+  display: block;
+}
+.notice-safety {
+  padding-top: 10px;
+  border-top: 1px solid var(--hw-line);
+  font-size: 13px;
+}
+.notice-panel svg,
+.notice-bell svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
 .notice-bell.has-net-error {
-  background: var(--td-error-color-light);
-  color: var(--td-error-color);
+  color: var(--hw-danger);
 }
 </style>

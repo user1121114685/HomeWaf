@@ -170,7 +170,7 @@ export default defineComponent({
               url,	// url
               token,
               () => this.wsOnOpen(gen), // 链接回调
-              (e) => this.wsOnMessage(e, gen, session),	// 连接成功后处理接口返回信息
+              (e) => this.wsOnMessage(e, gen, session, token),	// 连接成功后处理接口返回信息
               () => this.wsOnClose(gen), // 关闭回调
               (e) => this.wsOnError(e, gen, session), // 消息通知错误回调
               [], // 发送后台的心跳包参数
@@ -236,9 +236,13 @@ export default defineComponent({
         console.log(e,'消息通知错误回调，重新连接')
         this.scheduleReconnect(gen);
       },
-      wsOnMessage(e, gen, session) {
+      wsOnMessage(e, gen, session, token) {
         // 僵尸连接（已被丢弃但服务端还在推）的消息一律丢掉，否则同一条通知会重复入库
         if (!this.isCurrentWs(gen)) return;
+        if (token !== this.currentWsToken()) {
+          this.scheduleReconnect(gen);
+          return;
+        }
         if(e.data=="pong"){
           console.log('收到心跳包回复')
           return

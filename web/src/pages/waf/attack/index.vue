@@ -33,7 +33,8 @@
           </hw-form-item>
           <hw-form-item :label="text('访问情况', 'Result')" name="request_outcome">
             <hw-select
-              v-model="searchformData.request_outcome"
+              :model-value="isUuidLookup ? '' : searchformData.request_outcome"
+              @update:model-value="searchformData.request_outcome = $event"
               :disabled="isUuidLookup"
               :placeholder="text('全部访问', 'All requests')"
             >
@@ -41,6 +42,7 @@
               <hw-option value="normal" :label="text('正常', 'Normal')" />
               <hw-option value="observed" :label="text('仅观察', 'Observed')" />
               <hw-option value="abnormal" :label="text('异常', 'Abnormal')" />
+              <hw-option value="blocked" :label="text('已拦截', 'Blocked')" />
             </hw-select>
           </hw-form-item>
           <hw-form-item :label="text('来源 IP', 'Source IP')" name="src_ip">
@@ -148,7 +150,7 @@
             @click="$refs.logExport.open()"
             >{{ $t('logExport.title') }}</hw-button
           >
-          <hw-button variant="outline" @click="toggleColumnController">{{ text('显示列', 'Columns') }}</hw-button>
+          <hw-button variant="outline" :loading="columnConfigPending" @click="openColumnDialog">{{ text('显示列', 'Columns') }}</hw-button>
           <hw-button v-if="attack_ip === ''" variant="text" @click="logConfigVisible = true">{{
             text('日志设置', 'Log settings')
           }}</hw-button>
@@ -277,7 +279,7 @@
         >
           <template #summary="{ row }">
             <dl class="visit-compact-record">
-              <template v-for="key in displayColumns.filter((key) => key !== 'op')" :key="key">
+              <template v-for="key in compactColumnKeys" :key="key">
                 <dt>{{ columnLabel(key) }}</dt>
                 <dd v-if="key === 'outcome'">
                   <hw-tag :theme="outcomeTheme(row)">{{
@@ -344,7 +346,8 @@
           >
           <template #risk_level="{ row }">{{ riskLabel(row.risk_level) }}</template>
           <template #rule="{ row }">
-            <hw-tag v-if="row.rule !== ''" shape="round" theme="primary" variant="outline">{{ row.rule }}</hw-tag>
+            <hw-tag v-if="row.rule" shape="round" theme="primary" variant="outline">{{ row.rule }}</hw-tag>
+            <span v-else>—</span>
           </template>
           <template #log_only_mode="{ row }">
             <hw-tag :theme="row.log_only_mode == '1' ? 'primary' : 'default'" variant="light-outline">
@@ -596,53 +599,7 @@
       ></visit-detail-page>
     </hw-dialog>
 
-    <hw-dialog
-      :header="text('显示列与顺序', 'Columns and order')"
-      v-model:visible="columnControllerVisible"
-      width="min(560px, calc(100vw - 32px))"
-      @confirm="handleColumnControllerConfirm"
-      @cancel="handleColumnControllerCancel"
-    >
-      <p class="visit-column-help">
-        {{
-          text(
-            '勾选要看的信息，使用上下按钮调整顺序。设置会随账号保存。',
-            'Choose the information you need and move columns up or down. Saved to your account.',
-          )
-        }}
-      </p>
-      <hw-button variant="text" @click="useRecommendedColumns">{{
-        text('恢复家庭用户推荐列', 'Use recommended columns')
-      }}</hw-button>
-      <ol class="visit-column-list">
-        <li v-for="(key, index) in columnOrderDraft" :key="key">
-          <hw-checkbox
-            :model-value="tempDisplayColumns.includes(key)"
-            :disabled="key === 'op'"
-            @change="toggleDraftColumn(key, $event)"
-            >{{ columnLabel(key) }}</hw-checkbox
-          >
-          <div class="visit-column-move">
-            <button
-              type="button"
-              :disabled="index === 0"
-              :aria-label="text('上移', 'Move up') + columnLabel(key)"
-              @click="moveDraftColumn(index, -1)"
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              :disabled="index === columnOrderDraft.length - 1"
-              :aria-label="text('下移', 'Move down') + columnLabel(key)"
-              @click="moveDraftColumn(index, 1)"
-            >
-              ↓
-            </button>
-          </div>
-        </li>
-      </ol>
-    </hw-dialog>
+    <VisitLogColumnDialog ref="columnDialog" :columns="columns" @save="saveColumnConfig" />
     <hw-dialog
       :header="text('排查来源 IP', 'Diagnose source IP')"
       v-model:visible="ipExtractDialogVisible"
@@ -679,14 +636,13 @@ import Trend from '@/components/trend/index.vue';
 import { prefix } from '@/config/global';
 import { allsharedblist, delsharedb } from '@/apis/waflog/attacklog';
 import LogExportDialog from './components/LogExportDialog.vue';
+import VisitLogColumnDialog from './components/VisitLogColumnDialog.vue';
 import VisitDetailPage from './detail/index.vue';
 
 import { NowDate, ConvertStringToUnix, ConvertDateToString, ConvertUnixToDate } from '@/utils/date';
 import { listServices } from '@/apis/services';
 import { get_detail_by_item_api, edit_system_config_api } from '@/apis/systemconfig';
 import { get_ui_preference_api, save_ui_preference_api } from '@/apis/uipreference';
-
-// 默认不显示的可选列：新增后不会被"新列自动加入"逻辑塞进已有用户的可见列，需用户主动勾选
 
 // 列配置持久化：服务端（按登录账号）为准，localStorage 只作首屏秒开缓存 + 接口不可用兜底。
 const COLUMN_CONFIG_KEY = 'attack_table_display_columns';
@@ -715,6 +671,7 @@ export default defineComponent({
   name: 'WebLogList',
   components: {
     LogExportDialog,
+    VisitLogColumnDialog,
     SearchIcon,
     Trend,
     VisitDetailPage,
@@ -846,16 +803,11 @@ export default defineComponent({
       serviceByCode: {},
       advancedVisible: false,
       timePreset: 'today',
-      columnOrderDraft: [],
-      columnEditVersion: 0,
+      columnConfigPending: false,
       data: [],
       selectedRowKeys: [],
       value: 'first',
       customText: false,
-      columnControllerVisible: false, // 控制列配置弹窗显示
-      tempDisplayColumns: [], // 临时存储列配置
-      // 默认显示的列配置
-      defaultDisplayColumns: [...recommendedLogColumns],
       displayColumns: [...recommendedLogColumns],
       allColumns: logColumns((zh, en) => this.text(zh, en)),
       rowKey: 'req_uuid',
@@ -942,6 +894,9 @@ export default defineComponent({
     };
   },
   computed: {
+    defaultOutcome() {
+      return this.$route.name === 'WafvisitLog' && !this.attack_ip ? 'abnormal' : '';
+    },
     responsiveColumns() {
       return this.compactView ? [{ colKey: 'summary', title: '', minWidth: 220 }] : this.columns;
     },
@@ -984,9 +939,8 @@ export default defineComponent({
     accessViewLabel() {
       return this.attack_ip !== '' ? this.$t('page.visit_log.view_access_all') : this.$t('page.visit_log.view_access');
     },
-    // 可用字段列表
-    availableFields() {
-      return this.columns.map((column) => ({ value: column.colKey, label: column.title }));
+    compactColumnKeys() {
+      return this.displayColumns.filter((key) => key !== 'op' && this.columns.some((column) => column.colKey === key));
     },
     advancedFilterCount() {
       return (
@@ -1040,20 +994,22 @@ export default defineComponent({
         this.pagination.pageSize = cached.pagesize;
       }
       // 日期区间保持 created() 里设置的"今天"，与首页卡片的"今日"口径一致
-    } else if (this.$store.state.attacklog.msgData) {
+    } else if (isOwnRoute && this.$store.state.attacklog.msgData) {
       // 判断 vuex 中是否有保存的搜索参数
       const attack = this.$store.state.attacklog;
       this.pagination.current = attack.msgData.currentpage;
       this.pagination.pageSize = attack.msgData.pagesize;
       // 浅拷贝 + 当前默认对象打底：直接引用 store 里的对象会让后续表单编辑绕过 mutation 改 state，
       // 也会让弹窗内嵌实例把 src_ip 写脏主列表页缓存；历史缓存可能缺字段，打底避免 v-model 绑到 undefined
-      this.searchformData = { ...this.searchformData, ...attack.msgData.searchData };
+      this.searchformData = { ...this.searchformData, request_outcome: this.defaultOutcome, ...attack.msgData.searchData };
       console.log('daysrc', attack.msgData.searchData);
       let newrange = Array();
       newrange[0] = ConvertUnixToDate(parseInt(attack.msgData.searchData.unix_add_time_begin));
       newrange[1] = ConvertUnixToDate(parseInt(attack.msgData.searchData.unix_add_time_end));
       //console.log(this.dateControl.range1)
       this.$set(this.dateControl, 'range1', newrange);
+    } else {
+      this.searchformData.request_outcome = this.defaultOutcome;
     }
 
     this.loadShareDbList();
@@ -1078,6 +1034,7 @@ export default defineComponent({
         ROUTE_FILTER_QUERY_KEYS.forEach((key) => {
           this.$set(this.searchformData, key, Object.prototype.hasOwnProperty.call(picked, key) ? picked[key] : '');
         });
+        if (!Object.keys(picked).length) this.searchformData.request_outcome = this.defaultOutcome;
         // 日期区间与分页复位，口径与 mounted 分支一致
         if (!this.searchformData.view_type) this.searchformData.view_type = 'access';
         this.applyRouteDateQuery(picked);
@@ -1163,7 +1120,7 @@ export default defineComponent({
     },
     resetSearch() {
       Object.assign(this.searchformData, {
-        request_outcome: '',
+        request_outcome: this.defaultOutcome,
         host_code: '',
         src_ip: this.attack_ip || '',
         url_keyword: '',
@@ -1186,25 +1143,6 @@ export default defineComponent({
     },
     columnLabel(key) {
       return this.allColumns.find((column) => column.colKey === key)?.title || key;
-    },
-    toggleDraftColumn(key, checked) {
-      this.tempDisplayColumns = checked
-        ? [...new Set([...this.tempDisplayColumns, key])]
-        : this.tempDisplayColumns.filter((value) => value !== key);
-    },
-    moveDraftColumn(index, direction) {
-      const next = index + direction;
-      if (next < 0 || next >= this.columnOrderDraft.length) return;
-      const order = [...this.columnOrderDraft];
-      [order[index], order[next]] = [order[next], order[index]];
-      this.columnOrderDraft = order;
-    },
-    useRecommendedColumns() {
-      this.tempDisplayColumns = [...recommendedLogColumns];
-      this.columnOrderDraft = [
-        ...recommendedLogColumns,
-        ...this.allColumnFieldKeys().filter((key) => !recommendedLogColumns.includes(key)),
-      ];
     },
     // 点日志里的 IP 直接开归属查询弹窗，省得用户复制粘贴
     openIpLookup(ip) {
@@ -1246,31 +1184,9 @@ export default defineComponent({
     },
 
     // 切换列配置弹窗
-    toggleColumnController() {
-      this.columnEditVersion += 1;
-      this.tempDisplayColumns = [...this.displayColumns];
-      this.columnOrderDraft = [
-        ...this.displayColumns,
-        ...this.allColumnFieldKeys().filter((key) => !this.displayColumns.includes(key)),
-      ];
-      this.columnControllerVisible = true;
-    },
-    // 确认列配置
-    handleColumnControllerConfirm() {
-      this.displayColumns = this.columnOrderDraft.filter((key) => this.tempDisplayColumns.includes(key));
-      if (!this.displayColumns.includes('op')) this.displayColumns.push('op');
-      this.columnControllerVisible = false;
-      // 触发列配置变化回调
-      this.handleDisplayColumnsChange(this.displayColumns);
-    },
-    // 取消列配置
-    handleColumnControllerCancel() {
-      this.columnControllerVisible = false;
-      this.tempDisplayColumns = [];
-    },
-    // 全部可选列（列配置弹窗里能勾选的字段）
-    allColumnFieldKeys() {
-      return this.availableFields.map((f) => f.value);
+    openColumnDialog() {
+      if (this.columnConfigPending) return;
+      this.$refs.columnDialog.open(this.displayColumns);
     },
 
     // Keep the current account's selected columns for the initial render.
@@ -1287,7 +1203,7 @@ export default defineComponent({
     },
 
     mergeColumnConfig(columns) {
-      return normalizeLogColumns(columns, this.allColumnFieldKeys());
+      return normalizeLogColumns(columns, this.allColumns.map((column) => column.colKey));
     },
 
     loadColumnConfig() {
@@ -1306,10 +1222,9 @@ export default defineComponent({
 
     // 从服务端加载列配置（异步，服务端为准，覆盖本地缓存结果）
     loadColumnConfigFromServer() {
-      const editVersion = this.columnEditVersion;
+      this.columnConfigPending = true;
       get_ui_preference_api({ pref_name: COLUMN_PREF_NAME })
         .then((res) => {
-          if (editVersion !== this.columnEditVersion) return;
           if (res.code !== 0) {
             console.warn('获取服务端列配置失败:', res.msg);
             return;
@@ -1317,18 +1232,17 @@ export default defineComponent({
           if (res.data && res.data.id && res.data.pref_json) {
             const payload = JSON.parse(res.data.pref_json);
             if (payload?.v === COLUMN_CONFIG_VERSION && Array.isArray(payload.columns) && payload.columns.length > 0) {
-
               const merged = this.mergeColumnConfig(payload.columns);
               this.displayColumns = merged;
               this.persistColumnConfigLocalSafe(merged);
-              return;
             }
           }
-
         })
         .catch((err) => {
-
           console.warn('获取服务端列配置异常:', err);
+        })
+        .finally(() => {
+          this.columnConfigPending = false;
         });
     },
 
@@ -1337,7 +1251,6 @@ export default defineComponent({
       const payload = {
         v: COLUMN_CONFIG_VERSION,
         columns: Array.from(new Set(this.displayColumns)),
-
       };
       return save_ui_preference_api({
         pref_name: COLUMN_PREF_NAME,
@@ -1351,34 +1264,25 @@ export default defineComponent({
     },
 
     // 保存列配置（本地缓存 + 服务端）
-    saveColumnConfig(successMsgKey) {
-
+    saveColumnConfig(columns) {
+      if (this.columnConfigPending) return;
+      this.columnConfigPending = true;
+      this.displayColumns = columns;
       this.persistColumnConfigLocalSafe(this.displayColumns);
       // 成功提示等服务端返回后再弹，避免与调用方的提示重复/乱序
-      const successKey = successMsgKey || 'common.column_config_saved';
       this.syncColumnConfigToServer()
         .then(() => {
-          this.$message.success(this.$t(successKey));
+          this.$message.success(this.$t('common.column_config_saved'));
         })
         .catch((error) => {
           console.warn('同步列配置到服务端失败:', error);
           this.$message.warning(this.$t('common.column_config_sync_failed'));
+        })
+        .finally(() => {
+          this.columnConfigPending = false;
         });
     },
 
-    // 重置列配置为默认值
-    resetColumnConfig() {
-      if (confirm(this.$t('common.column_config_reset_confirm'))) {
-        this.displayColumns = [...this.defaultDisplayColumns];
-        this.saveColumnConfig('common.column_config_reset_success');
-      }
-    },
-
-    // 处理列配置变化
-    handleDisplayColumnsChange(columns) {
-      this.displayColumns = columns;
-      this.saveColumnConfig();
-    },
     updateSearchFormAttackPage() {
       console.log('updateSearchFormAttackPage');
       if (this.attack_ip != '') {
@@ -1585,6 +1489,7 @@ export default defineComponent({
       };
       if (requestData.req_uuid) {
         requestData.current_db_name = 'auto';
+        delete requestData.request_outcome;
         delete requestData.unix_add_time_begin;
         delete requestData.unix_add_time_end;
       }
@@ -1703,10 +1608,6 @@ export default defineComponent({
       }
       this.getList('');
     },
-    /**
-     * 访客身份筛选
-     */
-    filterGuestChange(e) {},
     // 切换访问日志/安全事件视图。「请求」全文筛选只在安全事件视图有，切走时摘掉，否则后端会拒
     onViewTypeChange() {
       if (this.searchformData.view_type !== 'event' && this.filters.filter_by.indexOf('header') >= 0) {
@@ -1723,20 +1624,10 @@ export default defineComponent({
       this.pagination.current = 1;
       this.filters.filter_by = '';
       this.filters.filter_value = '';
-      //访客身份
-      if (e.guest_identification != undefined && e.guest_identification != '') {
-        this.filters.filter_by = 'guest_identification';
-        this.filters.filter_value = e.guest_identification;
-      }
       //请求ID
       if (e.req_uuid != undefined && e.req_uuid != '') {
-        if (this.filters.filter_by == '') {
-          this.filters.filter_by = 'req_uuid';
-          this.filters.filter_value = e.req_uuid;
-        } else {
-          this.filters.filter_by = this.filters.filter_by + '|req_uuid';
-          this.filters.filter_value = this.filters.filter_value + '|' + e.req_uuid;
-        }
+        this.filters.filter_by = 'req_uuid';
+        this.filters.filter_value = e.req_uuid;
       }
       //header
       if (e.header != undefined && e.header != '') {
@@ -2055,46 +1946,9 @@ export default defineComponent({
   margin-top: 4px;
   color: var(--hw-muted);
 }
-.visit-column-help,
 .visit-settings-intro {
   color: var(--hw-muted);
   margin: 0 0 12px;
-}
-.visit-column-list {
-  padding: 0;
-  margin: 12px 0 0;
-  list-style: none;
-  max-height: 50vh;
-  overflow-y: auto;
-}
-.visit-column-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  border-bottom: 1px solid var(--hw-line);
-}
-.visit-column-move {
-  display: flex;
-  gap: 4px;
-}
-.visit-column-move button {
-  min-width: 36px;
-  min-height: 36px;
-  border: 1px solid var(--hw-line);
-  border-radius: var(--hw-r-sm);
-  background: var(--hw-surface);
-  color: var(--hw-ink);
-  cursor: pointer;
-}
-.visit-column-move button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.visit-column-move button:focus-visible {
-  outline: 2px solid var(--hw-accent);
-  outline-offset: 2px;
 }
 .visit-settings-tools {
   margin-top: 20px;
@@ -2137,10 +1991,6 @@ export default defineComponent({
   }
   .visit-results-heading {
     align-items: flex-start;
-  }
-  .visit-column-move button {
-    min-width: 44px;
-    min-height: 44px;
   }
 }
 @media (max-width: 520px) {

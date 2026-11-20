@@ -108,7 +108,8 @@ try {
   await page.locator('.login-password input[type="text"]').last().fill('navigation-test');
   await page.locator('.login-password input[type="password"]').fill('navigation-test-password');
   await page.locator('.login-password button[type="submit"]').click();
-  await expect(dashboard).toBeVisible();
+  await expect(page).toHaveURL(/#\/sys\/IPLocation$/);
+  await expect(page.locator('.test-section')).toBeVisible();
   await navigation.getByRole('link', { name: '我的服务', exact: true }).click();
   await expect(page.getByTestId('pipeline-page')).toBeVisible();
   expect(await page.evaluate(() => window.__navigationDocumentID)).toBe(documentID);
