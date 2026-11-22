@@ -145,145 +145,73 @@ func NotifySoftwareUpdate(current, latest string) {
 	waf_service.WafNotifySenderServiceApp.SendEvent(event)
 }
 
-// handleRuleMessage 处理规则触发消息
+func sendConsoleAndSubscription(msg any, label, command string) string {
+	event := waf_service.WafNotifySenderServiceApp.BuildNotifyEvent(msg)
+	content := waf_service.PlainNotifyContent(event.DefaultContent)
+	sendToWebSocket(label, content, nil, command)
+	waf_service.WafNotifySenderServiceApp.SendEvent(event)
+	return content
+}
+
 func handleRuleMessage(msg innerbean.RuleMessageInfo) {
 	if !checkCanSend(model.MSG_TYPE_RULE_TRIGGER) {
 		return
 	}
-
-	// 1. 交给通知订阅系统（逐订阅做频控/过滤/模板，见 waf_notify_throttle.go）
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 保留原有的通知方式（兼容旧系统）
+	sendConsoleAndSubscription(msg, "命中保护规则", "Info")
 	if global.GWAF_NOTICE_ENABLE {
 		utils.NotifyHelperApp.SendRuleInfo(msg)
-	} else {
-		zlog.Debug("通知关闭状态")
-	}
-
-	// 3. 发送到 WebSocket（实时推送，不走聚合）
-	if msg.BaseMessageInfo.OperaType == "命中保护规则" {
-		sendToWebSocket("命中保护规则", msg.RuleInfo+msg.Ip, nil, "Info")
 	}
 }
 
-// handleOperatorMessage 处理操作消息
 func handleOperatorMessage(msg innerbean.OperatorMessageInfo) {
 	if !checkCanSend(model.MSG_TYPE_OPERATION_NOTICE) {
 		return
 	}
-
-	// 1. 交给通知订阅系统
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 保留原有的通知方式
+	sendConsoleAndSubscription(msg, msg.OperaType, "Info")
 	utils.NotifyHelperApp.SendNoticeInfo(msg)
-
-	// 3. 发送到 WebSocket（实时推送）
-	sendToWebSocket(msg.OperaType, msg.OperaCnt, nil, "Info")
 }
 
-// handleUserLoginMessage 处理用户登录消息
 func handleUserLoginMessage(msg innerbean.UserLoginMessageInfo) {
-	// 1. 发送到新的通知订阅系统
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 发送到 WebSocket
 	if msg.Abnormal {
-		wsContent := fmt.Sprintf("用户 %s 从 %s 登录，与上次(%s %s)来源不一致", msg.Username, msg.Ip, msg.LastIp, msg.LastLocation)
-		sendToWebSocket("登录来源变化", wsContent, nil, "Warning")
+		sendConsoleAndSubscription(msg, "登录来源变化", "Warning")
 		return
 	}
-	wsContent := fmt.Sprintf("用户 %s 从 %s 登录", msg.Username, msg.Ip)
-	sendToWebSocket("用户登录", wsContent, nil, "Info")
+	sendConsoleAndSubscription(msg, "用户登录", "Info")
 }
 
-// handleAttackInfoMessage 处理攻击信息消息
 func handleAttackInfoMessage(msg innerbean.AttackInfoMessageInfo) {
-	if !checkCanSend(model.MSG_TYPE_ATTACK_INFO) {
-		return
+	if checkCanSend(model.MSG_TYPE_ATTACK_INFO) {
+		sendConsoleAndSubscription(msg, "攻击告警", "Info")
 	}
-
-	// 1. 交给通知订阅系统
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 发送到 WebSocket（实时推送）
-	wsContent := fmt.Sprintf("检测到 %s 攻击，来源IP: %s", msg.AttackType, msg.Ip)
-	sendToWebSocket("攻击告警", wsContent, nil, "Info")
 }
 
-// handleAccessMessage 处理统一访问认证事件（登录成功 / 安全异常）
-//
-// 不走通知聚合器：能到这里的事件已经在审计侧过了「事件白名单 + 同事件同IP 5分钟节流」
-// 两道闸，量本来就极小；再聚合只会让安全告警晚几十秒到，得不偿失。
 func handleAccessMessage(msg innerbean.AccessMessageInfo) {
-	// 1. 发送到通知订阅系统。登录成功与异常告警是两个独立的订阅类型，
-	//    见 model.MSG_TYPE_ACCESS_LOGIN / MSG_TYPE_ACCESS_ABNORMAL 的注释
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 发送到 WebSocket（管理端在线时实时弹出）
 	level := "Info"
 	if msg.Abnormal {
 		level = "Warning"
 	}
-	who := msg.AccountName
-	if who == "" {
-		who = "-"
-	}
-	wsContent := fmt.Sprintf("%s：账号 %s，来源 %s %s", msg.EventName, who, msg.Ip, msg.Location)
-	sendToWebSocket("统一访问认证", wsContent, nil, level)
+	sendConsoleAndSubscription(msg, "统一访问认证", level)
 }
 
-// handleWeeklyReportMessage 处理周报消息
 func handleWeeklyReportMessage(msg innerbean.WeeklyReportMessageInfo) {
-	// 1. 发送到新的通知订阅系统
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 发送到 WebSocket
-	wsContent := fmt.Sprintf("周期: %s, 总请求: %d, 拦截: %d", msg.WeekRange, msg.TotalRequests, msg.BlockedRequests)
-	sendToWebSocket("WAF周报", wsContent, nil, "Info")
+	sendConsoleAndSubscription(msg, "WAF周报", "Info")
 }
 
-// handleSSLExpireMessage 处理SSL证书过期消息
 func handleSSLExpireMessage(msg innerbean.SSLExpireMessageInfo) {
-	// SSL证书消息总是发送（不受频率限制）
-	// 1. 发送到新的通知订阅系统
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 发送到 WebSocket
-	wsContent := fmt.Sprintf("域名 %s 的SSL证书将在 %d 天后过期", msg.Domain, msg.DaysLeft)
-	sendToWebSocket("SSL证书过期提醒", wsContent, nil, "Info")
+	sendConsoleAndSubscription(msg, "SSL证书过期提醒", "Info")
 }
 
-// handleSystemErrorMessage 处理系统错误消息
 func handleSystemErrorMessage(msg innerbean.SystemErrorMessageInfo) {
-	// 1. 发送到新的通知订阅系统
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 发送到 WebSocket
-	wsContent := fmt.Sprintf("系统错误: %s - %s", msg.ErrorType, msg.ErrorMsg)
-	sendToWebSocket("系统错误", wsContent, nil, "Info")
+	sendConsoleAndSubscription(msg, "系统错误", "Info")
 }
 
-// handleIPBanMessage 处理IP封禁消息
 func handleIPBanMessage(msg innerbean.IPBanMessageInfo) {
 	if !checkCanSend(model.MSG_TYPE_IP_BAN) {
 		return
 	}
-
-	// 1. 交给通知订阅系统
-	waf_service.WafNotifySenderServiceApp.SendMessageInfo(msg)
-
-	// 2. 发送到 WebSocket（实时推送）
-	wsContent := fmt.Sprintf("IP %s 已被封禁，原因: %s", msg.Ip, msg.Reason)
-	sendToWebSocket("IP封禁通知", wsContent, nil, "Info")
-
-	// 3. 主机防爆破的封禁额外推一条带 HostGuard 命令字的消息，
-	//    让「远程防爆破」页面能即时刷新而不必等用户手动点。
-	//    单独用一个命令字而不是复用 Info：Info 是通用弹窗通知，
-	//    页面刷新逻辑挂上去会让所有通知都触发一次无谓的接口请求。
+	content := sendConsoleAndSubscription(msg, "IP封禁通知", "Info")
 	if strings.Contains(msg.OperaType, "主机远程登录爆破") {
-		sendToWebSocket("主机防爆破封禁", wsContent, msg, "HostGuard")
+		sendToWebSocket("主机防爆破封禁", content, msg, "HostGuard")
 	}
 }
 

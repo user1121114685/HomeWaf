@@ -12,6 +12,7 @@ import { zh as logExport } from './logExport';
 export default {
   logExport,
   common: {
+    retry: "重试",
     yes: "是",
     no: "否",
     confirm: "确认",

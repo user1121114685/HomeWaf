@@ -317,7 +317,7 @@ func TestCertificateLifecycleNotificationRetryAndMonitoringState(t *testing.T) {
 		t.Fatal(err)
 	}
 	sends := 0
-	certificateDeliver = func(model.NotifyChannel, model.NotifySubscription, string, string, string) (string, error) {
+	certificateDeliver = func(model.NotifyChannel, model.NotifySubscription, NotifyEvent, string, string) (string, error) {
 		sends++
 		if sends == 1 {
 			return "", testCertificateError("provider temporarily unavailable")
@@ -390,7 +390,7 @@ func TestCertificateLifecycleNotificationRetryAndMonitoringState(t *testing.T) {
 	if err := db.Create(&limitedEvent).Error; err != nil {
 		t.Fatal(err)
 	}
-	certificateDeliver = func(model.NotifyChannel, model.NotifySubscription, string, string, string) (string, error) {
+	certificateDeliver = func(model.NotifyChannel, model.NotifySubscription, NotifyEvent, string, string) (string, error) {
 		sends++
 		return "", utils.NewHTTPRetryError(429, "3600", "test-channel", limitedAt)
 	}

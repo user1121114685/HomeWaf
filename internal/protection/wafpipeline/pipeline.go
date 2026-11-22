@@ -3,9 +3,11 @@
 package wafpipeline
 
 import (
+	"HomeWaf/internal/bodyinspect"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -61,6 +63,8 @@ type Verdict struct {
 }
 type HitEvent struct {
 	Time       time.Time  `json:"time"`
+	Stage      int        `json:"stage,omitempty"`
+	Check      string     `json:"check,omitempty"`
 	PortID     string     `json:"port_id"`
 	ClientIP   netip.Addr `json:"client_ip"`
 	Category   string     `json:"category"`
@@ -167,13 +171,28 @@ type Step struct {
 }
 type EventSink interface{ Submit(HitEvent) bool }
 type Result struct {
-	Verdict       Verdict              `json:"verdict"`
-	Trace         []TraceEntry         `json:"trace"`
-	Hits          []HitEvent           `json:"hits,omitempty"`
-	ReqID         string               `json:"req_id"`
-	BodyTruncated bool                 `json:"body_truncated,omitempty"`
-	Honeypot      *HoneypotInteraction `json:"honeypot,omitempty"`
+	Verdict         Verdict                  `json:"verdict"`
+	Trace           []TraceEntry             `json:"trace"`
+	Hits            []HitEvent               `json:"hits,omitempty"`
+	ReqID           string                   `json:"req_id"`
+	BodyTruncated   bool                     `json:"body_truncated,omitempty"`
+	BodyReadFailure *bodyinspect.ReadFailure `json:"body_read_failure,omitempty"`
+	Honeypot        *HoneypotInteraction     `json:"honeypot,omitempty"`
 }
+
+// UnavailableCheck identifies the mandatory check whose failure stopped this request.
+func (r *Result) UnavailableCheck() string {
+	v := r.Verdict
+	if v.Reason == "policy_unavailable" && v.Action == Deny && v.Stage > 0 && v.Stage < 5 {
+		for _, step := range r.Trace {
+			if step.Error != "" && step.Verdict == v {
+				return step.Check
+			}
+		}
+	}
+	return ""
+}
+
 type Pipeline struct {
 	steps []Step
 	sink  EventSink
@@ -225,19 +244,29 @@ func (p *Pipeline) evaluate(c *RequestContext, capture bool) Result {
 		}
 		entry := TraceEntry{Stage: s.Number, Check: s.Name, Verdict: v, ElapsedMicros: time.Since(started).Microseconds()}
 		if err != nil {
-			for i := hitStart; i < len(c.Hits); i++ {
-				c.Hits[i].Observe = true
-			}
 			entry.Error = "detector unavailable"
 			if err.Error() == "detector panic" {
 				entry.Error = "detector panic"
 			}
-			c.Hit("detector_error", s.Name, Low, true, "inspection unavailable; see stage and rule for configuration review")
+			evidence := "inspection unavailable; see stage and rule for configuration review"
+			if errors.Is(err, errBodyRead) {
+				evidence = BodyInspectionUnavailable
+			}
+			c.Hit("detector_error", s.Name, Low, true, evidence)
 			v = Verdict{Action: Continue, Stage: s.Number, Reason: "detector_error"}
 			if s.Number < 3 || s.FailClosed {
 				v = Verdict{Action: Deny, Stage: s.Number, Reason: "policy_unavailable", Status: http.StatusServiceUnavailable}
 			}
 			entry.Verdict = v
+		}
+		for i := hitStart; i < len(c.Hits); i++ {
+			c.Hits[i].Stage = s.Number
+			if c.Hits[i].Category == "detector_error" {
+				c.Hits[i].Check = s.Name
+			}
+			if err != nil {
+				c.Hits[i].Observe = true
+			}
 		}
 		c.Trace.Add(entry)
 		if v.Observe {
@@ -257,7 +286,7 @@ func (p *Pipeline) evaluate(c *RequestContext, capture bool) Result {
 			p.sink.Submit(event)
 		}
 	}
-	result := Result{Verdict: final, ReqID: c.ReqID, BodyTruncated: c.View.BodyTruncated}
+	result := Result{Verdict: final, ReqID: c.ReqID, BodyTruncated: c.View.BodyTruncated, BodyReadFailure: c.View.bodyReadFailure}
 	if capture {
 		result.Trace = c.Trace.Entries()
 		result.Hits = append([]HitEvent(nil), c.Hits...)

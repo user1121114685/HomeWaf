@@ -37,14 +37,15 @@
               <hw-date-picker v-model="searchformData.end_time" enable-time-picker format="YYYY-MM-DD HH:mm:ss" :style="{ width: 'min(100%, 200px)' }"></hw-date-picker>
             </hw-form-item>
             <hw-form-item>
-              <hw-button theme="primary" @click="getList">{{ $t('common.search') }}</hw-button>
+              <hw-button theme="primary" @click="searchformData.pageIndex = 1; getList()">{{ $t('common.search') }}</hw-button>
               <hw-button variant="base" theme="default" @click="handleReset" :style="{ marginLeft: '8px' }">{{ $t('common.reset') }}</hw-button>
             </hw-form-item>
           </hw-form>
         </div>
       </hw-row>
       <help-block :summary="$t('page.notify_log.alert_message')" doc="guide/NotifyLog" />
-      <div class="table-container">
+      <hw-alert v-if="loadError" theme="error" :message="loadError"><hw-button variant="text" @click="getList">{{ $t('common.retry') }}</hw-button></hw-alert>
+      <div v-else class="table-container">
         <hw-table :columns="columns" :data="data" :rowKey="rowKey" :verticalAlign="verticalAlign" :hover="hover"
           :pagination="pagination" :loading="dataLoading" @page-change="rehandlePageChange" @change="rehandleChange"
           :headerAffixedTop="true" :headerAffixProps="{ offsetTop: offsetTop, container: getContainer }">
@@ -184,6 +185,8 @@ export default defineComponent({
         end_time: '',
       },
       detailVisible: false,
+      loadError: '',
+      listRequest: 0,
       detailData: {} as any,
       confirmVisible: false,
       confirmBody: '',
@@ -221,19 +224,21 @@ export default defineComponent({
       return document.querySelector('.tdesign-starter-main');
     },
     async getList() {
+      const sequence = ++this.listRequest;
+      this.loadError = '';
       this.dataLoading = true;
       try {
-        const res = await getNotifyLogList(this.searchformData);
-        if (res.code === 0) {
-          this.data = res.data.list || [];
-          this.pagination.total = res.data.total;
-          this.pagination.current = this.searchformData.pageIndex;
-          this.pagination.pageSize = this.searchformData.pageSize;
-        }
-      } catch (e) {
-        console.error(e);
+        const res = await getNotifyLogList({ ...this.searchformData });
+        if (sequence !== this.listRequest) return;
+        if (res.code !== 0) throw new Error(res.msg || '读取通知发送记录失败');
+        this.data = res.data.list || [];
+        this.pagination.total = res.data.total;
+        this.pagination.current = this.searchformData.pageIndex;
+        this.pagination.pageSize = this.searchformData.pageSize;
+      } catch (e: any) {
+        if (sequence === this.listRequest) this.loadError = e?.message || '读取通知发送记录失败';
       } finally {
-        this.dataLoading = false;
+        if (sequence === this.listRequest) this.dataLoading = false;
       }
     },
     handleReset() {

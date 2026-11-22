@@ -36,6 +36,10 @@ await context.route('**/api/**', async (route) => {
     if (failDetail) return fail('没有查看这条请求的权限');
     if (id === 'slow-request') await new Promise((resolve) => setTimeout(resolve, 600));
     const category = id === 'csrf-request' ? 'csrf' : 'ssrf';
+    if (id === 'upload-request') return ok({ ...sample, req_uuid: id, action: '阻止', rule: 'policy_unavailable', log_only_mode: 0, status_code: 503, diagnostics: {
+      state, hits: [{ category: 'detector_error', rule_id: 'synology_login', source: 'body', code: 'body_read_timeout', observe: true, stopped_request: true }],
+      body_read_failure: { cause: 'timeout', bytes_read: 8192, elapsed_ms: 5001, idle_ms: 803 },
+    } });
     if (id === 'host-rejected') return ok({ ...sample, req_uuid: id, action: '阻止', rule: 'host_not_allowed', log_only_mode: 0, status_code: 403, diagnostics: { state: 'available', hits: [], body_truncated: false } });
     return ok({ ...sample, req_uuid: id, rule: category, diagnostics: {
       state, body_truncated: false,
@@ -118,9 +122,17 @@ try {
   await expect(diagnostics()).toContainText('missing_origin_observe');
   report.checks.push('older request responses cannot replace a newer request diagnostic');
 
+  await open('upload-request');
+  await expect(diagnostics()).toContainText('正文读取失败（读取超时）');
+  await expect(diagnostics()).toContainText('转发前拒绝');
+  await diagnostics().getByRole('button', { name: '复制排查信息' }).click();
+  const uploadReport = await page.evaluate(() => navigator.clipboard.readText());
+  for (const value of ['upload-request', 'HTTP status: 503', '8192 字节', '5001 ms', '803 ms']) expect(uploadReport).toContain(value);
+  expect(uploadReport).not.toContain('PRIVATE-');
+
   for (const theme of ['light', 'dark']) {
     await page.evaluate((mode) => localStorage.setItem('homewaf.console.preferences', JSON.stringify({ mode })), theme);
-    await open('csrf-request', theme);
+    await open('upload-request', theme);
     await expect(page.locator('html')).toHaveAttribute('theme-mode', theme);
     for (const width of [1440, 768, 390]) {
       await page.setViewportSize({ width, height: width < 600 ? 844 : 1000 });

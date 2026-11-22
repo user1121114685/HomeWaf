@@ -8,6 +8,7 @@ import (
 	"HomeWaf/internal/platform/common/zlog"
 	"HomeWaf/internal/services/waf_service"
 	"fmt"
+	"time"
 )
 
 // TaskStatusNotify 汇总通知
@@ -27,6 +28,7 @@ func TaskStatusNotify() {
 				Server:    serverName,
 			},
 			OperaCnt: noticeStr,
+			Time:     time.Now().Format(time.RFC3339),
 		})
 	} else {
 		zlog.Error("TaskStatusNotifyerror", err)

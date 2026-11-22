@@ -9,6 +9,7 @@ import (
 	"compress/zlib"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -34,6 +35,10 @@ type ViewLimits struct {
 	MaxFields       int   `json:"max_fields"`
 	FilePrefixBytes int64 `json:"file_prefix_bytes"`
 }
+
+var errBodyRead = errors.New("body read failed")
+
+const BodyInspectionUnavailable = "body inspection unavailable"
 
 func DefaultViewLimits() ViewLimits {
 	return ViewLimits{BodyBytes: 1 << 20, ExpansionRatio: 32, MaxFields: 2048, FilePrefixBytes: 64 << 10}
@@ -82,6 +87,7 @@ type NormalizedView struct {
 	limits           ViewLimits
 	once             sync.Once
 	bodyErr          error
+	bodyReadFailure  *bodyinspect.ReadFailure
 	deadline         time.Time
 	scanContext      context.Context
 	excludeFields    []string
@@ -177,10 +183,11 @@ func (v *NormalizedView) readBody() {
 		return
 	}
 	readStart := time.Now()
-	wire, err := bodyinspect.ReadPrefix(r, v.limits.BodyBytes)
+	wire, failure, err := bodyinspect.InspectPrefix(r, v.limits.BodyBytes)
 	v.bodyReadDuration = time.Since(readStart)
 	if err != nil {
-		v.bodyErr = fmt.Errorf("body read failed")
+		v.bodyReadFailure = failure
+		v.bodyErr = errBodyRead
 		v.ParseError = "body_read_error"
 		return
 	}

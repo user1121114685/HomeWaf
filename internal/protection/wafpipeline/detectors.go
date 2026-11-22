@@ -172,7 +172,7 @@ func (e *RuleEngine) Steps(s *Snapshot) []Step {
 			c.View.excludeFields = rule.Scope.ExcludeFields
 			if !c.View.expired() && needsBody {
 				if err := inspectRequestBody(c); err != nil {
-					c.Hit("detector_error", rule.ID, Low, true, "body inspection unavailable")
+					c.Hit("detector_error", rule.ID, Low, true, BodyInspectionUnavailable)
 					return Verdict{Action: Continue, Reason: "body_read_error"}, nil
 				}
 			}

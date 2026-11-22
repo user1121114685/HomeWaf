@@ -11,7 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -764,24 +764,31 @@ func matchDomainList(list []string, domain string) bool {
 
 // matchIPList IP 匹配，支持单 IP 与 CIDR
 func matchIPList(list []string, ipStr string) bool {
-	ip := net.ParseIP(strings.TrimSpace(ipStr))
-	if ip == nil {
+	target, ok := notificationIPPrefix(ipStr)
+	if !ok {
 		return false
 	}
 	for _, item := range list {
-		item = strings.TrimSpace(item)
-		if item == "" {
-			continue
-		}
-		if strings.Contains(item, "/") {
-			if _, cidr, err := net.ParseCIDR(item); err == nil && cidr.Contains(ip) {
-				return true
-			}
-			continue
-		}
-		if other := net.ParseIP(item); other != nil && other.Equal(ip) {
+		excluded, ok := notificationIPPrefix(item)
+		if ok && excluded.Bits() <= target.Bits() && excluded.Contains(target.Addr()) {
 			return true
 		}
 	}
 	return false
+}
+
+func notificationIPPrefix(raw string) (netip.Prefix, bool) {
+	raw = strings.TrimSpace(raw)
+	if addr, err := netip.ParseAddr(raw); err == nil {
+		addr = addr.Unmap()
+		return netip.PrefixFrom(addr, addr.BitLen()), true
+	}
+	prefix, err := netip.ParsePrefix(raw)
+	if err != nil {
+		return netip.Prefix{}, false
+	}
+	if prefix.Addr().Is4In6() && prefix.Bits() >= 96 {
+		prefix = netip.PrefixFrom(prefix.Addr().Unmap(), prefix.Bits()-96)
+	}
+	return prefix.Masked(), true
 }

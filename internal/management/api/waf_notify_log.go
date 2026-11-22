@@ -29,7 +29,11 @@ func (w *WafNotifyLogApi) GetListApi(c *gin.Context) {
 	var req request.WafNotifyLogSearchReq
 	err := c.ShouldBindJSON(&req)
 	if err == nil {
-		beans, total, _ := wafNotifyLogService.GetListApi(req)
+		beans, total, readErr := wafNotifyLogService.GetListApi(req)
+		if readErr != nil {
+			response.FailWithMessage("读取通知发送记录失败，请重试", c)
+			return
+		}
 		response.OkWithDetailed(response.PageResult{
 			List:      beans,
 			Total:     total,
@@ -55,7 +59,11 @@ func (w *WafNotifyLogApi) GetDetailApi(c *gin.Context) {
 	var req request.WafNotifyLogDetailReq
 	err := c.ShouldBind(&req)
 	if err == nil {
-		bean := wafNotifyLogService.GetDetailApi(req)
+		bean, readErr := wafNotifyLogService.GetDetailApi(req)
+		if readErr != nil {
+			response.FailWithMessage("通知日志不存在或暂时无法读取", c)
+			return
+		}
 		response.OkWithDetailed(bean, "获取成功", c)
 	} else {
 		response.FailWithMessage("解析失败", c)

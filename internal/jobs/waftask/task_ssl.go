@@ -4,6 +4,7 @@ package waftask
 
 import (
 	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/model"
 	"HomeWaf/internal/model/customtype"
 	"HomeWaf/internal/model/innerbean"
 	"HomeWaf/internal/platform/common/zlog"
@@ -164,7 +165,7 @@ func SSLExpireCheck() {
 			expireBean.LastSuccess = expireBean.LastDetect
 
 			// 检查证书是否即将过期，并发送通知
-			checkAndNotifySSLExpire(expireBean.Domain, expiryTime)
+			checkAndNotifySSLExpire(expireBean.Domain, host, expiryTime)
 		}
 		//更新数据
 		wafSslExpireService.Modify(expireBean)
@@ -196,9 +197,9 @@ func SyncHostToSslCheck() {
 }
 
 // checkAndNotifySSLExpire 检查SSL证书是否即将过期，并发送通知
-func checkAndNotifySSLExpire(domain string, expiryTime time.Time) {
+func checkAndNotifySSLExpire(domain, endpoint string, expiryTime time.Time) {
 	// 计算剩余天数
-	daysLeft := int(time.Until(expiryTime).Hours() / 24)
+	daysLeft := model.CertificateDaysLeft(time.Now(), expiryTime)
 
 	// 判断是IP证书还是域名证书
 	isIpCert := utils.IsIP(domain)
@@ -294,6 +295,7 @@ func checkAndNotifySSLExpire(domain string, expiryTime time.Time) {
 				Server:    serverName,
 			},
 			Domain:     domain,
+			Endpoint:   endpoint,
 			ExpireTime: expiryTime.Format("2006-01-02 15:04:05"),
 			DaysLeft:   daysLeft,
 		})

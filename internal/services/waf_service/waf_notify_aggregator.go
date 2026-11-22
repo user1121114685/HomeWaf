@@ -201,7 +201,11 @@ func BuildMergedMessage(sub model.NotifySubscription, channelType string, events
 		if u == model.TemplateUsedFallback {
 			used = model.TemplateUsedFallback
 		}
-		parts = append(parts, "**["+strconv.Itoa(i+1)+"]** "+body)
+		number := "[" + strconv.Itoa(i+1) + "]"
+		if channelType != "bark" {
+			number = "**" + number + "**"
+		}
+		parts = append(parts, number+" "+body)
 	}
 	if len(events) > showCount {
 		parts = append(parts, "\n...及其他 "+strconv.Itoa(len(events)-showCount)+" 条记录")

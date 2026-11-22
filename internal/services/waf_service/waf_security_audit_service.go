@@ -139,7 +139,10 @@ func (receiver *WafSecurityAuditService) notify(bean model.SecurityAuditLog, now
 	if !ok || global.GQEQUE_MESSAGE_DB == nil {
 		return
 	}
-	key := enums.CACHE_ACCESS_NOTIFY + bean.Event + ":" + bean.ClientIP
+	key := enums.CACHE_ACCESS_NOTIFY + bean.Event + ":" + bean.HostCode + ":" + bean.ClientIP
+	if bean.Event == model.AccessEventLoginOK {
+		key += ":" + bean.AccountName
+	}
 	if global.GCACHE_WAFCACHE.IsKeyExist(key) {
 		return
 	}

@@ -292,11 +292,17 @@ func (s *WafPipelineDefenseService) Run(ctx context.Context) {
 }
 
 func (s *WafPipelineDefenseService) record(c wafpipeline.PortConfig, event string) {
+	now := time.Now()
 	raw, _ := json.Marshal(c.DefenseState)
 	if global.GQEQUE_LOG_DB != nil {
-		global.GQEQUE_LOG_DB.Enqueue(&model.PipelineLog{ID: uuid.GenUUID(), PortID: wafpipeline.PortID(c.Port), TimeMillis: time.Now().UnixMilli(), Kind: "state", Verdict: "defense", Reason: event, DetailJSON: string(raw)})
+		global.GQEQUE_LOG_DB.Enqueue(&model.PipelineLog{ID: uuid.GenUUID(), PortID: wafpipeline.PortID(c.Port), TimeMillis: now.UnixMilli(), Kind: "state", Verdict: "defense", Reason: event, DetailJSON: string(raw)})
 	}
 	if global.GQEQUE_MESSAGE_DB != nil {
-		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.SystemErrorMessageInfo{BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "HomeWaf port protection", Server: wafpipeline.PortID(c.Port)}, ErrorType: "pipeline_defense", ErrorMsg: fmt.Sprintf("%s: %s", c.Name, event)})
+		port := wafpipeline.PortID(c.Port)
+		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.SystemErrorMessageInfo{
+			BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "HomeWaf port protection", Server: port},
+			ErrorType:       "pipeline_defense", ErrorMsg: fmt.Sprintf("%s（%s） %s", c.Name, port, event),
+			Time: now.Format(time.RFC3339),
+		})
 	}
 }

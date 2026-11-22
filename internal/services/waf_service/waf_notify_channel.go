@@ -152,7 +152,7 @@ func (receiver *WafNotifyChannelService) TestChannelApi(req request.WafNotifyCha
 	}
 	content := "这是一条测试消息，发送时间：" + time.Now().Format("2006-01-02 15:04:05")
 
-	_, err = WafNotifySenderServiceApp.deliverToChannel(channel, model.NotifySubscription{}, model.MSG_TYPE_OPERATION_NOTICE, title, content)
+	_, err = WafNotifySenderServiceApp.deliverToChannel(channel, model.NotifySubscription{}, newNotifyEvent(model.MSG_TYPE_OPERATION_NOTICE, title, content), title, content)
 	return err
 }
 

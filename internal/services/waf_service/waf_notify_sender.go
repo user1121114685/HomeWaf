@@ -14,22 +14,21 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 )
 
 // buildWebhookMessage 组装通用 Webhook 的模板变量
 //
 // 只给「标题/正文 + 几个公共维度」：更细的字段（域名、攻击IP…）由订阅级模板渲染进正文，
 // 两层模板各管一段，不在渠道层重复一遍变量表。
-func buildWebhookMessage(messageType, title, content string) webhook.Message {
+func buildWebhookMessage(ev NotifyEvent, title, content string) webhook.Message {
 	return webhook.Message{
 		Title:           title,
 		Content:         content,
-		Time:            time.Now().Format("2006-01-02 15:04:05"),
-		MessageType:     messageType,
-		MessageTypeName: GetMessageTypeName(messageType),
-		Severity:        GetMessageTypeSeverity(messageType),
-		ServerName:      global.GWAF_CUSTOM_SERVER_NAME,
+		Time:            ev.Vars["Time"],
+		MessageType:     ev.MessageType,
+		MessageTypeName: ev.MessageTypeName,
+		Severity:        ev.Severity,
+		ServerName:      ev.Vars["ServerName"],
 	}
 }
 
@@ -120,7 +119,7 @@ func (receiver *WafNotifySenderService) DispatchEvents(sub model.NotifySubscript
 		title = "[" + global.GWAF_NOTICE_TITLE + "] " + title
 	}
 
-	receiver.sendToChannel(channel, sub, events[0].MessageType, title, content, templateUsed)
+	receiver.sendToChannel(channel, sub, events[0], title, content, templateUsed)
 
 	if suppressLogID != "" && suppressedCount > 0 {
 		if err := WafNotifyLogServiceApp.UpdateSuppressCount(suppressLogID, suppressedCount); err != nil {
@@ -170,8 +169,8 @@ func (receiver *WafNotifySenderService) getChannelById(channelId string, channel
 }
 
 // sendToChannel 发送到具体渠道并记录日志
-func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChannel, subscription model.NotifySubscription, messageType, title, content, templateUsed string) {
-	recipients, err := receiver.deliverToChannel(channel, subscription, messageType, title, content)
+func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChannel, subscription model.NotifySubscription, ev NotifyEvent, title, content, templateUsed string) {
+	recipients, err := receiver.deliverToChannel(channel, subscription, ev, title, content)
 
 	status := 1
 	errorMsg := ""
@@ -186,7 +185,7 @@ func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChanne
 		ChannelId:      channel.Id,
 		ChannelName:    channel.Name,
 		ChannelType:    channel.Type,
-		MessageType:    messageType,
+		MessageType:    ev.MessageType,
 		MessageTitle:   title,
 		MessageContent: content,
 		Recipients:     recipients, // 传递收件人信息
@@ -205,7 +204,7 @@ func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChanne
 // 从 sendToChannel 里拆出来，是为了让「订阅级测试发送」能拿到真实错误反馈给管理端 ——
 // issue #822 的标题就是"通知管理无法调试"，测试发送必须走完全相同的投递链路。
 func (receiver *WafNotifySenderService) deliverToChannel(channel model.NotifyChannel,
-	subscription model.NotifySubscription, messageType, title, content string) (recipients string, err error) {
+	subscription model.NotifySubscription, ev NotifyEvent, title, content string) (recipients string, err error) {
 	if channels.Handles(channel.Type) {
 		notifier, notifierErr := channels.New(channel.Type, channel.ConfigJSON, channel.WebhookURL, channel.Secret, channel.AccessToken)
 		if notifierErr != nil {
@@ -234,7 +233,7 @@ func (receiver *WafNotifySenderService) deliverToChannel(channel model.NotifyCha
 		if notifierErr != nil {
 			err = notifierErr
 		} else {
-			err = notifier.Send(buildWebhookMessage(messageType, title, content))
+			err = notifier.Send(buildWebhookMessage(ev, title, content))
 		}
 	default:
 		err = fmt.Errorf("不支持的通知类型: %s", channel.Type)
@@ -262,7 +261,7 @@ func (receiver *WafNotifySenderService) SendTestToSubscription(sub model.NotifyS
 	}
 	content += "\n\n> 本条为通知订阅测试消息，不代表真实事件"
 
-	recipients, err := receiver.deliverToChannel(channel, testSub, sub.MessageType, title, content)
+	recipients, err := receiver.deliverToChannel(channel, testSub, ev, title, content)
 
 	status := 1
 	errorMsg := ""
@@ -291,56 +290,46 @@ func (receiver *WafNotifySenderService) SendTestToSubscription(sub model.NotifyS
 // FormatUserLoginMessage 格式化用户登录消息
 func (receiver *WafNotifySenderService) FormatUserLoginMessage(username, ip, time string) (string, string) {
 	title := "用户登录通知"
-	content := fmt.Sprintf("**用户:** %s\n\n**IP地址:** %s\n\n**登录时间:** %s", username, ip, time)
+	content := fmt.Sprintf("**用户:** %s\n\n**IP地址:** %s\n\n**登录时间:** %s", reported(username), reported(ip), reported(time))
 	return title, content
 }
 
 // FormatAttackInfoMessage 格式化攻击信息消息
 func (receiver *WafNotifySenderService) FormatAttackInfoMessage(attackType, url, ip, time string) (string, string) {
 	title := "攻击告警通知"
-	content := fmt.Sprintf("**攻击类型:** %s\n\n**URL:** %s\n\n**攻击IP:** %s\n\n**攻击时间:** %s", attackType, url, ip, time)
+	content := fmt.Sprintf("**攻击类型:** %s\n\n**URL:** %s\n\n**攻击IP:** %s\n\n**攻击时间:** %s", reported(attackType), reported(url), reported(ip), reported(time))
 	return title, content
 }
 
 // FormatWeeklyReportMessage 格式化周报消息
 func (receiver *WafNotifySenderService) FormatWeeklyReportMessage(totalRequests, blockedRequests int64, weekRange string) (string, string) {
 	title := "WAF周报"
-	content := fmt.Sprintf("**周期:** %s\n\n**总请求数:** %d\n\n**拦截请求数:** %d\n\n**拦截率:** %.2f%%",
-		weekRange,
-		totalRequests,
-		blockedRequests,
-		float64(blockedRequests)/float64(totalRequests)*100)
+	content := fmt.Sprintf("**周期:** %s\n\n**总请求数:** %d\n\n**拦截请求数:** %d\n\n**拦截率:** %s",
+		reported(weekRange), totalRequests, blockedRequests, formatBlockRate(totalRequests, blockedRequests))
 	return title, content
 }
 
 // FormatSSLExpireMessage 格式化SSL证书过期消息
 func (receiver *WafNotifySenderService) FormatSSLExpireMessage(domain string, expireTime string, daysLeft int) (string, string) {
 	title := "SSL证书即将过期通知"
-	content := fmt.Sprintf("**域名:** %s\n\n**过期时间:** %s\n\n**剩余天数:** %d天", domain, expireTime, daysLeft)
+	remaining := fmt.Sprintf("剩余 %d 天", daysLeft)
+	if daysLeft < 0 {
+		title, remaining = "SSL证书已过期", "已过期"
+	} else if daysLeft == 0 {
+		remaining = "将在 24 小时内到期"
+	}
+	content := fmt.Sprintf("**证书对象:** %s\n\n**过期时间:** %s\n\n**有效期状态:** %s", reported(domain), reported(expireTime), remaining)
 	return title, content
 }
 
 // FormatSystemErrorMessage 格式化系统错误消息
 func (receiver *WafNotifySenderService) FormatSystemErrorMessage(errorType, errorMsg, time string) (string, string) {
 	title := "系统错误通知"
-	content := fmt.Sprintf("**错误类型:** %s\n\n**错误信息:** %s\n\n**发生时间:** %s", errorType, errorMsg, time)
+	content := fmt.Sprintf("**错误类型:** %s\n\n**错误信息:** %s\n\n**发生时间:** %s", reported(errorType), reported(errorMsg), reported(time))
 	return title, content
 }
 
 // FormatIPBanMessage 格式化IP封禁消息
-func (receiver *WafNotifySenderService) FormatIPBanMessage(ip, reason, time string, duration int, remainingSeconds int) (string, string) {
-	title := "IP封禁通知"
-	var remainingStr string
-	if remainingSeconds <= 0 {
-		remainingStr = "已过期"
-	} else if remainingSeconds < 60 {
-		remainingStr = fmt.Sprintf("%d秒", remainingSeconds)
-	} else {
-		remainingStr = fmt.Sprintf("%d分%d秒", remainingSeconds/60, remainingSeconds%60)
-	}
-	content := fmt.Sprintf("**IP地址:** %s\n\n**封禁原因:** %s\n\n**封禁时长:** %d分钟\n\n**剩余时间:** %s\n\n**封禁时间:** %s", ip, reason, duration, remainingStr, time)
-	return title, content
-}
 
 // ========== 消息映射方法：将旧消息结构转换为新格式 ==========
 
@@ -349,11 +338,16 @@ func (receiver *WafNotifySenderService) FormatRuleMessage(msg innerbean.RuleMess
 	messageType := "rule_trigger" // 规则触发类型
 	title := "安全规则触发通知"
 	content := fmt.Sprintf("**操作类型:** %s\n\n**服务器:** %s\n\n**域名:** %s\n\n**规则信息:** %s\n\n**IP地址:** %s",
-		msg.OperaType,
-		msg.Server,
-		msg.Domain,
-		msg.RuleInfo,
-		msg.Ip)
+		reported(msg.OperaType), reported(msg.Server), reported(msg.Domain), reported(msg.RuleInfo), reported(msg.Ip))
+	if msg.Outcome != "" {
+		content += "\n\n**处理结果:** " + msg.Outcome
+	}
+	if msg.RequestID != "" {
+		content += "\n\n**请求 ID:** " + msg.RequestID
+	}
+	if msg.Time != "" {
+		content += "\n\n**发生时间:** " + msg.Time
+	}
 	return messageType, title, content
 }
 
@@ -362,9 +356,10 @@ func (receiver *WafNotifySenderService) FormatOperatorMessage(msg innerbean.Oper
 	messageType := "operation_notice" // 操作通知类型
 	title := "操作通知"
 	content := fmt.Sprintf("**操作类型:** %s\n\n**服务器:** %s\n\n**操作内容:** %s",
-		msg.OperaType,
-		msg.Server,
-		msg.OperaCnt)
+		reported(msg.OperaType), reported(msg.Server), reported(msg.OperaCnt))
+	if msg.Time != "" {
+		content += "\n\n**发生时间:** " + msg.Time
+	}
 	return messageType, title, content
 }
 
@@ -373,13 +368,17 @@ func (receiver *WafNotifySenderService) FormatOperatorMessage(msg innerbean.Oper
 // 来源变化（换 IP / 换归属地）走独立的 manage_login_abnormal 类型：
 // 正文里把上次的 IP、归属地、时间一并摆出来，收到告警的人不用再去翻登录历史就能判断是不是自己。
 func (receiver *WafNotifySenderService) FormatUserLoginMessageFromBean(msg innerbean.UserLoginMessageInfo) (string, string, string) {
+	source := msg.Ip
+	if msg.Location != "" {
+		source = reported(source) + " (" + msg.Location + ")"
+	}
 	if msg.Abnormal {
 		return model.MSG_TYPE_MANAGE_LOGIN_ABNORMAL,
 			"管理端登录来源变化告警",
-			buildManageLoginAbnormalContent(msg.Username, msg.Ip, msg.Time, msg.LastIp, msg.LastLocation, msg.LastTime)
+			buildManageLoginAbnormalContent(msg.Username, source, msg.Time, msg.LastIp, msg.LastLocation, msg.LastTime)
 	}
 	messageType := model.MSG_TYPE_USER_LOGIN // 用户登录类型
-	title, content := receiver.FormatUserLoginMessage(msg.Username, msg.Ip, msg.Time)
+	title, content := receiver.FormatUserLoginMessage(msg.Username, source, msg.Time)
 	return messageType, title, content
 }
 
@@ -392,7 +391,7 @@ func buildManageLoginAbnormalContent(username, ip, loginTime, lastIp, lastLocati
 		return s
 	}
 	return fmt.Sprintf("**用户:** %s\n\n**本次登录IP:** %s\n\n**本次登录时间:** %s\n\n**上次登录IP:** %s\n\n**上次归属地:** %s\n\n**上次登录时间:** %s\n\n本次登录来源与上次不一致，若非本人操作请立即修改密码。",
-		username, ip, loginTime, fallback(lastIp), fallback(lastLocation), fallback(lastTime))
+		reported(username), reported(ip), reported(loginTime), fallback(lastIp), fallback(lastLocation), fallback(lastTime))
 }
 
 // FormatAccessMessageFromBean 格式化统一访问认证事件（从Bean）
@@ -419,7 +418,7 @@ func (receiver *WafNotifySenderService) FormatAccessMessageFromBean(msg innerbea
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "**事件:** %s\n\n**账号:** %s\n\n**来源IP:** %s\n\n**归属地:** %s",
-		msg.EventName, account, msg.Ip, location)
+		reported(msg.EventName), account, reported(msg.Ip), location)
 	if msg.Host != "" {
 		fmt.Fprintf(&b, "\n\n**访问域名:** %s", msg.Host)
 	}
@@ -429,7 +428,7 @@ func (receiver *WafNotifySenderService) FormatAccessMessageFromBean(msg innerbea
 	if msg.Message != "" {
 		fmt.Fprintf(&b, "\n\n**详情:** %s", msg.Message)
 	}
-	fmt.Fprintf(&b, "\n\n**时间:** %s", msg.Time)
+	fmt.Fprintf(&b, "\n\n**时间:** %s", reported(msg.Time))
 	return messageType, title, b.String()
 }
 
@@ -451,6 +450,12 @@ func (receiver *WafNotifySenderService) FormatWeeklyReportMessageFromBean(msg in
 func (receiver *WafNotifySenderService) FormatSSLExpireMessageFromBean(msg innerbean.SSLExpireMessageInfo) (string, string, string) {
 	messageType := "ssl_expire" // SSL证书过期类型
 	title, content := receiver.FormatSSLExpireMessage(msg.Domain, msg.ExpireTime, msg.DaysLeft)
+	if msg.Endpoint != "" {
+		content += "\n\n**检测地址:** " + msg.Endpoint
+	}
+	if msg.Hint != "" {
+		content += "\n\n**处理提示:** " + msg.Hint
+	}
 	return messageType, title, content
 }
 
@@ -463,7 +468,16 @@ func (receiver *WafNotifySenderService) FormatSystemErrorMessageFromBean(msg inn
 
 // FormatIPBanMessageFromBean 格式化IP封禁消息（从Bean）
 func (receiver *WafNotifySenderService) FormatIPBanMessageFromBean(msg innerbean.IPBanMessageInfo) (string, string, string) {
-	messageType := "ip_ban" // IP封禁类型
-	title, content := receiver.FormatIPBanMessage(msg.Ip, msg.Reason, msg.Time, msg.Duration, msg.RemainingSeconds)
-	return messageType, title, content
+	duration := fmt.Sprintf("%d分钟", msg.Duration)
+	remaining := formatRemaining(msg.RemainingSeconds)
+	if msg.Permanent {
+		duration, remaining = "永久", "永久"
+	} else if msg.DurationSeconds > 0 && msg.DurationSeconds%60 != 0 {
+		duration = fmt.Sprintf("%d秒", msg.DurationSeconds)
+	}
+	content := fmt.Sprintf("**IP地址:** %s\n\n**封禁原因:** %s\n\n**封禁时长:** %s\n\n**剩余时间:** %s\n\n**封禁时间:** %s", reported(msg.Ip), reported(msg.Reason), duration, remaining, reported(msg.Time))
+	if msg.Scope != "" {
+		content += "\n\n**封禁范围:** " + msg.Scope
+	}
+	return model.MSG_TYPE_IP_BAN, "IP封禁通知", content
 }

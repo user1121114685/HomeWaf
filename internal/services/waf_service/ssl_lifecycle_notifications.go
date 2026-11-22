@@ -12,12 +12,11 @@ import (
 	"fmt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"strings"
 	"time"
 )
 
-var certificateDeliver = func(ch model.NotifyChannel, sub model.NotifySubscription, typ, title, body string) (string, error) {
-	return WafNotifySenderServiceApp.deliverToChannel(ch, sub, typ, title, body)
-}
+var certificateDeliver = WafNotifySenderServiceApp.deliverToChannel
 
 func certificateNotifyEvent(e model.CertificateEvent) NotifyEvent {
 	typ := model.MSG_TYPE_OPERATION_NOTICE
@@ -42,8 +41,35 @@ func certificateNotifyEvent(e model.CertificateEvent) NotifyEvent {
 		body += "\n控制台路径：/#/waf-host/wafsslOrderlist?order=" + e.OrderID
 	}
 	ev := newNotifyEvent(typ, title, body)
-	ev.Severity, ev.Time = e.Severity, time.Time(e.CREATE_TIME)
+	ev.Severity = e.Severity
+	at := time.Time(e.CREATE_TIME)
+	if !at.IsZero() {
+		ev.setReportedTime(at.Format(time.RFC3339))
+	} else {
+		ev.setReportedTime("")
+	}
 	ev.Vars["Severity"], ev.Vars["Domain"], ev.Vars["OperaType"], ev.Vars["OperaCnt"] = e.Severity, e.Domain, title, body
+	ev.Vars["Server"] = reported(ev.Vars["ServerName"])
+	if e.Kind == "expiry" {
+		expires := time.Time(e.ExpiresAt)
+		if expires.IsZero() {
+			// Previously queued events retained the observed expiry in the generated message.
+			for _, line := range strings.Split(e.Message, "\n") {
+				if raw, ok := strings.CutPrefix(line, "有效期至："); ok {
+					expires, _ = time.Parse(time.RFC3339, strings.TrimSpace(raw))
+					break
+				}
+			}
+		}
+		ev.Vars["ExpireTime"], ev.Vars["DaysLeft"] = "未记录", "未记录"
+		if !expires.IsZero() {
+			ev.Vars["ExpireTime"] = expires.Format(time.RFC3339)
+			if !at.IsZero() {
+				ev.Vars["DaysLeft"] = fmt.Sprint(model.CertificateDaysLeft(at, expires))
+			}
+		}
+		ev.Vars["Hint"] = "请检查续期与部署状态"
+	}
 	ev.Vars["CertificateID"], ev.Vars["OrderID"], ev.Vars["CertificateEvent"] = e.CertificateID, e.OrderID, e.Kind
 	ev.DedupParts[model.DedupKeyDomain] = e.Domain
 	ev.DedupParts[model.DedupKeyAttackType] = "certificate:" + e.Kind
@@ -221,7 +247,7 @@ func dispatchCertificateGroup(rows []model.CertificateDelivery, now time.Time) e
 	if global.GWAF_NOTICE_TITLE != "" {
 		title = "[" + global.GWAF_NOTICE_TITLE + "] " + title
 	}
-	recipients, sendErr := certificateDeliver(channel, sub, events[0].MessageType, title, body)
+	recipients, sendErr := certificateDeliver(channel, sub, events[0], title, body)
 	logStatus, reason := 1, ""
 	if sendErr != nil {
 		logStatus = 0

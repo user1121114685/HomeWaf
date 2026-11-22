@@ -4,6 +4,7 @@ package waf_service
 
 import (
 	"HomeWaf/internal/model"
+	"HomeWaf/internal/model/innerbean"
 	"HomeWaf/internal/platform/common/zlog"
 	"bytes"
 	"errors"
@@ -61,6 +62,9 @@ var notifyTemplateFuncs = template.FuncMap{
 // 管理端据此在订阅格子上提示"模板渲染失败"。
 func RenderNotifyMessage(sub model.NotifySubscription, channelType string, ev NotifyEvent) (title, content, templateUsed string) {
 	title, content, templateUsed = ev.DefaultTitle, ev.DefaultContent, model.TemplateUsedDefault
+	if channelType == "bark" {
+		content = PlainNotifyContent(content)
+	}
 
 	titleTpl := strings.TrimSpace(sub.TitleTemplate)
 	contentTpl := strings.TrimSpace(sub.ContentTemplate)
@@ -89,6 +93,17 @@ func RenderNotifyMessage(sub model.NotifySubscription, channelType string, ev No
 	}
 
 	return truncateText(title, notifyTitleMaxLen), truncateText(content, notifyContentMaxLen), templateUsed
+}
+
+// PlainNotifyContent strips only built-in field labels, preserving their values.
+func PlainNotifyContent(content string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if label, value, ok := strings.Cut(line, ":** "); ok && strings.HasPrefix(label, "**") {
+			lines[i] = strings.TrimPrefix(label, "**") + "：" + value
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // prepareTemplateVars 变量转义 + 截断，得到可安全塞进模板的数据
@@ -232,6 +247,8 @@ var notifyCommonVars = []NotifyTemplateVar{
 
 var notifyTypeVars = map[string][]NotifyTemplateVar{
 	model.MSG_TYPE_RULE_TRIGGER: {
+		{Name: "RequestID", Desc: "请求编号", Example: "31924a4e9db54ab3a4b384b67ed2b13d"},
+		{Name: "Outcome", Desc: "实际处理结果", Example: "请求被拒绝（HTTP 403）"},
 		{Name: "OperaType", Desc: "操作类型", Example: "命中保护规则"},
 		{Name: "Server", Desc: "服务器", Example: "samwaf-01"},
 		{Name: "Domain", Desc: "域名", Example: "www.example.com"},
@@ -244,23 +261,31 @@ var notifyTypeVars = map[string][]NotifyTemplateVar{
 		{Name: "Ip", Desc: "攻击IP", Example: "1.2.3.4"},
 	},
 	model.MSG_TYPE_IP_BAN: {
+		{Name: "Permanent", Desc: "是否永久封禁（true/false）", Example: "false"},
+		{Name: "Scope", Desc: "封禁生效范围", Example: "port:15000"},
+		{Name: "DurationSeconds", Desc: "实际封禁时长（秒）", Example: "1800"},
 		{Name: "Ip", Desc: "被封禁IP", Example: "1.2.3.4"},
 		{Name: "Reason", Desc: "封禁原因", Example: "CC攻击"},
 		{Name: "Duration", Desc: "封禁时长(分钟)", Example: "30"},
 		{Name: "Remaining", Desc: "剩余时间", Example: "29分30秒"},
 	},
 	model.MSG_TYPE_SSL_EXPIRE: {
+		{Name: "Endpoint", Desc: "外部证书检查的域名及端口", Example: "www.example.com:8443"},
+		{Name: "Hint", Desc: "处理提示（如有）", Example: "请检查续期与部署状态"},
+		{Name: "Server", Desc: "来源实例", Example: "HomeWaf"},
 		{Name: "Domain", Desc: "域名", Example: "www.example.com"},
 		{Name: "ExpireTime", Desc: "过期时间", Example: "2026-09-01 00:00:00"},
 		{Name: "DaysLeft", Desc: "剩余天数", Example: "7"},
 	},
 	model.MSG_TYPE_USER_LOGIN: {
+		{Name: "Location", Desc: "本次登录归属地", Example: "内网"},
 		{Name: "Username", Desc: "用户名", Example: "admin"},
 		{Name: "Ip", Desc: "登录IP", Example: "192.168.1.10"},
 	},
 	model.MSG_TYPE_MANAGE_LOGIN_ABNORMAL: {
+		{Name: "Location", Desc: "本次登录归属地", Example: "内网"},
 		{Name: "Username", Desc: "用户名", Example: "admin"},
-		{Name: "Ip", Desc: "本次登录IP", Example: "1.2.3.4 (广东深圳)"},
+		{Name: "Ip", Desc: "本次登录IP", Example: "192.0.2.1"},
 		{Name: "LastIp", Desc: "上次登录IP", Example: "192.168.1.10"},
 		{Name: "LastLocation", Desc: "上次登录归属地", Example: "内网IP"},
 		{Name: "LastTime", Desc: "上次登录时间", Example: "2026-08-05 09:12:30"},
@@ -272,6 +297,7 @@ var notifyTypeVars = map[string][]NotifyTemplateVar{
 		{Name: "WeekRange", Desc: "统计周期", Example: "2026-07-29 ~ 2026-08-04"},
 	},
 	model.MSG_TYPE_SYSTEM_ERROR: {
+		{Name: "RequestID", Desc: "关联请求编号（请求诊断事件）", Example: "31924a4e9db54ab3a4b384b67ed2b13d"},
 		{Name: "ErrorType", Desc: "错误类型", Example: "数据库连接失败"},
 		{Name: "ErrorMsg", Desc: "错误信息", Example: "connection refused"},
 	},
@@ -305,6 +331,11 @@ func GetNotifyTemplateVars(messageType string) []NotifyTemplateVar {
 	if typeVars, ok := notifyTypeVars[messageType]; ok {
 		vars = append(vars, typeVars...)
 	}
+	if messageType == model.MSG_TYPE_SSL_EXPIRE || messageType == model.MSG_TYPE_OPERATION_NOTICE {
+		vars = append(vars, NotifyTemplateVar{Name: "CertificateID", Desc: "证书生命周期事件的证书编号"},
+			NotifyTemplateVar{Name: "OrderID", Desc: "证书事件的关联订单（如有）"},
+			NotifyTemplateVar{Name: "CertificateEvent", Desc: "证书生命周期事件类型"})
+	}
 	return vars
 }
 
@@ -314,72 +345,43 @@ func GetNotifyTemplateVars(messageType string) []NotifyTemplateVar {
 //
 // 预览和测试都必须用真实的渲染链路，否则"预览没问题、真发出去是乱的"就毫无意义。
 func SampleNotifyEvent(messageType string) NotifyEvent {
-	ev := NotifyEvent{
-		MessageType:     messageType,
-		MessageTypeName: GetMessageTypeName(messageType),
-		Severity:        GetMessageTypeSeverity(messageType),
-		Time:            time.Now(),
-		Vars:            map[string]string{},
-		DedupParts:      map[string]string{model.DedupKeyMessageType: messageType},
-	}
+	vars := map[string]string{}
 	for _, v := range GetNotifyTemplateVars(messageType) {
-		ev.Vars[v.Name] = v.Example
+		vars[v.Name] = v.Example
 	}
-	ev.Vars["Time"] = ev.Time.Format("2006-01-02 15:04:05")
-	ev.Vars["MessageType"] = messageType
-
-	if d := ev.Vars["Domain"]; d != "" {
-		ev.DedupParts[model.DedupKeyDomain] = d
-	}
-	if ip := ev.Vars["Ip"]; ip != "" {
-		ev.DedupParts[model.DedupKeyIp] = ip
-	}
-
-	ev.DefaultTitle, ev.DefaultContent = buildSampleDefaultMessage(messageType, ev.Vars)
-	return ev
-}
-
-// buildSampleDefaultMessage 用样例变量拼出内置默认格式的标题与正文
-func buildSampleDefaultMessage(messageType string, vars map[string]string) (string, string) {
-	s := WafNotifySenderServiceApp
+	now := time.Now().Format(time.RFC3339)
+	base := innerbean.BaseMessageInfo{OperaType: vars["OperaType"], Server: vars["ServerName"]}
+	var msg any
 	switch messageType {
 	case model.MSG_TYPE_RULE_TRIGGER:
-		return "安全规则触发通知", fmt.Sprintf("**操作类型:** %s\n\n**服务器:** %s\n\n**域名:** %s\n\n**规则信息:** %s\n\n**IP地址:** %s",
-			vars["OperaType"], vars["Server"], vars["Domain"], vars["RuleInfo"], vars["Ip"])
+		msg = innerbean.RuleMessageInfo{BaseMessageInfo: base, Domain: vars["Domain"], RuleInfo: vars["RuleInfo"], Ip: vars["Ip"], RequestID: vars["RequestID"], Outcome: vars["Outcome"], Time: now}
 	case model.MSG_TYPE_OPERATION_NOTICE:
-		return "操作通知", fmt.Sprintf("**操作类型:** %s\n\n**服务器:** %s\n\n**操作内容:** %s",
-			vars["OperaType"], vars["Server"], vars["OperaCnt"])
+		msg = innerbean.OperatorMessageInfo{BaseMessageInfo: base, OperaCnt: vars["OperaCnt"], Time: now}
 	case model.MSG_TYPE_SOFTWARE_UPDATE:
-		event := SoftwareUpdateEvent(vars["CurrentVersion"], vars["NewVersion"])
-		return event.DefaultTitle, event.DefaultContent
-	case model.MSG_TYPE_USER_LOGIN:
-		title, content := s.FormatUserLoginMessage(vars["Username"], vars["Ip"], vars["Time"])
-		return title, content
-	case model.MSG_TYPE_MANAGE_LOGIN_ABNORMAL:
-		return "管理端登录来源变化告警",
-			buildManageLoginAbnormalContent(vars["Username"], vars["Ip"], vars["Time"], vars["LastIp"], vars["LastLocation"], vars["LastTime"])
+		return SoftwareUpdateEvent(vars["CurrentVersion"], vars["NewVersion"])
+	case model.MSG_TYPE_USER_LOGIN, model.MSG_TYPE_MANAGE_LOGIN_ABNORMAL:
+		msg = innerbean.UserLoginMessageInfo{BaseMessageInfo: base, Username: vars["Username"], Ip: vars["Ip"], Location: vars["Location"], Time: now, Abnormal: messageType == model.MSG_TYPE_MANAGE_LOGIN_ABNORMAL, LastIp: vars["LastIp"], LastLocation: vars["LastLocation"], LastTime: vars["LastTime"]}
 	case model.MSG_TYPE_ATTACK_INFO:
-		title, content := s.FormatAttackInfoMessage(vars["AttackType"], vars["Url"], vars["Ip"], vars["Time"])
-		return title, content
+		msg = innerbean.AttackInfoMessageInfo{BaseMessageInfo: base, AttackType: vars["AttackType"], Url: vars["Url"], Ip: vars["Ip"], Time: now}
 	case model.MSG_TYPE_WEEKLY_REPORT:
-		title, content := s.FormatWeeklyReportMessage(120000, 356, vars["WeekRange"])
-		return title, content
+		msg = innerbean.WeeklyReportMessageInfo{BaseMessageInfo: base, TotalRequests: 120000, BlockedRequests: 356, WeekRange: vars["WeekRange"]}
 	case model.MSG_TYPE_SSL_EXPIRE:
-		title, content := s.FormatSSLExpireMessage(vars["Domain"], vars["ExpireTime"], 7)
-		return title, content
+		msg = innerbean.SSLExpireMessageInfo{BaseMessageInfo: base, Domain: vars["Domain"], ExpireTime: vars["ExpireTime"], DaysLeft: 7, Hint: vars["Hint"], Endpoint: vars["Endpoint"]}
 	case model.MSG_TYPE_SYSTEM_ERROR:
-		title, content := s.FormatSystemErrorMessage(vars["ErrorType"], vars["ErrorMsg"], vars["Time"])
-		return title, content
+		msg = innerbean.SystemErrorMessageInfo{BaseMessageInfo: base, ErrorType: vars["ErrorType"], ErrorMsg: vars["ErrorMsg"], Time: now}
 	case model.MSG_TYPE_IP_BAN:
-		title, content := s.FormatIPBanMessage(vars["Ip"], vars["Reason"], vars["Time"], 30, 1770)
-		return title, content
+		msg = innerbean.IPBanMessageInfo{BaseMessageInfo: base, Ip: vars["Ip"], Reason: vars["Reason"], Time: now, Scope: vars["Scope"], Duration: 30, RemainingSeconds: 1770}
 	case model.MSG_TYPE_ACCESS_LOGIN, model.MSG_TYPE_ACCESS_ABNORMAL:
-		title := "统一访问认证登录通知"
-		if messageType == model.MSG_TYPE_ACCESS_ABNORMAL {
-			title = "统一访问认证异常告警"
+		abnormal := messageType == model.MSG_TYPE_ACCESS_ABNORMAL
+		event := model.AccessEventLoginOK
+		if abnormal {
+			event = model.AccessEventBadReturnTo
 		}
-		return title, fmt.Sprintf("**事件:** %s\n\n**账号:** %s\n\n**来源IP:** %s\n\n**归属地:** %s\n\n**访问域名:** %s\n\n**时间:** %s",
-			vars["EventName"], vars["AccountName"], vars["Ip"], vars["Location"], vars["Host"], vars["Time"])
+		msg = innerbean.AccessMessageInfo{BaseMessageInfo: base, Event: event, EventName: model.AccessEventName(event), AccountName: vars["AccountName"], Host: vars["Host"], Url: vars["Url"], Ip: vars["Ip"], Location: vars["Location"], Message: vars["Message"], Time: now, Abnormal: abnormal}
+	default:
+		return NotifyEvent{}
 	}
-	return GetMessageTypeName(messageType), "这是一条来自 HomeWaf 的测试通知"
+	event := WafNotifySenderServiceApp.BuildNotifyEvent(msg)
+	event.Vars["ServerName"] = base.Server
+	return event
 }

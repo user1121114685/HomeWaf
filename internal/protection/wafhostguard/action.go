@@ -378,6 +378,8 @@ func notifyBan(ip, reason string, banMinutes, expireTime int64, now time.Time) {
 			Server:    global.GWAF_CUSTOM_SERVER_NAME,
 		},
 		Ip:               ip,
+		Scope:            "主机防火墙",
+		Permanent:        expireTime == 0,
 		Reason:           reason + "。如误封需手工解除：Linux 执行 `ipset del " + BanSetName + " " + ip + "`，Windows 在高级安全防火墙中删除对应规则",
 		Duration:         int(banMinutes),
 		RemainingSeconds: remaining,

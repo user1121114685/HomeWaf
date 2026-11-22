@@ -1,6 +1,7 @@
 package wafpipeline
 
 import (
+	"HomeWaf/internal/model"
 	"HomeWaf/internal/platform/utils"
 	"HomeWaf/internal/protection/wafenginecore/accessgate"
 	"HomeWaf/internal/protection/wafenginecore/cccounter"
@@ -22,8 +23,9 @@ import (
 )
 
 type Gate struct {
-	Store  *GateStore
-	Limits *cccounter.Counter
+	Store         *GateStore
+	Limits        *cccounter.Counter
+	OnAccessEvent func(*RequestContext, string, string)
 }
 
 func NewGate(store *GateStore) *Gate {
@@ -255,7 +257,13 @@ func (g *Gate) issue(s *Snapshot, c *RequestContext, u GateAccount, remember boo
 	claims := gateClaims{Kind: "session", Port: c.PortID, User: u.Username, Nonce: randomToken(), Version: u.Version, Expiry: now + int64(ttl)}
 	token := gateSign(s.Secrets.GateKey, claims)
 	row := GateSessionRecord{ID: claims.Nonce, PortID: c.PortID, Username: u.Username, TokenHash: tokenHash(token), Version: u.Version, ClientIP: c.ClientIP.String(), CreatedAt: now, LastSeen: now, ExpiresAt: claims.Expiry}
-	return token, age, g.Store.Add(row, s.Config.Policy.Gate.MaxSessions)
+	if err := g.Store.Add(row, s.Config.Policy.Gate.MaxSessions); err != nil {
+		return "", 0, err
+	}
+	if !c.DryRun && g.OnAccessEvent != nil {
+		g.OnAccessEvent(c, model.AccessEventLoginOK, u.Username)
+	}
+	return token, age, nil
 }
 func SetGateCookie(w http.ResponseWriter, r *http.Request, name, value, path string, age int) {
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: path, MaxAge: age, HttpOnly: true, Secure: RequestScheme(r) == "https", SameSite: http.SameSiteLaxMode})
@@ -455,7 +463,11 @@ func (g *Gate) Respond(s *Snapshot, c *RequestContext, w http.ResponseWriter, v 
 		}
 		SetGateCookie(w, r, gateCookieName(s.Config.Port), token, "/", age)
 		SetGateCookie(w, r, "hw_csrf_"+strconv.Itoa(int(s.Config.Port)), "", prefix, -1)
-		next := SafeGateNext(r.PostForm.Get("next"))
+		rawNext := r.PostForm.Get("next")
+		next := SafeGateNext(rawNext)
+		if rawNext != "" && next != rawNext && g.OnAccessEvent != nil && !c.DryRun {
+			g.OnAccessEvent(c, model.AccessEventBadReturnTo, u.Username)
+		}
 		if accessgate.MatchPathPrefix(NormalizePath(next), []string{prefix}) {
 			next = "/"
 		}

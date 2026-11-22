@@ -26,9 +26,19 @@ type BaseMessageInfo struct {
 */
 type RuleMessageInfo struct {
 	BaseMessageInfo
-	Domain   string `json:"domain"`
-	RuleInfo string `json:"ruleinfo"`
-	Ip       string `json:"ip"`
+	RequestID string `json:"request_id,omitempty"`
+	Time      string `json:"time,omitempty"`
+	Outcome   string `json:"outcome,omitempty"`
+	Domain    string `json:"domain"`
+	RuleInfo  string `json:"ruleinfo"`
+	Ip        string `json:"ip"`
+}
+
+// Keep bursts of rule notifications within their service's queue budget.
+func (r RuleMessageInfo) QueuePriority() int { return 0 }
+func (r RuleMessageInfo) QueueKey() string   { return r.Server }
+func (r RuleMessageInfo) QueueSize() int64 {
+	return int64(192 + len(r.Server) + len(r.OperaType) + len(r.Domain) + len(r.RuleInfo) + len(r.Ip) + len(r.Time) + len(r.RequestID) + len(r.Outcome))
 }
 
 /*
@@ -64,6 +74,7 @@ type OpResultMessageInfo struct {
 */
 type UserLoginMessageInfo struct {
 	BaseMessageInfo
+	Location string `json:"location,omitempty"`
 	Username string `json:"username"` // 用户名
 	Ip       string `json:"ip"`       // 登录IP
 	Time     string `json:"time"`     // 登录时间
@@ -105,6 +116,8 @@ SSL证书过期信息
 */
 type SSLExpireMessageInfo struct {
 	BaseMessageInfo
+	Endpoint   string `json:"endpoint,omitempty"`
+	Hint       string `json:"hint,omitempty"`
 	Domain     string `json:"domain"`      // 域名
 	ExpireTime string `json:"expire_time"` // 过期时间
 	DaysLeft   int    `json:"days_left"`   // 剩余天数
@@ -116,6 +129,7 @@ type SSLExpireMessageInfo struct {
 */
 type SystemErrorMessageInfo struct {
 	BaseMessageInfo
+	RequestID string `json:"request_id,omitempty"`
 	ErrorType string `json:"error_type"` // 错误类型
 	ErrorMsg  string `json:"error_msg"`  // 错误信息
 	Time      string `json:"time"`       // 发生时间
@@ -127,6 +141,9 @@ IP封禁信息
 */
 type IPBanMessageInfo struct {
 	BaseMessageInfo
+	Permanent        bool   `json:"permanent,omitempty"`
+	Scope            string `json:"scope,omitempty"`
+	DurationSeconds  int    `json:"duration_seconds,omitempty"`
 	Ip               string `json:"ip"`                // IP地址
 	Reason           string `json:"reason"`            // 封禁原因
 	Duration         int    `json:"duration"`          // 封禁时长（分钟）
@@ -200,6 +217,7 @@ func (r OperatorMessageInfo) ToFormat() map[string]*wechat.DataItem {
 */
 type OperatorMessageInfo struct {
 	BaseMessageInfo
+	Time     string `json:"time,omitempty"`
 	OperaCnt string `json:"operacnt"`
 }
 

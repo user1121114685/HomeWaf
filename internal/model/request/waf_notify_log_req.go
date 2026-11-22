@@ -6,7 +6,7 @@ type WafNotifyLogSearchReq struct {
 	PageSize    int    `json:"pageSize"`
 	ChannelId   string `json:"channel_id"`
 	MessageType string `json:"message_type"`
-	Status      int    `json:"status"`
+	Status      *int   `json:"status" binding:"omitempty,oneof=0 1 2"`
 	StartTime   string `json:"start_time"`
 	EndTime     string `json:"end_time"`
 }

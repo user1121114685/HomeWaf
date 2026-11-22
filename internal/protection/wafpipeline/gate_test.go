@@ -1,6 +1,7 @@
 package wafpipeline
 
 import (
+	"HomeWaf/internal/model"
 	"HomeWaf/internal/protection/wafbot"
 	"context"
 	"encoding/base64"
@@ -21,6 +22,29 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+func TestGateNotificationsRequireIssuedSessionAndClassifyInvalidReturn(t *testing.T) {
+	f := newGateFixture(t, nil, "form", "test-family-password")
+	events := make(chan string, 4)
+	f.gate.OnAccessEvent = func(_ *RequestContext, event, account string) {
+		events <- event + ":" + account
+	}
+	post := func(password, next string) int {
+		csrf := csrfCookie(t, f)
+		fields := url.Values{"csrf": {csrf.Value}, "username": {"owner"}, "password": {password}, "next": {next}}
+		response, _ := gateRequest(t, f, "POST", f.snap.Config.Policy.Gate.Prefix+"/login", fields, nil, csrf)
+		return response.StatusCode
+	}
+	if status := post("wrong-test-password", "/"); status != 401 || len(events) != 0 {
+		t.Fatal("invalid login produced a notification", status)
+	}
+	if status := post("test-family-password", "https://outside.example.test"); status != 303 {
+		t.Fatal(status)
+	}
+	if len(events) != 2 || <-events != model.AccessEventLoginOK+":owner" || <-events != model.AccessEventBadReturnTo+":owner" {
+		t.Fatal("missing or misclassified access notification")
+	}
+}
 
 type safeSink struct {
 	mu     sync.Mutex

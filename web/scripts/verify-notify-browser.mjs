@@ -43,7 +43,7 @@ const rows = [],
   subscriptions = [],
   writes = [],
   errors = [];
-let failChannelList = false,
+let failLogList = false, failChannelList = false,
   failSubscriptionSave = false,
   failGlobal = false;
 const globalThrottle = {
@@ -155,6 +155,7 @@ await context.route('**/api/**', async (route) => {
     writes.push({ action: 'global-config' });
     return ok({});
   }
+  if (endpoint === 'notify/log/list' && failLogList) return fail('模拟发送记录读取失败');
   if (endpoint === 'notify/log/list')
     return ok({
       list: [
@@ -326,6 +327,13 @@ try {
   await expect(
     page.locator('.el-table__row').filter({ hasText: '系统错误' }).getByText('Bark', { exact: true }),
   ).toBeVisible();
+  failLogList = true;
+  await page.reload();
+  await expect(page.getByText('模拟发送记录读取失败', { exact: true })).toBeVisible();
+  await expect(page.locator('.el-table__row')).toHaveCount(0);
+  failLogList = false;
+  await page.getByRole('button', {name: '重试', exact: true}).click();
+  await expect(page.locator('.el-table__row').filter({hasText: '系统错误'})).toBeVisible();
   await page.evaluate(() => localStorage.setItem('homewaf.console.preferences', JSON.stringify({ mode: 'dark' })));
   await page.goto(origin + '/#/notify/subscription');
   await page.reload();

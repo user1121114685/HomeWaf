@@ -4,7 +4,18 @@ package model
 import (
 	"HomeWaf/internal/model/baseorm"
 	"HomeWaf/internal/model/customtype"
+	"time"
 )
+
+// CertificateDaysLeft keeps an already expired certificate distinct from one due today.
+func CertificateDaysLeft(at, expires time.Time) int {
+	delta := expires.Sub(at)
+	days := int(delta / (24 * time.Hour))
+	if delta < 0 && delta%(24*time.Hour) != 0 {
+		days--
+	}
+	return days
+}
 
 // SslRenewalPolicy owns mutable renewal configuration independently of history.
 // Id is the certificate resource ID. IssuanceContext contains ACME account/resource
@@ -39,14 +50,15 @@ type SslRenewalPolicy struct {
 
 type CertificateEvent struct {
 	baseorm.BaseOrm
-	CertificateID string `gorm:"size:64;index" json:"certificate_id"`
-	OrderID       string `gorm:"size:64;index" json:"order_id"`
-	Kind          string `gorm:"size:40" json:"kind"`
-	Severity      string `gorm:"size:20" json:"severity"`
-	Domain        string `gorm:"type:text" json:"domain"`
-	Message       string `gorm:"type:text" json:"message"`
-	Expanded      bool   `gorm:"index" json:"-"`
-	Coverage      string `gorm:"size:100" json:"coverage"`
+	ExpiresAt     customtype.JsonTime `json:"expires_at,omitempty"`
+	CertificateID string              `gorm:"size:64;index" json:"certificate_id"`
+	OrderID       string              `gorm:"size:64;index" json:"order_id"`
+	Kind          string              `gorm:"size:40" json:"kind"`
+	Severity      string              `gorm:"size:20" json:"severity"`
+	Domain        string              `gorm:"type:text" json:"domain"`
+	Message       string              `gorm:"type:text" json:"message"`
+	Expanded      bool                `gorm:"index" json:"-"`
+	Coverage      string              `gorm:"size:100" json:"coverage"`
 }
 
 type CertificateDelivery struct {

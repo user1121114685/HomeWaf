@@ -12,6 +12,7 @@ import { en as logExport } from './logExport';
 export default {
   logExport,
   common: {
+    retry: "Retry",
     yes: "Yes",
     no: "No",
     confirm: "Confirm",

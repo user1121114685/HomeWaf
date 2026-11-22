@@ -1,6 +1,7 @@
 package wafpipeline
 
 import (
+	"HomeWaf/internal/bodyinspect"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -14,8 +15,38 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/iotest"
 	"time"
 )
+
+func TestSynologyUnreadableFormKeepsFailClosedAndRecordsProgress(t *testing.T) {
+	f := newProxyFixture(t, func(w http.ResponseWriter, r *http.Request) { t.Error("incomplete request reached upstream") }, false)
+	f.update(t, func(s *Snapshot) {
+		rule := newSynologyRule(synologyAdminCategory)
+		rule.Mode = ModeBlock
+		s.Config.Policy.RuleSet.Rules = append(s.Config.Policy.RuleSet.Rules, rule)
+	})
+	snapshot := f.current.Load()
+	var result Result
+	f.runtime.OnResult = func(_ *Snapshot, _ *RequestContext, got Result) { result = got }
+	r := httptest.NewRequest("POST", "http://nas.test/webapi/entry.cgi", io.MultiReader(strings.NewReader("sample"), iotest.ErrReader(io.ErrUnexpectedEOF)))
+	r.Header.Set("Content-Type", "multipart/form-data; boundary=fixture")
+	r = r.WithContext(context.WithValue(r.Context(), http.LocalAddrContextKey, &net.TCPAddr{Port: int(snapshot.Config.Port)}))
+	w := httptest.NewRecorder()
+	f.runtime.Serve(snapshot, w, r)
+	failure := result.BodyReadFailure
+	if w.Code != http.StatusServiceUnavailable || f.requests.Load() != 0 || result.Verdict.Reason != "policy_unavailable" ||
+		failure == nil || failure.Cause != bodyinspect.PrematureEOF || failure.BytesRead != 6 || failure.IdleMS == nil {
+		t.Fatalf("failed upload: HTTP %d, verdict %+v, read %+v", w.Code, result.Verdict, failure)
+	}
+	if len(result.Hits) == 0 || result.UnavailableCheck() != "synology_login" {
+		t.Fatalf("missing rejecting stage: %+v", result)
+	}
+	last := result.Hits[len(result.Hits)-1]
+	if last.Check != result.UnavailableCheck() || last.Stage != 3 || last.Evidence != BodyInspectionUnavailable {
+		t.Fatalf("read failure attributed to the wrong check: %+v", last)
+	}
+}
 
 func TestSynologyLoginAccountingAndBlocking(t *testing.T) {
 	const failure = "{\n  \"error\": { \"code\" : 400 }, \"success\": false\n}"

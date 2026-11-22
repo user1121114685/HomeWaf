@@ -1,6 +1,7 @@
 package waf_service
 
 import (
+	"HomeWaf/internal/bodyinspect"
 	"HomeWaf/internal/instance/global"
 	"HomeWaf/internal/model"
 	"HomeWaf/internal/model/innerbean"
@@ -10,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -126,6 +128,14 @@ func (s *WafPipelineStateService) recordChange(change wafpipeline.PunishmentChan
 		global.GQEQUE_LOG_DB.Enqueue(&model.PipelineLog{ID: uuid.GenUUID(), PortID: r.PortID, TimeMillis: time.Now().UnixMilli(), Kind: "state", ClientIP: r.Prefix, Stage: 4, Verdict: r.Kind, Reason: change.Event, RuleID: r.RuleID, Category: r.Reason, DetailJSON: string(raw)})
 	}
 	// Existing notification channels remain opt-in and process this asynchronously.
+	if global.GQEQUE_MESSAGE_DB != nil && change.Event == "ban_created" && r.Kind == "ban" {
+		duration := int(r.ExpiresAt - r.CreatedAt)
+		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.IPBanMessageInfo{
+			BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "服务端口自动封禁", Server: r.PortID},
+			Ip:              r.Prefix, Reason: r.Reason, Scope: r.PortID, Duration: (duration + 59) / 60, DurationSeconds: duration,
+			RemainingSeconds: int(max(0, r.ExpiresAt-time.Now().Unix())), Time: time.Unix(r.CreatedAt, 0).Format(time.RFC3339),
+		})
+	}
 	if global.GQEQUE_MESSAGE_DB != nil && change.Event == "synology_login_lockdown_started" {
 		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.SystemErrorMessageInfo{
 			BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "群晖登录保护", Server: r.PortID},
@@ -137,6 +147,9 @@ func (s *WafPipelineStateService) recordChange(change wafpipeline.PunishmentChan
 }
 func (s *WafPipelineStateService) LogResult(snapshot *wafpipeline.Snapshot, c *wafpipeline.RequestContext, result wafpipeline.Result) {
 	s.diagnosticAlert(snapshot, c, result)
+	if !c.DryRun && snapshot != nil && !snapshot.Preview && global.GQEQUE_MESSAGE_DB != nil {
+		notifyPipelineRule(snapshot, c, result)
+	}
 	if global.GQEQUE_LOG_DB == nil {
 		return
 	}
@@ -151,6 +164,39 @@ func (s *WafPipelineStateService) LogResult(snapshot *wafpipeline.Snapshot, c *w
 	global.GQEQUE_LOG_DB.Enqueue(entry)
 }
 
+func notifyPipelineRule(snapshot *wafpipeline.Snapshot, c *wafpipeline.RequestContext, result wafpipeline.Result) {
+	v := result.Verdict
+	for _, hit := range result.Hits {
+		outcome := ""
+		switch {
+		case hit.Category == "tamper_detected":
+			outcome = "响应内容与基线不一致"
+		case v.RuleID != "" && hit.RuleID == v.RuleID && !hit.Observe && !v.Observe:
+			switch v.Action {
+			case wafpipeline.Deny, wafpipeline.Drop:
+				outcome = "请求被拒绝"
+			case wafpipeline.Honeypot:
+				outcome = "请求已转入蜜罐"
+			case wafpipeline.Challenge:
+				outcome = "请求需要验证"
+			}
+		}
+		if outcome == "" {
+			continue
+		}
+		if v.Status > 0 {
+			outcome += fmt.Sprintf("（HTTP %d）", v.Status)
+		}
+		service := strings.TrimSpace(snapshot.Config.Name + " " + c.PortID)
+		global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.RuleMessageInfo{
+			BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "命中保护规则", Server: service},
+			Domain:          c.Request.Host, RuleInfo: hit.RuleID, Ip: c.ClientIP.String(),
+			RequestID: c.ReqID, Time: hit.Time.Format(time.RFC3339), Outcome: outcome,
+		})
+		return
+	}
+}
+
 // A fixed atomic value on the existing per-port metrics object bounds both
 // memory and notifications. No network or database operation occurs here.
 func (s *WafPipelineStateService) diagnosticAlert(snapshot *wafpipeline.Snapshot, c *wafpipeline.RequestContext, result wafpipeline.Result) {
@@ -159,6 +205,7 @@ func (s *WafPipelineStateService) diagnosticAlert(snapshot *wafpipeline.Snapshot
 	}
 	category := ""
 	protected, _ := c.Values["protected_source"].(bool)
+	var hit wafpipeline.HitEvent
 	for _, event := range result.Hits {
 		if !event.Observe && (event.Trusted || protected) {
 			category = "protected_match"
@@ -168,6 +215,7 @@ func (s *WafPipelineStateService) diagnosticAlert(snapshot *wafpipeline.Snapshot
 			category = event.Category
 		}
 		if category != "" {
+			hit = event
 			break
 		}
 	}
@@ -183,7 +231,61 @@ func (s *WafPipelineStateService) diagnosticAlert(snapshot *wafpipeline.Snapshot
 	if !clock.CompareAndSwap(previous, now) {
 		return
 	}
-	global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.SystemErrorMessageInfo{BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "HomeWaf port diagnostic", Server: c.PortID}, ErrorType: "pipeline_" + category, ErrorMsg: fmt.Sprintf("%s: %s; diagnostic only, no automatic punishment", c.PortID, category)})
+	at := hit.Time
+	if at.IsZero() {
+		at = time.Now()
+	}
+	global.GQEQUE_MESSAGE_DB.Enqueue(innerbean.SystemErrorMessageInfo{
+		BaseMessageInfo: innerbean.BaseMessageInfo{OperaType: "HomeWaf port diagnostic", Server: c.PortID},
+		ErrorType:       "pipeline_" + category, ErrorMsg: pipelineDiagnosticMessage(snapshot.Config.Name, c, category, hit, result),
+		RequestID: c.ReqID, Time: at.Format(time.RFC3339),
+	})
+}
+
+func pipelineDiagnosticMessage(service string, c *wafpipeline.RequestContext, category string, hit wafpipeline.HitEvent, result wafpipeline.Result) string {
+	title := map[string]string{
+		"detector_error": "检测器执行失败", "detector_timeout": "检测预算耗尽",
+		"protected_match": "受保护来源命中规则", "plugin_error": "插件执行失败",
+	}[category]
+	var msg strings.Builder
+	fmt.Fprintf(&msg, "%s · %s", c.PortID, title)
+	if service != "" {
+		fmt.Fprintf(&msg, "\n服务 %s", strings.Join(strings.Fields(service), " "))
+	}
+	if hit.Stage > 0 {
+		fmt.Fprintf(&msg, "\n触发阶段 %d", hit.Stage)
+	}
+	if hit.RuleID != "" {
+		fmt.Fprintf(&msg, "\n报告检测项 %s", strings.Join(strings.Fields(hit.RuleID), " "))
+	}
+	if f := result.BodyReadFailure; f != nil {
+		cause := map[bodyinspect.ReadCause]string{
+			bodyinspect.ReadTimeout: "读取超时", bodyinspect.RequestCanceled: "请求已取消",
+			bodyinspect.PrematureEOF: "正文提前结束", bodyinspect.ConnectionReset: "连接已重置",
+			bodyinspect.UnknownError: "原因未确定",
+		}[f.Cause]
+		fmt.Fprintf(&msg, "\n正文读取失败（%s），已读 %d 字节，耗时 %d ms", cause, f.BytesRead, f.ElapsedMS)
+		if f.IdleMS != nil {
+			fmt.Fprintf(&msg, "，距上次读到数据 %d ms", *f.IdleMS)
+		}
+	}
+	v := result.Verdict
+	if check := result.UnavailableCheck(); check != "" {
+		fmt.Fprintf(&msg, "\n%s 检查失败，请求在转发前被拒绝", strings.Join(strings.Fields(check), " "))
+	}
+	if v.Action != "" {
+		actions := map[wafpipeline.Action]string{
+			wafpipeline.Allow: "放行", wafpipeline.Bypass: "跳过后续检测", wafpipeline.Continue: "继续处理",
+			wafpipeline.Deny: "拒绝", wafpipeline.Drop: "断开连接", wafpipeline.Challenge: "要求验证",
+			wafpipeline.Honeypot: "转入蜜罐", wafpipeline.Tarpit: "延迟响应",
+		}
+		fmt.Fprintf(&msg, "\n最终动作 %s", actions[v.Action])
+	}
+	if v.Status > 0 {
+		fmt.Fprintf(&msg, "（HTTP %d）", v.Status)
+	}
+	fmt.Fprintf(&msg, "\n请求 ID %s", c.ReqID)
+	return msg.String()
 }
 func (s *WafPipelineStateService) Manage(port uint16, id, action, operator string) error {
 	portID := wafpipeline.PortID(port)

@@ -1,6 +1,7 @@
 package waf_service
 
 import (
+	"HomeWaf/internal/bodyinspect"
 	"HomeWaf/internal/instance/global"
 	"HomeWaf/internal/model"
 	"HomeWaf/internal/model/innerbean"
@@ -59,14 +60,33 @@ func TestLogDetailIncludesScopedSafeDetectionDiagnostics(t *testing.T) {
 	}
 	// Arbitrary evidence and request values must never become shareable metadata.
 	result.Hits[0].Evidence = "Cookie: session=PRIVATE-COOKIE; token=PRIVATE-TOKEN"
+	idle := int64(900)
+	result.BodyReadFailure = &bodyinspect.ReadFailure{Cause: bodyinspect.ReadTimeout, BytesRead: 1024, ElapsedMS: 1200, IdleMS: &idle}
 	raw, _ = json.Marshal(result)
 	if err := db.Exec("UPDATE pipeline_log SET detail_json = ? WHERE id = ?", string(raw), row.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 	got, err = WafLogServiceApp.GetDetailApi(req)
 	encoded, _ = json.Marshal(got.Diagnostics)
-	if err != nil || got.Diagnostics.Hits[0].Source != "" || strings.Contains(string(encoded), "PRIVATE-") {
+	if err != nil || got.Diagnostics.Hits[0].Source != "" || strings.Contains(string(encoded), "PRIVATE-") ||
+		got.Diagnostics.BodyReadFailure == nil || got.Diagnostics.BodyReadFailure.Cause != bodyinspect.ReadTimeout ||
+		got.Diagnostics.BodyReadFailure.BytesRead != 1024 || *got.Diagnostics.BodyReadFailure.IdleMS != idle {
 		t.Fatalf("unsafe detector evidence exposed: %s %v", encoded, err)
+	}
+	// A configured rule can have the same ID as the mandatory stage.
+	result.Verdict = wafpipeline.Verdict{Action: wafpipeline.Deny, Stage: 3, Status: 503, Reason: "policy_unavailable"}
+	result.Trace = []wafpipeline.TraceEntry{{Stage: 3, Check: "synology_login", Error: "detector unavailable", Verdict: result.Verdict}}
+	failedHit := wafpipeline.HitEvent{ReqID: result.ReqID, PortID: row.PortID, Category: "detector_error", Check: "rule:synology_login", RuleID: "synology_login", Observe: true, Evidence: wafpipeline.BodyInspectionUnavailable}
+	result.Hits = []wafpipeline.HitEvent{failedHit, failedHit}
+	result.Hits[1].Check = "synology_login"
+	raw, _ = json.Marshal(result)
+	if err := db.Exec("UPDATE pipeline_log SET detail_json = ? WHERE id = ?", string(raw), row.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	got, err = WafLogServiceApp.GetDetailApi(req)
+	if err != nil || len(got.Diagnostics.Hits) != 2 || got.Diagnostics.Hits[0].StoppedRequest || !got.Diagnostics.Hits[1].StoppedRequest ||
+		got.Diagnostics.Hits[1].Code != "body_read_timeout" || got.Diagnostics.Hits[1].Source != "body" {
+		t.Fatalf("incorrect mandatory check attribution: %+v %v", got.Diagnostics, err)
 	}
 	if err := db.Exec("UPDATE security_event SET tenant_id = ? WHERE req_uuid = ?", "other-tenant", result.ReqID).Error; err != nil {
 		t.Fatal(err)
@@ -87,6 +107,8 @@ func TestRequestDiagnosticsDistinguishMissingInvalidAndReadFailure(t *testing.T)
 	}
 	for _, tc := range []struct{ raw, state string }{
 		{`{"req_id":"diagnostic-request"}`, "available"},
+		{`{"req_id":"diagnostic-request","body_read_failure":{"cause":"PRIVATE","bytes_read":0,"elapsed_ms":1}}`, "invalid"},
+		{`{"req_id":"diagnostic-request","body_read_failure":{"cause":"timeout","bytes_read":8,"elapsed_ms":5,"idle_ms":9}}`, "invalid"},
 		{`{"req_id":"other-request"}`, "invalid"},
 		{`{"req_id":"diagnostic-request","hits":[{"req_id":"other-request","port_id":"port:15000"}]}`, "invalid"},
 		{`{"req_id":"diagnostic-request","hits":[{"req_id":"diagnostic-request","port_id":"port:15001"}]}`, "invalid"},

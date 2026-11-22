@@ -548,6 +548,9 @@ func enqueueCertificateEvent(tx *gorm.DB, o model.SslOrder, kind, message string
 	}
 	e := model.CertificateEvent{BaseOrm: baseorm.BaseOrm{Id: certificateEventID(o, kind), USER_CODE: o.USER_CODE, Tenant_ID: o.Tenant_ID, CREATE_TIME: customtype.JsonTime(now), UPDATE_TIME: customtype.JsonTime(now)},
 		CertificateID: o.CertificateID, OrderID: o.Id, Kind: kind, Severity: severity, Domain: o.ApplyDomain, Message: acmelog.Sanitize(message)}
+	if kind == "expiry" {
+		e.ExpiresAt, e.OrderID = o.ResultValidTo, "" // A daily expiry check is not an ACME order.
+	}
 	return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&e).Error
 }
 

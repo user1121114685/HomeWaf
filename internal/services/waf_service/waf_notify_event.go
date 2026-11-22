@@ -4,9 +4,11 @@ package waf_service
 
 import (
 	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/logsanitize"
 	"HomeWaf/internal/model"
 	"HomeWaf/internal/model/innerbean"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -61,6 +63,7 @@ var notifyMessageTypeName = map[string]string{
 var notifyMessageTypeSeverity = map[string]string{
 	model.MSG_TYPE_RULE_TRIGGER:     model.SeverityWarn,
 	model.MSG_TYPE_OPERATION_NOTICE: model.SeverityInfo,
+	model.MSG_TYPE_SOFTWARE_UPDATE:  model.SeverityInfo,
 	model.MSG_TYPE_USER_LOGIN:       model.SeverityInfo,
 	model.MSG_TYPE_ATTACK_INFO:      model.SeverityCritical,
 	model.MSG_TYPE_WEEKLY_REPORT:    model.SeverityInfo,
@@ -120,6 +123,22 @@ func SoftwareUpdateEvent(current, latest string) NotifyEvent {
 	return ev
 }
 
+func reported(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "未记录"
+	}
+	return s
+}
+
+func (ev *NotifyEvent) setReportedTime(raw string) {
+	ev.Vars["Time"] = reported(raw)
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		ev.Time = t
+	} else if t, err := time.ParseInLocation(time.DateTime, raw, time.Local); err == nil {
+		ev.Time = t
+	}
+}
+
 // newNotifyEvent 构造事件骨架，填上公共变量
 func newNotifyEvent(messageType, title, content string) NotifyEvent {
 	now := time.Now()
@@ -134,7 +153,7 @@ func newNotifyEvent(messageType, title, content string) NotifyEvent {
 		DefaultContent:  content,
 	}
 	ev.Vars["Time"] = now.Format("2006-01-02 15:04:05")
-	ev.Vars["ServerName"] = global.GWAF_CUSTOM_SERVER_NAME
+	ev.Vars["ServerName"] = reported(global.GWAF_CUSTOM_SERVER_NAME)
 	ev.Vars["MessageType"] = messageType
 	ev.Vars["MessageTypeName"] = ev.MessageTypeName
 	ev.Vars["Severity"] = ev.Severity
@@ -154,7 +173,9 @@ func (receiver *WafNotifySenderService) BuildNotifyEvent(messageInfo interface{}
 		ev.Vars["Domain"] = msg.Domain
 		ev.Vars["RuleInfo"] = msg.RuleInfo
 		ev.Vars["Ip"] = msg.Ip
-		ev.DedupParts[model.DedupKeyDomain] = msg.Domain
+		ev.Vars["RequestID"], ev.Vars["Outcome"] = msg.RequestID, msg.Outcome
+		ev.setReportedTime(msg.Time)
+		ev.DedupParts[model.DedupKeyDomain] = extractHostFromUrl(msg.Domain)
 		ev.DedupParts[model.DedupKeyIp] = msg.Ip
 		ev.DedupParts[model.DedupKeyRule] = msg.RuleInfo
 		ev.DedupParts[model.DedupKeyAttackType] = msg.OperaType
@@ -166,6 +187,7 @@ func (receiver *WafNotifySenderService) BuildNotifyEvent(messageInfo interface{}
 		ev.Vars["OperaType"] = msg.OperaType
 		ev.Vars["Server"] = msg.Server
 		ev.Vars["OperaCnt"] = msg.OperaCnt
+		ev.setReportedTime(msg.Time)
 		ev.DedupParts[model.DedupKeyAttackType] = msg.OperaType
 		return ev
 
@@ -173,11 +195,10 @@ func (receiver *WafNotifySenderService) BuildNotifyEvent(messageInfo interface{}
 		mt, title, content := receiver.FormatUserLoginMessageFromBean(msg)
 		ev := newNotifyEvent(mt, title, content)
 		ev.Vars["Username"] = msg.Username
+		ev.Vars["Location"] = msg.Location
 		ev.Vars["Ip"] = msg.Ip
 		ev.Vars["Server"] = msg.Server
-		if msg.Time != "" {
-			ev.Vars["Time"] = msg.Time
-		}
+		ev.setReportedTime(msg.Time)
 		if msg.Abnormal {
 			ev.Vars["LastIp"] = msg.LastIp
 			ev.Vars["LastLocation"] = msg.LastLocation
@@ -187,15 +208,14 @@ func (receiver *WafNotifySenderService) BuildNotifyEvent(messageInfo interface{}
 		return ev
 
 	case innerbean.AttackInfoMessageInfo:
+		msg.Url = logsanitize.URI(msg.Url)
 		mt, title, content := receiver.FormatAttackInfoMessageFromBean(msg)
 		ev := newNotifyEvent(mt, title, content)
 		ev.Vars["AttackType"] = msg.AttackType
 		ev.Vars["Url"] = msg.Url
 		ev.Vars["Ip"] = msg.Ip
 		ev.Vars["Server"] = msg.Server
-		if msg.Time != "" {
-			ev.Vars["Time"] = msg.Time
-		}
+		ev.setReportedTime(msg.Time)
 		ev.DedupParts[model.DedupKeyIp] = msg.Ip
 		ev.DedupParts[model.DedupKeyAttackType] = msg.AttackType
 		ev.DedupParts[model.DedupKeyDomain] = extractHostFromUrl(msg.Url)
@@ -216,17 +236,21 @@ func (receiver *WafNotifySenderService) BuildNotifyEvent(messageInfo interface{}
 		ev.Vars["Domain"] = msg.Domain
 		ev.Vars["ExpireTime"] = msg.ExpireTime
 		ev.Vars["DaysLeft"] = strconv.Itoa(msg.DaysLeft)
+		ev.Vars["Hint"], ev.Vars["Server"] = msg.Hint, msg.Server
+		ev.Vars["Endpoint"] = msg.Endpoint
 		ev.DedupParts[model.DedupKeyDomain] = msg.Domain
 		return ev
 
 	case innerbean.SystemErrorMessageInfo:
+		if msg.Time == "" {
+			msg.Time = "未记录"
+		}
 		mt, title, content := receiver.FormatSystemErrorMessageFromBean(msg)
 		ev := newNotifyEvent(mt, title, content)
 		ev.Vars["ErrorType"] = msg.ErrorType
 		ev.Vars["ErrorMsg"] = msg.ErrorMsg
-		if msg.Time != "" {
-			ev.Vars["Time"] = msg.Time
-		}
+		ev.setReportedTime(msg.Time)
+		ev.Vars["RequestID"] = msg.RequestID
 		ev.DedupParts[model.DedupKeyAttackType] = msg.ErrorType
 		return ev
 
@@ -236,10 +260,18 @@ func (receiver *WafNotifySenderService) BuildNotifyEvent(messageInfo interface{}
 		ev.Vars["Ip"] = msg.Ip
 		ev.Vars["Reason"] = msg.Reason
 		ev.Vars["Duration"] = strconv.Itoa(msg.Duration)
-		ev.Vars["Remaining"] = formatRemaining(msg.RemainingSeconds)
-		if msg.Time != "" {
-			ev.Vars["Time"] = msg.Time
+		seconds := msg.DurationSeconds
+		if seconds == 0 {
+			seconds = msg.Duration * 60
 		}
+		ev.Vars["DurationSeconds"] = strconv.Itoa(seconds)
+		ev.Vars["Remaining"] = formatRemaining(msg.RemainingSeconds)
+		if msg.Permanent {
+			ev.Vars["Remaining"] = "永久"
+		}
+		ev.Vars["Permanent"] = strconv.FormatBool(msg.Permanent)
+		ev.Vars["Scope"] = msg.Scope
+		ev.setReportedTime(msg.Time)
 		ev.DedupParts[model.DedupKeyIp] = msg.Ip
 		ev.DedupParts[model.DedupKeyAttackType] = msg.Reason
 		return ev
@@ -254,10 +286,8 @@ func (receiver *WafNotifySenderService) BuildNotifyEvent(messageInfo interface{}
 		ev.Vars["Ip"] = msg.Ip
 		ev.Vars["Location"] = msg.Location
 		ev.Vars["Message"] = msg.Message
-		if msg.Time != "" {
-			ev.Vars["Time"] = msg.Time
-		}
-		ev.DedupParts[model.DedupKeyDomain] = msg.Host
+		ev.setReportedTime(msg.Time)
+		ev.DedupParts[model.DedupKeyDomain] = extractHostFromUrl(msg.Host)
 		ev.DedupParts[model.DedupKeyIp] = msg.Ip
 		ev.DedupParts[model.DedupKeyAttackType] = msg.Event
 		return ev
@@ -284,22 +314,18 @@ func formatRemaining(remainingSeconds int) string {
 	return strconv.Itoa(remainingSeconds/60) + "分" + strconv.Itoa(remainingSeconds%60) + "秒"
 }
 
-// extractHostFromUrl 从攻击URL里粗提域名，供去重维度使用
-//
-// 不用 net/url.Parse：攻击URL经常是畸形串（正是它被拦下来的原因），Parse 失败率高且开销更大。
-// 这里只做字符串切分，取不到就返回空串，频控会自动忽略空维度。
+// Extract only the authority; a malformed query or path cannot change the filter key.
 func extractHostFromUrl(rawUrl string) string {
-	s := rawUrl
-	if idx := strings.Index(s, "://"); idx >= 0 {
-		s = s[idx+3:]
+	if _, suffix, ok := strings.Cut(rawUrl, "://"); ok {
+		rawUrl = suffix
 	}
-	for _, sep := range []byte{'/', '?', ':'} {
-		if idx := strings.IndexByte(s, sep); idx >= 0 {
-			s = s[:idx]
-		}
+	rawUrl = strings.TrimPrefix(rawUrl, "//")
+	if end := strings.IndexAny(rawUrl, "/?#"); end >= 0 {
+		rawUrl = rawUrl[:end]
 	}
-	if len(s) > 253 { // 域名最大长度，防畸形超长串进缓存key
+	u, err := url.Parse("//" + rawUrl)
+	if err != nil || len(u.Hostname()) > 253 {
 		return ""
 	}
-	return s
+	return u.Hostname()
 }

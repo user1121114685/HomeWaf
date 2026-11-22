@@ -46,6 +46,11 @@ func requestDiagnostics(log *innerbean.WebLog) *innerbean.RequestDiagnostics {
 		out.State = "invalid"
 		return out
 	}
+	if detail.BodyReadFailure != nil && !detail.BodyReadFailure.Valid() {
+		out.State = "invalid"
+		return out
+	}
+	stoppedCheck := detail.UnavailableCheck()
 	for _, hit := range detail.Hits {
 		if hit.ReqID != log.REQ_UUID || hit.PortID != row.PortID {
 			out.State = "invalid"
@@ -61,8 +66,14 @@ func requestDiagnostics(log *innerbean.WebLog) *innerbean.RequestDiagnostics {
 		if parts := diagnosticSignature.FindStringSubmatch(hit.Evidence); len(parts) == 4 && parts[1] == hit.Category {
 			item.Source, item.Code = parts[2], parts[3]
 		}
+		if hit.Category == "detector_error" {
+			item.StoppedRequest = stoppedCheck != "" && stoppedCheck == hit.Check && stoppedCheck == hit.RuleID
+			if detail.BodyReadFailure != nil && hit.Evidence == wafpipeline.BodyInspectionUnavailable {
+				item.Source, item.Code = "body", "body_read_"+string(detail.BodyReadFailure.Cause)
+			}
+		}
 		out.Hits = append(out.Hits, item)
 	}
-	out.State, out.BodyTruncated = "available", detail.BodyTruncated
+	out.State, out.BodyTruncated, out.BodyReadFailure = "available", detail.BodyTruncated, detail.BodyReadFailure
 	return out
 }

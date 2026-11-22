@@ -9,6 +9,7 @@ import (
 	"HomeWaf/internal/model/customtype"
 	"HomeWaf/internal/model/request"
 	"HomeWaf/internal/platform/common/uuid"
+	"errors"
 	"sync"
 	"time"
 )
@@ -92,58 +93,46 @@ func (receiver *WafNotifyLogService) UpdateSuppressCount(id string, count int) e
 
 // GetListApi 获取列表
 func (receiver *WafNotifyLogService) GetListApi(req request.WafNotifyLogSearchReq) ([]model.NotifyLog, int64, error) {
+	db := global.GWAF_LOCAL_LOG_DB
+	if db == nil {
+		return nil, 0, errors.New("通知日志库未就绪")
+	}
+	q := db.Model(&model.NotifyLog{}).Where("tenant_id = ? AND user_code = ?", global.GWAF_TENANT_ID, global.GWAF_USER_CODE)
+	if req.ChannelId != "" {
+		q = q.Where("channel_id = ?", req.ChannelId)
+	}
+	if req.MessageType != "" {
+		q = q.Where("message_type = ?", req.MessageType)
+	}
+	if req.Status != nil {
+		q = q.Where("status = ?", *req.Status)
+	}
+	if req.StartTime != "" {
+		q = q.Where("send_time >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		q = q.Where("send_time <= ?", req.EndTime)
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	var list []model.NotifyLog
-	var total int64 = 0
-
-	var whereField = ""
-	var whereValues []interface{}
-
-	if len(req.ChannelId) > 0 {
-		if len(whereField) > 0 {
-			whereField = whereField + " and "
-		}
-		whereField = whereField + " channel_id = ? "
-		whereValues = append(whereValues, req.ChannelId)
-	}
-
-	if len(req.MessageType) > 0 {
-		if len(whereField) > 0 {
-			whereField = whereField + " and "
-		}
-		whereField = whereField + " message_type = ? "
-		whereValues = append(whereValues, req.MessageType)
-	}
-
-	if req.Status > 0 {
-		if len(whereField) > 0 {
-			whereField = whereField + " and "
-		}
-		whereField = whereField + " status = ? "
-		whereValues = append(whereValues, req.Status)
-	}
-
-	if len(req.StartTime) > 0 && len(req.EndTime) > 0 {
-		if len(whereField) > 0 {
-			whereField = whereField + " and "
-		}
-		whereField = whereField + " send_time >= ? and send_time <= ? "
-		whereValues = append(whereValues, req.StartTime, req.EndTime)
-	}
-
-	global.GWAF_LOCAL_LOG_DB.Model(&model.NotifyLog{}).Where(whereField, whereValues...).Order("create_time desc").Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
-	global.GWAF_LOCAL_LOG_DB.Model(&model.NotifyLog{}).Where(whereField, whereValues...).Count(&total)
-
-	return list, total, nil
+	err := q.Order("create_time desc, id desc").Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list).Error
+	return list, total, err
 }
 
 // GetDetailApi 获取详情
-func (receiver *WafNotifyLogService) GetDetailApi(req request.WafNotifyLogDetailReq) model.NotifyLog {
+func (receiver *WafNotifyLogService) GetDetailApi(req request.WafNotifyLogDetailReq) (model.NotifyLog, error) {
 	var bean model.NotifyLog
-	global.GWAF_LOCAL_LOG_DB.Where("id=?", req.Id).Find(&bean)
-	return bean
+	if global.GWAF_LOCAL_LOG_DB == nil {
+		return bean, errors.New("通知日志库未就绪")
+	}
+	err := global.GWAF_LOCAL_LOG_DB.First(&bean, "id = ? AND tenant_id = ? AND user_code = ?", req.Id, global.GWAF_TENANT_ID, global.GWAF_USER_CODE).Error
+	return bean, err
 }
 
 // DelApi 删除
 func (receiver *WafNotifyLogService) DelApi(req request.WafNotifyLogDelReq) error {
-	return global.GWAF_LOCAL_LOG_DB.Where("id = ?", req.Id).Delete(&model.NotifyLog{}).Error
+	return global.GWAF_LOCAL_LOG_DB.Where("id = ? AND tenant_id = ? AND user_code = ?", req.Id, global.GWAF_TENANT_ID, global.GWAF_USER_CODE).Delete(&model.NotifyLog{}).Error
 }

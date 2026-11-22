@@ -2,6 +2,7 @@ package main
 
 import (
 	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/model"
 	"HomeWaf/internal/platform/common/zlog"
 	"HomeWaf/internal/platform/utils"
 	"HomeWaf/internal/protection/wafenginecore"
@@ -94,6 +95,16 @@ func initializePortPipeline() {
 		zlog.Error("端口登录门加载失败", err.Error())
 	}
 	gate := wafpipeline.NewGate(gateStore)
+	gate.OnAccessEvent = func(c *wafpipeline.RequestContext, event, account string) {
+		outcome := model.AccessAuditOK
+		if event == model.AccessEventBadReturnTo {
+			outcome = model.AccessAuditFail
+		}
+		waf_service.WafSecurityAuditServiceApp.Write(waf_service.AuditEntry{
+			Event: event, AccountName: account, Host: c.Request.Host, HostCode: c.PortID,
+			URL: c.Request.URL.EscapedPath(), ClientIP: c.ClientIP.String(), Result: outcome,
+		})
+	}
 	defenseService.OwnsRuntime = waf_service.WafPipelineGateServiceApp.OwnsRuntime
 	defenseService.Owner = waf_service.WafPipelineGateServiceApp.RuntimeOwner()
 	if err := defenseService.LoadHistory(); err != nil {

@@ -4,6 +4,7 @@ type DiagnosticHit = {
   severity?: string;
   observe?: boolean;
   trusted?: boolean;
+  stopped_request?: boolean;
   source?: string;
   code?: string;
 };
@@ -56,8 +57,8 @@ export function requestDiagnosticView(detail: Record<string, any>, locale = 'zh_
     rule: tr('规则 ID', 'Rule ID'),
     mode: tr('本次处理', 'Disposition'),
     privacy: tr(
-      '复制内容仅含请求编号、时间、处理结果和规则元数据，不包含请求报文、Cookie、令牌或参数值。',
-      'Copied diagnostics contain request ID, time, outcome and rule metadata only; no request payload, cookies, tokens or parameter values.',
+      '复制内容仅含请求编号、时间、处理结果、规则元数据和正文读取统计。',
+      'Copied diagnostics contain only the request ID, time, outcome, rule metadata and body read statistics.',
     ),
     truncated: tr(
       '请求正文检测被截断，结论仅覆盖已检查的部分。',
@@ -88,13 +89,18 @@ export function requestDiagnosticView(detail: Record<string, any>, locale = 'zh_
       rule: hit.rule_id || missing,
       position: sources[hit.source || ''] || missing,
       code: hit.code || missing,
-      mode: hit.trusted
+      mode: hit.stopped_request
+        ? tr('转发前拒绝', 'Rejected before forwarding')
+        : hit.trusted
         ? tr('可信来源命中', 'Trusted-source match')
         : hit.observe
           ? tr('仅观察，未由此项拦截', 'Observed; this match did not block')
           : tr('非观察命中；最终动作见请求结果', 'Enforced match; see the final request outcome'),
-      observe: !!hit.observe,
+      observe: !!hit.observe && !hit.stopped_request,
       reason:
+        (hit.stopped_request && tr('必需的检查未能完成，防火墙已拒绝该请求。', 'A required check failed and the firewall rejected the request.')) ||
+        (hit.category === 'detector_error' && hit.code?.startsWith('body_read_') &&
+          tr('这项检查需要读取请求正文。', 'This check requires the request body.')) ||
         reasons[`${hit.category}.${hit.code}`] ||
         (hit.code
           ? tr('检测器在该位置匹配到规则特征。', 'The detector matched a rule signature at this location.')
@@ -104,8 +110,28 @@ export function requestDiagnosticView(detail: Record<string, any>, locale = 'zh_
             )),
     }),
   );
+  const failure = state === 'available' ? data?.body_read_failure : undefined;
+  const readCauses: Record<string, string> = {
+    timeout: tr('读取超时', 'read timed out'),
+    request_canceled: tr('请求已取消', 'request canceled'),
+    unexpected_eof: tr('正文提前结束', 'body ended early'),
+    connection_reset: tr('连接已重置', 'connection reset'),
+    unknown: tr('原因未确定', 'cause unknown'),
+  };
+  let readFailureText = '';
+  if (failure && Number.isSafeInteger(failure.bytes_read) && Number.isSafeInteger(failure.elapsed_ms)) {
+    const cause = Object.hasOwn(readCauses, failure.cause) ? readCauses[failure.cause] : readCauses.unknown;
+    readFailureText = tr(
+      `正文读取失败（${cause}）。已读 ${failure.bytes_read} 字节，耗时 ${failure.elapsed_ms} ms。`,
+      `Body read failed (${cause}). Read ${failure.bytes_read} bytes in ${failure.elapsed_ms} ms.`,
+    );
+    if (Number.isSafeInteger(failure.idle_ms)) {
+      readFailureText += tr(`距上次读到数据 ${failure.idle_ms} ms。`, ` Last data read ${failure.idle_ms} ms before the failure.`);
+    }
+  }
   const summary =
     messages[state] ||
+    readFailureText ||
     (['阻止', '禁止'].includes(detail.action) && detail.rule === 'host_not_allowed'
       ? tr(
           '请求 Host 不在服务允许的域名范围内，已在主机校验阶段拒绝，未转发到上游。这是访问策略拒绝，不能仅凭此项确认具体攻击类型。',

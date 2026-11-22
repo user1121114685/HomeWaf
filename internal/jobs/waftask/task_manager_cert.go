@@ -4,6 +4,7 @@ package waftask
 
 import (
 	"HomeWaf/internal/instance/global"
+	"HomeWaf/internal/model"
 	"HomeWaf/internal/model/innerbean"
 	"HomeWaf/internal/platform/common/zlog"
 	"HomeWaf/internal/platform/utils"
@@ -38,7 +39,7 @@ func ManagerCertCheck() {
 		return
 	}
 
-	daysLeft := int(time.Until(current.NotAfter).Hours() / 24)
+	daysLeft := model.CertificateDaysLeft(time.Now(), current.NotAfter)
 
 	if localca.IsIssuedByLocalCA(paths) {
 		if daysLeft > managerCertRenewDays {
@@ -65,6 +66,7 @@ func ManagerCertCheck() {
 			},
 			OperaCnt: fmt.Sprintf("管理端本地证书已自动续期至 %s，重启管理端后生效",
 				summary.NotAfter.Format("2006-01-02")),
+			Time: time.Now().Format(time.RFC3339),
 		})
 		return
 	}
@@ -84,8 +86,10 @@ func ManagerCertCheck() {
 			return
 		}
 	}
-	if daysLeft <= 0 {
+	if daysLeft < 0 {
 		notifyManagerCertExpire(current.Subject, current.NotAfter, daysLeft, "管理端证书已过期")
+	} else if daysLeft == 0 {
+		notifyManagerCertExpire(current.Subject, current.NotAfter, daysLeft, "管理端证书将在 24 小时内到期，请及时更换")
 	}
 }
 
@@ -100,5 +104,6 @@ func notifyManagerCertExpire(subject string, expireAt time.Time, daysLeft int, h
 		Domain:     subject,
 		ExpireTime: expireAt.Format("2006-01-02 15:04:05"),
 		DaysLeft:   daysLeft,
+		Hint:       hint,
 	})
 }
