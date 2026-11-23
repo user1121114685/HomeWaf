@@ -106,3 +106,40 @@ func TestDashboardNodeNonblockingFailureHasNoPosition(t *testing.T) {
 	}
 	t.Fatal("discovery did not finish")
 }
+
+func TestDashboardNodeRefreshKeepsLastKnownLocation(t *testing.T) {
+	started, release := make(chan struct{}), make(chan struct{})
+	lastKnown := model.DashboardTarget{
+		Mode: "auto", Label: "HomeWaf 防护节点", Status: "ready",
+		PublicIP: "8.8.8.8", Country: "美国", Region: "加利福尼亚州", City: "洛杉矶",
+		Latitude: 34.0559, Longitude: -118.2666, HasCoordinates: true, CheckedAt: 123,
+	}
+	c := &dashboardNodeCache{
+		data: lastKnown,
+		lookup: func(ctx context.Context) (model.DashboardTarget, error) {
+			close(started)
+			<-release
+			return model.DashboardTarget{}, errors.New("offline")
+		},
+	}
+	if current := c.snapshot(); current.PublicIP != lastKnown.PublicIP {
+		t.Fatalf("refresh removed the last known location: %+v", current)
+	}
+	<-started
+	if current := c.snapshot(); current.Longitude != lastKnown.Longitude {
+		t.Fatalf("refresh changed the last known location: %+v", current)
+	}
+	close(release)
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		current := c.snapshot()
+		if current.Status == "stale" {
+			if current.PublicIP != lastKnown.PublicIP || current.Longitude != lastKnown.Longitude || current.CheckedAt != lastKnown.CheckedAt {
+				t.Fatalf("stale location was not retained: %+v", current)
+			}
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("failed refresh did not retain the last known location")
+}

@@ -95,7 +95,6 @@ const props = defineProps({
   status: { type: String, default: '' },
   events: { type: Array as PropType<SecurityEvent[]>, default: () => [] },
   target: { type: Object as PropType<ScreenTarget | null>, default: null },
-  serverTime: { type: Number, default: 0 },
   paused: Boolean,
   dark: Boolean,
 });
@@ -113,7 +112,8 @@ let baseZoom = 0,
   touched = false,
   frame = 0,
   updatingHeads = false;
-let timer: ReturnType<typeof setInterval> | undefined;
+const FLIGHT_DURATION_MS = 8000;
+let flightElapsed = 0;
 const reducedMotion = ref(false);
 let media: MediaQueryList | undefined;
 const regionData = computed(() => aggregateRegions(props.regions));
@@ -125,7 +125,7 @@ const active = computed(() => {
 });
 const highlightChina = computed(
   () =>
-    props.target?.status === 'ready' &&
+    (props.target?.status === 'ready' || props.target?.status === 'stale') &&
     Boolean(props.target.public_ip) &&
     countryId(props.target.country || '') === 'CHN',
 );
@@ -133,7 +133,7 @@ const targetPoint = computed(() => {
   const target = props.target;
   if (!target) return null;
   const manual = target.mode === 'coordinates';
-  if (!manual && target.status !== 'ready') return null;
+  if (!manual && target.status !== 'ready' && target.status !== 'stale') return null;
   const location =
     manual || target.has_coordinates ? target : locateCity(target.country || '', target.city || '', target.region);
   if (!location || !Number.isFinite(location.longitude) || !Number.isFinite(location.latitude)) return null;
@@ -142,51 +142,30 @@ const targetPoint = computed(() => {
     label: target.label,
     detail: manual
       ? '自定义部署坐标'
-      : `${target.city || target.country} · ${target.has_coordinates ? '公网 IP 近似定位' : '城市示意位置'}`,
+      : `${target.city || target.country} · ${target.status === 'stale' ? '上次定位' : target.has_coordinates ? '公网 IP 近似定位' : '城市示意位置'}`,
   };
 });
 const nodeLocationStatus = computed(() => {
   if (!props.target || props.target.status === 'locating') return '防护节点 · 正在获取公网 IP 与城市…';
-  return props.target.status === 'ready'
+  return props.target.status === 'ready' || props.target.status === 'stale'
     ? `防护节点 · ${props.target.city || '城市未知'}，地图点位未匹配`
     : '防护节点 · 定位待确认';
 });
 
-interface Flight {
-  id: string;
-  country: string;
-  started: number;
-  until: number;
-}
-const flights = ref<Flight[]>([]),
-  seen = new Set<string>();
-const paths = computed(() =>
-  targetPoint.value
-    ? flights.value.flatMap((f) => {
-        const source = countryCoordinate(f.country);
-        return source ? [{ ...f, coordinates: flightCoordinates(source, targetPoint.value!.coordinates) }] : [];
-      })
-    : [],
-);
-watch(
-  () => props.events,
-  (events) => {
-    if (!events.length) {
-      flights.value = [];
-      return;
-    }
-    for (const event of [...events].reverse()) {
-      if (seen.has(event.req_uuid)) continue;
-      seen.add(event.req_uuid);
-      if (event.unix_add_time < props.serverTime - 15000 || !countryCoordinate(event.country || '')) continue;
-      const now = Date.now();
-      flights.value.push({ id: event.req_uuid, country: event.country || '', started: now, until: now + 7000 });
-    }
-    flights.value = flights.value.slice(-16);
-    if (seen.size > 512) for (const id of [...seen].slice(0, 256)) seen.delete(id);
-  },
-  { immediate: true },
-);
+const paths = computed(() => {
+  const target = targetPoint.value;
+  if (!target) return [];
+  const origins = new Map<string, Coordinate>();
+  for (const { country = '' } of props.events) {
+    const from = countryCoordinate(country);
+    if (from) origins.set(countryId(country), from);
+  }
+  return Array.from(origins.values(), (from) => ({
+    coordinates: flightCoordinates(from, target.coordinates),
+    // Stagger by origin so polling and reordered events keep the same phase.
+    phase: (from[0] + 180) / 360,
+  }));
+});
 
 function source(id: string) {
   return map?.getSource<GeoJSONSource>(id);
@@ -423,20 +402,21 @@ function stopAnimation() {
   frame = 0;
 }
 function animateFlights() {
-  stopAnimation();
   if (!ready.value) return;
   if (props.paused || reducedMotion.value || !paths.value.length || document.hidden) {
+    stopAnimation();
     setData('flight-heads', emptyCollection());
     return;
   }
-  let last = 0;
+  if (frame) return;
+  let last = performance.now();
   const tick = (time: number) => {
     if (!map || !ready.value) return;
     if (time - last >= 40 && !updatingHeads) {
+      flightElapsed = (flightElapsed + time - last) % FLIGHT_DURATION_MS;
       last = time;
-      const now = Date.now();
       const points = paths.value.map((flight) => {
-        const progress = (((now - flight.started) % 2400) / 2400) * (flight.coordinates.length - 1);
+        const progress = ((flightElapsed / FLIGHT_DURATION_MS + flight.phase) % 1) * (flight.coordinates.length - 1);
         const i = Math.floor(progress),
           t = progress - i;
         const a = flight.coordinates[i],
@@ -574,13 +554,8 @@ onMounted(() => {
   media.addEventListener('change', onMotionChange);
   document.addEventListener('visibilitychange', animateFlights);
   initializeMap();
-  timer = setInterval(() => {
-    const now = Date.now();
-    if (flights.value.some((f) => f.until <= now)) flights.value = flights.value.filter((f) => f.until > now);
-  }, 500);
 });
 onBeforeUnmount(() => {
-  clearInterval(timer);
   media?.removeEventListener('change', onMotionChange);
   document.removeEventListener('visibilitychange', animateFlights);
   removeMap();

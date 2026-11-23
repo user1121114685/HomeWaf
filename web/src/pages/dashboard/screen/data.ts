@@ -30,7 +30,7 @@ export interface ScreenTarget {
   label: string;
   latitude: number;
   longitude: number;
-  status?: 'locating' | 'ready' | 'unavailable';
+  status?: 'locating' | 'ready' | 'stale' | 'unavailable';
   public_ip?: string;
   country?: string;
   region?: string;

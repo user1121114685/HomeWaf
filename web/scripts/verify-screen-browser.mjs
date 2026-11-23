@@ -79,21 +79,23 @@ function snapshot(shared = false) {
     target:
       mode === 'unlocated'
         ? { ...target, mode: 'auto', status: 'unavailable', has_coordinates: false }
-        : mode === 'overseas'
-          ? {
-              ...target,
-              mode: 'auto',
-              status: 'ready',
-              country: 'US',
-              city: 'Los Angeles',
-              public_ip: '203.0.113.2',
-              latitude: 34.0559,
-              longitude: -118.2666,
-              has_coordinates: true,
-            }
-          : mode === 'domestic'
-            ? domesticTarget
-            : target,
+        : mode === 'stale'
+          ? { ...target, mode: 'auto', status: 'stale' }
+          : mode === 'overseas'
+            ? {
+                ...target,
+                mode: 'auto',
+                status: 'ready',
+                country: 'US',
+                city: 'Los Angeles',
+                public_ip: '203.0.113.2',
+                latitude: 34.0559,
+                longitude: -118.2666,
+                has_coordinates: true,
+              }
+            : mode === 'domestic'
+              ? domesticTarget
+              : target,
     partial: mode === 'partial',
     issues: mode === 'partial' ? ['部分日志分区不可用'] : [],
     log_mode: 'db',
@@ -199,6 +201,11 @@ async function mapSource(p, id) {
   return p
     .locator('.world-map')
     .evaluate((el, id) => el.__vueParentComponent.exposed.getMap().getSource(id).getData(), id);
+}
+async function mapHeads(p) {
+  return (await mapSource(p, 'flight-heads')).features.map((feature) =>
+    feature.geometry.coordinates.map((coordinate) => Number(coordinate.toFixed(4))),
+  );
 }
 async function settleMap(p) {
   await expect.poll(async () => (await readMapState(p)).moving).toBe(false);
@@ -373,6 +380,14 @@ try {
   await expect(page.locator('.metric-copy strong').nth(2)).toHaveText('5,268');
   await expect(page.locator('.world-map')).toHaveAttribute('data-ready', 'true');
   await expect.poll(async () => (await mapSource(page, 'flights')).features.length).toBeGreaterThan(0);
+  await expect.poll(async () => (await mapHeads(page)).length).toBeGreaterThan(0);
+  const firstHeads = await mapHeads(page);
+  await page.waitForTimeout(1000);
+  expect(await mapHeads(page)).not.toEqual(firstHeads);
+  const initialFlightCount = (await mapSource(page, 'flights')).features.length;
+  await page.waitForTimeout(7600);
+  expect((await mapSource(page, 'flights')).features.length).toBe(initialFlightCount);
+  expect(await mapHeads(page)).toHaveLength(initialFlightCount);
   await expect(page.locator('.protection-node')).toHaveCount(1);
   await expect(page.locator('.protection-node')).toContainText('上海市 · 城市示意位置');
   expect(Number(await page.locator('.protection-node').getAttribute('data-longitude'))).toBeCloseTo(121.4346, 1);
@@ -493,6 +508,12 @@ try {
   await expect(page.locator('.protection-node')).toHaveCount(0);
   await expect.poll(async () => (await mapSource(page, 'flights')).features.length).toBe(0);
   await expect(page.locator('.metric-copy strong').first()).toHaveText('18,972');
+  mode = 'stale';
+  await expect(page.getByRole('button', { name: '刷新', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '刷新', exact: true }).click();
+  await expect(page.locator('.protection-node')).toContainText('上次定位');
+  expect(Number(await page.locator('.protection-node').getAttribute('data-longitude'))).toBeCloseTo(121.4346, 1);
+  await expect.poll(async () => (await readMapState(page)).chinaBorder).toBe('visible');
   mode = 'partial';
   await expect(page.getByRole('button', { name: '刷新', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: '刷新', exact: true }).click();

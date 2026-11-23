@@ -20,7 +20,7 @@
           </select></label
         >
         <div v-if="targetForm.mode === 'auto'" class="node-discovery">
-          <dl v-if="target?.status === 'ready' && target.mode === 'auto'">
+          <dl v-if="target?.mode === 'auto' && (target.status === 'ready' || target.status === 'stale')">
             <dt>公网 IP</dt>
             <dd>{{ target.public_ip }}</dd>
             <dt>归属城市</dt>
@@ -30,7 +30,7 @@
             <dt>探测时间</dt>
             <dd>{{ target.checked_at ? new Date(target.checked_at).toLocaleString() : '—' }}</dd>
           </dl>
-          <p v-else>
+          <p v-if="target?.mode !== 'auto' || target.status !== 'ready'">
             {{
               target?.mode === 'auto' ? target.message || '正在获取公网 IP 与城市…' : '保存后将自动获取公网 IP 与城市。'
             }}

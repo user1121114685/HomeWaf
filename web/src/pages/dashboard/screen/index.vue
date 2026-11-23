@@ -120,7 +120,7 @@
             <div class="section-eyebrow">THREAT ORIGINS</div>
             <h2 id="map-title">全球攻击来源分布</h2>
           </div>
-          <span class="map-key"><i></i>拦截来源</span>
+          <span class="map-key"><i></i>近 24 小时拦截回放</span>
         </div>
         <div v-if="status('regions')" class="source-status map-status" :class="{ warning: sources.regions.failed }">
           {{ status('regions') }}
@@ -131,7 +131,6 @@
           :events="events"
           :target="snapshot?.target || null"
           :paused="paused"
-          :server-time="snapshot?.window_end || 0"
           :status="status('regions')"
         />
         <div class="map-summary">

@@ -34,19 +34,29 @@ func (c *dashboardNodeCache) snapshot() model.DashboardTarget {
 	defer c.Unlock()
 	if !c.running && !time.Now().Before(c.next) {
 		c.running, c.last = true, time.Now()
-		c.data = model.DashboardTarget{Status: "locating", Message: "正在获取服务器公网 IP 与城市"}
+		if c.data.PublicIP == "" {
+			c.data = model.DashboardTarget{Status: "locating", Message: "正在获取服务器公网 IP 与城市"}
+		}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 			defer cancel()
 			data, err := c.lookup(ctx)
 			ttl := 30 * time.Minute
+			now := time.Now()
+			c.Lock()
 			if err != nil {
 				ttl = 5 * time.Minute
-				data = model.DashboardTarget{Status: "unavailable", Message: "公网 IP 定位失败，5 分钟后自动重试；也可保存节点设置重试"}
+				if c.data.PublicIP != "" {
+					data = c.data
+					data.Status = "stale"
+					data.Message = "公网 IP 定位更新失败，显示上次定位，5 分钟后自动重试"
+				} else {
+					data = model.DashboardTarget{Status: "unavailable", CheckedAt: now.UnixMilli(), Message: "公网 IP 定位失败，5 分钟后自动重试；也可保存节点设置重试"}
+				}
+			} else {
+				data.CheckedAt = now.UnixMilli()
 			}
-			data.CheckedAt = time.Now().UnixMilli()
-			c.Lock()
-			c.data, c.next, c.running = data, time.Now().Add(ttl), false
+			c.data, c.next, c.running = data, now.Add(ttl), false
 			c.Unlock()
 			InvalidateScreenSnapshot()
 		}()
