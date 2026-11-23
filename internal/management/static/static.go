@@ -78,19 +78,16 @@ func initIndex() {
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			zlog.Error("index.html not exist, you may forget to put dist of frontend to public/dist")
-		}
-		zlog.Error("failed to read index.html: %v", err)
-	}
-	defer func() {
-		if indexFile != nil {
-			_ = indexFile.Close()
-		} else {
 			zlog.Error("HomeWaf web assets are missing. Build them with node scripts/build.mjs --web-only.")
 		}
-	}()
+		zlog.Error("failed to read index.html: %v", err)
+		return
+	}
+	defer indexFile.Close()
 	index, err := io.ReadAll(indexFile)
 	if err != nil {
-		zlog.Error("failed to read dist/index.html")
+		zlog.Error("failed to read dist/index.html: %v", err)
+		return
 	}
 	// 存储原始 HTML，安全路径注入由 NoRoute handler 在每次请求时动态完成
 	global.GWAF_LOCAL_INDEX_HTML = string(index)

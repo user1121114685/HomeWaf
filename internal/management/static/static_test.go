@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,6 +48,22 @@ func TestAdminTitlesNoRouteBootstrap(t *testing.T) {
 	if strings.Contains(body, global.GWAF_SECURITY_ENTRY_PATH) ||
 		!strings.Contains(body, `window.__SAMWAF_SECURITY_PATH__="/department'\"\u003c\u0026";`) {
 		t.Fatalf("legacy entry path was not encoded: %s", body)
+	}
+}
+
+func TestInitIndexMissingIndexPreservesCurrentHTML(t *testing.T) {
+	priorStatic := static
+	priorHTML := global.GWAF_LOCAL_INDEX_HTML
+	t.Cleanup(func() {
+		static = priorStatic
+		global.GWAF_LOCAL_INDEX_HTML = priorHTML
+	})
+
+	static = fstest.MapFS{}
+	global.GWAF_LOCAL_INDEX_HTML = `<html>existing</html>`
+	initIndex()
+	if global.GWAF_LOCAL_INDEX_HTML != `<html>existing</html>` {
+		t.Fatalf("missing index changed the current HTML: %q", global.GWAF_LOCAL_INDEX_HTML)
 	}
 }
 
