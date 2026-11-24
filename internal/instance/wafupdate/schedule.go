@@ -12,23 +12,35 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-const releaseCheckPeriod = 48 * time.Hour
+const (
+	releaseScheduleVersion = 2
+	releaseCheckPeriod     = 24 * time.Hour
+	releaseCheckRetryMin   = 30 * time.Minute
+	releaseCheckRetryMax   = 6 * time.Hour
+)
 
 type releaseSchedule struct {
+	Version     int       `json:"version"`
 	WindowStart time.Time `json:"window_start"`
 	NextCheck   time.Time `json:"next_check"`
+	RetryCheck  time.Time `json:"retry_check,omitempty"`
 	Notified    string    `json:"notified_version,omitempty"`
 }
 
 func (s *releaseSchedule) scheduleWindow(start time.Time) {
+	s.Version = releaseScheduleVersion
 	s.WindowStart = start
-	// Leave a full scheduler tick at the end so the chosen minute belongs to this window.
 	minute := 1 + rand.IntN(int(releaseCheckPeriod/time.Minute)-1)
 	s.NextCheck = start.Add(time.Duration(minute) * time.Minute)
 }
 
-// CheckDue reserves the next window before contacting the publisher. Restarts,
-// API reads and network failures cannot cause a second automatic check in this window.
+func releaseCheckRetryDelay() time.Duration {
+	minutes := int((releaseCheckRetryMax - releaseCheckRetryMin) / time.Minute)
+	return releaseCheckRetryMin + time.Duration(rand.IntN(minutes))*time.Minute
+}
+
+// CheckDue keeps checks spread across randomized windows. Failed requests get
+// a separately persisted retry deadline so they do not wait for the next window.
 func (m *ReleaseMonitor) CheckDue(now time.Time, notify func(current, latest string)) error {
 	if global.GUPDATE_RELEASE_URL == "" &&
 		(global.GUPDATE_GITHUB_VERSION_URL == "" || global.CurrentSettings().GCONFIG_CHECK_BETA_VERSION != 1) {
@@ -50,25 +62,49 @@ func (m *ReleaseMonitor) CheckDue(now time.Time, notify func(current, latest str
 		if err := writeReleaseState(file, plan); err != nil {
 			return err
 		}
-	}
-	if now.Before(plan.NextCheck) {
 		m.nextDue = plan.NextCheck
 		return nil
 	}
-	// After downtime check once, then skip any missed windows.
-	windows := now.Sub(plan.WindowStart)/releaseCheckPeriod + 1
-	plan.scheduleWindow(plan.WindowStart.Add(windows * releaseCheckPeriod))
+	if plan.Version < releaseScheduleVersion {
+		plan.Version = releaseScheduleVersion
+		if err := writeReleaseState(file, plan); err != nil {
+			return err
+		}
+	}
+	regularDue := !now.Before(plan.NextCheck)
+	retryDue := !plan.RetryCheck.IsZero() && !now.Before(plan.RetryCheck)
+	if !regularDue && !retryDue {
+		m.nextDue = plan.NextCheck
+		if !plan.RetryCheck.IsZero() && plan.RetryCheck.Before(m.nextDue) {
+			m.nextDue = plan.RetryCheck
+		}
+		return nil
+	}
+	if regularDue {
+		// After downtime check once, then skip any missed windows.
+		windows := now.Sub(plan.WindowStart)/releaseCheckPeriod + 1
+		plan.scheduleWindow(plan.WindowStart.Add(windows * releaseCheckPeriod))
+	}
+	plan.RetryCheck = now.Add(releaseCheckRetryDelay())
 	if err := writeReleaseState(file, plan); err != nil {
 		return err
 	}
-	m.nextDue = plan.NextCheck
+	m.nextDue = plan.RetryCheck
+	if plan.NextCheck.Before(m.nextDue) {
+		m.nextDue = plan.NextCheck
+	}
 	check, err := m.Check(false)
-	if err != nil || check.Version == "" || check.Prerelease {
+	if err != nil {
 		return err
+	}
+	plan.RetryCheck = time.Time{}
+	m.nextDue = plan.NextCheck
+	if check.Version == "" || check.Prerelease {
+		return writeReleaseState(file, plan)
 	}
 	version := semver.Canonical(normalizedVersion(check.Version))
 	if semver.Compare(version, plan.Notified) <= 0 {
-		return nil
+		return writeReleaseState(file, plan)
 	}
 	notify(check.Current, check.Version)
 	plan.Notified = version

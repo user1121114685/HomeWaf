@@ -52,8 +52,8 @@ func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
 		if err := readReleaseState(filepath.Join(dir, "release-check-schedule.json"), &plan); err != nil {
 			t.Fatal(err)
 		}
-		if !plan.NextCheck.After(plan.WindowStart) || !plan.NextCheck.Before(plan.WindowStart.Add(48*time.Hour)) {
-			t.Fatalf("random check outside its 48-hour window: %+v", plan)
+		if plan.Version != releaseScheduleVersion || !plan.NextCheck.After(plan.WindowStart) || !plan.NextCheck.Before(plan.WindowStart.Add(releaseCheckPeriod)) {
+			t.Fatalf("automatic check outside its scheduled period: %+v", plan)
 		}
 		return plan
 	}
@@ -65,11 +65,14 @@ func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
 	}
 	run(start)
 	first := readPlan()
+	if calls.Load() != 0 || len(notifications) != 0 {
+		t.Fatalf("first startup check was not delayed into its randomized window: calls=%d notifications=%v", calls.Load(), notifications)
+	}
 	monitor = NewReleaseMonitor(dir)
 	run(first.NextCheck.Add(-time.Nanosecond))
 	pending, err := monitor.Check(true)
 	if err != nil || !strings.Contains(pending.Message, "尚未检查") || calls.Load() != 0 || !readPlan().NextCheck.Equal(first.NextCheck) {
-		t.Fatalf("startup or console read changed the schedule: %+v %v calls=%d", pending, err, calls.Load())
+		t.Fatalf("startup or console read changed the randomized schedule: %+v %v calls=%d", pending, err, calls.Load())
 	}
 
 	var wg sync.WaitGroup
@@ -82,7 +85,7 @@ func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
 	}
 	wg.Wait()
 	second := readPlan()
-	if calls.Load() != 1 || !second.WindowStart.Equal(start.Add(48*time.Hour)) || second.Notified != "v2.0.2" {
+	if calls.Load() != 1 || !second.WindowStart.Equal(start.Add(releaseCheckPeriod)) || second.Notified != "v2.0.2" || !slices.Equal(notifications, []string{"v2.0.2"}) {
 		t.Fatalf("duplicate or missing scheduled check: %+v calls=%d", second, calls.Load())
 	}
 	monitor = NewReleaseMonitor(dir)
@@ -91,7 +94,7 @@ func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
 		t.Fatalf("offline login did not recover the release: %+v %v", found, err)
 	}
 	run(second.NextCheck)
-	if !slices.Equal(notifications, []string{"v2.0.2"}) {
+	if calls.Load() != 2 || !slices.Equal(notifications, []string{"v2.0.2"}) {
 		t.Fatalf("duplicate notifications after restart: %v", notifications)
 	}
 
@@ -116,22 +119,70 @@ func TestScheduledReleaseChecksAndNotifications(t *testing.T) {
 		t.Fatal("publisher failure hidden")
 	}
 	before := calls.Load()
+	failedPlan := readPlan()
+	if failedPlan.RetryCheck.Before(due.Add(releaseCheckRetryMin)) || !failedPlan.RetryCheck.Before(due.Add(releaseCheckRetryMax)) {
+		t.Fatalf("publisher failure did not persist a randomized retry deadline: %+v", failedPlan)
+	}
 	monitor = NewReleaseMonitor(dir)
 	run(due)
 	stale, err := monitor.Check(true)
 	if err != nil || stale.Version != "v2.0.3" || stale.CheckWarning == "" || calls.Load() != before {
-		t.Fatalf("failure lost known release or retried in the same window: %+v %v", stale, err)
+		t.Fatalf("failure lost known release or ignored the retry deadline: %+v %v", stale, err)
 	}
 	published.Store("v2.0.4")
+	run(failedPlan.RetryCheck)
+	if calls.Load() != before+1 || !slices.Equal(notifications, []string{"v2.0.2", "v2.0.3", "v2.0.4"}) || !readPlan().RetryCheck.IsZero() {
+		t.Fatalf("scheduled retry did not recover and notify: calls=%d notifications=%v plan=%+v", calls.Load(), notifications, readPlan())
+	}
+	published.Store("v2.0.5")
 	overdue := readPlan().NextCheck.Add(8 * 24 * time.Hour)
 	run(overdue)
 	run(overdue)
-	if calls.Load() != before+1 || !readPlan().NextCheck.After(overdue) || !slices.Equal(notifications, []string{"v2.0.2", "v2.0.3", "v2.0.4"}) {
+	if calls.Load() != before+2 || !readPlan().NextCheck.After(overdue) || !slices.Equal(notifications, []string{"v2.0.2", "v2.0.3", "v2.0.4", "v2.0.5"}) {
 		t.Fatalf("check after downtime: calls=%d notifications=%v", calls.Load(), notifications)
 	}
-	global.GWAF_RELEASE_VERSION = "v2.0.4"
+	global.GWAF_RELEASE_VERSION = "v2.0.5"
 	current, err := monitor.Check(true)
-	if err != nil || current.Version != "" || calls.Load() != before+1 {
+	if err != nil || current.Version != "" || calls.Load() != before+2 {
 		t.Fatalf("old release offered after upgrade: %+v %v", current, err)
+	}
+}
+
+func TestScheduledReleaseCheckMigratesLegacyScheduleWithoutConcentratingRequests(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		json.NewEncoder(w).Encode(releasetest.Metadata("v3.1.0", "migrated release"))
+	}))
+	defer server.Close()
+	oldManifest, oldRoot, oldBeta, oldVersion := global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION
+	t.Cleanup(func() {
+		global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION = oldManifest, oldRoot, oldBeta, oldVersion
+	})
+	global.GUPDATE_VERSION_URL, global.GUPDATE_RELEASE_URL, global.GUPDATE_GITHUB_VERSION_URL, global.GWAF_RELEASE_VERSION = "", server.URL, "", "v3.0.0"
+
+	dir := t.TempDir()
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	legacy := releaseSchedule{WindowStart: start.Add(-24 * time.Hour), NextCheck: start.Add(24 * time.Hour), Notified: "v2.9.0"}
+	if err := writeReleaseState(filepath.Join(dir, "release-check-schedule.json"), legacy); err != nil {
+		t.Fatal(err)
+	}
+	var notified string
+	monitor := NewReleaseMonitor(dir)
+	if err := monitor.CheckDue(start, func(_, version string) { notified = version }); err != nil {
+		t.Fatal(err)
+	}
+	var migrated releaseSchedule
+	if err := readReleaseState(filepath.Join(dir, "release-check-schedule.json"), &migrated); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 0 || notified != "" || migrated.Version != releaseScheduleVersion || migrated.Notified != "v2.9.0" || !migrated.NextCheck.Equal(legacy.NextCheck) {
+		t.Fatalf("legacy schedule migration lost its randomized deadline: calls=%d notified=%q plan=%+v", calls.Load(), notified, migrated)
+	}
+	if err := monitor.CheckDue(legacy.NextCheck, func(_, version string) { notified = version }); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 1 || notified != "v3.1.0" {
+		t.Fatalf("migrated schedule did not notify when due: calls=%d notified=%q", calls.Load(), notified)
 	}
 }
