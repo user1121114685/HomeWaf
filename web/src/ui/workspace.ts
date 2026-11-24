@@ -5,7 +5,9 @@ export const workspaceGroups = [
     id: 'services',
     label: ['服务与连接', 'Services'],
     names: [
+      'WafPipelineHoneypot',
       'WafPipeline',
+      'WafProtocolDefense',
       'WafPipelineTemplates',
       'AppList',
       'Tunnel',
@@ -37,7 +39,6 @@ export const workspaceGroups = [
     id: 'protection',
     label: ['防护策略', 'Protection'],
     names: [
-      'WafPipelineHoneypot',
       'WafRule',
       'Wafruleedit',
       'WafAntiCCList',
@@ -55,7 +56,6 @@ export const workspaceGroups = [
     id: 'traffic',
     label: ['流量与记录', 'Traffic & records'],
     names: [
-      'WafProtocolDefense',
       'WafvisitLog',
       'WafAttackLog',
       'WafAttackLogDetail',

@@ -432,7 +432,7 @@ export default {
     }
   },
   menu: {
-	  pipeline: { parent_title: '服务与策略', ports: '服务接入', templates: '策略模板', honeypot: '统一蜜罐' },
+	  pipeline: { parent_title: '服务与策略', ports: '服务接入', protocol_defense: '协议防御', templates: '策略模板', honeypot: '统一蜜罐' },
     dashboard: {
       parent_title: "仪表盘",
       dashboard_title: "流量概览",

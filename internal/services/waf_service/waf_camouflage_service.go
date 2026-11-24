@@ -11,74 +11,136 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 )
 
 const camouflageConfigItem = "protocol_camouflage_defense"
+const maxCamouflageServiceEvents = 500
 
 type WafCamouflageService struct {
-	mu      sync.Mutex
-	blockMu sync.Mutex
-	saveMu  sync.Mutex
-	manager *camouflage.Manager
-	blocked map[string]time.Time
-	blockIP func(request.WafFirewallIPBlockAddReq) error
+	mu         sync.Mutex
+	blockMu    sync.Mutex
+	saveMu     sync.Mutex
+	config     camouflage.DefenseConfig
+	managers   map[string]*camouflage.Manager
+	events     []camouflage.Hit
+	blocked    map[string]time.Time
+	blockIP    func(request.WafFirewallIPBlockAddReq) error
+	management map[string]struct{}
 }
 
 var WafCamouflageServiceApp = newWafCamouflageService()
 
 func newWafCamouflageService() *WafCamouflageService {
-	s := &WafCamouflageService{
-		blocked: map[string]time.Time{},
-		blockIP: WafFirewallIPBlockServiceApp.AddApi,
+	return &WafCamouflageService{
+		config:     camouflage.DefaultDefenseConfig(),
+		managers:   map[string]*camouflage.Manager{},
+		blocked:    map[string]time.Time{},
+		blockIP:    WafFirewallIPBlockServiceApp.AddApi,
+		management: map[string]struct{}{},
 	}
-	s.manager = camouflage.NewManager(s.handleHit)
-	return s
 }
 
-func (s *WafCamouflageService) GetConfig() camouflage.Config {
-	config := camouflage.DefaultConfig()
+func (s *WafCamouflageService) loadConfig() (camouflage.DefenseConfig, error) {
 	bean := WafSystemConfigServiceApp.GetDetailByItem(camouflageConfigItem)
 	if bean.Value == "" {
-		return config
+		return camouflage.DefaultDefenseConfig(), nil
 	}
-	if err := json.Unmarshal([]byte(bean.Value), &config); err != nil {
-		return camouflage.DefaultConfig()
+	return decodeCamouflageConfig(bean.Value)
+}
+
+func decodeCamouflageConfig(value string) (camouflage.DefenseConfig, error) {
+	config := camouflage.DefaultDefenseConfig()
+	raw := []byte(value)
+	var shape struct {
+		Profiles json.RawMessage `json:"profiles"`
 	}
-	normalized, err := camouflage.NormalizeConfig(config)
-	if err != nil {
-		return camouflage.DefaultConfig()
+	if err := json.Unmarshal(raw, &shape); err != nil {
+		return config, fmt.Errorf("invalid protocol camouflage config: %w", err)
 	}
-	return normalized
+	if len(shape.Profiles) == 0 || string(shape.Profiles) == "null" {
+		var legacy camouflage.Config
+		if err := json.Unmarshal(raw, &legacy); err != nil {
+			return config, fmt.Errorf("invalid legacy protocol camouflage config: %w", err)
+		}
+		if legacy.Profile == "nas-generic" {
+			legacy.Profile = "http"
+		}
+		normalizedLegacy, legacyErr := camouflage.NormalizeConfig(legacy)
+		if legacyErr != nil {
+			return config, legacyErr
+		}
+		profile := camouflage.ProfileConfig{
+			ID:              uuid.GenUUID(),
+			Name:            "旧版伪装画像",
+			Enabled:         normalizedLegacy.Enabled,
+			Port:            normalizedLegacy.Port,
+			ProtocolProfile: normalizedLegacy.Profile,
+			Version:         normalizedLegacy.Version,
+			ServerName:      normalizedLegacy.ServerName,
+			ListenIPVersion: normalizedLegacy.ListenIPVersion,
+		}
+		config.Profiles = []camouflage.ProfileConfig{profile}
+	} else if err := json.Unmarshal(raw, &config); err != nil {
+		return config, fmt.Errorf("invalid protocol camouflage config: %w", err)
+	}
+	return camouflage.NormalizeDefenseConfig(config)
+}
+
+func (s *WafCamouflageService) Config() camouflage.DefenseConfig {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return cloneCamouflageConfig(s.config)
+}
+
+func cloneCamouflageConfig(config camouflage.DefenseConfig) camouflage.DefenseConfig {
+	config.Profiles = append([]camouflage.ProfileConfig{}, config.Profiles...)
+	config.LocalCIDRs = append([]string{}, config.LocalCIDRs...)
+	return config
 }
 
 func (s *WafCamouflageService) LoadAndStart() error {
-	return s.apply(s.GetConfig())
+	config, err := s.loadConfig()
+	if err != nil {
+		return err
+	}
+	return s.apply(config)
 }
 
-func (s *WafCamouflageService) Stop() { s.manager.Stop() }
+func (s *WafCamouflageService) Stop() {
+	s.saveMu.Lock()
+	s.mu.Lock()
+	managers := s.managers
+	s.managers = map[string]*camouflage.Manager{}
+	s.mu.Unlock()
+	for _, manager := range managers {
+		manager.Stop()
+	}
+	s.saveMu.Unlock()
+}
 
-func (s *WafCamouflageService) Save(config camouflage.Config, operator string) (camouflage.Config, error) {
+func (s *WafCamouflageService) Save(config camouflage.DefenseConfig, operator string) (camouflage.DefenseConfig, error) {
 	s.saveMu.Lock()
 	defer s.saveMu.Unlock()
-	normalized, err := camouflage.NormalizeConfig(config)
+	normalized, err := camouflage.NormalizeDefenseConfig(config)
 	if err != nil {
 		return config, err
 	}
-	if err := s.validatePortConflict(normalized); err != nil {
-		return normalized, err
+	if err := s.validatePortConflicts(normalized); err != nil {
+		return config, err
 	}
-	previous := s.GetConfig()
+	previous := s.Config()
 	if err := s.apply(normalized); err != nil {
 		_ = s.apply(previous)
-		return normalized, err
+		return config, err
 	}
 	raw, err := json.Marshal(normalized)
 	if err != nil {
 		_ = s.apply(previous)
-		return normalized, err
+		return config, err
 	}
 	bean := WafSystemConfigServiceApp.GetDetailByItem(camouflageConfigItem)
 	if bean.Id == "" {
@@ -87,49 +149,176 @@ func (s *WafCamouflageService) Save(config camouflage.Config, operator string) (
 			Item:      camouflageConfigItem,
 			Value:     string(raw),
 			ItemType:  "json",
-			Remarks:   "Protocol camouflage profiles and scoring settings",
+			Remarks:   "Protocol camouflage profiles and LAN scoring policy",
 		})
 	} else {
 		err = WafSystemConfigServiceApp.ModifyByItemApi(request.WafSystemConfigEditByItemReq{Item: camouflageConfigItem, Value: string(raw)})
 	}
 	if err != nil {
 		_ = s.apply(previous)
-		return normalized, err
+		return config, err
 	}
 	if operator != "" {
-		WafPipelineServiceApp.audit(operator, normalized.Port, "camouflage_config_saved")
+		for _, profile := range normalized.Profiles {
+			WafPipelineServiceApp.audit(operator, profile.Port, "camouflage_profile_saved")
+		}
 	}
-	return normalized, nil
+	return cloneCamouflageConfig(normalized), nil
 }
 
-func (s *WafCamouflageService) apply(config camouflage.Config) error {
-	if err := s.validatePortConflict(config); err != nil {
+func (s *WafCamouflageService) apply(config camouflage.DefenseConfig) error {
+	if err := s.validatePortConflicts(config); err != nil {
 		return err
 	}
-	return s.manager.Apply(config)
-}
+	s.mu.Lock()
+	previous := s.managers
+	s.managers = map[string]*camouflage.Manager{}
+	s.config = cloneCamouflageConfig(config)
+	management := make([]string, 0, len(s.management))
+	for prefix := range s.management {
+		management = append(management, prefix)
+	}
+	s.mu.Unlock()
+	for _, manager := range previous {
+		manager.Stop()
+	}
 
-func (s *WafCamouflageService) validatePortConflict(config camouflage.Config) error {
-	normalized, err := camouflage.NormalizeConfig(config)
-	if err != nil {
-		return err
-	}
-	if !normalized.Enabled {
-		return nil
-	}
-	if normalized.Port == uint16(global.GWAF_LOCAL_SERVER_PORT) {
-		return fmt.Errorf("camouflage port %d conflicts with the management listener", normalized.Port)
-	}
-	if snapshot, ok := wafpipeline.Ports.Get(normalized.Port); ok && snapshot.Config.ListenEnabled {
-		return fmt.Errorf("camouflage port %d is already used by service %s", normalized.Port, snapshot.Config.Name)
+	started := make([]*camouflage.Manager, 0, len(config.Profiles))
+	for _, image := range config.Profiles {
+		if !image.Enabled {
+			continue
+		}
+		manager := camouflage.NewManager(s.handleHit)
+		manager.SetLocalCIDRs(config.LocalCIDRMode, config.LocalCIDRs)
+		for _, ip := range management {
+			manager.ObserveManagementClientIP(ip)
+		}
+		listenerConfig := camouflage.Config{
+			Enabled:         image.Enabled,
+			Port:            image.Port,
+			Profile:         image.ProtocolProfile,
+			Version:         image.Version,
+			ServerName:      image.ServerName,
+			BlockPublic:     true,
+			BanSeconds:      camouflage.DefaultBanSeconds,
+			ListenIPVersion: image.ListenIPVersion,
+		}
+		if err := manager.Apply(listenerConfig); err != nil {
+			for _, active := range started {
+				active.Stop()
+			}
+			s.mu.Lock()
+			s.managers = map[string]*camouflage.Manager{}
+			s.mu.Unlock()
+			return fmt.Errorf("profile %q: %w", image.Name, err)
+		}
+		started = append(started, manager)
+		s.mu.Lock()
+		s.managers[image.ID] = manager
+		s.mu.Unlock()
 	}
 	return nil
 }
 
-func (s *WafCamouflageService) Status() camouflage.Status { return s.manager.Status() }
+func (s *WafCamouflageService) validatePortConflicts(config camouflage.DefenseConfig) error {
+	used := map[string]string{}
+	for _, image := range config.Profiles {
+		if !image.Enabled {
+			continue
+		}
+		profile, _ := camouflage.ProfileByCode(image.ProtocolProfile)
+		if profile.Transport == "tcp" && image.Port == uint16(global.GWAF_LOCAL_SERVER_PORT) {
+			return fmt.Errorf("profile %q port %d conflicts with the management listener", image.Name, image.Port)
+		}
+		key := fmt.Sprintf("%s:%d", profile.Transport, image.Port)
+		if previous, ok := used[key]; ok {
+			return fmt.Errorf("profiles %q and %q use the same port %d", previous, image.Name, image.Port)
+		}
+		used[key] = image.Name
+		if profile.Transport == "tcp" {
+			if snapshot, ok := wafpipeline.Ports.Get(image.Port); ok && snapshot.Config.ListenEnabled {
+				return fmt.Errorf("profile %q port %d is already used by service %s", image.Name, image.Port, snapshot.Config.Name)
+			}
+		}
+	}
+	return nil
+}
 
 func (s *WafCamouflageService) ObserveManagementClientIP(ip string) {
-	s.manager.ObserveManagementClientIP(ip)
+	parsed, err := netip.ParseAddr(ip)
+	if err != nil || !parsed.Unmap().IsPrivate() {
+		return
+	}
+	s.mu.Lock()
+	for _, manager := range s.managers {
+		manager.ObserveManagementClientIP(ip)
+	}
+	addr := parsed.Unmap()
+	bits := 24
+	if addr.Is6() {
+		bits = 64
+	}
+	prefix := netip.PrefixFrom(addr, bits).Masked().String()
+	s.management[prefix] = struct{}{}
+	s.mu.Unlock()
+}
+
+func (s *WafCamouflageService) Status() []camouflage.ProfileStatus {
+	s.mu.Lock()
+	config := cloneCamouflageConfig(s.config)
+	managers := make(map[string]*camouflage.Manager, len(s.managers))
+	for id, manager := range s.managers {
+		managers[id] = manager
+	}
+	s.mu.Unlock()
+	rows := make([]camouflage.ProfileStatus, 0, len(config.Profiles))
+	for _, image := range config.Profiles {
+		status := camouflage.ProfileStatus{ID: image.ID, Name: image.Name, Enabled: image.Enabled, Port: image.Port}
+		if manager := managers[image.ID]; manager != nil {
+			runtime := manager.Status()
+			status.Running = runtime.Running
+			status.LastError = runtime.LastError
+		}
+		rows = append(rows, status)
+	}
+	return rows
+}
+
+func (s *WafCamouflageService) LocalCIDRs() []string {
+	s.mu.Lock()
+	mode := s.config.LocalCIDRMode
+	custom := append([]string(nil), s.config.LocalCIDRs...)
+	managers := make([]*camouflage.Manager, 0, len(s.managers))
+	for _, manager := range s.managers {
+		managers = append(managers, manager)
+	}
+	s.mu.Unlock()
+	if mode == "custom" {
+		return custom
+	}
+	result := camouflage.LocalCIDRs()
+	seen := map[string]struct{}{}
+	for _, value := range result {
+		seen[value] = struct{}{}
+	}
+	for _, manager := range managers {
+		for _, value := range manager.Status().LocalCIDRs {
+			if _, ok := seen[value]; !ok {
+				seen[value] = struct{}{}
+				result = append(result, value)
+			}
+		}
+	}
+	s.mu.Lock()
+	for prefix := range s.management {
+		if _, ok := seen[prefix]; !ok {
+			seen[prefix] = struct{}{}
+			result = append(result, prefix)
+		}
+	}
+	s.mu.Unlock()
+	sort.Strings(result)
+	return result
 }
 
 func (s *WafCamouflageService) Profiles() []camouflage.Profile { return camouflage.Profiles() }
@@ -145,20 +334,37 @@ func (s *WafCamouflageService) Events(limit int) ([]camouflage.Hit, error) {
 		}
 	}
 	result := make([]camouflage.Hit, 0, limit)
-	seen := map[string]bool{}
+	seen := make(map[string]struct{}, len(rows))
 	for _, row := range rows {
 		var hit camouflage.Hit
-		if err := json.Unmarshal([]byte(row.DetailJSON), &hit); err != nil {
-			continue
-		}
-		seen[hit.ID] = true
-		result = append(result, hit)
-	}
-	for _, hit := range s.manager.Events(limit) {
-		if !seen[hit.ID] {
+		if json.Unmarshal([]byte(row.DetailJSON), &hit) == nil {
+			seen[hit.ID] = struct{}{}
 			result = append(result, hit)
 		}
 	}
+	s.mu.Lock()
+	for _, hit := range s.events {
+		if _, exists := seen[hit.ID]; exists {
+			continue
+		}
+		seen[hit.ID] = struct{}{}
+		result = append(result, hit)
+	}
+	managers := make([]*camouflage.Manager, 0, len(s.managers))
+	for _, manager := range s.managers {
+		managers = append(managers, manager)
+	}
+	s.mu.Unlock()
+	for _, manager := range managers {
+		for _, hit := range manager.Events(limit) {
+			if _, exists := seen[hit.ID]; exists {
+				continue
+			}
+			seen[hit.ID] = struct{}{}
+			result = append(result, hit)
+		}
+	}
+	sort.SliceStable(result, func(i, j int) bool { return result[i].Time > result[j].Time })
 	if len(result) > limit {
 		result = result[:limit]
 	}
@@ -166,19 +372,24 @@ func (s *WafCamouflageService) Events(limit int) ([]camouflage.Hit, error) {
 }
 
 func (s *WafCamouflageService) handleHit(hit camouflage.Hit) camouflage.Hit {
-	config := s.manager.Config()
-	if !hit.LocalLAN && config.BlockPublic {
-		hit = s.blockPublic(hit, config)
+	if !hit.LocalLAN {
+		hit = s.blockNonLocal(hit)
 	}
 	s.persistHit(hit)
+	s.mu.Lock()
+	if len(s.events) >= maxCamouflageServiceEvents {
+		copy(s.events, s.events[len(s.events)-maxCamouflageServiceEvents+1:])
+		s.events = s.events[:maxCamouflageServiceEvents-1]
+	}
+	s.events = append(s.events, hit)
+	s.mu.Unlock()
 	return hit
 }
 
-func (s *WafCamouflageService) blockPublic(hit camouflage.Hit, config camouflage.Config) camouflage.Hit {
+func (s *WafCamouflageService) blockNonLocal(hit camouflage.Hit) camouflage.Hit {
 	s.blockMu.Lock()
 	defer s.blockMu.Unlock()
-	ip, err := netip.ParseAddr(hit.ClientIP)
-	if err != nil || !ip.IsValid() {
+	if _, err := netip.ParseAddr(hit.ClientIP); err != nil {
 		hit.BlockError = "invalid client IP"
 		return hit
 	}
@@ -189,12 +400,11 @@ func (s *WafCamouflageService) blockPublic(hit camouflage.Hit, config camouflage
 		return hit
 	}
 	s.mu.Unlock()
-	reason := fmt.Sprintf("protocol camouflage probe on %s score=%d probe=%s", config.Profile, hit.Score, hit.Probe)
-	err = s.blockIP(request.WafFirewallIPBlockAddReq{
+	err := s.blockIP(request.WafFirewallIPBlockAddReq{
 		IP:         hit.ClientIP,
-		Reason:     reason,
+		Reason:     fmt.Sprintf("protocol camouflage probe on %s score=%d probe=%s", hit.Profile, hit.Score, hit.Probe),
 		BlockType:  "auto",
-		ExpireTime: time.Now().Add(time.Duration(config.BanSeconds) * time.Second).Unix(),
+		ExpireTime: time.Now().Add(camouflage.DefaultBanDays * 24 * time.Hour).Unix(),
 		Remarks:    "Automatic 90-day block from protocol camouflage",
 	})
 	if err != nil {
@@ -206,7 +416,7 @@ func (s *WafCamouflageService) blockPublic(hit camouflage.Hit, config camouflage
 		return hit
 	}
 	s.mu.Lock()
-	s.blocked[hit.ClientIP] = time.Now().Add(time.Duration(config.BanSeconds) * time.Second)
+	s.blocked[hit.ClientIP] = time.Now().Add(camouflage.DefaultBanDays * 24 * time.Hour)
 	s.mu.Unlock()
 	hit.Blocked = true
 	return hit
@@ -250,6 +460,17 @@ func (s *WafCamouflageService) ClearEvents() error {
 	if err := global.GWAF_LOCAL_LOG_DB.Where("kind = ?", "camouflage").Delete(&model.PipelineLog{}).Error; err != nil {
 		return err
 	}
-	s.manager.ClearEvents()
+	s.mu.Lock()
+	managers := make([]*camouflage.Manager, 0, len(s.managers))
+	for _, manager := range s.managers {
+		managers = append(managers, manager)
+	}
+	s.mu.Unlock()
+	for _, manager := range managers {
+		manager.ClearEvents()
+	}
+	s.mu.Lock()
+	s.events = nil
+	s.mu.Unlock()
 	return nil
 }

@@ -36,6 +36,13 @@ export default [
         meta: { title: 'menu.pipeline.ports', keepAlive: false, roleCode: 'WafHost' },
       },
       {
+        path: 'protocol-defense',
+        alias: '/waf/protocol-defense',
+        name: 'WafProtocolDefense',
+        component: () => import('@/pages/waf/protocol-defense/index.vue'),
+        meta: { title: 'menu.pipeline.protocol_defense', keepAlive: false, roleCode: 'WafHost' },
+      },
+      {
         path: 'templates',
         name: 'WafPipelineTemplates',
         component: () => import('@/pages/waf/pipeline/index.vue'),
@@ -237,12 +244,6 @@ export default [
     redirect: '/waf/wafvisitlog',
     meta: { title: 'menu.visit_log.parent_title', icon: LightingCircleIcon },
     children: [
-      {
-        path: 'protocol-defense',
-        name: 'WafProtocolDefense',
-        component: () => import('@/pages/waf/protocol-defense/index.vue'),
-        meta: { title: 'menu.visit_log.protocol_defense', roleCode: 'WafHost', keepAlive: false },
-      },
       {
         path: 'wafvisitlog',
         name: 'WafvisitLog',

@@ -49,15 +49,45 @@ type Config struct {
 	ListenIPVersion string `json:"listen_ip_version"`
 }
 
+type ProfileConfig struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Enabled         bool   `json:"enabled"`
+	Port            uint16 `json:"port"`
+	ProtocolProfile string `json:"protocol_profile"`
+	Version         string `json:"version"`
+	ServerName      string `json:"server_name"`
+	ListenIPVersion string `json:"listen_ip_version"`
+}
+
+type DefenseConfig struct {
+	Profiles      []ProfileConfig `json:"profiles"`
+	LocalCIDRMode string          `json:"local_cidr_mode"`
+	LocalCIDRs    []string        `json:"local_cidrs"`
+}
+
+type ProfileStatus struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Enabled   bool   `json:"enabled"`
+	Running   bool   `json:"running"`
+	Port      uint16 `json:"port"`
+	LastError string `json:"last_error,omitempty"`
+}
+
 type Profile struct {
-	Code           string `json:"code"`
-	Name           string `json:"name"`
-	Group          string `json:"group"`
-	Transport      string `json:"transport"`
-	TLS            bool   `json:"tls"`
-	DefaultPort    uint16 `json:"default_port"`
-	DefaultVersion string `json:"default_version"`
-	Description    string `json:"description"`
+	Code            string `json:"code"`
+	Name            string `json:"name"`
+	Group           string `json:"group"`
+	Transport       string `json:"transport"`
+	TLS             bool   `json:"tls"`
+	DefaultPort     uint16 `json:"default_port"`
+	DefaultVersion  string `json:"default_version"`
+	VersionEditable bool   `json:"version_editable"`
+	Description     string `json:"description"`
+	NmapService     string `json:"nmap_service"`
+	NmapProbe       string `json:"nmap_probe"`
+	NmapEvidence    string `json:"nmap_evidence"`
 }
 
 type Status struct {
@@ -100,16 +130,25 @@ var profiles = []Profile{
 	{Code: "https", Name: "通用 Web HTTPS", Group: "常用协议", Transport: "tcp", TLS: true, DefaultPort: DefaultTLSPort, DefaultVersion: "nginx/1.24.0", Description: "先完成 TLS，再返回普通 HTTPS 服务响应"},
 	{Code: "ssh", Name: "OpenSSH", Group: "常用协议", Transport: "tcp", DefaultPort: 22, DefaultVersion: "OpenSSH_9.6p1", Description: "发送标准 SSH-2.0 服务端版本行"},
 	{Code: "ftp", Name: "FTP", Group: "常用协议", Transport: "tcp", DefaultPort: 21, DefaultVersion: "vsftpd 3.0.5", Description: "返回 FTP 220 欢迎语和基础命令响应"},
-	{Code: "ftps", Name: "FTP over TLS", Group: "常用协议", Transport: "tcp", TLS: true, DefaultPort: 990, DefaultVersion: "FileZilla Server 1.8.2", Description: "在 TLS 上提供兼容 FTP 的欢迎语"},
+	{Code: "ftps", Name: "FTP over TLS", Group: "常用协议", Transport: "tcp", TLS: true, DefaultPort: 990, DefaultVersion: "1.8.2", Description: "在 TLS 上返回 FileZilla 风格的 FTP 服务欢迎语"},
 	{Code: "smtp", Name: "SMTP", Group: "常用协议", Transport: "tcp", DefaultPort: 25, DefaultVersion: "Postfix", Description: "返回 ESMTP 欢迎语和 EHLO 能力列表"},
 	{Code: "imap", Name: "IMAP4", Group: "常用协议", Transport: "tcp", DefaultPort: 143, DefaultVersion: "Dovecot", Description: "返回 IMAP4rev1 能力与退出响应"},
 	{Code: "pop3", Name: "POP3", Group: "常用协议", Transport: "tcp", DefaultPort: 110, DefaultVersion: "Dovecot", Description: "返回 POP3 ready 欢迎语"},
 	{Code: "dns", Name: "DNS / BIND", Group: "家庭常用", Transport: "udp", DefaultPort: 53, DefaultVersion: "BIND 9.18.24", Description: "回答 version.bind TXT 查询和基础 DNS 探针"},
 	{Code: "smb", Name: "SMB / CIFS", Group: "家庭常用", Transport: "tcp", DefaultPort: 445, DefaultVersion: "Samba 4.19.5", Description: "返回 SMB 协商响应，适合 NAS 探测画像"},
+	{Code: "nfs", Name: "NFS", Group: "家庭常用", Transport: "udp", DefaultPort: 2049, DefaultVersion: "NFSv2", Description: "回答 Nmap 的 NFSv2 NULL RPC 探针"},
+	{Code: "mdns", Name: "mDNS / DNS-SD", Group: "家庭常用", Transport: "udp", DefaultPort: 5353, DefaultVersion: "DNS-SD", Description: "回答局域网服务发现查询并发布常见家庭服务"},
+	{Code: "upnp", Name: "UPnP / SSDP", Group: "家庭常用", Transport: "udp", DefaultPort: 1900, DefaultVersion: "2.3.7", Description: "回答 SSDP M-SEARCH 并返回 MiniUPnP 风格设备公告"},
+	{Code: "nat-pmp", Name: "NAT-PMP 路由器映射", Group: "家庭常用", Transport: "udp", DefaultPort: 5351, DefaultVersion: "", Description: "回答获取公网 IPv4 地址的 NAT-PMP 请求"},
+	{Code: "coap", Name: "CoAP 智能设备", Group: "家庭常用", Transport: "udp", DefaultPort: 5683, DefaultVersion: "libcoap/4.3.5", Description: "回答 CoAP .well-known/core 资源发现探针"},
 	{Code: "rtsp", Name: "RTSP 摄像头", Group: "家庭常用", Transport: "tcp", DefaultPort: 554, DefaultVersion: "go2rtc", Description: "返回 RTSP OPTIONS 响应和 Server 字段"},
 	{Code: "sip", Name: "SIP / VoIP", Group: "家庭常用", Transport: "udp", DefaultPort: 5060, DefaultVersion: "Asterisk 20.6.0", Description: "回答 SIP OPTIONS 请求"},
 	{Code: "mqtt", Name: "MQTT", Group: "家庭常用", Transport: "tcp", DefaultPort: 1883, DefaultVersion: "Eclipse Mosquitto 2.0.18", Description: "返回 MQTT 连接确认帧"},
-	{Code: "nas-generic", Name: "通用家庭 NAS", Group: "NAS 厂商画像", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "NAS Web Console", Description: "不携带厂商标识的通用 NAS 管理入口，默认画像"},
+	{Code: "ipp", Name: "IPP / CUPS 打印服务", Group: "家庭常用", Transport: "tcp", DefaultPort: 631, DefaultVersion: "2.4.7", Description: "返回 Nmap 可匹配的 CUPS HTTP 服务头"},
+	{Code: "rsync", Name: "rsync 文件同步", Group: "家庭常用", Transport: "tcp", DefaultPort: 873, DefaultVersion: "31.0", Description: "返回 rsync daemon 协议版本问候"},
+	{Code: "vnc", Name: "VNC 远程桌面", Group: "家庭常用", Transport: "tcp", DefaultPort: 5900, DefaultVersion: "003.008", Description: "返回标准 RFB 服务端版本行"},
+	{Code: "tftp", Name: "TFTP 设备配置传输", Group: "家庭常用", Transport: "udp", DefaultPort: 69, DefaultVersion: "RFC 1350", Description: "对读取探针返回标准 TFTP 错误帧"},
+	{Code: "telnet", Name: "Telnet 路由器管理", Group: "家庭常用", Transport: "tcp", DefaultPort: 23, DefaultVersion: "", Description: "返回标准 Telnet 选项协商与登录提示"},
 	{Code: "synology-http", Name: "Synology DSM", Group: "NAS 厂商画像", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "DSM 7.2.1-69057", Description: "返回 DSM 风格首页和 nginx 头部"},
 	{Code: "fnos-http", Name: "飞牛 fnOS", Group: "NAS 厂商画像", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "fnOS 1.1.16", Description: "返回飞牛管理入口风格首页，不暴露真实后端"},
 	{Code: "qnap-http", Name: "威联通 QNAP", Group: "NAS 厂商画像", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "QTS 5.1.7", Description: "返回 QNAP 管理入口风格首页"},
@@ -126,20 +165,278 @@ var profiles = []Profile{
 
 func Profiles() []Profile {
 	out := append([]Profile(nil), profiles...)
+	for i := range out {
+		out[i] = annotateNmapEvidence(out[i])
+	}
 	return out
 }
 
 func ProfileByCode(code string) (Profile, bool) {
 	for _, p := range profiles {
 		if p.Code == code {
-			return p, true
+			return annotateNmapEvidence(p), true
 		}
 	}
 	return Profile{}, false
 }
 
 func DefaultConfig() Config {
-	return Config{Enabled: false, Port: DefaultTCPPort, Profile: "nas-generic", Version: "NAS Web Console", ServerName: "nas", BlockPublic: true, BanSeconds: DefaultBanSeconds, ListenIPVersion: "dual"}
+	return Config{Enabled: false, Port: DefaultTCPPort, Profile: "http", Version: "nginx/1.24.0", ServerName: "nas", BlockPublic: true, BanSeconds: DefaultBanSeconds, ListenIPVersion: "dual"}
+}
+
+func migrateLegacyProfile(profile, version string) (string, string) {
+	if profile != "nas-generic" {
+		return profile, version
+	}
+	if version == "" || version == "NAS Web Console" {
+		version = "nginx/1.24.0"
+	}
+	return "http", version
+}
+
+func annotateNmapEvidence(profile Profile) Profile {
+	profile.NmapService = profile.Code
+	profile.NmapEvidence = "Nmap service label: " + profile.Code
+	profile.NmapProbe = "NULL"
+	switch profile.Code {
+	case "http", "https", "ssh", "ftp", "ftps", "smtp", "imap", "pop3", "dns", "rtsp", "sip", "mysql", "redis", "memcached", "snmp", "rsync", "vnc", "ipp", "upnp", "coap", "synology-http", "fnos-http", "qnap-http", "xiaomi-http":
+		profile.VersionEditable = true
+	}
+	switch profile.Code {
+	case "http":
+		profile.NmapService = "http"
+		profile.NmapProbe = "GetRequest"
+		profile.NmapEvidence = "识别为 HTTP 协议。Nmap 规则不据此确认页面品牌"
+	case "synology-http":
+		profile.NmapService = "http"
+		profile.NmapProbe = "GetRequest"
+		profile.NmapEvidence = "只能识别为 HTTP；本地 Nmap 规则中的 Synology 命中来自 FTP、DNS、UPnP 等其他服务"
+	case "qnap-http":
+		profile.NmapService = "http"
+		profile.NmapProbe = "GetRequest"
+		profile.NmapEvidence = "只能识别为 HTTP；已知 QNAP HTTP 规则匹配的是特定旧版响应特征，不匹配本画像的通用首页"
+	case "fnos-http", "xiaomi-http":
+		profile.NmapService = "http"
+		profile.NmapProbe = "GetRequest"
+		profile.NmapEvidence = "只能识别为 HTTP；本地 Nmap service-probes 未发现该厂商产品匹配规则"
+	case "https":
+		profile.NmapService = "ssl/http"
+		profile.NmapProbe = "SSLSessionReq → GetRequest"
+		profile.NmapEvidence = "TLS 握手后识别 HTTP 服务，不确认页面品牌"
+	case "ftps":
+		profile.NmapService = "ssl/ftp"
+		profile.NmapProbe = "SSLSessionReq → NULL"
+		profile.NmapEvidence = "TLS 握手后的 FileZilla 欢迎语匹配 Nmap FTP 产品规则"
+	case "ftp":
+		profile.NmapEvidence = "NULL 探针读取 vsFTPd 欢迎语；版本格式匹配 Nmap FTP 规则"
+	case "smtp":
+		profile.NmapEvidence = "NULL 探针读取 ESMTP 欢迎语；Postfix 标识匹配 Nmap SMTP 规则"
+	case "imap":
+		profile.NmapEvidence = "NULL 探针读取 Dovecot IMAP capability 欢迎语"
+	case "pop3":
+		profile.NmapEvidence = "NULL 探针读取 Dovecot POP3 欢迎语"
+	case "dns":
+		profile.NmapService = "domain"
+		profile.NmapProbe = "DNSVersionBindReq"
+		profile.NmapEvidence = "DNS version.bind 查询响应；产品名取决于版本字符串是否匹配规则"
+	case "smb":
+		profile.NmapService = "microsoft-ds"
+		profile.NmapProbe = "SMBProgNeg"
+		profile.NmapEvidence = "SMB 协商探针；产品识别取决于协商响应特征"
+	case "mysql":
+		profile.NmapService = "mysql"
+		profile.NmapProbe = "NULL (server greeting)"
+		profile.NmapEvidence = "服务端初始握手中的 MySQL 版本字段"
+	case "postgresql":
+		profile.NmapService = "postgresql"
+		profile.NmapProbe = "NULL / PostgreSQL startup probes"
+		profile.NmapEvidence = "PostgreSQL 启动或 SSL 请求探针"
+	case "redis":
+		profile.NmapService = "redis"
+		profile.NmapProbe = "redis-server"
+		profile.NmapEvidence = "INFO 响应中的 redis_version 字段"
+	case "memcached":
+		profile.NmapService = "memcached"
+		profile.NmapProbe = "Memcache"
+		profile.NmapEvidence = "stats/version 命令响应"
+	case "ldap":
+		profile.NmapProbe = "LDAPSearchReq / LDAPBindReq"
+		profile.NmapEvidence = "LDAP BER 编码查询响应"
+	case "snmp":
+		profile.NmapService = "snmp"
+		profile.NmapProbe = "SNMPv1public / SNMPv3GetRequest"
+		profile.NmapEvidence = "SNMP 查询响应；产品识别取决于 OID 返回值"
+	case "ntp":
+		profile.NmapService = "ntp"
+		profile.NmapProbe = "NTPRequest"
+		profile.NmapEvidence = "NTP 状态响应；通用帧不声明具体厂商版本"
+	case "rtsp":
+		profile.NmapService = "rtsp"
+		profile.NmapProbe = "RTSPRequest"
+		profile.NmapEvidence = "RTSP 请求与响应头"
+	case "sip":
+		profile.NmapService = "sip"
+		profile.NmapProbe = "SIPOptions"
+		profile.NmapEvidence = "SIP OPTIONS 响应头；Server 字段可携带配置值"
+	case "mqtt":
+		profile.NmapService = "mqtt"
+		profile.NmapProbe = "mqtt"
+		profile.NmapEvidence = "MQTT CONNACK 帧，可识别 MQTT 服务"
+	case "rsync":
+		profile.NmapService = "rsync"
+		profile.NmapProbe = "NULL"
+		profile.NmapEvidence = "@RSYNCD 协商问候中的协议版本"
+	case "vnc":
+		profile.NmapService = "vnc"
+		profile.NmapProbe = "NULL"
+		profile.NmapEvidence = "RFB 服务端版本行"
+	case "tftp":
+		profile.NmapService = "tftp"
+		profile.NmapProbe = "TFTP_GET"
+		profile.NmapEvidence = "TFTP ERROR 响应可触发 Nmap 的通用 softmatch，不声明产品版本"
+	case "mdns":
+		profile.NmapService = "mdns"
+		profile.NmapProbe = "DNS_SD_QU"
+		profile.NmapEvidence = "DNS-SD 响应匹配 Nmap 的通用 mdns softmatch，不声明产品版本"
+	case "nfs":
+		profile.NmapService = "nfs"
+		profile.NmapProbe = "NFSPROC_NULL"
+		profile.NmapEvidence = "NFSv2 NULL RPC 探针；响应确认 NFS/RPC 协议，不声明厂商版本"
+	case "upnp":
+		profile.NmapService = "upnp"
+		profile.NmapProbe = "UPNP_MSEARCH"
+		profile.NmapEvidence = "Nmap 在 UDP/1900 发送 SSDP M-SEARCH；默认服务表名称为 upnp，产品匹配依赖设备响应特征"
+	case "nat-pmp":
+		profile.NmapService = "nat-pmp"
+		profile.NmapProbe = "NAT_PMP_ADDR"
+		profile.NmapEvidence = "Nmap 在 UDP/5351 请求公网地址；响应使用 NAT-PMP 成功报文，不声明路由器厂商"
+	case "coap":
+		profile.NmapService = "coap"
+		profile.NmapProbe = "coap-request"
+		profile.NmapEvidence = "Nmap 以 ACK 2.05 响应 softmatch 为 CoAP，不会从该规则提取产品版本"
+	case "ipp":
+		profile.NmapService = "ipp"
+		profile.NmapProbe = "GetRequest"
+		profile.NmapEvidence = "CUPS Server 响应头匹配 Nmap 的 IPP 产品版本规则"
+	case "telnet":
+		profile.NmapService = "telnet"
+		profile.NmapProbe = "NULL / GenericLines"
+		profile.NmapEvidence = "IAC 协商响应匹配 Nmap 的 BusyBox telnetd softmatch（1.14+）"
+	case "rdp":
+		profile.NmapService = "ms-wbt-server"
+		profile.NmapProbe = "TerminalServer"
+		profile.NmapEvidence = "X.224 Connection Request 响应可匹配 Microsoft Terminal Services"
+	}
+	return profile
+}
+
+func DefaultDefenseConfig() DefenseConfig {
+	return DefenseConfig{Profiles: []ProfileConfig{}, LocalCIDRMode: "auto", LocalCIDRs: []string{}}
+}
+
+func NormalizeProfileConfig(profile ProfileConfig) (ProfileConfig, error) {
+	if strings.TrimSpace(profile.ID) == "" || len(profile.ID) > 80 || strings.ContainsAny(profile.ID, "\r\n") {
+		return profile, errors.New("profile id is required")
+	}
+	profile.Name = strings.TrimSpace(profile.Name)
+	if profile.Name == "" || len(profile.Name) > 80 || strings.ContainsAny(profile.Name, "\r\n") {
+		return profile, errors.New("profile name must be between 1 and 80 characters")
+	}
+	profile.ProtocolProfile, profile.Version = migrateLegacyProfile(profile.ProtocolProfile, profile.Version)
+	protocol, ok := ProfileByCode(profile.ProtocolProfile)
+	if !ok {
+		return profile, fmt.Errorf("unknown protocol profile %q", profile.ProtocolProfile)
+	}
+	if profile.Port == 0 {
+		profile.Port = protocol.DefaultPort
+		if profile.Port == 80 {
+			profile.Port = DefaultTCPPort
+		} else if profile.Port == 443 {
+			profile.Port = DefaultTLSPort
+		}
+	}
+	if profile.Version == "" {
+		profile.Version = protocol.DefaultVersion
+	}
+	if profile.ServerName == "" {
+		profile.ServerName = "nas"
+	}
+	if len(profile.Version) > 128 || strings.ContainsAny(profile.Version, "\r\n") {
+		return profile, errors.New("invalid camouflage version")
+	}
+	if len(profile.ServerName) > 128 || strings.ContainsAny(profile.ServerName, "\r\n") {
+		return profile, errors.New("invalid camouflage server name")
+	}
+	if profile.ListenIPVersion == "" {
+		profile.ListenIPVersion = "dual"
+	}
+	if profile.ListenIPVersion != "dual" && profile.ListenIPVersion != "ipv4" && profile.ListenIPVersion != "ipv6" {
+		return profile, errors.New("listen_ip_version must be dual, ipv4 or ipv6")
+	}
+	return profile, nil
+}
+
+func NormalizeDefenseConfig(config DefenseConfig) (DefenseConfig, error) {
+	if config.Profiles == nil {
+		config.Profiles = []ProfileConfig{}
+	}
+	if len(config.Profiles) > 100 {
+		return config, errors.New("at most 100 camouflage profiles are allowed")
+	}
+	ids := make(map[string]struct{}, len(config.Profiles))
+	activePorts := make(map[uint16]string, len(config.Profiles))
+	for i, profile := range config.Profiles {
+		normalized, err := NormalizeProfileConfig(profile)
+		if err != nil {
+			return config, fmt.Errorf("profile %d: %w", i+1, err)
+		}
+		if _, ok := ids[normalized.ID]; ok {
+			return config, fmt.Errorf("duplicate camouflage profile id %q", normalized.ID)
+		}
+		ids[normalized.ID] = struct{}{}
+		if normalized.Enabled {
+			if previous, ok := activePorts[normalized.Port]; ok {
+				return config, fmt.Errorf("enabled camouflage profiles %q and %q use the same port", previous, normalized.Name)
+			}
+			activePorts[normalized.Port] = normalized.Name
+		}
+		config.Profiles[i] = normalized
+	}
+	if config.LocalCIDRMode == "" {
+		config.LocalCIDRMode = "auto"
+	}
+	if config.LocalCIDRMode != "auto" && config.LocalCIDRMode != "custom" {
+		return config, errors.New("local_cidr_mode must be auto or custom")
+	}
+	if config.LocalCIDRMode == "auto" {
+		config.LocalCIDRs = []string{}
+		return config, nil
+	}
+	if len(config.LocalCIDRs) > 128 {
+		return config, errors.New("at most 128 local CIDRs are allowed")
+	}
+	seen := make(map[string]struct{}, len(config.LocalCIDRs))
+	localCIDRs := make([]string, 0, len(config.LocalCIDRs))
+	for _, raw := range config.LocalCIDRs {
+		prefix, err := netip.ParsePrefix(strings.TrimSpace(raw))
+		if err != nil {
+			return config, fmt.Errorf("invalid local CIDR %q", raw)
+		}
+		addr := prefix.Addr().Unmap()
+		prefix = netip.PrefixFrom(addr, prefix.Bits()).Masked()
+		if addr.Is4() && prefix.Bits() < 24 || addr.Is6() && prefix.Bits() < 64 {
+			return config, fmt.Errorf("local CIDR %q is broader than IPv4 /24 or IPv6 /64", raw)
+		}
+		value := prefix.String()
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		localCIDRs = append(localCIDRs, value)
+	}
+	sort.Strings(localCIDRs)
+	config.LocalCIDRs = localCIDRs
+	return config, nil
 }
 
 func NormalizeConfig(cfg Config) (Config, error) {
@@ -150,8 +447,9 @@ func NormalizeConfig(cfg Config) (Config, error) {
 		return cfg, errors.New("camouflage port must be between 1 and 65535")
 	}
 	if cfg.Profile == "" {
-		cfg.Profile = "nas-generic"
+		cfg.Profile = "http"
 	}
+	cfg.Profile, cfg.Version = migrateLegacyProfile(cfg.Profile, cfg.Version)
 	p, ok := ProfileByCode(cfg.Profile)
 	if !ok {
 		return cfg, fmt.Errorf("unknown camouflage profile %q", cfg.Profile)
@@ -198,12 +496,21 @@ type Manager struct {
 	sink           func(Hit) Hit
 	events         []Hit
 	managementLANs map[string]struct{}
+	localCIDRMode  string
+	customCIDRs    []string
 }
 
 func NewManager(sink func(Hit) Hit) *Manager {
 	cfg := DefaultConfig()
 	profile, _ := ProfileByCode(cfg.Profile)
 	return &Manager{cfg: cfg, profile: profile, sink: sink, managementLANs: map[string]struct{}{}}
+}
+
+func (m *Manager) SetLocalCIDRs(mode string, cidrs []string) {
+	m.mu.Lock()
+	m.localCIDRMode = mode
+	m.customCIDRs = append([]string(nil), cidrs...)
+	m.mu.Unlock()
 }
 
 func (m *Manager) ObserveManagementClientIP(raw string) {
@@ -230,18 +537,27 @@ func (m *Manager) isLocalLAN(addr netip.Addr) bool {
 }
 
 func (m *Manager) localCIDRs() []string {
+	m.mu.Lock()
+	mode := m.localCIDRMode
+	custom := append([]string(nil), m.customCIDRs...)
+	management := make([]string, 0, len(m.managementLANs))
+	for prefix := range m.managementLANs {
+		management = append(management, prefix)
+	}
+	m.mu.Unlock()
+	if mode == "custom" {
+		return custom
+	}
 	out := LocalCIDRs()
 	seen := make(map[string]struct{}, len(out))
 	for _, prefix := range out {
 		seen[prefix] = struct{}{}
 	}
-	m.mu.Lock()
-	for prefix := range m.managementLANs {
+	for _, prefix := range management {
 		if _, ok := seen[prefix]; !ok {
 			out = append(out, prefix)
 		}
 	}
-	m.mu.Unlock()
 	sort.Strings(out)
 	return out
 }
@@ -480,16 +796,28 @@ func tcpGreeting(p Profile, cfg Config) []byte {
 	switch p.Code {
 	case "ssh":
 		return []byte("SSH-2.0-" + version + "\r\n")
-	case "ftp", "ftps":
-		return []byte("220 " + cfg.ServerName + " FTP server (" + version + ") ready.\r\n")
+	case "ftp":
+		version = strings.TrimPrefix(version, "vsFTPd ")
+		version = strings.TrimPrefix(version, "vsftpd ")
+		return []byte("220 (vsFTPd " + version + ")\r\n")
+	case "ftps":
+		version = strings.TrimPrefix(version, "FileZilla Server version ")
+		version = strings.TrimPrefix(version, "FileZilla Server ")
+		return []byte("220 FileZilla Server version " + version + "\r\n")
 	case "smtp":
 		return []byte("220 " + cfg.ServerName + " ESMTP " + version + "\r\n")
 	case "pop3":
-		return []byte("+OK " + cfg.ServerName + " POP3 server ready\r\n")
+		return []byte("+OK Dovecot ready.\r\n")
 	case "imap":
-		return []byte("* OK " + cfg.ServerName + " IMAP4rev1 " + version + " ready\r\n")
+		return []byte("* OK [CAPABILITY IMAP4rev1] Dovecot ready.\r\n")
+	case "telnet":
+		return []byte{0xff, 0xfd, 0x01, 0xff, 0xfd, 0x1f, 0xff, 0xfb, 0x01, 0xff, 0xfb, 0x03, '\r', '\n', 'l', 'o', 'g', 'i', 'n', ':', ' '}
 	case "mysql":
 		return mysqlHandshake(version)
+	case "rsync":
+		return []byte("@RSYNCD: " + version + "\n")
+	case "vnc":
+		return []byte("RFB " + version + "\n")
 	}
 	return nil
 }
@@ -499,15 +827,15 @@ func tcpResponse(p Profile, cfg Config, payload []byte) []byte {
 	case "http", "https":
 		return httpResponse(cfg, "Home NAS Web Console", "")
 	case "synology-http":
-		return httpResponse(cfg, "Synology DiskStation", "Synology")
+		return httpResponse(cfg, "Synology DiskStation", "nginx")
 	case "fnos-http":
 		return httpResponse(cfg, "飞牛 NAS", "fnOS")
 	case "qnap-http":
 		return httpResponse(cfg, "QNAP TurboStation", "QTS")
 	case "xiaomi-http":
 		return httpResponse(cfg, "Mi Home", "Mi Router")
-	case "nas-generic":
-		return httpResponse(cfg, "NAS Web Console", "NAS")
+	case "ipp":
+		return ippResponse(cfg.Version)
 	case "ssh":
 		return nil
 	case "ftp", "ftps":
@@ -541,7 +869,14 @@ func tcpResponse(p Profile, cfg Config, payload []byte) []byte {
 	case "ldap":
 		return []byte{0x30, 0x0c, 0x02, 0x01, 0x01, 0x61, 0x07, 0x0a, 0x01, 0x00, 0x04, 0x00, 0x04, 0x00}
 	case "mqtt":
-		return []byte{0x20, 0x02, 0x00, 0x00}
+		if len(payload) >= 8 && payload[0] == 0x10 && bytes.Contains(payload, []byte("MQTT")) {
+			return []byte{0x20, 0x02, 0x00, 0x00}
+		}
+		return nil
+	case "rsync":
+		return []byte("@RSYNCD: EXIT\n")
+	case "vnc":
+		return nil
 	}
 	return nil
 }
@@ -558,16 +893,129 @@ func udpResponse(p Profile, cfg Config, payload []byte) []byte {
 		return snmpResponse(payload, cfg.Version)
 	case "memcached":
 		return memcachedUDPResponse(payload, cfg.Version)
+	case "nfs":
+		if isNFSNullProbe(payload) {
+			return oncrpcNullReply(payload)
+		}
+	case "tftp":
+		if len(payload) >= 2 && binary.BigEndian.Uint16(payload[:2]) == 1 {
+			return []byte{0x00, 0x05, 0x00, 0x02, 'A', 'c', 'c', 'e', 's', 's', ' ', 'v', 'i', 'o', 'l', 'a', 't', 'i', 'o', 'n', 0}
+		}
+	case "upnp":
+		if isSSDPDiscover(payload) {
+			return ssdpResponse(cfg)
+		}
+	case "coap":
+		return coapResponse(payload, cfg.Version)
+	case "nat-pmp":
+		if len(payload) == 2 && payload[0] == 0 && payload[1] == 0 {
+			return natPMPAddressResponse()
+		}
+	case "mdns":
+		return mdnsResponse(payload)
 	}
 	return nil
+}
+
+func isSSDPDiscover(payload []byte) bool {
+	request := bytes.ToUpper(payload)
+	return bytes.HasPrefix(request, []byte("M-SEARCH * HTTP/1.1\r\n")) &&
+		bytes.Contains(request, []byte("MAN: \"SSDP:DISCOVER\"")) &&
+		bytes.Contains(request, []byte("ST:"))
+}
+
+func ssdpResponse(cfg Config) []byte {
+	serverName := strings.TrimSpace(cfg.ServerName)
+	if serverName == "" {
+		serverName = "nas"
+	}
+	version := strings.TrimPrefix(cfg.Version, "MiniUPnPd/")
+	version = strings.TrimPrefix(version, "miniupnpd/")
+	body := "HTTP/1.1 200 OK\r\n" +
+		"CACHE-CONTROL: max-age=1800\r\n" +
+		"DATE: " + time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT") + "\r\n" +
+		"EXT:\r\n" +
+		"LOCATION: http://" + serverName + "/rootDesc.xml\r\n" +
+		"SERVER: Linux/6.1 UPnP/1.1 MiniUPnPd/" + version + "\r\n" +
+		"ST: upnp:rootdevice\r\n" +
+		"USN: uuid:" + serverName + "-root::upnp:rootdevice\r\n\r\n"
+	return []byte(body)
+}
+
+func isCoAPGet(payload []byte) bool {
+	if len(payload) < 4 || payload[0]>>6 != 1 || payload[1] != 1 {
+		return false
+	}
+	typeCode := (payload[0] >> 4) & 0x03
+	tokenLength := int(payload[0] & 0x0f)
+	return typeCode <= 1 && tokenLength <= 8 && len(payload) >= 4+tokenLength
+}
+
+func coapResponse(request []byte, version string) []byte {
+	if !isCoAPGet(request) {
+		return nil
+	}
+	tokenLength := int(request[0] & 0x0f)
+	responseType := byte(0x60)
+	if request[0]&0x30 == 0x10 {
+		responseType = 0x50
+	}
+	response := []byte{responseType | byte(tokenLength), 0x45, request[2], request[3]}
+	response = append(response, request[4:4+tokenLength]...)
+	response = append(response, 0xc1, 0x00, 0xff)
+	response = append(response, []byte("</>;ct=0;title=\"Home device "+version+"\"")...)
+	return response
+}
+
+func isNFSNullProbe(payload []byte) bool {
+	if len(payload) < 24 || binary.BigEndian.Uint32(payload[4:8]) != 0 || binary.BigEndian.Uint32(payload[8:12]) != 2 {
+		return false
+	}
+	return binary.BigEndian.Uint32(payload[12:16]) == 100003 &&
+		binary.BigEndian.Uint32(payload[16:20]) == 2 &&
+		binary.BigEndian.Uint32(payload[20:24]) == 0
+}
+
+func oncrpcNullReply(request []byte) []byte {
+	if len(request) < 4 {
+		return nil
+	}
+	response := make([]byte, 24)
+	copy(response[:4], request[:4])
+	binary.BigEndian.PutUint32(response[4:8], 1)
+	binary.BigEndian.PutUint32(response[8:12], 0)
+	binary.BigEndian.PutUint32(response[12:16], 0)
+	binary.BigEndian.PutUint32(response[16:20], 0)
+	binary.BigEndian.PutUint32(response[20:24], 0)
+	return response
+}
+
+func natPMPAddressResponse() []byte {
+	return []byte{0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x10, 192, 0, 2, 1}
 }
 
 func httpResponse(cfg Config, title, server string) []byte {
 	if server == "" {
 		server = cfg.Version
 	}
+	versionHeader := ""
+	switch cfg.Profile {
+	case "synology-http":
+		versionHeader = "X-Syno-Version: " + cfg.Version + "\r\n"
+	case "fnos-http":
+		versionHeader = "X-fnOS-Version: " + cfg.Version + "\r\n"
+	case "qnap-http":
+		versionHeader = "X-QTS-Version: " + cfg.Version + "\r\n"
+	case "xiaomi-http":
+		versionHeader = "X-Mi-Model: " + cfg.Version + "\r\n"
+	}
 	body := "<!doctype html><html><head><meta charset=\"utf-8\"><title>" + title + "</title></head><body><h1>" + title + "</h1></body></html>"
-	return []byte("HTTP/1.1 200 OK\r\nServer: " + server + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + strconv.Itoa(len(body)) + "\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n" + body)
+	return []byte("HTTP/1.1 200 OK\r\nServer: " + server + "\r\n" + versionHeader + "Content-Type: text/html; charset=utf-8\r\nContent-Length: " + strconv.Itoa(len(body)) + "\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n" + body)
+}
+
+func ippResponse(version string) []byte {
+	body := "<!doctype html><html><head><title>Home - CUPS " + version + "</title></head><body><h1>Common UNIX Printing System</h1></body></html>"
+	return []byte("HTTP/1.0 200 OK\r\nServer: CUPS/" + version + "\r\nContent-Type: text/html\r\nContent-Length: " + strconv.Itoa(len(body)) + "\r\nConnection: close\r\n\r\n" + body)
 }
 
 func classify(profile string, payload []byte, configuredVersion string) (probe, protocol, version string, score int, evidence string) {
@@ -578,11 +1026,32 @@ func classify(profile string, payload []byte, configuredVersion string) (probe, 
 		return "SSHVersion", "SSH", version, 88, "SSH version exchange"
 	case profile == "mysql" && len(payload) == 0:
 		return "MySQLHandshake", "MySQL", version, 96, "MySQL initial handshake"
+	case profile == "ftp" && len(payload) == 0:
+		return "NULL", "FTP", version, 90, "Nmap FTP NULL probe received a vsFTPd greeting"
+	case profile == "ftps" && len(payload) == 0:
+		return "NULL", "FTP over TLS", version, 90, "Nmap TLS-wrapped FTP NULL probe received a FileZilla greeting"
+	case profile == "smtp" && len(payload) == 0:
+		return "NULL", "SMTP", version, 90, "Nmap SMTP NULL probe received an ESMTP greeting"
+	case profile == "imap" && len(payload) == 0:
+		return "NULL", "IMAP", version, 90, "Nmap IMAP NULL probe received a Dovecot greeting"
+	case profile == "pop3" && len(payload) == 0:
+		return "NULL", "POP3", version, 90, "Nmap POP3 NULL probe received a Dovecot greeting"
+	case profile == "telnet" && len(payload) == 0:
+		return "NULL", "Telnet", version, 88, "Nmap Telnet NULL probe received IAC negotiation"
+	case profile == "rsync" && len(payload) == 0:
+		return "RsyncProtocolVersion", "rsync", version, 94, "@RSYNCD protocol greeting"
+	case profile == "vnc" && len(payload) == 0:
+		return "VNCProtocolVersion", "VNC", version, 94, "RFB server version greeting"
+	case bytes.HasPrefix(payload, []byte("RFB ")):
+		return "VNCProtocolVersion", "VNC", version, 94, "RFB server version exchange"
 	case bytes.HasPrefix(upper, []byte("OPTIONS / RTSP")) || bytes.HasPrefix(upper, []byte("RTSP/")):
 		return "RTSPRequest", "RTSP", version, 94, "RTSP request probe"
 	case bytes.HasPrefix(upper, []byte("SIP/")) || bytes.HasPrefix(upper, []byte("OPTIONS SIP")):
 		return "SIPOptions", "SIP", version, 93, "SIP request probe"
 	case bytes.HasPrefix(upper, []byte("GET ")) || bytes.HasPrefix(upper, []byte("OPTIONS ")) || bytes.HasPrefix(upper, []byte("HEAD ")) || bytes.HasPrefix(upper, []byte("POST ")) || bytes.HasPrefix(upper, []byte("PUT ")) || bytes.HasPrefix(upper, []byte("DELETE ")):
+		if profile == "ipp" {
+			return "GetRequest", "IPP", version, 95, "Nmap HTTP GetRequest received a CUPS IPP service response"
+		}
 		return "GetRequest", "HTTP", version, 94, "HTTP request probe"
 	case bytes.HasPrefix(payload, []byte{0x16, 0x03}) || bytes.HasPrefix(payload, []byte{0x80, 0x9e, 0x01, 0x03}):
 		return "TLSSessionReq", "TLS", version, 96, "TLS ClientHello probe"
@@ -621,6 +1090,18 @@ func classify(profile string, payload []byte, configuredVersion string) (probe, 
 		return "POP3Probe", "POP3", version, 90, "POP3 command probe"
 	case isNTPProbe(payload):
 		return "NTPRequest", "NTP", version, 88, "NTP request probe"
+	case profile == "upnp" && isSSDPDiscover(payload):
+		return "UPNP_MSEARCH", "SSDP", version, 92, "Nmap SSDP M-SEARCH probe"
+	case profile == "coap" && isCoAPGet(payload):
+		return "coap-request", "CoAP", version, 92, "Nmap CoAP resource discovery probe"
+	case profile == "nat-pmp" && len(payload) == 2 && payload[0] == 0 && payload[1] == 0:
+		return "NAT_PMP_ADDR", "NAT-PMP", version, 88, "Nmap NAT-PMP external address request"
+	case profile == "nfs" && isNFSNullProbe(payload):
+		return "NFSPROC_NULL", "NFS", version, 94, "NFSv2 NULL RPC probe"
+	case profile == "mdns" && bytes.Contains(payload, []byte("_dns-sd")):
+		return "DNS_SD_QU", "mDNS", version, 84, "DNS-SD service discovery probe"
+	case profile == "tftp" && len(payload) >= 2 && binary.BigEndian.Uint16(payload[:2]) == 1:
+		return "TFTPReadRequest", "TFTP", version, 88, "TFTP RRQ probe"
 	case len(payload) > 0:
 		return "GenericProbe", profileProtocol(profile), version, 54, "connection payload matched configured decoy"
 	default:
@@ -867,6 +1348,29 @@ func dnsResponse(query []byte, version string) []byte {
 	response = append(response, 0xc0, 0x0c, 0x00, 0x10, 0x00, 0x03, 0x00, 0x00, 0x00, 0x3c, byte(rdLength>>8), byte(rdLength))
 	response = append(response, byte(len(version)))
 	response = append(response, []byte(version)...)
+	return response
+}
+
+func mdnsResponse(query []byte) []byte {
+	if !bytes.Contains(query, []byte("_services")) || !bytes.Contains(query, []byte("_dns-sd")) {
+		return nil
+	}
+	name := []byte{9, '_', 's', 'e', 'r', 'v', 'i', 'c', 'e', 's', 7, '_', 'd', 'n', 's', '-', 's', 'd', 4, '_', 'u', 'd', 'p', 5, 'l', 'o', 'c', 'a', 'l', 0}
+	services := []string{"_http._tcp.local", "_https._tcp.local", "_smb._tcp.local", "_rtsp._tcp.local", "_workstation._tcp.local"}
+	response := []byte{0x00, 0x00, 0x84, 0x00, 0x00, 0x00, 0x00, byte(len(services)), 0x00, 0x00, 0x00, 0x00}
+	for _, service := range services {
+		response = append(response, name...)
+		response = append(response, 0x00, 0x0c, 0x00, 0x01, 0x00, 0x00, 0x00, 0x78)
+		labels := strings.Split(service, ".")
+		var target []byte
+		for _, label := range labels {
+			target = append(target, byte(len(label)))
+			target = append(target, label...)
+		}
+		target = append(target, 0x00)
+		response = append(response, byte(len(target)>>8), byte(len(target)))
+		response = append(response, target...)
+	}
 	return response
 }
 

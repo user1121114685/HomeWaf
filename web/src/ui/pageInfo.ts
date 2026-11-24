@@ -7,7 +7,7 @@ export const pageDescriptions: Record<string, string> = {
   WafPipelineDiagnostics: '核对服务状态，追踪请求的处理原因，管理当前处罚。',
   WafPipelineTemplates: '复用防护设置；应用模板后，每个服务独立管理。',
   WafPipelineHoneypot: '集中管理蜜罐内容、运行限制与访问记录；服务选择蜜罐模式后共用设置。',
-  WafProtocolDefense: '评分识别协议探针并运行独立的家庭 NAS 伪装监听。',
+  WafProtocolDefense: '管理协议伪装画像、监听状态、本地网段和探针评分记录。',
   LegacyWafHosts: '查看已有站点，并迁入按端口管理的服务配置。',
   WebsiteDiagnostic: '从入口、证书到源站，逐项定位访问问题。',
   WafRule: '定义请求匹配条件和命中后的处理方式。',

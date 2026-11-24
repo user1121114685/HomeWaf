@@ -15,7 +15,11 @@ type WafCamouflageApi struct{}
 func (w *WafCamouflageApi) Config(c *gin.Context) {
 	service := waf_service.WafCamouflageServiceApp
 	service.ObserveManagementClientIP(utils.GetManageClientIP(c))
-	response.OkWithDetailed(gin.H{"config": service.GetConfig(), "status": service.Status()}, "", c)
+	response.OkWithDetailed(gin.H{"config": service.Config(), "status": serviceStatus(service)}, "", c)
+}
+
+func serviceStatus(service *waf_service.WafCamouflageService) gin.H {
+	return gin.H{"profiles": service.Status(), "local_cidrs": service.LocalCIDRs()}
 }
 
 func (w *WafCamouflageApi) Profiles(c *gin.Context) {
@@ -27,21 +31,23 @@ func serviceProfiles() []camouflage.Profile {
 }
 
 func (w *WafCamouflageApi) Save(c *gin.Context) {
-	var config camouflage.Config
+	var config camouflage.DefenseConfig
 	if !pipelineBind(c, &config) {
 		return
 	}
+	service := waf_service.WafCamouflageServiceApp
+	service.ObserveManagementClientIP(utils.GetManageClientIP(c))
 	operator := pipelineOperator(c)
-	result, err := waf_service.WafCamouflageServiceApp.Save(config, operator)
+	result, err := service.Save(config, operator)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithDetailed(gin.H{"config": result, "status": waf_service.WafCamouflageServiceApp.Status()}, "saved", c)
+	response.OkWithDetailed(gin.H{"config": result, "status": serviceStatus(service)}, "saved", c)
 }
 
 func (w *WafCamouflageApi) Status(c *gin.Context) {
-	response.OkWithDetailed(waf_service.WafCamouflageServiceApp.Status(), "", c)
+	response.OkWithDetailed(serviceStatus(waf_service.WafCamouflageServiceApp), "", c)
 }
 
 func (w *WafCamouflageApi) Events(c *gin.Context) {
