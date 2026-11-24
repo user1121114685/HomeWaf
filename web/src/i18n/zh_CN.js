@@ -476,6 +476,7 @@ export default {
     },
     visit_log: {
       parent_title: "防护日志",
+      protocol_defense: "协议防御",
       visit_title: "访问日志",
       visit_detail_title: "防护详情",
       attack_title: "安全事件",

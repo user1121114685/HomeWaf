@@ -28,6 +28,7 @@ var finishPortPipeline func()
 
 func shutdownPortPipeline() {
 	wafpipeline.Listeners.StopAll()
+	waf_service.WafCamouflageServiceApp.Stop()
 	if stopPortPipeline != nil {
 		stopPortPipeline()
 	}

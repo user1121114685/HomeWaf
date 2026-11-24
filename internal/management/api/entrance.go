@@ -58,6 +58,7 @@ type APIGroup struct {
 	WafNotifySubscriptionApi
 	WafNotifyLogApi
 	WafFirewallIPBlockApi
+	WafCamouflageApi
 	WafHostGuardApi
 	WafHostConnApi
 	WafThreatIPApi

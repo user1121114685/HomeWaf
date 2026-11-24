@@ -476,6 +476,7 @@ export default {
     },
     visit_log: {
       parent_title: "Protection Logs",
+      protocol_defense: "Protocol defense",
       visit_title: "Visit Logs",
       visit_detail_title: "Protection Details",
       attack_title: "Attack Logs",

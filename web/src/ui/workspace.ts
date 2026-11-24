@@ -55,6 +55,7 @@ export const workspaceGroups = [
     id: 'traffic',
     label: ['流量与记录', 'Traffic & records'],
     names: [
+      'WafProtocolDefense',
       'WafvisitLog',
       'WafAttackLog',
       'WafAttackLogDetail',
@@ -137,6 +138,7 @@ export const taskTitles: Record<string, [string, string]> = {
   WafPipeline: ['我的服务', 'My services'],
   WafPipelineTemplates: ['策略模板', 'Policy templates'],
   WafPipelineHoneypot: ['统一蜜罐', 'Shared honeypot'],
+  WafProtocolDefense: ['协议防御', 'Protocol defense'],
   WafSSLOrderList: ['申请与续期记录', 'Certificate jobs'],
   WafSSLConfigList: ['证书管理', 'Certificates'],
   WafsslExpireList: ['外部证书监测', 'Certificate monitoring'],

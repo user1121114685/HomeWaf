@@ -23,6 +23,13 @@ func InitPipelineRouter(group *gin.RouterGroup) {
 	r.GET("/honeypot", a.SharedPipelineHoneypot)
 	r.GET("/honeypot/logs", a.SharedPipelineHoneypotLogs)
 	r.POST("/honeypot/save", a.SaveSharedPipelineHoneypot)
+	camouflageAPI := &api.WafCamouflageApi{}
+	r.GET("/camouflage/config", camouflageAPI.Config)
+	r.GET("/camouflage/profiles", camouflageAPI.Profiles)
+	r.GET("/camouflage/status", camouflageAPI.Status)
+	r.GET("/camouflage/events", camouflageAPI.Events)
+	r.POST("/camouflage/save", camouflageAPI.Save)
+	r.POST("/camouflage/events/clear", camouflageAPI.ClearEvents)
 	r.POST("/state/manage", a.ManagePipelineState)
 	r.GET("/logs", a.PipelineLogs)
 	r.GET("/cc/hits", a.PipelineCCHits)

@@ -597,6 +597,9 @@ func (m *wafSystenService) run() {
 	if err := waf_service.WafPipelineServiceApp.Load(); err != nil {
 		zlog.Warn("部分端口配置未加载，其他端口继续启动", zap.Error(err))
 	}
+	if err := waf_service.WafCamouflageServiceApp.LoadAndStart(); err != nil {
+		zlog.Warn("协议伪装监听启动失败", zap.Error(err))
+	}
 	if err := waf_service.WafPipelineServiceApp.RefreshSourceCertificates(); err != nil {
 		zlog.Warn("端口证书启动同步失败", err.Error())
 	}
