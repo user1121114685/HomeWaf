@@ -141,12 +141,29 @@ func TestCamouflageServiceApplyStartsAndStopsEnabledListener(t *testing.T) {
 	}
 }
 
-func TestDecodeCamouflageConfigMigratesLegacyGenericProfile(t *testing.T) {
-	config, err := decodeCamouflageConfig(`{"enabled":false,"port":8080,"profile":"nas-generic","version":"NAS Web Console","server_name":"nas","listen_ip_version":"dual"}`)
-	if err != nil {
-		t.Fatal(err)
+func TestDecodeCamouflageConfigMigratesLegacyNASProfiles(t *testing.T) {
+	cases := []struct {
+		name  string
+		value string
+	}{
+		{
+			name:  "legacy single config",
+			value: `{"enabled":false,"port":8080,"profile":"nas-generic","version":"NAS Web Console","server_name":"nas","listen_ip_version":"dual"}`,
+		},
+		{
+			name:  "legacy vendor profile",
+			value: `{"profiles":[{"id":"legacy","name":"Synology DSM","enabled":false,"port":8080,"protocol_profile":"synology-http","version":"DSM 7.2.1","server_name":"nas","listen_ip_version":"dual"}],"local_cidr_mode":"auto"}`,
+		},
 	}
-	if len(config.Profiles) != 1 || config.Profiles[0].ProtocolProfile != "http" || config.Profiles[0].Enabled {
-		t.Fatalf("legacy generic profile was not migrated as disabled HTTP: %+v", config)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := decodeCamouflageConfig(tc.value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(config.Profiles) != 1 || config.Profiles[0].ProtocolProfile != "http" || config.Profiles[0].Enabled || config.Profiles[0].Version != "nginx/1.24.0" {
+				t.Fatalf("legacy profile was not migrated as disabled generic HTTP: %+v", config)
+			}
+		})
 	}
 }

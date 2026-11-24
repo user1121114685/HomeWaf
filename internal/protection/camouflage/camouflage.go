@@ -126,8 +126,8 @@ type Hit struct {
 type HitHandler func(Hit) Hit
 
 var profiles = []Profile{
-	{Code: "http", Name: "通用 Web HTTP", Group: "常用协议", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "nginx/1.24.0", Description: "返回稳定的 HTTP/1.1 头部与常见首页响应"},
-	{Code: "https", Name: "通用 Web HTTPS", Group: "常用协议", Transport: "tcp", TLS: true, DefaultPort: DefaultTLSPort, DefaultVersion: "nginx/1.24.0", Description: "先完成 TLS，再返回普通 HTTPS 服务响应"},
+	{Code: "http", Name: "通用 Web HTTP", Group: "常用协议", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "nginx/1.24.0", Description: "返回稳定的 HTTP/1.1 头部与通用 Web 首页"},
+	{Code: "https", Name: "通用 Web HTTPS", Group: "常用协议", Transport: "tcp", TLS: true, DefaultPort: DefaultTLSPort, DefaultVersion: "nginx/1.24.0", Description: "先完成 TLS，再返回通用 HTTPS 服务响应"},
 	{Code: "ssh", Name: "OpenSSH", Group: "常用协议", Transport: "tcp", DefaultPort: 22, DefaultVersion: "OpenSSH_9.6p1", Description: "发送标准 SSH-2.0 服务端版本行"},
 	{Code: "ftp", Name: "FTP", Group: "常用协议", Transport: "tcp", DefaultPort: 21, DefaultVersion: "vsftpd 3.0.5", Description: "返回 FTP 220 欢迎语和基础命令响应"},
 	{Code: "ftps", Name: "FTP over TLS", Group: "常用协议", Transport: "tcp", TLS: true, DefaultPort: 990, DefaultVersion: "1.8.2", Description: "在 TLS 上返回 FileZilla 风格的 FTP 服务欢迎语"},
@@ -149,10 +149,6 @@ var profiles = []Profile{
 	{Code: "vnc", Name: "VNC 远程桌面", Group: "家庭常用", Transport: "tcp", DefaultPort: 5900, DefaultVersion: "003.008", Description: "返回标准 RFB 服务端版本行"},
 	{Code: "tftp", Name: "TFTP 设备配置传输", Group: "家庭常用", Transport: "udp", DefaultPort: 69, DefaultVersion: "RFC 1350", Description: "对读取探针返回标准 TFTP 错误帧"},
 	{Code: "telnet", Name: "Telnet 路由器管理", Group: "家庭常用", Transport: "tcp", DefaultPort: 23, DefaultVersion: "", Description: "返回标准 Telnet 选项协商与登录提示"},
-	{Code: "synology-http", Name: "Synology DSM", Group: "NAS 厂商画像", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "DSM 7.2.1-69057", Description: "返回 DSM 风格首页和 nginx 头部"},
-	{Code: "fnos-http", Name: "飞牛 fnOS", Group: "NAS 厂商画像", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "fnOS 1.1.16", Description: "返回飞牛管理入口风格首页，不暴露真实后端"},
-	{Code: "qnap-http", Name: "威联通 QNAP", Group: "NAS 厂商画像", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "QTS 5.1.7", Description: "返回 QNAP 管理入口风格首页"},
-	{Code: "xiaomi-http", Name: "小米家庭设备", Group: "NAS 厂商画像", Transport: "tcp", DefaultPort: DefaultTCPPort, DefaultVersion: "Mi Router 4A", Description: "返回小米家庭设备管理入口风格首页"},
 	{Code: "mysql", Name: "MySQL / MariaDB", Group: "数据库", Transport: "tcp", DefaultPort: 3306, DefaultVersion: "8.0.36", Description: "返回兼容 MySQL 协议的初始握手包"},
 	{Code: "postgresql", Name: "PostgreSQL", Group: "数据库", Transport: "tcp", DefaultPort: 5432, DefaultVersion: "16.2", Description: "返回 PostgreSQL 错误与启动包响应"},
 	{Code: "redis", Name: "Redis", Group: "数据库", Transport: "tcp", DefaultPort: 6379, DefaultVersion: "7.2.4", Description: "回答 INFO 和基础 RESP 探针"},
@@ -185,13 +181,45 @@ func DefaultConfig() Config {
 }
 
 func migrateLegacyProfile(profile, version string) (string, string) {
-	if profile != "nas-generic" {
-		return profile, version
+	switch profile {
+	case "synology-http", "fnos-http", "qnap-http", "xiaomi-http":
+		return "http", "nginx/1.24.0"
+	case "nas-generic":
+		if version == "" || version == "NAS Web Console" {
+			version = "nginx/1.24.0"
+		}
+		return "http", version
 	}
-	if version == "" || version == "NAS Web Console" {
-		version = "nginx/1.24.0"
+	return profile, version
+}
+
+func legacyProfileName(protocol, name string) string {
+	switch protocol {
+	case "nas-generic":
+		if name == "通用家庭 NAS" {
+			return "通用 Web HTTP"
+		}
+	case "synology-http":
+		if name == "Synology DSM" {
+			return "通用 Web HTTP"
+		}
+	case "fnos-http":
+		if name == "飞牛 fnOS" {
+			return "通用 Web HTTP"
+		}
+	case "qnap-http":
+		if name == "威联通 QNAP" {
+			return "通用 Web HTTP"
+		}
+	case "xiaomi-http":
+		if name == "小米家庭设备" {
+			return "通用 Web HTTP"
+		}
 	}
-	return "http", version
+	if protocol == "nas-generic" && name == "NAS Web Console" {
+		return "通用 Web HTTP"
+	}
+	return name
 }
 
 func annotateNmapEvidence(profile Profile) Profile {
@@ -199,26 +227,14 @@ func annotateNmapEvidence(profile Profile) Profile {
 	profile.NmapEvidence = "Nmap service label: " + profile.Code
 	profile.NmapProbe = "NULL"
 	switch profile.Code {
-	case "http", "https", "ssh", "ftp", "ftps", "smtp", "imap", "pop3", "dns", "rtsp", "sip", "mysql", "redis", "memcached", "snmp", "rsync", "vnc", "ipp", "upnp", "coap", "synology-http", "fnos-http", "qnap-http", "xiaomi-http":
+	case "http", "https", "ssh", "ftp", "ftps", "smtp", "imap", "pop3", "dns", "rtsp", "sip", "mysql", "redis", "memcached", "snmp", "rsync", "vnc", "ipp", "upnp", "coap":
 		profile.VersionEditable = true
 	}
 	switch profile.Code {
 	case "http":
 		profile.NmapService = "http"
 		profile.NmapProbe = "GetRequest"
-		profile.NmapEvidence = "识别为 HTTP 协议。Nmap 规则不据此确认页面品牌"
-	case "synology-http":
-		profile.NmapService = "http"
-		profile.NmapProbe = "GetRequest"
-		profile.NmapEvidence = "只能识别为 HTTP；本地 Nmap 规则中的 Synology 命中来自 FTP、DNS、UPnP 等其他服务"
-	case "qnap-http":
-		profile.NmapService = "http"
-		profile.NmapProbe = "GetRequest"
-		profile.NmapEvidence = "只能识别为 HTTP；已知 QNAP HTTP 规则匹配的是特定旧版响应特征，不匹配本画像的通用首页"
-	case "fnos-http", "xiaomi-http":
-		profile.NmapService = "http"
-		profile.NmapProbe = "GetRequest"
-		profile.NmapEvidence = "只能识别为 HTTP；本地 Nmap service-probes 未发现该厂商产品匹配规则"
+		profile.NmapEvidence = "按 HTTP 探针归类为 HTTP；这不表示识别到具体设备或品牌"
 	case "https":
 		profile.NmapService = "ssl/http"
 		profile.NmapProbe = "SSLSessionReq → GetRequest"
@@ -342,7 +358,9 @@ func NormalizeProfileConfig(profile ProfileConfig) (ProfileConfig, error) {
 	if profile.Name == "" || len(profile.Name) > 80 || strings.ContainsAny(profile.Name, "\r\n") {
 		return profile, errors.New("profile name must be between 1 and 80 characters")
 	}
+	legacyProtocol := profile.ProtocolProfile
 	profile.ProtocolProfile, profile.Version = migrateLegacyProfile(profile.ProtocolProfile, profile.Version)
+	profile.Name = legacyProfileName(legacyProtocol, profile.Name)
 	protocol, ok := ProfileByCode(profile.ProtocolProfile)
 	if !ok {
 		return profile, fmt.Errorf("unknown protocol profile %q", profile.ProtocolProfile)
@@ -825,15 +843,7 @@ func tcpGreeting(p Profile, cfg Config) []byte {
 func tcpResponse(p Profile, cfg Config, payload []byte) []byte {
 	switch p.Code {
 	case "http", "https":
-		return httpResponse(cfg, "Home NAS Web Console", "")
-	case "synology-http":
-		return httpResponse(cfg, "Synology DiskStation", "nginx")
-	case "fnos-http":
-		return httpResponse(cfg, "飞牛 NAS", "fnOS")
-	case "qnap-http":
-		return httpResponse(cfg, "QNAP TurboStation", "QTS")
-	case "xiaomi-http":
-		return httpResponse(cfg, "Mi Home", "Mi Router")
+		return httpResponse(cfg, "Home Web Console", "")
 	case "ipp":
 		return ippResponse(cfg.Version)
 	case "ssh":
@@ -998,19 +1008,8 @@ func httpResponse(cfg Config, title, server string) []byte {
 	if server == "" {
 		server = cfg.Version
 	}
-	versionHeader := ""
-	switch cfg.Profile {
-	case "synology-http":
-		versionHeader = "X-Syno-Version: " + cfg.Version + "\r\n"
-	case "fnos-http":
-		versionHeader = "X-fnOS-Version: " + cfg.Version + "\r\n"
-	case "qnap-http":
-		versionHeader = "X-QTS-Version: " + cfg.Version + "\r\n"
-	case "xiaomi-http":
-		versionHeader = "X-Mi-Model: " + cfg.Version + "\r\n"
-	}
 	body := "<!doctype html><html><head><meta charset=\"utf-8\"><title>" + title + "</title></head><body><h1>" + title + "</h1></body></html>"
-	return []byte("HTTP/1.1 200 OK\r\nServer: " + server + "\r\n" + versionHeader + "Content-Type: text/html; charset=utf-8\r\nContent-Length: " + strconv.Itoa(len(body)) + "\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n" + body)
+	return []byte("HTTP/1.1 200 OK\r\nServer: " + server + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + strconv.Itoa(len(body)) + "\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n\r\n" + body)
 }
 
 func ippResponse(version string) []byte {

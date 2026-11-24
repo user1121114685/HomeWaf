@@ -66,9 +66,6 @@ func decodeCamouflageConfig(value string) (camouflage.DefenseConfig, error) {
 		if err := json.Unmarshal(raw, &legacy); err != nil {
 			return config, fmt.Errorf("invalid legacy protocol camouflage config: %w", err)
 		}
-		if legacy.Profile == "nas-generic" {
-			legacy.Profile = "http"
-		}
 		normalizedLegacy, legacyErr := camouflage.NormalizeConfig(legacy)
 		if legacyErr != nil {
 			return config, legacyErr

@@ -153,8 +153,8 @@
             <strong>{{ label('Nmap 识别依据', 'Nmap evidence') }}</strong>
             <span>{{
               label(
-                '探针与服务名称参考 Nmap 项目的 service-probes，感谢 Nmap 项目及贡献者。响应由 HomeWaf 使用 Go 独立实现。HTTP 品牌外观不等于 Nmap 能识别该厂商，具体证据见协议画像。',
-                'Probe and service names reference the Nmap Project service-probes. Thanks to the Nmap project and its contributors. HomeWaf implements responses independently in Go. An HTTP brand appearance does not imply Nmap will identify that vendor. See each profile for its evidence.',
+                '探针与服务名称参考 Nmap 项目的 service-probes，感谢 Nmap 项目及贡献者。响应由 HomeWaf 使用 Go 独立实现。协议识别结果不代表能识别具体设备或厂商。',
+                'Probe and service names reference the Nmap Project service-probes. Thanks to the Nmap project and its contributors. HomeWaf implements responses independently in Go. Protocol identification does not imply a specific device or manufacturer was identified.',
               )
             }}</span>
           </div>
@@ -434,11 +434,10 @@ const previousProtocol = ref('');
 let live = true;
 
 const groupedProfiles = computed(() => {
-  const order = ['常用协议', '家庭常用', 'NAS 厂商画像', '数据库', '基础服务', '远程管理'];
+  const order = ['常用协议', '家庭常用', '数据库', '基础服务', '远程管理'];
   const labels: Record<string, [string, string]> = {
     常用协议: ['常用协议', 'Common protocols'],
     家庭常用: ['家庭常用', 'Home services'],
-    'NAS 厂商画像': ['NAS 外观画像', 'NAS appearance profiles'],
     数据库: ['数据库', 'Databases'],
     基础服务: ['基础服务', 'Core services'],
     远程管理: ['远程管理', 'Remote access'],

@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/netip"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 )
@@ -31,7 +30,7 @@ func TestNormalizeDefenseConfigValidatesProfilesAndLocalCIDRs(t *testing.T) {
 	config.LocalCIDRs = []string{"192.168.12.9/24", "2001:db8:1234:5600::1/64"}
 	config.Profiles = []ProfileConfig{{
 		ID: "home-web", Name: "家庭 Web", Enabled: true, Port: 8080,
-		ProtocolProfile: "synology-http", Version: "DSM 7.2.1", ServerName: "nas",
+		ProtocolProfile: "http", Version: "nginx/1.24.0", ServerName: "nas",
 	}}
 
 	normalized, err := NormalizeDefenseConfig(config)
@@ -58,6 +57,9 @@ func TestLegacyGenericNASProfilesMigrateToHTTP(t *testing.T) {
 	if legacy.ProtocolProfile != "http" || legacy.Version != "nginx/1.24.0" {
 		t.Fatalf("legacy profile was not migrated to the generic HTTP image: %+v", legacy)
 	}
+	if legacy.Name != "通用 Web HTTP" {
+		t.Fatalf("legacy default name was not migrated: %q", legacy.Name)
+	}
 
 	legacySingle, err := NormalizeConfig(Config{Profile: "nas-generic", Version: "NAS Web Console", Port: 8080})
 	if err != nil {
@@ -68,16 +70,31 @@ func TestLegacyGenericNASProfilesMigrateToHTTP(t *testing.T) {
 	}
 }
 
-func TestNmapEvidenceSeparatesHTTPBrandAppearanceFromDetection(t *testing.T) {
-	profile, ok := ProfileByCode("synology-http")
-	if !ok {
-		t.Fatal("Synology HTTP appearance profile is missing")
+func TestRemovedNASBrandProfilesMigrateToGenericHTTP(t *testing.T) {
+	removed := map[string]string{
+		"nas-generic":   "通用家庭 NAS",
+		"synology-http": "Synology DSM",
+		"fnos-http":     "飞牛 fnOS",
+		"qnap-http":     "威联通 QNAP",
+		"xiaomi-http":   "小米家庭设备",
 	}
-	if profile.NmapService != "http" || !strings.Contains(profile.NmapEvidence, "不据此确认页面品牌") && !strings.Contains(profile.NmapEvidence, "只能识别为 HTTP") {
-		t.Fatalf("Nmap evidence overstates vendor detection: %+v", profile)
-	}
-	if profile.NmapProbe != "GetRequest" || !profile.VersionEditable {
-		t.Fatalf("HTTP image probe metadata is incomplete: %+v", profile)
+	for code, oldName := range removed {
+		if _, ok := ProfileByCode(code); ok {
+			t.Errorf("removed NAS profile %q remains selectable", code)
+		}
+		version := "old vendor version"
+		if code == "nas-generic" {
+			version = "NAS Web Console"
+		}
+		config, err := NormalizeProfileConfig(ProfileConfig{
+			ID: "legacy-" + code, Name: oldName, ProtocolProfile: code, Version: version, Port: 8080,
+		})
+		if err != nil {
+			t.Fatalf("migrate %s: %v", code, err)
+		}
+		if config.ProtocolProfile != "http" || config.Version != "nginx/1.24.0" || config.Name != "通用 Web HTTP" {
+			t.Errorf("unexpected %s migration: %+v", code, config)
+		}
 	}
 
 	for _, code := range []string{"rsync", "vnc", "tftp", "nfs", "upnp", "nat-pmp", "coap", "ipp", "telnet"} {
@@ -107,12 +124,17 @@ func TestNmapEvidenceSeparatesHTTPBrandAppearanceFromDetection(t *testing.T) {
 	}
 }
 
-func TestSynologyHTTPImageReportsConfigurableVersionWithNginxHeader(t *testing.T) {
-	profile, _ := ProfileByCode("synology-http")
-	cfg := Config{Profile: profile.Code, Version: "DSM 7.2.1"}
-	response := httpResponse(cfg, "Synology DiskStation", "nginx")
-	if !bytes.Contains(response, []byte("Server: nginx\r\n")) || !bytes.Contains(response, []byte("X-Syno-Version: DSM 7.2.1\r\n")) {
-		t.Fatalf("HTTP image did not report its configured response fields: %s", response)
+func TestGenericHTTPResponseHasNoNASBrandHeaders(t *testing.T) {
+	profile, _ := ProfileByCode("http")
+	config := Config{Profile: profile.Code, Version: "nginx/1.24.0"}
+	response := tcpResponse(profile, config, []byte("GET / HTTP/1.0\r\n\r\n"))
+	if !bytes.Contains(response, []byte("Home Web Console")) || !bytes.Contains(response, []byte("Server: nginx/1.24.0\r\n")) {
+		t.Fatalf("unexpected generic HTTP response: %s", response)
+	}
+	for _, marker := range [][]byte{[]byte("X-Syno"), []byte("fnOS"), []byte("X-QTS"), []byte("X-Mi-")} {
+		if bytes.Contains(response, marker) {
+			t.Errorf("generic HTTP response contains vendor marker %q: %s", marker, response)
+		}
 	}
 }
 
