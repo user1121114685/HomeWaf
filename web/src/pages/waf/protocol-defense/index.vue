@@ -6,7 +6,7 @@
         {{ label('添加伪装画像', 'Add camouflage profile') }}
       </ElButton>
       <ElButton v-else :loading="eventsLoading" :disabled="saving" @click="loadEvents">
-        {{ label('刷新评分', 'Refresh scores') }}
+        {{ label('刷新探针记录', 'Refresh probe records') }}
       </ElButton>
     </PageActions>
 
@@ -179,7 +179,8 @@
           </div>
         </ElTabPane>
 
-        <ElTabPane :label="label('评分检测', 'Score detection')" name="scores">
+        <ElTabPane :label="label('评分检测', 'Score detection')" name="scores" lazy>
+          <section class="content-section"><ScoreDetection /></section>
           <section class="content-section" aria-labelledby="score-title">
             <div class="section-heading">
               <div>
@@ -223,7 +224,7 @@
               <ElTableColumn prop="protocol" :label="label('协议', 'Protocol')" min-width="130" />
               <ElTableColumn prop="probe" :label="label('探针', 'Probe')" min-width="175" />
               <ElTableColumn prop="version" :label="label('版本线索', 'Version evidence')" min-width="160" />
-              <ElTableColumn :label="label('评分', 'Score')" width="95" align="center">
+              <ElTableColumn :label="label('探针风险', 'Probe risk')" width="110" align="center">
                 <template #default="{ row }"
                   ><ElTag :type="scoreType(row.score)">{{ row.score }}</ElTag></template
                 >
@@ -351,6 +352,8 @@ import {
   ElTag,
 } from 'element-plus';
 import PageActions from '@/ui/PageActions.vue';
+import ScoreDetection from './ScoreDetection.vue';
+import { useRoute } from 'vue-router';
 import { camouflageGet, camouflagePost } from '@/apis/camouflage';
 
 interface ProfileOption {
@@ -418,7 +421,9 @@ const status = ref<{ profiles: Array<{ id: string; running: boolean; last_error?
   profiles: [],
   local_cidrs: [],
 });
-const activeTab = ref('profiles');
+const route = useRoute();
+const activeTab = ref(route.query.tab === 'scores' ? 'scores' : 'profiles');
+let openRequested = route.query.create === '1';
 const dialogVisible = ref(false);
 const profileDraft = ref<CamouflageProfile | null>(null);
 const editingId = ref('');
@@ -498,6 +503,7 @@ async function loadAll() {
     draft.value = clone(result.config);
     status.value = result.status;
     profiles.value = profileRows || [];
+    if (openRequested) { openRequested = false; createProfile(); }
     savedEnabled.value = Object.fromEntries(result.config.profiles.map((profile) => [profile.id, profile.enabled]));
     baseline.value = JSON.stringify(draft.value);
     if (activeTab.value === 'scores') await loadEvents();

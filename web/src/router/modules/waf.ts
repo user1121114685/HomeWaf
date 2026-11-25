@@ -43,6 +43,12 @@ export default [
         meta: { title: 'menu.pipeline.protocol_defense', keepAlive: false, roleCode: 'WafHost' },
       },
       {
+        path: 'assessment/advanced',
+        name: 'WafAssessmentAdvanced',
+        component: () => import('@/pages/waf/protocol-defense/AdvancedAssessmentPage.vue'),
+        meta: { title: '自定义防御测试', hidden: true, keepAlive: false, roleCode: 'WafHost' },
+      },
+      {
         path: 'templates',
         name: 'WafPipelineTemplates',
         component: () => import('@/pages/waf/pipeline/index.vue'),

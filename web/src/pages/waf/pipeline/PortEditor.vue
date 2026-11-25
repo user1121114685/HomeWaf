@@ -14,6 +14,9 @@
           <strong>{{ draft.name || '未命名服务' }}</strong
           ><code>{{ draft.protocol.toUpperCase() }} :{{ draft.port }}</code>
         </div>
+        <ElButton :disabled="busy || Object.values(invalid).some(Boolean)" @click="scoreVisible = true"
+          >评分检测</ElButton
+        >
         <span>配置版本 {{ draft.revision }}</span
         ><ElTag>{{ draft.listen_enabled ? '监听配置：启用' : '监听配置：停用' }}</ElTag>
       </div>
@@ -31,7 +34,6 @@
           { value: 'defense', label: '异常访问处置' },
           { value: 'hit_policy', label: '自动处罚' },
           { value: 'network', label: '代理与证书' },
-          { value: 'explain', label: '请求诊断' },
           { value: 'templates', label: '模板与高级' },
         ]"
         ><ElTabPane name="common" label="连接与访问"
@@ -361,8 +363,7 @@
                     v-model="draft.policy.hit_policy[row.key].ban_seconds"
                     :min="1"
                     :max="604800" /></template></ElTableColumn
-              ></ElTable
-            >
+            ></ElTable>
             <ElButton @click="activeTab = 'defense'">配置异常访问处置</ElButton></EditorSection
           >
           <EditorSection
@@ -506,21 +507,6 @@
             ></EditorSection
           ></ElTabPane
         >
-        <ElTabPane name="explain" label="请求诊断"
-          ><template #label
-            ><span class="editor-tab-label">请求诊断<small>检查当前草稿的判定</small></span></template
-          ><EditorSection
-            ><template #title>请求解释（不产生处罚）</template>
-            <div class="two-columns">
-              <label>来源IP<ElInput v-model="sample.client_ip" aria-label="解释来源IP" /></label
-              ><label>方法<ElInput v-model="sample.method" /></label
-              ><label>路径<ElInput v-model="sample.path" aria-label="解释路径" /></label
-              ><label>请求头JSON<ElInput v-model="sampleHeaders" type="textarea" :rows="3" /></label
-              ><label>样例正文<ElInput v-model="sample.body" type="textarea" :rows="4" /></label>
-            </div>
-            <ElButton class="space" :loading="busy" @click="explain">解释当前草稿</ElButton
-            ><Trace :result="preview" /></EditorSection
-        ></ElTabPane>
         <ElTabPane name="templates" label="模板与高级"
           ><template #label
             ><span class="editor-tab-label">模板与高级<small>差异应用与完整策略</small></span></template
@@ -600,8 +586,7 @@
         <CsrfMissingOrigin
           v-if="activeRule.category === 'csrf'"
           :ruleset="draft.policy.ruleset"
-          :disabled="busy || activeRule.mode === 'off'"
-        />
+          :disabled="busy || activeRule.mode === 'off'" />
         <Scope :model="activeRule.scope" :category="activeRule.category" /><Fields
           v-if="activeRule.category === 'scanner'"
           :model="activeRule"
@@ -614,6 +599,17 @@
             },
           ]" /></template
       ><template #footer><ElButton type="primary" @click="ruleVisible = false">返回配置</ElButton></template>
+    </ElDialog>
+    <ElDialog
+      v-model="scoreVisible"
+      title="评分检测 · 当前草稿"
+      width="min(1100px,96vw)"
+      append-to-body
+      destroy-on-close
+      :close-on-click-modal="false"
+    >
+      <ScoreDetection v-if="scoreVisible" :draft-config="draft" />
+      <template #footer><ElButton @click="scoreVisible = false">返回服务草稿</ElButton></template>
     </ElDialog>
   </div>
 </template>
@@ -664,7 +660,7 @@ import Fields from './Fields.vue';
 import DetectionRuleMode from './DetectionRuleMode.vue';
 import CsrfMissingOrigin from './CsrfMissingOrigin.vue';
 import Scope from './Scope.vue';
-import Trace from './Trace.vue';
+import ScoreDetection from '../protocol-defense/ScoreDetection.vue';
 import ServiceIdentityPanel from './ServiceIdentityPanel.vue';
 const props = defineProps({
   config: {
@@ -680,7 +676,10 @@ const emit = defineEmits(['saved', 'close', 'busy']);
 const draft = ref<PortConfig>(clone(props.config));
 const busy = ref(false),
   error = ref(''),
-  activeTab = ref(props.initialTab === 'honeypot' ? 'defense' : props.initialTab);
+  activeTab = ref(
+    props.initialTab === 'honeypot' ? 'defense' : props.initialTab === 'explain' ? 'common' : props.initialTab,
+  );
+const scoreVisible = ref(props.initialTab === 'explain');
 function openAdvanced(tab: string, panels?: string[]) {
   activeTab.value = panels?.length === 1 && panels[0] === 'gate' ? 'gate' : tab;
   if (panels) rulePanels.value = panels.filter((panel) => panel !== 'gate');
@@ -744,9 +743,7 @@ async function setGateLogo(event: Event) {
 }
 const selectedTemplate = ref(draft.value.template?.id || ''),
   selectedSections = ref([...sections]),
-  templatePreview = ref<any>(null),
-  preview = ref<any>(null),
-  previewKey = ref('');
+  templatePreview = ref<any>(null);
 const invalid = reactive<Record<string, boolean>>({}),
   rulePanels = ref(props.initialPanels.length ? [...props.initialPanels] : ['controls', 'attacks']),
   activeRule = ref<any>(null),
@@ -865,14 +862,6 @@ async function relearnTamper(rule: any) {
     rule.learned_at = 0;
     ElMessage.info('已标记重新学习，请保存端口配置');
   });
-}
-async function explainNow() {
-  const headers = JSON.parse(sampleHeaders.value);
-  preview.value = await pipelinePost('explain', { config: draft.value, ...sample, headers });
-  previewKey.value = JSON.stringify(draft.value);
-}
-async function explain() {
-  await run(explainNow);
 }
 async function previewTemplate() {
   await run(async () => {

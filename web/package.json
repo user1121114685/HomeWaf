@@ -11,7 +11,7 @@
     "prebuild": "node ../scripts/sync-brand.mjs",
     "build": "vite build --mode release && node scripts/check-dist.mjs",
     "typecheck": "node scripts/typecheck.mjs",
-    "test": "node --test scripts/verify-navigation.test.mjs scripts/verify-log-presentation.test.mjs scripts/verify-diagnostics.test.mjs scripts/verify-onboarding.test.mjs scripts/verify-pipeline.test.mjs scripts/verify-release-notes.test.mjs scripts/verify-operation-password.test.mjs && node scripts/verify-app-flow.mjs",
+    "test": "node --test scripts/verify-navigation.test.mjs scripts/verify-log-presentation.test.mjs scripts/verify-diagnostics.test.mjs scripts/verify-onboarding.test.mjs scripts/verify-pipeline.test.mjs scripts/verify-assessment.test.mjs scripts/verify-release-notes.test.mjs scripts/verify-operation-password.test.mjs && node scripts/verify-app-flow.mjs",
     "test:screen": "node --test scripts/verify-screen-data.test.mjs",
     "audit:security": "node --test scripts/dependency-security.test.mjs scripts/verify-operation-password.test.mjs && node scripts/audit-dependencies.mjs",
     "preview": "vite preview --host 127.0.0.1",
