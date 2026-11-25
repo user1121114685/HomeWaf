@@ -281,14 +281,6 @@
             controls-position="right"
             style="width: 100%"
           />
-          <p class="field-help">
-            {{
-              label(
-                'HTTP 默认 8080，HTTPS 默认 8443。监听端口不占用业务服务配置。',
-                'HTTP defaults to 8080 and HTTPS to 8443. This listener is independent from service ports.',
-              )
-            }}
-          </p>
         </ElFormItem>
         <ElFormItem
           v-if="selectedCatalogProfile?.version_editable"
