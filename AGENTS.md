@@ -70,6 +70,8 @@ Write only important tests: authentication/permissions, secrets, configuration p
 For frontend behavior or layout changes, run the applicable type checks, tests, build, and focused browser flows. Check the full journey: enter, configure, submit, observe the result, leave, reopen, and edit again; also test failure/retry, cancellation, relevant permissions, and context-preserving navigation. For protection changes, verify persisted configuration and the actual runtime effect with isolated backend tests. Mocked browser responses and successful route mounting prove only their covered frontend behavior, not end-to-end protection or external certificate/notification delivery. Report these limits explicitly. Documentation, comment and help-copy changes require content, reference and relevant syntax checks, not unrelated application builds.
 
 ## Commits, Reviews & Safety
+Work directly on `master` by default. When the user asks to commit and push, push to `origin/master`. Do not create a feature branch or open a pull request unless the user explicitly asks. If the current branch is not `master` or the push would require rewriting history, stop and ask rather than switching branches or force-pushing.
+
 Follow recent `feat:`, `fix:`, and `test:` commits; optional scopes include `feat(ui):`. Describe changes, relevant issues and verification results in PRs; include screenshots only when useful. Keep commits focused. Use isolated `.cache/dev/runtime/` data; never commit credentials, signing keys, databases, or generated artifacts.
 
 ### Security and Ownership Boundaries
