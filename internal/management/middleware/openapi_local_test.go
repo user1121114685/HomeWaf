@@ -278,6 +278,7 @@ func TestOpenApiLogBodyPolicies(t *testing.T) {
 		{name: "local", path: "/api/v1/wafhost/host/local", localOnly: true, omitRequestBody: true, omitResponseBody: true},
 		{name: "site_add", path: "/api/v1/wafhost/host/add", omitRequestBody: true, omitResponseBody: true},
 		{name: "site_edit", path: "/api/v1/wafhost/host/edit", omitRequestBody: true, omitResponseBody: true},
+		{name: "single_request", path: "/api/v1/pipeline/assessment/single", omitRequestBody: true, omitResponseBody: true, containsSensitiveResult: true},
 		{name: "site_detail", path: "/api/v1/wafhost/host/detail", omitResponseBody: true, containsSensitiveResult: true},
 		{name: "site_list", path: "/api/v1/wafhost/host/list", omitResponseBody: true, containsSensitiveResult: true},
 		{name: "ordinary", path: "/api/v1/other"},

@@ -50,6 +50,7 @@ func InitPipelineRouter(group *gin.RouterGroup) {
 	r.POST("/upstream/test", a.TestUpstream)
 	r.POST("/explain", a.ExplainPort)
 	r.POST("/assessment", a.AssessPort)
+	r.POST("/assessment/single", a.AssessSingle)
 	r.POST("/assessment/sources", a.AssessmentSources)
 	r.GET("/assessment/jobs", a.AssessmentJob)
 	r.POST("/assessment/cancel", a.CancelAssessment)

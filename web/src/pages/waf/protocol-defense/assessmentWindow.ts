@@ -2,7 +2,7 @@ import type { PortConfig } from '../pipeline/model';
 
 export interface AssessmentHandoff {
   config?: PortConfig;
-  plan?: any;
+  source?: string;
 }
 
 // Drafts and samples stay in memory; only a rendezvous ID enters the URL.

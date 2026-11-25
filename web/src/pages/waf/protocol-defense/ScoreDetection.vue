@@ -56,7 +56,12 @@
         ><RouterLink to="/sys/IPLocation" target="_blank" rel="noopener">查看 IP 数据库</RouterLink></ElAlert
       >
       <template v-if="result">
-        <ElAlert v-if="incompleteCities" :title="`${incompleteCities} 个库内城市存在样本缺口；当前分数仅反映已完成的检测。`" type="warning" :closable="false" />
+        <ElAlert
+          v-if="incompleteCities"
+          :title="`${incompleteCities} 个库内城市存在样本缺口；当前分数仅反映已完成的检测。`"
+          type="warning"
+          :closable="false"
+        />
         <ElAlert v-if="stale" title="服务配置已变化，下方为上次结果。请重新检测。" type="warning" :closable="false" />
         <div class="score-result" role="status">
           <div class="score-value">
@@ -320,7 +325,10 @@ let live = true,
 function prepareAdvanced() {
   releaseHandoff();
   if (props.draftConfig || result.value?.plan)
-    releaseHandoff = provideAssessmentHandoff(handoffId, { config: props.draftConfig, plan: result.value?.plan });
+    releaseHandoff = provideAssessmentHandoff(handoffId, {
+      config: props.draftConfig,
+      source: result.value?.plan?.sources?.[0]?.ip,
+    });
 }
 async function load() {
   loading.value = true;

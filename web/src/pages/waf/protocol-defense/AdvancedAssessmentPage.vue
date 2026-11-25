@@ -8,11 +8,16 @@
       <RouterLink :to="{ name: 'WafProtocolDefense', query: { tab: 'scores' } }">返回自动检测</RouterLink>
     </header>
     <p class="advanced-intro">
-      单独调整来源、请求、策略和压力方案。这里的修改只用于本次测试，原窗口中的服务草稿仍保留。
+      编辑一条 HTTP 请求，查看所选服务会在哪一步放行、观察、挑战或拦截。只运行隔离判定，不访问源站，也不保存服务草稿。
     </p>
     <ElAlert v-if="handoffError" type="warning" :closable="false" :title="handoffError" />
     <ElSkeleton v-else-if="waiting" :rows="5" animated />
-    <AdvancedAssessmentEditor v-else :draft-config="handoff.config" :initial-plan="handoff.plan" :initial-port="port" />
+    <AdvancedAssessmentEditor
+      v-else
+      :draft-config="handoff.config"
+      :initial-source="handoff.source"
+      :initial-port="port"
+    />
   </main>
 </template>
 <script setup lang="ts">

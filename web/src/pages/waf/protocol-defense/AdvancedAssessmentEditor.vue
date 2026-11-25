@@ -1,706 +1,488 @@
 <template>
-  <section class="score-detection" data-testid="score-detection" :aria-busy="busy">
-    <header>
-      <h2>服务防御评分</h2>
-      <p>检查允许地区内的攻击、非允许来源的探测和正常访问，分数越高代表本轮样本下的防御越完整。</p>
-    </header>
-    <ElButton v-if="!draftConfig" class="refresh-config" :disabled="busy || loading" @click="load"
-      >刷新服务配置</ElButton
-    >
+  <section class="single-test" data-testid="score-detection" :aria-busy="busy || loading">
     <ElAlert v-if="loadError" :title="loadError" type="error" :closable="false"
       ><ElButton text @click="load">重新读取服务</ElButton></ElAlert
     >
     <ElSkeleton v-if="loading" :rows="3" animated />
     <template v-else>
-      <div class="score-fields">
+      <div class="service-line">
         <label v-if="!draftConfig"
-          >我的服务
-          <ElSelect v-model="port" aria-label="检测服务" :disabled="busy" placeholder="选择已添加的服务">
-            <ElOption
-              v-for="service in services"
-              :key="service.port"
-              :value="service.port"
-              :label="`${service.name || '服务'} · ${service.port}`"
-            />
-          </ElSelect>
-        </label>
-        <label
-          >检测方式<ElRadioGroup v-model="mode" :disabled="busy" aria-label="检测方式"
-            ><ElRadioButton value="batch">批量评分</ElRadioButton
-            ><ElRadioButton value="single">单条判定</ElRadioButton></ElRadioGroup
-          ></label
-        >
-        <label
-          >联动伪装画像<ElSelect
-            v-model="profileId"
-            :disabled="busy"
-            clearable
-            aria-label="联动伪装画像"
-            placeholder="不模拟诱捕联动"
-          >
-            <ElOption
-              v-for="profile in profiles"
-              :key="profile.id"
-              :value="profile.id"
-              :label="`${profile.name} · ${profile.port}${profile.enabled ? '' : '（未启用）'}`"
-            /> </ElSelect
+          >我的服务<ElSelect v-model="port" aria-label="检测服务" :disabled="busy"
+            ><ElOption
+              v-for="s in services"
+              :key="s.port"
+              :value="s.port"
+              :label="(s.name || '服务') + ' · ' + s.port" /></ElSelect
         ></label>
+        <div v-if="config">
+          <strong
+            >{{ draftConfig ? '当前未保存草稿' : '已保存配置' }} · {{ config.name }} · v{{ config.revision }}</strong
+          ><code>{{ target }}</code>
+        </div>
+        <ElButton v-if="!draftConfig" text :disabled="busy" @click="load">刷新配置</ElButton>
       </div>
-      <ElAlert v-if="profilesError" :title="profilesError" type="warning" :closable="false"
-        ><ElButton text @click="loadProfiles">重读画像</ElButton></ElAlert
-      >
-      <p v-if="config" class="target-line">
-        <strong
-          >{{ draftConfig ? '当前未保存草稿' : '当前已保存配置' }} · {{ config.name }} · v{{ config.revision }}</strong
-        ><code>{{ serviceTarget(config) }}</code>
+      <p v-if="!config && !loadError">
+        {{ initialPort ? '未找到原窗口所选服务，请重新选择。' : '请先在「我的服务」中添加要检测的服务。' }}
       </p>
-      <p v-else-if="!loadError" class="muted">尚未添加服务。请先在“我的服务”接入服务，再进行检测。</p>
-      <p class="muted">
-        域名来自所选服务；未填域名时使用本机监听 IP 与端口。此处在隔离环境计算判定，不发送网络攻击或修改线上封禁。
-      </p>
-      <fieldset :disabled="busy || !config">
-        <legend>模拟来源与预期访问</legend>
-        <div class="score-actions">
-          <ElButton :loading="sourcesLoading" @click="sampleSources">从当前 IP 数据库取样</ElButton
-          ><ElButton :disabled="sources.length >= 10000" @click="addSource">添加来源 IP</ElButton
-          ><span class="muted">“允许”表示这个来源应能正常使用服务，请按你的实际需求确认。</span>
-        </div>
-        <ElAlert v-if="sourcesError" :title="sourcesError" type="warning" :closable="false" />
-        <div
-          v-for="(source, rowIndex) in sources.slice((sourcePage - 1) * 20, sourcePage * 20)"
-          :key="(sourcePage - 1) * 20 + rowIndex"
-          class="source-row"
-        >
+      <form v-if="config" @submit.prevent="run" autocomplete="off">
+        <fieldset :disabled="busy">
+          <legend>请求行与来源</legend>
+          <div class="row">
+            <label
+              >方法<ElSelect v-model="draft.method" filterable allow-create default-first-option aria-label="请求方法"
+                ><ElOption v-for="m in methods" :key="m" :value="m" /></ElSelect
+            ></label>
+            <label
+              >协议<ElSelect v-model="draft.scheme" aria-label="请求协议"
+                ><ElOption label="跟随服务" value="" /><ElOption label="HTTP" value="http" /><ElOption
+                  label="HTTPS"
+                  value="https" /></ElSelect
+            ></label>
+            <label
+              >HTTP 版本<ElSelect v-model="draft.version" aria-label="HTTP 版本"
+                ><ElOption v-for="v in versions" :key="v" :value="v" /></ElSelect
+            ></label>
+          </div>
           <label
-            >来源 IP {{ (sourcePage - 1) * 20 + rowIndex + 1
-            }}<ElInput
-              v-model="source.ip"
-              :aria-label="`来源 IP ${(sourcePage - 1) * 20 + rowIndex + 1}`"
-              @input="
-                source.country = '';
-                source.province = '';
-              "
+            >Host / :authority<ElInput
+              v-model="draft.host"
+              aria-label="请求 Host"
+              :placeholder="authority"
+              maxlength="255"
           /></label>
-          <span class="muted">{{
-            [source.country, source.province].filter(Boolean).join(' / ') || '检测时查询当前数据库'
-          }}</span>
+          <p class="hint">
+            默认取所选服务的域名，无域名时用 IP 和端口。修改 Host 只改变规则看到的值，不会更换服务或连接该地址。
+          </p>
+          <div class="pair">
+            <label>请求路径<ElInput v-model="draft.path" aria-label="请求路径" placeholder="/" /></label
+            ><label
+              >查询串<ElInput v-model="draft.query" aria-label="查询串" placeholder="tag=one&amp;tag=two"
+            /></label>
+          </div>
+          <p class="hint">查询串不含开头的问号，保留原始编码、顺序和重复参数。</p>
+          <div class="pair">
+            <label>来源 IP<ElInput v-model="draft.source_ip" aria-label="来源 IP" /></label
+            ><label
+              >来源端口<ElInputNumber
+                v-model="draft.source_port"
+                aria-label="来源端口"
+                :min="1"
+                :max="65535"
+                :precision="0"
+            /></label>
+          </div>
+        </fieldset>
+        <fieldset :disabled="busy">
+          <legend>请求头与正文</legend>
+          <p class="hint">
+            Cookie、Authorization、User-Agent、Origin、Referer、Content-Type
+            均可按原值填写，也可不传。转发头只按服务的可信代理策略解释。
+          </p>
+          <div v-for="(header, i) in draft.headers" :key="i" class="header-row">
+            <label>名称<ElInput v-model="header.name" :aria-label="'请求头名称 ' + (i + 1)" /></label>
+            <label>值<ElInput v-model="header.value" :aria-label="'请求头值 ' + (i + 1)" autocomplete="off" /></label>
+            <ElButton text :aria-label="'移除请求头 ' + (i + 1)" @click="draft.headers.splice(i, 1)">移除</ElButton>
+          </div>
+          <div>
+            <ElButton :disabled="draft.headers.length >= 64" @click="draft.headers.push({ name: '', value: '' })"
+              >添加请求头</ElButton
+            >
+          </div>
           <label
-            >预期访问<ElSelect
-              v-model="source.expect_access"
-              :aria-label="`来源 ${(sourcePage - 1) * 20 + rowIndex + 1} 预期访问`"
-              ><ElOption :value="true" label="允许正常访问" /><ElOption :value="false" label="拒绝访问" /></ElSelect
+            >正文输入格式<ElSelect v-model="draft.body_encoding" aria-label="正文输入格式"
+              ><ElOption value="text" label="文本（含 JSON、表单等）" /><ElOption
+                value="base64"
+                label="Base64 编码的原始字节" /></ElSelect
           ></label>
-          <ElButton
-            text
-            type="danger"
-            :aria-label="`移除来源 ${(sourcePage - 1) * 20 + rowIndex + 1}`"
-            @click="sources.splice((sourcePage - 1) * 20 + rowIndex, 1)"
-            >移除</ElButton
-          >
-        </div>
-        <ElPagination
-          v-model:current-page="sourcePage"
-          :page-size="20"
-          :total="sources.length"
-          layout="prev, pager, next, total"
-        />
-        <p v-if="!sources.length" class="muted">添加至少一个预期允许的来源，以及一个预期拒绝的来源。</p>
-      </fieldset>
-      <fieldset v-if="mode === 'batch'" :disabled="busy || !config">
-        <legend>测试样本与压力</legend>
-        <ElCheckbox v-model="builtins">包含内置攻击、来源伪造和正常请求</ElCheckbox>
-        <div class="score-fields">
           <label
-            >导入请求日志 JSON（最多 4 MiB / 256 条）<input
+            >请求正文<ElInput v-model="draft.body" type="textarea" :rows="4" aria-label="请求正文" autocomplete="off"
+          /></label>
+          <p class="hint">
+            正文最多 64 KiB，长度按实际字节计算。HTTP 版本和协议是模拟属性，不进行 TLS / QUIC 握手，也不模拟传输分帧。
+          </p>
+        </fieldset>
+        <details>
+          <summary>从日志选取一条请求</summary>
+          <label
+            >请求日志 JSON（最多 4 MiB）<input
               type="file"
               accept=".json,application/json"
               :disabled="busy"
-              @change="importLog"
+              @change="readLog"
           /></label>
-          <label
-            >隔离 QPS / CC 重复请求<ElInputNumber
-              v-model="pressure"
-              :min="0"
-              :max="2000"
-              :step="100"
-              aria-label="重复请求次数"
-          /></label>
-        </div>
-        <div class="score-fields">
-          <label
-            >压力方式<ElSelect v-model="pressureMode" aria-label="压力方式"
-              ><ElOption value="mixed" label="单来源与多来源" /><ElOption value="single" label="单来源" /><ElOption
-                value="distributed"
-                label="多来源" /></ElSelect></label
-          ><label>压力路径<ElInput v-model="pressurePath" aria-label="压力路径" /></label>
-        </div>
-        <p class="muted">重复请求轮流使用上述来源，只测限流计数与规则计算耗时，不计入总分，也不代表公网或源站容量。</p>
-        <template v-if="samples.length">
-          <div class="score-actions">
-            <strong>已导入 {{ samples.length }} 条</strong><ElButton text @click="samples = []">移除导入样本</ElButton
-            ><ElSelect v-model="importKind" aria-label="导入样本标注" @change="markImported"
-              ><ElOption value="unknown" label="未标注：只查看判定" /><ElOption
-                value="attack"
-                label="确认均为攻击：纳入评分" /><ElOption value="benign" label="确认均为正常：检查误拦"
-            /></ElSelect>
+          <div v-if="logs.length" class="service-line">
+            <label
+              >选取记录<ElSelect v-model="logIndex" aria-label="选取日志记录"
+                ><ElOption
+                  v-for="(s, i) in logs"
+                  :key="i"
+                  :value="i"
+                  :label="i + 1 + '. ' + s.method + ' ' + s.path" /></ElSelect></label
+            ><ElButton :disabled="busy" @click="applyLog">填入当前请求</ElButton>
           </div>
-          <details>
-            <summary>逐条确认样本（历史拦截不等于恶意）</summary>
-            <div v-for="sample in samples" :key="sample.id" class="sample-row">
-              <code>{{ sample.id }} · {{ sample.method }} {{ sample.path }}</code
-              ><ElSelect v-model="sample.kind" :aria-label="`${sample.id} 标注`"
-                ><ElOption value="unknown" label="未标注" /><ElOption value="attack" label="攻击" /><ElOption
-                  value="benign"
-                  label="正常"
-              /></ElSelect>
-            </div>
-          </details>
-        </template>
-      </fieldset>
-      <fieldset v-else :disabled="busy || !config">
-        <legend>单条请求判定</legend>
-        <div class="score-fields">
-          <label
-            >请求预期<ElSelect v-model="single.kind" aria-label="请求预期"
-              ><ElOption value="unknown" label="未标注" /><ElOption value="attack" label="攻击：应防御" /><ElOption
-                value="benign"
-                label="正常：应可访问" /></ElSelect></label
-          ><label>攻击分类<ElInput v-model="single.category" aria-label="攻击分类" /></label>
-        </div>
-        <div class="score-fields">
-          <label
-            >方法<ElSelect v-model="single.method" aria-label="请求方法"
-              ><ElOption
-                v-for="method in ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']"
-                :key="method"
-                :value="method"
-                :label="method" /></ElSelect></label
-          ><label>路径<ElInput v-model="single.path" aria-label="请求路径" /></label>
-        </div>
-        <div v-for="(header, index) in headers" :key="index" class="header-row">
-          <ElInput v-model="header.name" :aria-label="`请求头名称 ${index + 1}`" placeholder="请求头名称" /><ElInput
-            v-model="header.value"
-            :aria-label="`请求头值 ${index + 1}`"
-            placeholder="请求头值"
-          /><ElButton text @click="headers.splice(index, 1)">移除</ElButton>
-        </div>
-        <ElButton text @click="headers.push({ name: '', value: '' })">添加请求头</ElButton>
-        <label
-          >样例正文<ElInput v-model="single.body" type="textarea" :rows="3" aria-label="样例正文" autocomplete="off"
-        /></label>
-      </fieldset>
-      <details>
-        <summary>完整测试参数（仅本次，不保存服务）</summary>
-        <label
-          >测试策略 JSON<ElInput
-            v-model="configJSON"
-            type="textarea"
-            :rows="8"
-            aria-label="测试策略 JSON"
-            :disabled="busy" /></label
-        ><ElButton :disabled="busy || !config" @click="configJSON = JSON.stringify(config, null, 2)"
-          >载入当前策略以编辑</ElButton
-        ><label
-          >批量请求 JSON（含每条请求的分类、预期、请求头与正文）<ElInput
-            v-model="sampleJSON"
-            type="textarea"
-            :rows="8"
-            aria-label="批量请求 JSON"
-            :disabled="busy" /></label
-        ><ElButton :disabled="busy" @click="sampleJSON = JSON.stringify(samples, null, 2)">载入当前样本以编辑</ElButton>
-        <p class="muted">留空使用上方设置。修改只作用于隔离测试；不会保存服务、变更监听或处罚来源。</p>
-      </details>
-      <p v-if="busy" role="status">
-        {{ progress.total ? `已检查 ${progress.done} / ${progress.total} 个来源` : '正在准备检测…' }}
-      </p>
-      <ElAlert v-if="error" :title="error" type="error" :closable="false" />
-      <div class="score-actions">
-        <ElButton
-          type="primary"
-          :loading="busy"
-          :disabled="!config || !sources.length || sourcesLoading"
-          @click="run"
-          >{{ mode === 'single' ? '检查当前判定' : '开始评分检测' }}</ElButton
-        ><ElButton v-if="busy" @click="cancel">取消检测</ElButton
-        ><span class="muted">调整配置或样本后需重新检测；取消会保留输入。</span>
-      </div>
-      <template v-if="result">
-        <ElAlert
-          v-if="stale"
-          title="输入或草稿已变化，下方为上一次结果，请重新检测。"
-          type="warning"
-          :closable="false"
-        />
-        <div class="assessment-summary" role="status">
-          <div>
-            <strong>{{ result.assessment.score ?? '—' }}</strong
-            ><span> / 100 防御分</span>
-          </div>
-          <p>
-            正常来源可达 {{ result.assessment.normal_passed }} / {{ result.assessment.normal_total }} ·
-            {{ result.assessment.evaluations }} 次判定 · {{ result.assessment.elapsed_ms.toFixed(1) }} ms
+          <p class="hint">
+            仅所选记录会填入编辑器，不会自动执行。历史域名和凭据类请求头不导入；请检查正文及查询串中的敏感信息。
           </p>
-          <code>{{ result.assessment.target }} · v{{ result.assessment.revision }}</code>
-        </div>
-        <ElTable :data="result.assessment.categories" aria-label="攻击分类评分"
-          ><ElTableColumn prop="category" label="攻击类别" min-width="150" /><ElTableColumn
-            prop="total"
-            label="样例"
-            width="75" /><ElTableColumn prop="blocked" label="已防御" width="90" /><ElTableColumn
-            prop="challenged"
-            label="需验证"
-            width="90" /><ElTableColumn prop="observed" label="仅观察" width="90" /><ElTableColumn
-            prop="missed"
-            label="未防御/不完整"
-            min-width="130"
-        /></ElTable>
-        <p v-if="result.assessment.pressure.evaluations">
-          隔离压力：{{ result.assessment.pressure.evaluations }} 次 · 限制 {{ result.assessment.pressure.limited }} 次 ·
-          首次限制 {{ result.assessment.pressure.first_limited || '未触发' }} ·
-          {{ result.assessment.pressure.elapsed_ms.toFixed(1) }} ms
-        </p>
-        <section v-if="result.camouflage.length">
-          <h3>伪装画像联动预测</h3>
-          <p class="muted">假设先触及画像端口，再访问服务。预测封禁与业务直连评分分开显示。</p>
-          <ElTable :data="result.camouflage"
-            ><ElTableColumn prop="name" label="画像" min-width="150" /><ElTableColumn
-              prop="protocol_profile"
-              label="协议" /><ElTableColumn prop="port" label="端口" /><ElTableColumn
-              prop="version"
-              label="版本" /><ElTableColumn label="就绪状态"
-              ><template #default="{ row }">{{
-                row.running ? '监听运行中' : row.enabled ? '监听未运行' : '未启用'
-              }}</template></ElTableColumn
-            ><ElTableColumn prop="predicted" label="预计封禁来源"
-          /></ElTable>
-        </section>
-        <section>
-          <h3>调整建议</h3>
-          <ul v-if="result.assessment.advice.length">
-            <li v-for="advice in result.assessment.advice" :key="advice">{{ advice }}</li>
-          </ul>
-          <p v-else>本轮没有发现已覆盖样本的缺口。请扩大来源、业务路径与攻击类别后再验证。</p>
-        </section>
-        <details open>
-          <summary>评分口径与验证范围</summary>
-          <p v-for="limit in result.assessment.limits" :key="limit" class="muted">{{ limit }}</p>
         </details>
-        <section>
-          <h3>逐条判定</h3>
-          <ElTable :data="visibleRows" row-key="rowKey"
-            ><ElTableColumn prop="id" label="样例" min-width="130" /><ElTableColumn
-              label="来源 / 归属地"
-              min-width="190"
-              ><template #default="{ row }"
-                >{{ row.client_ip
-                }}<small>{{
-                  row.geo.ok ? [row.geo.country, row.geo.province].filter(Boolean).join(' / ') : '归属地不可判定'
-                }}</small></template
-              ></ElTableColumn
-            ><ElTableColumn label="预期" width="90"
-              ><template #default="{ row }">{{
-                row.expected === 'access' ? '可访问' : row.expected === 'block' ? '应防御' : '未标注'
-              }}</template></ElTableColumn
-            ><ElTableColumn label="结果" min-width="130"
-              ><template #default="{ row }">{{ outcomeLabels[row.outcome] || row.outcome }}</template></ElTableColumn
-            ><ElTableColumn type="expand"
-              ><template #default="{ row }"><Trace :result="row.result" /></template></ElTableColumn></ElTable
-          ><ElPagination
-            v-model:current-page="page"
-            :page-size="20"
-            :total="result.assessment.rows.length"
-            layout="prev, pager, next, total"
-          />
-        </section>
-      </template>
+        <details>
+          <summary>预期结果、画像与测试策略</summary>
+          <div class="pair">
+            <label
+              >预期判定<ElSelect v-model="expected" aria-label="预期判定"
+                ><ElOption label="只查看判定" value="" /><ElOption
+                  v-for="k in ['passed', 'blocked', 'observe', 'challenge']"
+                  :key="k"
+                  :label="outcomeLabels[k]"
+                  :value="k" /></ElSelect
+            ></label>
+            <label
+              >假设先命中画像<ElSelect v-model="profileId" clearable aria-label="联动伪装画像" placeholder="不模拟联动"
+                ><ElOption v-for="p in profiles" :key="p.id" :label="p.name + ' · ' + p.port" :value="p.id" /></ElSelect
+            ></label>
+          </div>
+          <ElAlert v-if="profileError" type="warning" :title="profileError" :closable="false"
+            ><ElButton text @click="loadProfiles">重读画像</ElButton></ElAlert
+          >
+          <label
+            >测试策略 JSON（可选）<ElInput
+              v-model="configJSON"
+              type="textarea"
+              :rows="4"
+              :disabled="busy"
+              aria-label="测试策略 JSON"
+          /></label>
+          <div>
+            <ElButton :disabled="busy" @click="configJSON = JSON.stringify(config, null, 2)"
+              >载入当前策略以编辑</ElButton
+            >
+          </div>
+          <p class="hint">留空使用上方配置。策略修改仅用于本次判定，不保存到服务。</p>
+        </details>
+        <ElAlert v-if="error" :title="error" type="error" :closable="false" />
+        <div class="actions">
+          <ElButton native-type="submit" type="primary" :loading="busy" :disabled="!!loadError">判定这一条请求</ElButton
+          ><ElButton v-if="busy" @click="controller?.abort()">取消检测</ElButton
+          ><span class="hint">一次点击只判定一次，不生成压力流量。</span>
+        </div>
+      </form>
+      <section v-if="result" aria-label="单条判定结果" class="decision">
+        <ElAlert v-if="stale" type="warning" :closable="false" title="输入或配置已变化，下方为上一次判定。" />
+        <h2>判定结果：{{ outcomeLabels[result.decision.outcome] || result.decision.outcome }}</h2>
+        <p v-if="completedExpected">
+          预期{{ outcomeLabels[completedExpected] }} ·
+          {{ completedExpected === result.decision.outcome ? '符合预期' : '与预期不符' }}
+        </p>
+        <p class="hint">
+          连接来源 {{ result.decision.peer }} · 策略识别 IP {{ result.decision.client_ip }} · 正文
+          {{ result.decision.body_bytes }} 字节 · 配置 v{{ result.decision.revision }}
+        </p>
+        <Trace :result="result.decision.result" />
+        <p v-if="result.profile">
+          画像 {{ result.profile.name }}：{{
+            result.profile.local
+              ? '局域网豁免'
+              : result.profile.running
+                ? '命中画像端口后预计封禁'
+                : '未运行，不计入联动防御'
+          }}。这是单独预测，未执行封禁。
+        </p>
+      </section>
     </template>
   </section>
 </template>
-
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
-import {
-  ElAlert,
-  ElButton,
-  ElCheckbox,
-  ElInput,
-  ElInputNumber,
-  ElOption,
-  ElPagination,
-  ElRadioButton,
-  ElRadioGroup,
-  ElSelect,
-  ElSkeleton,
-  ElTable,
-  ElTableColumn,
-} from 'element-plus';
-import { nextTick } from 'vue';
-import { runAssessment, type AssessmentProgress } from './assessmentJob';
-import { pipelineGet, pipelinePost } from '@/apis/pipeline';
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch, type PropType } from 'vue';
+import { ElAlert, ElButton, ElInput, ElInputNumber, ElOption, ElSelect, ElSkeleton } from 'element-plus';
+import { pipelineGet } from '@/apis/pipeline';
 import { camouflageGet } from '@/apis/camouflage';
+import request from '@/utils/request';
 import Trace from '../pipeline/Trace.vue';
 import type { PortConfig } from '../pipeline/model';
 import { importAssessmentLog, outcomeLabels, serviceTarget, type Sample } from './assessment';
-const props = defineProps({
-  draftConfig: Object as PropType<PortConfig>,
-  initialPort: Number,
-  initialPlan: Object as PropType<any>,
-});
+const props = defineProps({ draftConfig: Object as PropType<PortConfig>, initialPort: Number, initialSource: String });
 const services = ref<PortConfig[]>([]),
-  profiles = ref<any[]>([]),
-  port = ref<number | undefined>(props.initialPort);
-const config = computed(() => props.draftConfig || services.value.find((service) => service.port === port.value));
-const configJSON = ref(''),
-  sampleJSON = ref(''),
-  pressureMode = ref('mixed'),
-  pressurePath = ref('/'),
-  sourcePage = ref(1);
-const progress = ref<AssessmentProgress>({ state: 'preparing', done: 0, total: 0 });
-const mode = ref('batch'),
-  profileId = ref(''),
-  loading = ref(false),
-  busy = ref(false),
-  sourcesLoading = ref(false);
-const loadError = ref(''),
-  profilesError = ref(''),
-  sourcesError = ref(''),
-  error = ref('');
-const sources = ref<Array<{ ip: string; expect_access: boolean; country?: string; province?: string }>>([]);
-const samples = ref<Sample[]>([]),
-  builtins = ref(true),
-  pressure = ref(500),
-  importKind = ref('unknown');
-const single = ref({ method: 'GET', path: '/', body: '', kind: 'unknown' as Sample['kind'], category: 'custom' }),
-  headers = ref<Array<{ name: string; value: string }>>([]);
-const result = ref<any>(null),
-  completedKey = ref(''),
-  page = ref(1);
-const inputKey = computed(() =>
-  JSON.stringify([
-    config.value,
-    sources.value,
-    samples.value,
-    builtins.value,
-    pressure.value,
-    mode.value,
-    profileId.value,
-    single.value,
-    headers.value,
-    configJSON.value,
-    sampleJSON.value,
-    pressureMode.value,
-    pressurePath.value,
-  ]),
-);
-const stale = computed(() => inputKey.value !== completedKey.value);
-const visibleRows = computed(() =>
-  (result.value?.assessment.rows || [])
-    .slice((page.value - 1) * 20, page.value * 20)
-    .map((row: any, index: number) => ({ ...row, rowKey: index })),
-);
-let controller: AbortController | undefined,
-  live = true,
-  sourceVersion = 0;
-function payload() {
+  port = ref(props.initialPort),
+  profiles = ref<Array<{ id: string; name: string; port: number }>>([]);
+const config = computed(() => props.draftConfig || services.value.find((s) => s.port === port.value));
+const target = computed(() => (config.value ? serviceTarget(config.value) : ''));
+const authority = computed(() => target.value.split('://')[1]);
+const versions = ['HTTP/1.0', 'HTTP/1.1', 'HTTP/2.0', 'HTTP/3.0'];
+const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'TRACE', 'CONNECT'];
+function defaults() {
   return {
-    port: config.value?.port,
-    expected_revision: config.value?.revision,
-    ...(configJSON.value.trim()
-      ? { config: JSON.parse(configJSON.value) }
-      : props.draftConfig
-        ? { config: props.draftConfig }
-        : {}),
+    source_ip: props.initialSource || '192.0.2.25',
+    source_port: 12345,
+    scheme: '',
+    version: 'HTTP/1.1',
+    method: 'GET',
+    host: '',
+    path: '/',
+    query: '',
+    headers: [] as { name: string; value: string }[],
+    body_encoding: 'text',
+    body: '',
   };
 }
+const draft = reactive(defaults()),
+  expected = ref(''),
+  profileId = ref(''),
+  configJSON = ref(''),
+  busy = ref(false),
+  loading = ref(false),
+  loadError = ref(''),
+  profileError = ref(''),
+  error = ref('');
+const logs = ref<Sample[]>([]),
+  logIndex = ref(0);
+type Decision = {
+  peer: string;
+  client_ip: string;
+  outcome: string;
+  revision: number;
+  body_bytes: number;
+  result: Record<string, unknown>;
+};
+type ResponseData = { decision: Decision; profile?: { name: string; local: number; running: boolean } };
+const result = ref<ResponseData | null>(null),
+  completedExpected = ref(''),
+  generation = ref(0),
+  lastGeneration = ref(-1);
+const stale = computed(() => generation.value !== lastGeneration.value);
+let live = true,
+  controller: AbortController | undefined;
+watch(
+  [config, draft, expected, profileId, configJSON],
+  () => {
+    generation.value++;
+  },
+  { deep: true, flush: 'sync' },
+);
+watch(port, (next, previous) => {
+  if (previous !== undefined && previous !== next) {
+    Object.assign(draft, defaults());
+    configJSON.value = '';
+    profileId.value = '';
+    expected.value = '';
+    logs.value = [];
+    result.value = null;
+    error.value = '';
+  }
+});
 async function loadProfiles() {
-  profilesError.value = '';
   try {
     const data = await camouflageGet<any>('config');
-    if (live) profiles.value = data.config.profiles;
-  } catch (cause: any) {
-    if (live) profilesError.value = cause.message || '画像读取失败，请重试';
+    if (live) {
+      profiles.value = data.config.profiles;
+      profileError.value = '';
+    }
+  } catch {
+    if (live) profileError.value = '无法读取画像，可重试或只判定业务请求。';
   }
 }
 async function load() {
+  if (loading.value) return;
   loading.value = true;
   loadError.value = '';
   try {
     if (!props.draftConfig) {
       const data = await pipelineGet<PortConfig[]>('ports');
-      if (live) {
-        services.value = data;
-        if (!data.some((service) => service.port === port.value)) port.value = data[0]?.port;
-      }
+      if (!live) return;
+      services.value = data;
+      if (port.value === undefined) port.value = data[0]?.port;
     }
   } catch (cause: any) {
     if (live) loadError.value = cause.message || '服务读取失败，请重试';
   } finally {
     if (live) loading.value = false;
   }
-  await loadProfiles();
 }
-async function sampleSources() {
-  if (!config.value || sourcesLoading.value) return;
-  const version = ++sourceVersion;
-  const key = JSON.stringify(config.value);
-  sourcesLoading.value = true;
-  sourcesError.value = '';
-  try {
-    const data = await pipelinePost<any>('assessment/sources', payload());
-    if (live && version === sourceVersion && key === JSON.stringify(config.value)) applyPlan(data);
-  } catch (cause: any) {
-    if (live && version === sourceVersion) sourcesError.value = cause.message || '数据库取样失败，请手动添加 IP 或重试';
-  } finally {
-    if (live && version === sourceVersion) sourcesLoading.value = false;
-  }
-}
-function addSource() {
-  sources.value.push({ ip: '', expect_access: true });
-}
-async function importLog(event: Event) {
+async function readLog(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
-  error.value = '';
+  const at = port.value;
   try {
-    if (file.size > 4 * 1024 * 1024) throw new Error('日志文件不能超过 4 MiB');
-    const parsed = importAssessmentLog(JSON.parse(await file.text()));
-    if (live) {
-      samples.value = parsed;
-      importKind.value = 'unknown';
+    if (file.size > 4 * 1024 * 1024) throw new Error('日志超过 4 MiB');
+    const rows = importAssessmentLog(JSON.parse(await file.text()));
+    if (live && port.value === at) {
+      logs.value = rows;
+      logIndex.value = 0;
+      error.value = '';
     }
   } catch (cause: any) {
-    error.value = cause.message || '日志导入失败';
+    if (live) error.value = cause.message || '无法读取日志';
   } finally {
     input.value = '';
   }
 }
-function markImported() {
-  for (const sample of samples.value) sample.kind = importKind.value as Sample['kind'];
-}
-function cancel() {
-  controller?.abort();
+function applyLog() {
+  const s = logs.value[logIndex.value];
+  if (!s) return;
+  const at = s.path.indexOf('?');
+  draft.method = s.method;
+  draft.path = at < 0 ? s.path : s.path.slice(0, at);
+  draft.query = at < 0 ? '' : s.path.slice(at + 1);
+  draft.host = '';
+  draft.body_encoding = 'text';
+  draft.body = s.body;
+  draft.headers = Object.entries(s.headers)
+    .filter(([k]) => !['origin', 'referer'].includes(k.toLowerCase()))
+    .map(([name, value]) => ({ name, value }));
+  if (s.truncated) error.value = '历史正文已截断，只能判定当前填入的内容。';
+  else error.value = '';
 }
 async function run() {
-  if (busy.value || !config.value) return;
-  error.value = '';
+  if (!config.value || busy.value || loadError.value) return;
   busy.value = true;
-  const key = inputKey.value;
+  error.value = '';
+  const submitted = generation.value,
+    expectation = expected.value;
   controller = new AbortController();
   try {
-    const inputSamples: Sample[] =
-      mode.value === 'single'
-        ? [
-            {
-              id: 'single',
-              ...single.value,
-              headers: Object.fromEntries(
-                headers.value
-                  .filter((header) => header.name.trim())
-                  .map((header) => [header.name.trim(), header.value]),
-              ),
-              truncated: false,
-            },
-          ]
-        : sampleJSON.value.trim()
-          ? JSON.parse(sampleJSON.value)
-          : samples.value;
-    const data = {
-      ...payload(),
-      sources: sources.value.map(({ ip, expect_access }) => ({ ip, expect_access })),
-      samples: inputSamples,
-      builtins: mode.value === 'batch' && builtins.value,
-      pressure: mode.value === 'batch' ? pressure.value : 0,
+    const payload = {
+      port: config.value.port,
+      expected_revision: config.value.revision,
+      config: configJSON.value.trim() ? JSON.parse(configJSON.value) : props.draftConfig,
       profile_id: profileId.value,
-      pressure_mode: pressureMode.value,
-      pressure_path: pressurePath.value,
+      request: { ...draft, headers: draft.headers.filter((h) => h.name || h.value) },
     };
-    if (new TextEncoder().encode(JSON.stringify(data)).length > 950000)
-      throw new Error('请求数据超过检测接口上限，请减少样本或正文后重试');
-    const assessment = await runAssessment(data, controller.signal, (value) => {
-      if (live) progress.value = value;
-    });
+    const reply = (await request({
+      url: '/pipeline/assessment/single',
+      method: 'post',
+      data: payload,
+      signal: controller.signal,
+      timeout: 20000,
+    })) as any;
+    if (reply.code !== 0) throw new Error(reply.msg || '判定失败');
+    if (!reply.data?.decision?.result?.verdict) throw new Error('服务未返回完整判定，请检查服务版本后重试。');
     if (live) {
-      result.value = assessment;
-      completedKey.value = key;
-      page.value = 1;
+      result.value = reply.data;
+      lastGeneration.value = submitted;
+      completedExpected.value = expectation;
     }
   } catch (cause: any) {
     if (live)
       error.value = controller.signal.aborted
-        ? '检测已取消，输入已保留。'
-        : cause.message || '检测失败，输入已保留，请重试。';
+        ? '已取消等待，输入保留。'
+        : cause instanceof SyntaxError
+          ? '策略 JSON 无效，请检查后重试。'
+          : cause.message || '判定失败，输入已保留。';
   } finally {
     if (live) busy.value = false;
   }
 }
-watch(
-  () => config.value?.port,
-  () => {
-    sourceVersion++;
-    sourcesLoading.value = false;
-    sources.value = [];
-    configJSON.value = '';
-    sampleJSON.value = '';
-    sourcePage.value = 1;
-    result.value = null;
-  },
-);
-function applyPlan(plan: any) {
-  sources.value = plan.sources || [];
-  samples.value = plan.samples || [];
-  pressure.value = plan.pressure || 0;
-  builtins.value = false;
-  sourcePage.value = 1;
-  sourcesError.value = (plan.warnings || []).join(' ');
-}
-onMounted(async () => {
-  await load();
-  await nextTick();
-  if (props.initialPlan) applyPlan(props.initialPlan);
-  else if (config.value) await sampleSources();
+onMounted(() => {
+  void load();
+  void loadProfiles();
 });
 onBeforeUnmount(() => {
   live = false;
-  sourceVersion++;
-  cancel();
+  controller?.abort();
 });
 </script>
-
 <style scoped>
-.score-detection {
+.single-test,
+form,
+fieldset,
+.decision,
+details[open] {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   min-width: 0;
+}
+.single-test {
+  max-width: 1080px;
   color: var(--hw-ink);
 }
-.refresh-config {
-  justify-self: start;
+fieldset,
+.decision,
+details {
+  border: 1px solid var(--hw-line);
+  border-radius: var(--hw-r-lg);
+  padding: 16px 20px;
+  margin: 0;
+}
+legend {
+  padding: 0 7px;
+  font-weight: 600;
 }
 h2,
-h3,
 p {
   margin: 0;
 }
 h2 {
   font-size: 18px;
 }
-h3 {
-  font-size: 16px;
-}
-header,
-section,
-details {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-header p,
-.muted,
-small {
+.hint {
+  font-size: 13px;
+  line-height: 1.6;
   color: var(--hw-muted);
-  line-height: 1.7;
 }
-.score-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-label {
-  display: grid;
-  gap: 7px;
-  min-width: 0;
-  font-size: 14px;
-}
-fieldset {
-  border: 1px solid var(--hw-line);
-  border-radius: var(--hw-r-lg);
-  margin: 0;
-  padding: 16px;
-  display: grid;
-  gap: 14px;
-  min-width: 0;
-}
-legend {
-  padding: 0 8px;
-  font-weight: 600;
-}
-.score-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-}
-.score-actions .el-select {
-  width: 250px;
-}
-.source-row {
-  display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(100px, 1fr) 170px auto;
-  gap: 12px;
-  align-items: end;
-}
-.target-line {
+label,
+.service-line > div {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 code {
   overflow-wrap: anywhere;
-  font-family: var(--font-mono);
 }
-.sample-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
-  gap: 12px;
+.service-line,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
   align-items: center;
 }
+.service-line label {
+  min-width: min(230px, 100%);
+}
+.row,
+.pair,
 .header-row {
-  display: flex;
-  gap: 12px;
-}
-.assessment-summary {
   display: grid;
-  gap: 8px;
-  padding: 18px;
-  background: var(--hw-subtle);
-  border-left: 3px solid var(--hw-accent);
+  gap: 14px;
+  align-items: end;
 }
-.assessment-summary strong {
-  font: 700 32px var(--font-mono);
+.row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-small {
-  display: block;
+.pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-li {
-  margin: 6px 0;
-  line-height: 1.7;
+.header-row {
+  grid-template-columns: minmax(100px, 1fr) minmax(180px, 2fr) auto;
 }
 summary {
   cursor: pointer;
+  font-weight: 600;
 }
 input[type='file'] {
   max-width: 100%;
 }
-.el-pagination {
-  max-width: 100%;
-  flex-wrap: wrap;
+.actions {
+  padding: 4px 0;
 }
-@media (max-width: 760px) {
-  .score-fields,
-  .source-row {
+.decision {
+  border-inline-start: 3px solid var(--hw-accent);
+}
+@media (max-width: 700px) {
+  .row,
+  .pair,
+  .header-row {
     grid-template-columns: 1fr;
   }
-  .header-row {
-    flex-wrap: wrap;
+  .service-line {
+    align-items: stretch;
+    flex-direction: column;
   }
-  fieldset {
+  fieldset,
+  .decision,
+  details {
     padding: 12px;
   }
-  .score-actions {
-    align-items: stretch;
-  }
-  .score-actions .el-select {
-    width: 100%;
+  .header-row > button {
+    justify-self: start;
   }
 }
 </style>

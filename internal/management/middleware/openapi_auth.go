@@ -229,7 +229,8 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 			strings.Contains(path, "/upload") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/diagnostic")
 
-		omitRequestBody := c.GetBool("openapi_local_only") ||
+		assessmentInput := strings.HasSuffix(path, "/api/v1/pipeline/assessment") || strings.Contains(path, "/api/v1/pipeline/assessment/")
+		omitRequestBody := assessmentInput || c.GetBool("openapi_local_only") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/add") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/edit")
 		if !isFileRequest && !omitRequestBody && c.Request.Body != nil {
@@ -255,7 +256,7 @@ func OpenApiLogMiddleware() gin.HandlerFunc {
 		duration := time.Since(startTime).Milliseconds()
 
 		// 站点新增/编辑响应与站点详情/列表响应可能包含站点敏感字段，本机 Key 的全部响应也不落日志。
-		omitResponseBody := c.GetBool("openapi_local_only") ||
+		omitResponseBody := assessmentInput || c.GetBool("openapi_local_only") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/add") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/edit") ||
 			strings.HasSuffix(path, "/api/v1/wafhost/host/detail") ||

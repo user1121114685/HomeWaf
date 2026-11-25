@@ -10,7 +10,7 @@ const output=path.join(root,'artifacts','assessment-browser');fs.mkdirSync(outpu
 const templates=JSON.parse(execFileSync('go',['run','./scripts/pipeline-fixtures'],{cwd:root,encoding:'utf8'}));
 const config={schema_version:1,port:15000,name:'测试服务',protocol:'http',listen_enabled:true,upstream:'http://127.0.0.1:18080',host_names:['selected.example.test'],policy:templates.find(x=>x.id==='public-site').policy,template:{},revision:7};
 const camo={profiles:[{id:'http',name:'测试 HTTP 画像',port:18081,protocol_profile:'http',version:'nginx/1.24.0',server_name:'nas',listen_ip_version:'dual',enabled:true}],local_cidr_mode:'custom',local_cidrs:['192.168.0.0/16']};
-let fail=false,delay=false,deny=false,lastInput,serviceEmpty=false,cancelCount=0,polls=0;
+let fail=false,delay=false,deny=false,lastInput,lastSingle,failSingle=false,singleCount=0,planReads=0,serviceEmpty=false,cancelCount=0,polls=0;
 const plan={ipv4:5,ipv6:5,pressure:600,warnings:[],cities:[{province:'重庆市',city:'重庆',ipv4:5,ipv6:5,ipv4_target:5,ipv6_target:5,ipv4_carriers:['移动','联通','电信','广电'],ipv6_carriers:['移动','联通','电信']},{province:'云南省',city:'保山',ipv4:5,ipv6:0,ipv4_target:5,ipv6_target:5,ipv4_carriers:['移动'],ipv6_carriers:[]}],sources:[{ip:'1.2.3.47',family:'IPv4',country:'中国',province:'重庆市',city:'重庆',isp:'移动',expect_access:true},{ip:'240e:1234:5678:9abc::789a',family:'IPv6',country:'中国',province:'重庆市',city:'重庆',isp:'电信',expect_access:true}],samples:[{id:'normal',kind:'benign',category:'normal',method:'GET',path:'/',headers:{},body:''}]};
 function result(){return {plan,assessment:{target:config.host_names.length?'http://selected.example.test:15000':'http://127.0.0.1:15000',revision:7,score:76,direct_score:73,camouflage_score:10,evaluations:52,normal_passed:2,normal_total:2,elapsed_ms:12.1,pressure:{evaluations:600,limited:400,first_limited:101,elapsed_ms:2.2,lanes:[{name:'IPv4 单来源连续访问',evaluations:200,limited:100,first_limited:101}]},categories:[{category:'sqli',total:2,blocked:2,challenged:0,observed:0,missed:0}],advice:['允许地区内仍需检查攻击规则。'],limits:['隔离模拟，不连接源站。'],rows:[{id:'sql-query',category:'sqli',kind:'attack',client_ip:'1.2.3.47',expected:'block',outcome:'blocked',geo:{ok:true,country:'中国',province:'重庆市'},result:{req_id:'fixture',verdict:{action:'deny',reason:'sqli'},trace:[{stage:3,check:'sqli',verdict:{action:'deny',reason:'sqli'},elapsed_us:1}]}}]},camouflage:[{...camo.profiles[0],running:true,predicted:10,local:0}],listeners:[{family:'IPv4',expected:true,connected:true,detail:'本机 TCP 连接成功'},{family:'IPv6',expected:false,connected:true,detail:'本机 TCP 连接成功'}]};}
 
@@ -28,7 +28,12 @@ await context.route('**/api/**',async route=>{
   if(endpoint==='pipeline/camouflage/profiles')return ok([{code:'http',name:'HTTP',group:'常用协议',transport:'tcp',default_version:'nginx/1.24.0',default_port:80}]);
   if(endpoint==='pipeline/camouflage/events')return ok([]);
   if(endpoint==='pipeline/ports')return deny?error('没有检测权限'):ok(serviceEmpty?[]:[config]);
-  if(endpoint==='pipeline/assessment/sources')return ok(plan);
+  if(endpoint==='pipeline/assessment/sources'){planReads++;return ok(plan);}
+  if(endpoint==='pipeline/assessment/single'){
+    lastSingle=JSON.parse(routeSession(route).decrypt(req.postData()));singleCount++;
+    if(failSingle)return error('模拟服务版本已变化');
+    return ok({decision:{peer:lastSingle.request.source_ip+':'+lastSingle.request.source_port,client_ip:lastSingle.request.source_ip,outcome:'passed',body_bytes:5,revision:7,result:{req_id:'single-fixture',verdict:{action:'allow',reason:'policy'},trace:[]}},profile:null});
+  }
   if(endpoint==='pipeline/assessment'){
     lastInput=JSON.parse(routeSession(route).decrypt(req.postData()));polls=0;
     if(fail)return error('检测失败：请重试，草稿保留');
@@ -61,15 +66,28 @@ try{
   fail=false;await run();delay=true;await panel().getByRole('button',{name:'重新检测',exact:true}).click();await expect(panel()).toContainText('已检查 1 / 2');await panel().getByRole('button',{name:'取消检测',exact:true}).click();await expect(panel()).toContainText('检测已取消');expect(cancelCount).toBeGreaterThan(0);delay=false;
   report.checks.push('failure/retry and server job cancellation');
   const popupPromise=context.waitForEvent('page');await panel().getByRole('link',{name:'自定义测试 ↗'}).click();const advanced=await popupPromise;await advanced.waitForLoadState();
-  const custom=advanced.getByTestId('score-detection');await expect(custom.getByLabel('来源 IP 1',{exact:true})).toHaveValue('1.2.3.47');
-  await expect(custom.getByLabel('重复请求次数')).toHaveValue('600');
-  await custom.locator('input[type=file]').setInputFiles({name:'incident.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({detail_records:[{host:'private.invalid',url:'https://private.invalid/test',method:'GET',header:'Host: private.invalid\r\nCookie: SECRET\r\n',action:'阻止'}]}))});
-  await expect(custom).toContainText('已导入 1 条');await custom.getByRole('button',{name:'开始评分检测',exact:true}).click();await expect(custom.locator('.assessment-summary')).toBeVisible();
-  expect(JSON.stringify(lastInput)).not.toMatch(/private\.invalid|SECRET/);expect(lastInput.samples[0].kind).toBe('unknown');
-  await custom.getByLabel('来源 IP 1',{exact:true}).fill('1.2.3.48');await expect(custom).toContainText('输入或草稿已变化');
-  await custom.getByText('单条判定',{exact:true}).click();await custom.getByLabel('请求路径',{exact:true}).fill('/api/test');await custom.getByRole('button',{name:'检查当前判定',exact:true}).click();await expect(custom.getByRole('button',{name:'检查当前判定',exact:true})).not.toHaveClass(/is-loading/);expect(lastInput.samples[0].path).toBe('/api/test');
-  report.checks.push('developer window inherits plan/service; imported identity redaction; single request and stale state');
-  await custom.getByText('完整测试参数（仅本次，不保存服务）',{exact:true}).click();await custom.getByRole('button',{name:'载入当前策略以编辑'}).click();await expect(custom.getByLabel('测试策略 JSON',{exact:true})).toHaveValue(/selected.example.test/);
+  const custom=advanced.getByTestId('score-detection');
+  await expect(custom.getByLabel('来源 IP',{exact:true})).toHaveValue('1.2.3.47');
+  await expect(custom.getByText('批量评分',{exact:true})).toHaveCount(0);
+  await expect(custom.getByLabel('重复请求次数')).toHaveCount(0);
+  await custom.getByText('从日志选取一条请求',{exact:true}).click();
+  await custom.locator('input[type=file]').setInputFiles({name:'incident.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify([{url:'/first',method:'GET'},{url:'https://private.invalid/second?a=1&a=2',method:'POST',header:{Authorization:'PRIVATE_LOG',Host:'private.invalid'}}]))});
+  await custom.getByLabel('选取日志记录').press('Enter');await advanced.getByRole('option',{name:/second/}).click();await custom.getByRole('button',{name:'填入当前请求'}).click();
+  await expect(custom.getByLabel('请求路径',{exact:true})).toHaveValue('/second');await expect(custom.getByLabel('查询串')).toHaveValue('a=1&a=2');expect(singleCount).toBe(0);
+  await custom.getByLabel('请求 Host').fill('virtual.example.test');
+  await custom.getByLabel('来源端口').fill('1234');
+  for (const [i,v] of ['first','second'].entries()) {
+    await custom.getByRole('button',{name:'添加请求头'}).click();await custom.getByLabel('请求头名称 '+(i+1)).fill('X-Fixture');await custom.getByLabel('请求头值 '+(i+1)).fill(v);
+  }
+  await custom.getByLabel('请求正文',{exact:true}).fill('hello');await custom.getByRole('button',{name:'判定这一条请求'}).click();await expect(custom.getByRole('heading',{name:'判定结果：放行'})).toBeVisible();
+  expect(singleCount).toBe(1);expect(lastSingle.request.headers).toEqual([{name:'X-Fixture',value:'first'},{name:'X-Fixture',value:'second'}]);
+  expect(lastSingle.request).toMatchObject({source_port:1234,method:'POST',host:'virtual.example.test',path:'/second',query:'a=1&a=2',body:'hello'});
+  expect(lastSingle).not.toHaveProperty('sources');expect(lastSingle).not.toHaveProperty('pressure');expect(JSON.stringify(lastSingle)).not.toMatch(/private\.invalid|PRIVATE_LOG/);expect(planReads).toBe(0);
+  await custom.getByLabel('来源 IP',{exact:true}).fill('192.0.2.47');await expect(custom).toContainText('输入或配置已变化');
+  failSingle=true;await custom.getByRole('button',{name:'判定这一条请求'}).click();await expect(custom).toContainText('模拟服务版本已变化');await expect(custom.getByLabel('请求正文',{exact:true})).toHaveValue('hello');
+  failSingle=false;await custom.getByRole('button',{name:'判定这一条请求'}).click();await expect(custom.getByText('输入或配置已变化，下方为上一次判定。')).toHaveCount(0);
+  report.checks.push('single request only; duplicate headers, custom host and query, isolated log selection, stale result, failure/retry');
+  await custom.getByText('预期结果、画像与测试策略',{exact:true}).click();await custom.getByRole('button',{name:'载入当前策略以编辑'}).click();await expect(custom.getByLabel('测试策略 JSON',{exact:true})).toHaveValue(/selected.example.test/);
   for(const target of [page,advanced])for(const theme of ['light','dark'])for(const width of [1440,820,390]){
     await target.setViewportSize({width,height:1000});await target.evaluate(value=>{document.documentElement.classList.toggle('dark',value==='dark');document.documentElement.setAttribute('theme-mode',value);},theme);
     const overflow=await target.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);expect(overflow).toBe(false);
