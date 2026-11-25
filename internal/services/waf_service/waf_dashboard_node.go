@@ -7,12 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"math"
 	"net"
 	"net/http"
 	"net/netip"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -93,11 +91,15 @@ func discoverDashboardNode(ctx context.Context) (model.DashboardTarget, error) {
 }
 
 func discoverDashboardNodeWithClient(ctx context.Context, client *http.Client) (model.DashboardTarget, error) {
-	// Prefer IPIP (mainland China). IPinfo is a fallback, not a browser dependency.
+	// Domestic and overseas destinations can use different transparent proxy exits.
+	// Keep discovery on the domestic route; a failed lookup must not move the node overseas.
 	for _, provider := range []struct{ url, name string }{
 		{"https://myip.ipip.net/json", "ipip.net"},
-		{"https://ipinfo.io/json", "ipinfo.io"},
+		{"https://myip.ipip.net/", "ipip.net"},
 	} {
+		if err := ctx.Err(); err != nil {
+			return model.DashboardTarget{}, err
+		}
 		data, err := fetchDashboardNode(ctx, client, provider.url, provider.name)
 		if err == nil {
 			return data, nil
@@ -159,25 +161,7 @@ func decodeDashboardNode(body []byte, provider string) (model.DashboardTarget, e
 			}
 		}
 	} else {
-		var payload struct {
-			IP      string `json:"ip"`
-			City    string `json:"city"`
-			Region  string `json:"region"`
-			Country string `json:"country"`
-			Loc     string `json:"loc"`
-			Bogon   bool   `json:"bogon"`
-		}
-		if err := json.Unmarshal(body, &payload); err != nil || payload.Bogon {
-			return out, errors.New("IPinfo 返回无效数据")
-		}
-		out.PublicIP, out.City, out.Region, out.Country = payload.IP, payload.City, payload.Region, payload.Country
-		if parts := strings.Split(payload.Loc, ","); len(parts) == 2 {
-			lat, latErr := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
-			lon, lonErr := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
-			if latErr == nil && lonErr == nil && !math.IsNaN(lat) && !math.IsNaN(lon) && math.Abs(lat) <= 90 && math.Abs(lon) <= 180 {
-				out.Latitude, out.Longitude, out.HasCoordinates = lat, lon, true
-			}
-		}
+		return out, errors.New("不支持的公网 IP 定位来源")
 	}
 	ip := net.ParseIP(strings.TrimSpace(out.PublicIP))
 	if ip == nil || !ip.IsGlobalUnicast() {

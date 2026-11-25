@@ -94,6 +94,41 @@ export function flightCoordinates(from: Coordinate, to: Coordinate): Coordinate[
     return [x * 360 - 180, (Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180) / Math.PI];
   });
 }
+// Integrate a smooth velocity curve: speed rises until 75% of the path, then
+// falls to zero over the remaining 25%. Position, speed and acceleration join.
+export function flightProgress(time: number): number {
+  const t = Math.max(0, Math.min(1, time));
+  const area = (q: number) => q * q * q * (2 - q);
+  return t <= 0.75 ? 0.75 * area(t / 0.75) : 1 - 0.25 * area((1 - t) / 0.25);
+}
+export function flightTrack(coordinates: Coordinate[]) {
+  const points = coordinates.map(([longitude, latitude]) => {
+    const radians = (latitude * Math.PI) / 180;
+    return [(longitude + 180) / 360, (1 - Math.log(Math.tan(Math.PI / 4 + radians / 2)) / Math.PI) / 2] as Coordinate;
+  });
+  const lengths = [0];
+  for (let i = 1; i < points.length; i++)
+    lengths.push(lengths[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
+  return { points, lengths, total: lengths.at(-1) || 0 };
+}
+// Distance is measured along the rendered Mercator curve, not its control parameter.
+export function flightPosition(track: ReturnType<typeof flightTrack>, progress: number): Coordinate {
+  const distance = Math.max(0, Math.min(1, progress)) * track.total;
+  let low = 0,
+    high = track.lengths.length - 1;
+  while (low + 1 < high) {
+    const mid = (low + high) >> 1;
+    if (track.lengths[mid] <= distance) low = mid;
+    else high = mid;
+  }
+  const a = track.points[low],
+    b = track.points[high];
+  const span = track.lengths[high] - track.lengths[low];
+  const ratio = span ? (distance - track.lengths[low]) / span : 0;
+  const x = a[0] + (b[0] - a[0]) * ratio,
+    y = a[1] + (b[1] - a[1]) * ratio;
+  return [x * 360 - 180, (Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180) / Math.PI];
+}
 export function countryFill(dark: boolean): ExpressionSpecification {
   const neutral = dark
     ? ['#26374b', '#2e4256', '#354b60', '#3c5265', '#2c4555']
@@ -127,7 +162,6 @@ export function createMapStyle(countriesUrl: string, dark: boolean): StyleSpecif
       countries: { type: 'geojson', data: countriesUrl, promoteId: 'id', attribution: 'Natural Earth', tolerance: 0.3 },
       origins: { type: 'geojson', data: emptyCollection() },
       flights: { type: 'geojson', data: emptyCollection() },
-      'flight-heads': { type: 'geojson', data: emptyCollection() },
     },
     layers: [
       { id: 'ocean', type: 'background', paint: { 'background-color': dark ? '#0b1220' : '#f0f2fa' } },
@@ -204,17 +238,6 @@ export function createMapStyle(countriesUrl: string, dark: boolean): StyleSpecif
           'text-halo-color': dark ? '#111c2c' : '#fff8ef',
           'text-halo-width': 1.6,
           'text-halo-blur': 0.4,
-        },
-      },
-      {
-        id: 'flight-heads',
-        type: 'circle',
-        source: 'flight-heads',
-        paint: {
-          'circle-radius': 3,
-          'circle-color': '#ffc990',
-          'circle-stroke-color': '#cf7351',
-          'circle-stroke-width': 1,
         },
       },
     ],

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { trafficLocation, trafficRegions } from '../src/pages/dashboard/base/components/trafficLocation.ts';
+import { locateCity } from '../src/pages/dashboard/screen/cityLocation.ts';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import {
   aggregateRegions,
@@ -9,6 +10,9 @@ import {
   countryId,
   createMapStyle,
   flightCoordinates,
+  flightProgress,
+  flightTrack,
+  flightPosition,
   sourceIPDetails,
 } from '../src/pages/dashboard/screen/mapData.ts';
 import {
@@ -18,6 +22,12 @@ import {
   validatePayload,
   validateSnapshot,
 } from '../src/pages/dashboard/screen/data.ts';
+
+test('domestic provider Chongqing labels resolve to the local Chongqing map position', () => {
+  const point=locateCity('中国','重庆','重庆');
+  assert.ok(point && point.longitude>105 && point.longitude<108 && point.latitude>28 && point.latitude<31);
+  assert.deepEqual(locateCity('中国','重庆市','重庆市'),point);
+});
 test('dashboard locations preserve country and city without merging distinct cities', () => {
   assert.equal(trafficLocation({ country: '中国', province: '重庆市', city: '重庆市' }), '中国 · 重庆市');
   assert.equal(trafficLocation({ country: 'United States', province: 'Florida', city: 'Miami' }), '美国 · Florida · Miami');
@@ -167,4 +177,19 @@ test('flights across the dateline follow the short route and retain endpoints', 
     assert.ok(Math.abs(path.at(-1)[1] - target[1]) < 1e-8);
     for (let i = 1; i < path.length; i++) assert.ok(Math.abs(path[i][0] - path[i - 1][0]) < 10);
   }
+});
+
+test('attack flight accelerates through 75 percent of distance then decelerates without a speed jump', () => {
+  assert.equal(flightProgress(0),0);
+  assert.equal(flightProgress(0.75),0.75);
+  assert.equal(flightProgress(1),1);
+  const velocity=t=>(flightProgress(t+0.00001)-flightProgress(t-0.00001))/0.00002;
+  for(const t of [0.1,0.2,0.3,0.4,0.5,0.6]) assert.ok(velocity(t+0.05)>velocity(t));
+  for(const t of [0.8,0.85,0.9]) assert.ok(velocity(t+0.025)<velocity(t));
+  assert.ok(Math.abs(velocity(0.74999)-velocity(0.75001))<0.00001);
+  assert.ok(velocity(0)<0.00001 && velocity(1)<0.00001);
+  const track=flightTrack(flightCoordinates([179,30],[-179,35]));
+  const start=flightPosition(track,0),end=flightPosition(track,1);
+  assert.ok(Math.abs(start[1]-30)<1e-8 && Math.abs(end[0]+179)<1e-8 && Math.abs(end[1]-35)<1e-8);
+  assert.ok(track.points.every((point,i)=>i===0 || Math.abs(point[0]-track.points[i-1][0])<0.05));
 });

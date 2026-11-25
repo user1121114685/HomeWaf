@@ -1,4 +1,4 @@
-import data from './city-positions.json';
+import data from './city-positions.json' with { type: 'json' };
 
 type City = [country: string, names: string[], region: string, longitude: number, latitude: number];
 function normalize(value: string) {

@@ -11,6 +11,7 @@
       class="map-canvas"
       aria-label="平面国家地图：拖动平移，滚轮或双指缩放，方向键移动，Home 复位"
     />
+    <canvas ref="flightCanvas" class="flight-canvas" aria-hidden="true" />
     <div class="map-toolbar" role="group" aria-label="地图视角控制">
       <button
         type="button"
@@ -79,6 +80,9 @@ import {
   DEFAULT_CENTER,
   emptyCollection,
   flightCoordinates,
+  flightProgress,
+  flightTrack,
+  flightPosition,
   lineCollection,
   MAX_SCALE,
   pointCollection,
@@ -99,6 +103,7 @@ const props = defineProps({
   dark: Boolean,
 });
 const container = ref<HTMLDivElement>();
+const flightCanvas = ref<HTMLCanvasElement>();
 const ready = ref(false),
   scale = ref(1),
   selected = ref(''),
@@ -110,8 +115,7 @@ let popupSource = '',
 let popupCloseTimer: ReturnType<typeof setTimeout> | undefined;
 let baseZoom = 0,
   touched = false,
-  frame = 0,
-  updatingHeads = false;
+  frame = 0;
 const FLIGHT_DURATION_MS = 8000;
 let flightElapsed = 0;
 const reducedMotion = ref(false);
@@ -160,11 +164,10 @@ const paths = computed(() => {
     const from = countryCoordinate(country);
     if (from) origins.set(countryId(country), from);
   }
-  return Array.from(origins.values(), (from) => ({
-    coordinates: flightCoordinates(from, target.coordinates),
-    // Stagger by origin so polling and reordered events keep the same phase.
-    phase: (from[0] + 180) / 360,
-  }));
+  return Array.from(origins.values(), (from) => {
+    const coordinates = flightCoordinates(from, target.coordinates);
+    return { coordinates, track: flightTrack(coordinates), phase: (from[0] + 180) / 360 };
+  });
 });
 
 function source(id: string) {
@@ -350,7 +353,7 @@ function showSourcePopup(id: string, coordinate: Coordinate, pinned = false) {
   closeSourcePopup();
   popupSource = id;
   popupPinned = pinned;
-  const compact = map.getContainer().clientHeight < 400 || map.getContainer().clientWidth < 600;
+  const compact = map.getContainer().clientHeight < 600 || map.getContainer().clientWidth < 600;
   const popup = new Popup({
     closeButton: true,
     closeOnClick: false,
@@ -400,40 +403,64 @@ function interactWithSource(event: MapMouseEvent, pinned = false) {
 function stopAnimation() {
   cancelAnimationFrame(frame);
   frame = 0;
+  const canvas = flightCanvas.value;
+  canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+}
+function drawFlightHeads() {
+  const canvas = flightCanvas.value;
+  if (!canvas || !map) return;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  const width = map.getContainer().clientWidth,
+    height = map.getContainer().clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+  }
+  context.setTransform(dpr, 0, 0, dpr, 0, 0);
+  context.clearRect(0, 0, width, height);
+  const worldWidth = 512 * 2 ** map.getZoom();
+  for (const flight of paths.value) {
+    const progress = flightProgress((flightElapsed / FLIGHT_DURATION_MS + flight.phase) % 1);
+    const point = flightPosition(flight.track, progress);
+    point[0] += Math.round((map.getCenter().lng - point[0]) / 360) * 360;
+    const screen = map.project(point);
+    const opacity = Math.min(1, progress / 0.02, (1 - progress) / 0.025);
+    const copies = Math.ceil(width / worldWidth) + 1;
+    for (let copy = -copies; copy <= copies; copy++) {
+      const x = screen.x + copy * worldWidth,
+        y = screen.y;
+      if (x < -8 || x > width + 8 || y < -8 || y > height + 8) continue;
+      context.globalAlpha = opacity * 0.18;
+      context.fillStyle = '#ffc990';
+      context.beginPath();
+      context.arc(x, y, 7, 0, Math.PI * 2);
+      context.fill();
+      context.globalAlpha = opacity;
+      context.beginPath();
+      context.arc(x, y, 3, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = '#cf7351';
+      context.lineWidth = 1;
+      context.stroke();
+    }
+  }
+  context.globalAlpha = 1;
 }
 function animateFlights() {
   if (!ready.value) return;
   if (props.paused || reducedMotion.value || !paths.value.length || document.hidden) {
     stopAnimation();
-    setData('flight-heads', emptyCollection());
     return;
   }
   if (frame) return;
   let last = performance.now();
   const tick = (time: number) => {
     if (!map || !ready.value) return;
-    if (time - last >= 40 && !updatingHeads) {
-      flightElapsed = (flightElapsed + time - last) % FLIGHT_DURATION_MS;
-      last = time;
-      const points = paths.value.map((flight) => {
-        const progress = ((flightElapsed / FLIGHT_DURATION_MS + flight.phase) % 1) * (flight.coordinates.length - 1);
-        const i = Math.floor(progress),
-          t = progress - i;
-        const a = flight.coordinates[i],
-          b = flight.coordinates[Math.min(i + 1, flight.coordinates.length - 1)];
-        return { coordinates: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t] as Coordinate };
-      });
-      const heads = source('flight-heads');
-      if (heads) {
-        updatingHeads = true;
-        void heads
-          .setData(pointCollection(points))
-          .catch(() => {})
-          .finally(() => {
-            updatingHeads = false;
-          });
-      }
-    }
+    flightElapsed = (flightElapsed + Math.min(time - last, 64)) % FLIGHT_DURATION_MS;
+    last = time;
+    drawFlightHeads();
     frame = requestAnimationFrame(tick);
   };
   frame = requestAnimationFrame(tick);
@@ -576,6 +603,13 @@ defineExpose({ getMap: () => map, resetView });
   inset: 0;
   width: 100%;
   height: 100%;
+}
+.flight-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 .map-canvas :deep(.maplibregl-canvas:focus-visible) {
   outline: 1px solid var(--screen-accent);

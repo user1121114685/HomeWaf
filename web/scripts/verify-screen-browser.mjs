@@ -80,7 +80,7 @@ function snapshot(shared = false) {
       mode === 'unlocated'
         ? { ...target, mode: 'auto', status: 'unavailable', has_coordinates: false }
         : mode === 'stale'
-          ? { ...target, mode: 'auto', status: 'stale' }
+          ? { ...domesticTarget, mode: 'auto', status: 'stale' }
           : mode === 'overseas'
             ? {
                 ...target,
@@ -165,14 +165,29 @@ async function layout(width) {
   const result = await page.evaluate(() => {
     const chart = document.querySelector('.qps-panel').getBoundingClientRect();
     const ranking = document.querySelector('.ip-ranking li:last-child');
+    const list = document.querySelector('.ip-ranking');
+    const footer = document.querySelector('.ranking-panel .panel-foot');
+    let rankOverlaps = ranking && ranking.getBoundingClientRect().bottom > footer.getBoundingClientRect().top + 1;
+    if (ranking && list && ['auto','scroll'].includes(getComputedStyle(list).overflowY)) {
+      // Short viewports may scroll the list, but every rank must remain reachable
+      // inside its own area and the footer must stay outside the scrolling content.
+      const previous = list.scrollTop;
+      list.scrollTop = list.scrollHeight;
+      rankOverlaps = list.getBoundingClientRect().bottom > footer.getBoundingClientRect().top + 1 || ranking.getBoundingClientRect().bottom > list.getBoundingClientRect().bottom + 1;
+      list.scrollTop = previous;
+    }
     return {
       horizontal: document.documentElement.scrollWidth > innerWidth + 1,
       vertical: document.documentElement.scrollHeight > innerHeight + 1,
       overlap: document.querySelector('.screen-main').getBoundingClientRect().bottom > chart.top - 8,
-      rank:
-        ranking &&
-        ranking.getBoundingClientRect().bottom >
-          document.querySelector('.ranking-panel .panel-foot').getBoundingClientRect().top + 1,
+      rank: rankOverlaps,
+      rankBounds: {
+        lastBottom:ranking?.getBoundingClientRect().bottom,
+        footTop:document.querySelector('.ranking-panel .panel-foot').getBoundingClientRect().top,
+        rowHeight:ranking?.getBoundingClientRect().height,
+        listHeight:document.querySelector('.ip-ranking')?.getBoundingClientRect().height,
+        gap:document.querySelector('.ip-ranking') && getComputedStyle(document.querySelector('.ip-ranking')).gap,
+      },
     };
   });
   if (result.horizontal || (width > 1100 && (result.vertical || result.overlap || result.rank)))
@@ -203,9 +218,11 @@ async function mapSource(p, id) {
     .evaluate((el, id) => el.__vueParentComponent.exposed.getMap().getSource(id).getData(), id);
 }
 async function mapHeads(p) {
-  return (await mapSource(p, 'flight-heads')).features.map((feature) =>
-    feature.geometry.coordinates.map((coordinate) => Number(coordinate.toFixed(4))),
-  );
+  return p.locator('.flight-canvas').evaluate(canvas=>{
+    const data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+    for(let i=3;i<data.length;i+=4)if(data[i])return canvas.toDataURL();
+    return '';
+  });
 }
 async function settleMap(p) {
   await expect.poll(async () => (await readMapState(p)).moving).toBe(false);
@@ -387,7 +404,20 @@ try {
   const initialFlightCount = (await mapSource(page, 'flights')).features.length;
   await page.waitForTimeout(7600);
   expect((await mapSource(page, 'flights')).features.length).toBe(initialFlightCount);
-  expect(await mapHeads(page)).toHaveLength(initialFlightCount);
+  expect((await mapHeads(page)).length).toBeGreaterThan(0);
+  const cadence=await page.locator('.flight-canvas').evaluate(canvas=>new Promise(resolve=>{
+    const context=canvas.getContext('2d'),clear=context.clearRect;
+    let draws=0,frames=0;const started=performance.now();
+    context.clearRect=function(...args){draws++;return clear.apply(this,args)};
+    const tick=time=>{frames++;if(time-started<1500)requestAnimationFrame(tick);else{context.clearRect=clear;resolve({draws,frames,elapsed:time-started})}};
+    requestAnimationFrame(tick);
+  }));
+  expect(cadence.draws/cadence.frames).toBeGreaterThan(0.85);
+  fs.writeFileSync(new URL('screen-animation-cadence.json',dir),JSON.stringify(cadence,null,2));
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await expect.poll(()=>mapHeads(page)).toBe('');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await expect.poll(async()=>(await mapHeads(page)).length).toBeGreaterThan(0);
   await expect(page.locator('.protection-node')).toHaveCount(1);
   await expect(page.locator('.protection-node')).toContainText('上海市 · 城市示意位置');
   expect(Number(await page.locator('.protection-node').getAttribute('data-longitude'))).toBeCloseTo(121.4346, 1);
@@ -430,6 +460,7 @@ try {
   await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
   await page.getByRole('button', { name: '退出全屏' }).click();
   await page.getByRole('button', { name: '暂停自动刷新' }).click();
+  await expect.poll(()=>mapHeads(page)).toBe('');
   const before = calls;
   await page.waitForTimeout(5400);
   if (calls !== before) throw new Error('Polling while paused');

@@ -367,7 +367,7 @@
   height: 3px;
   border-radius: 3px;
   background: var(--screen-bg);
-  margin-top: 8px;
+  margin-top: 5px;
   overflow: hidden;
 }
 .rank-track span {
@@ -692,8 +692,10 @@
     flex: 1;
     min-height: 0;
     justify-content: space-evenly;
-    gap: 8px;
-    margin: 12px 0;
+    gap: 4px;
+    margin: 8px 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
   .ip-ranking li {
     flex-shrink: 0;

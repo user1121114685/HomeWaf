@@ -8,7 +8,7 @@
         <button aria-label="关闭节点设置" @click="targetDialog?.close()">×</button>
       </div>
       <p>
-        自动识别服务器出网公网 IP 和城市，优先使用国内 IPIP 服务，失败后尝试 IPinfo。定位由后端完成，每 30 分钟更新；IP
+        后端直连国内 IPIP 查询公网 IP 与城市，每 30 分钟更新。查询失败时保留上次位置，不使用海外代理出口替代；IP
         定位为近似位置。
       </p>
       <form @submit.prevent="saveTarget">
@@ -26,7 +26,7 @@
             <dt>归属城市</dt>
             <dd>{{ [target.country, target.region, target.city].filter(Boolean).join(' · ') }}</dd>
             <dt>数据来源</dt>
-            <dd>{{ target.source === 'ipip.net' ? 'IPIP（国内优先）' : 'IPinfo（备用）' }}</dd>
+            <dd>{{ target.source === 'ipip.net' ? 'IPIP（国内直连）' : target.source || '未提供' }}</dd>
             <dt>探测时间</dt>
             <dd>{{ target.checked_at ? new Date(target.checked_at).toLocaleString() : '—' }}</dd>
           </dl>
